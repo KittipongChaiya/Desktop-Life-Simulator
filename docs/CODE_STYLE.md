@@ -312,8 +312,11 @@ The layering below is **mechanically enforced** by `eslint-plugin-boundaries` an
 | `src/main`            | `shared`, `persistence`, `electron`, `node:*` | `sim` systems, `pixi.js`, `react`, `renderer`                               |
 | `src/preload`         | `shared`                                      | everything else                                                             |
 | `src/devtools`        | `shared`, `sim` (read-only)                   | `electron`, `pixi.js`, and **anything importing it**                        |
+| `src/renderer/entry`  | `bootstrap` — and only its `start.tsx`        | everything else, including `electron`, `react`, `sim`, `shared`, `devtools` |
 
 **`src/devtools` is import-only-by-bootstrap.** Game systems must never depend on debug infrastructure (phase-01.5 deliverable 8); the renderer bootstrap mounts it, and nothing else may reference it. Enforced by the boundary linter.
+
+**The renderer entry may import exactly one module.** Entry files sit above every layer, so they tend to match no rule and end up able to import anything — true here until phase-01.7, when `main.tsx` could import `electron` with no complaint. `boundaries/entry-point` restricts it to bootstrap's composition root, making bootstrap internals unreachable from the entry.
 
 **`console.*` is banned across `src/`.** The single exception is `src/devtools/logger/console-sink.ts`, which is the console boundary and opts out with a file-level disable and a reason.
 

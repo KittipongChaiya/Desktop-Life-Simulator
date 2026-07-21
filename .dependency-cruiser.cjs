@@ -37,7 +37,10 @@ module.exports = {
     // snapshot store contract, the simulation control surface) look like
     // orphans, and cycles that run through types go undetected.
     tsPreCompilationDeps: true,
-    exclude: { path: '\\.test\\.ts$' },
+    // `tsx?` matters: `\\.test\\.ts$` did not match `.test.tsx`, so React
+    // component tests were analysed as production modules and produced a
+    // ui -> bootstrap edge that no source file actually has.
+    exclude: { path: '\\.test\\.tsx?$' },
     tsConfig: { fileName: 'tsconfig.renderer.json' },
     enhancedResolveOptions: {
       exportsFields: ['exports'],

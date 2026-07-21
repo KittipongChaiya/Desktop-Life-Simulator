@@ -34,6 +34,11 @@ const ELEMENTS = [
   { type: 'preload', pattern: 'src/preload' },
   { type: 'plugins', pattern: 'plugins' },
   { type: 'devtools', pattern: 'src/devtools' },
+  // The renderer entry lives in its own folder so it can be matched as an
+  // element at all. Element patterns are FOLDER patterns; a file glob such as
+  // 'src/renderer/main.tsx' leaves the file isUnknown and therefore
+  // unconstrained — which is exactly the hole this closes.
+  { type: 'entry', pattern: 'src/renderer/entry' },
 ];
 
 /** Which layers may import which. Anything not listed is forbidden. */
@@ -48,6 +53,9 @@ const LAYER_POLICIES = [
   // (phase-01.5 deliverable 8). Absence from every other `to` list is what
   // enforces that.
   { from: 'devtools', to: ['shared', 'sim', 'devtools'] },
+  // The entry point composes nothing itself; it calls the bootstrap
+  // composition root and stops. Everything else is denied by omission.
+  { from: 'entry', to: ['bootstrap'] },
   { from: 'main', to: ['shared', 'persistence', 'main'] },
   { from: 'preload', to: ['shared', 'preload'] },
   { from: 'plugins', to: ['shared', 'sim', 'plugins'] },
@@ -78,6 +86,8 @@ const FORBIDDEN_EXTERNALS = [
   { from: ['ui'], disallow: ['pixi.js', 'electron'] },
   { from: ['plugins'], disallow: ['pixi.js', 'react', 'react-dom', 'electron'] },
   { from: ['devtools'], disallow: ['electron', 'pixi.js'] },
+  // The entry renders nothing and talks to no platform API directly.
+  { from: ['entry'], disallow: ['electron', 'pixi.js', 'react', 'react-dom'] },
 ];
 
 export default tseslint.config(
@@ -167,7 +177,28 @@ export default tseslint.config(
     settings: {
       // REQUIRED: without a TypeScript resolver, extensionless relative imports
       // do not resolve and every internal layer violation passes silently.
-      'import/resolver': { typescript: { alwaysTryTypes: true } },
+      //
+      // `project` MUST list the real tsconfigs. The root tsconfig.json is a
+      // solution file with `files: []` and no `paths`, so a resolver pointed at
+      // it cannot resolve path aliases — an aliased import (`@devtools/flags`)
+      // resolved to null, was treated as an external package, and bypassed the
+      // layer check entirely, while the equivalent relative import was caught.
+      // Found in phase-01.7 by probing both forms of the same import.
+      'import/resolver': {
+        typescript: {
+          alwaysTryTypes: true,
+          project: [
+            'tsconfig.renderer.json',
+            'tsconfig.main.json',
+            'tsconfig.sim.json',
+            'tsconfig.tools.json',
+          ],
+          // Four projects is intentional — each environment has different libs
+          // and aliases (TECH_STACK.md §3.1). The resolver's perf hint does not
+          // apply, so silence it rather than collapsing them.
+          noWarnOnMultipleProjects: true,
+        },
+      },
       'boundaries/elements': ELEMENTS,
     },
     rules: {
@@ -186,6 +217,25 @@ export default tseslint.config(
       ],
       // Per-layer third-party package bans. See FORBIDDEN_EXTERNALS note above.
       'boundaries/external': ['error', { default: 'allow', rules: FORBIDDEN_EXTERNALS }],
+
+      // WHICH FILE of a layer outsiders may import. This is what makes
+      // "no bootstrap internals" enforceable: bootstrap exposes start.tsx and
+      // nothing else, so the entry cannot reach past the composition root.
+      // Every other element keeps the default (any file), because their
+      // internal structure is already governed by the layer policies above.
+      'boundaries/entry-point': [
+        'error',
+        {
+          default: 'allow',
+          rules: [
+            // Ordered: deny everything in bootstrap, then re-allow the
+            // composition root. Combining both keys in one rule lets the
+            // denial win and blocks start.tsx too.
+            { target: ['bootstrap'], disallow: '*' },
+            { target: ['bootstrap'], allow: 'start.tsx' },
+          ],
+        },
+      ],
     },
   },
 
@@ -249,6 +299,7 @@ export default tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       'boundaries/dependencies': 'off',
+      'boundaries/entry-point': 'off',
       'no-restricted-properties': 'off',
       'no-restricted-globals': 'off',
       'no-console': 'off',

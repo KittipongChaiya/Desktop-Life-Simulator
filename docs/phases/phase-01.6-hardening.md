@@ -99,8 +99,6 @@ The architectural documentation stands unchanged: `ARCHITECTURE.md` §3.5 specif
 
 ---
 
-## 5. Open Item
+## 5. Open Item — CLOSED in phase-01.7
 
-**The renderer entry point remains outside the boundary linter** (§2.3). The fix is an element covering `src/renderer` plus a policy allowing `shared`, `sim`, `ui`, `bootstrap`, and `devtools` while denying `electron` and `pixi.js`.
-
-`eslint.config.js` is protected by a hook. This was not treated as a routine edit and is left for explicit approval — the same handling as the phase-01.5 boundary addition.
+The renderer entry hole (§2.3) was closed by `docs/phases/phase-01.7-entry-boundary.md`, which also uncovered a larger problem: path-aliased imports were bypassing every layer check project-wide.

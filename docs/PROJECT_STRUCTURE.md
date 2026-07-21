@@ -114,8 +114,13 @@ src/
 │
 ├── renderer/
 │   ├── index.html
-│   ├── main.tsx                Renderer entry: boot sim, render, UI
+│   ├── entry/
+│   │   └── main.tsx            Entry point. May import ONLY bootstrap/start.
+│   │                        Its own folder so the boundary linter can match
+│   │                        it — element patterns are folder patterns.
 │   ├── bootstrap/
+│   │   ├── start.tsx           Composition root — the ONLY file the entry
+│   │   │                       may import (boundaries/entry-point)
 │   │   ├── loop.ts             Accumulator loop (ADR-007 §3)
 │   │   ├── snapshot-store.ts   Sliced store + throttling (ADR-005 §2)
 │   │   └── intent-dispatch.ts

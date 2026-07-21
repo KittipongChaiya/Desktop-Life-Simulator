@@ -33,6 +33,7 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 00   | Foundation               | Toolchain, three tsconfigs, boundary linter, asset pipeline, tick loop, CI       | Empty window, headless sim ticks    |
 | 01   | Overlay                  | Docked transparent window, click-through, tray, collapse/expand, snapshot bridge | A livable overlay with a status bar |
 | 01.5 | Developer Infrastructure | Debug overlay, console, profiler, inspector, logger, feature flags               | Tooling usable in a running app     |
+| 01.7 | Entry Boundary           | Renderer entry constrained; alias-resolution hole closed                         | No behavior change                  |
 | 02   | Tile World               | PixiJS, 7 layers, terrain chunks, camera, render-on-demand                       | A visible, pannable farm plot       |
 | 03   | Farming                  | Crops, growth, till/plant/water/harvest, content registries                      | The manual loop is playable         |
 | 04   | Worker AI                | Worker entities, FSM, pathing, task priority, energy                             | **Stage 2 — delegation**            |
