@@ -33,6 +33,10 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
+    // Follow type-only imports. Without this, interface-only modules (the
+    // snapshot store contract, the simulation control surface) look like
+    // orphans, and cycles that run through types go undetected.
+    tsPreCompilationDeps: true,
     exclude: { path: '\\.test\\.ts$' },
     tsConfig: { fileName: 'tsconfig.renderer.json' },
     enhancedResolveOptions: {

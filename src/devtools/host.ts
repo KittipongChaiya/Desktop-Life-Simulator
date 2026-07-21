@@ -10,6 +10,8 @@
  * convention.
  */
 
+import type { SimulationControl } from '../shared/simulation-control';
+
 import { createBuiltinCommands } from './console/builtins';
 import { createConsoleEngine, type ConsoleEngine } from './console/engine';
 import { createCommandRegistry, type CommandRegistry } from './console/registry';
@@ -19,7 +21,6 @@ import { createConsoleSink } from './logger/console-sink';
 import { createLogManager, LogLevel, type LogManager } from './logger/logger';
 import { createMetricRegistry, MetricGroup, type MetricRegistry } from './metrics/registry';
 import { createNullProfiler, createProfiler, type Profiler } from './profiler/profiler';
-import type { SimulationControl } from './simulation-control';
 
 export interface DevToolsHost {
   readonly logs: LogManager;

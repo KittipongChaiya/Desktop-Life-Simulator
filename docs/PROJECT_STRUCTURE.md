@@ -53,6 +53,8 @@ src/
 │   ├── errors.ts               AppError taxonomy
 │   ├── ids.ts                  Branded ID types
 │   ├── geometry.ts             TilePosition, Rect, index↔coord helpers
+│   ├── simulation-control.ts   Loop control contract (bootstrap implements,
+│   │                           devtools consumes; neither depends on the other)
 │   └── ipc/
 │       ├── contract.ts         Typed channel definitions
 │       └── schemas.ts          Runtime validators for IPC payloads
@@ -94,6 +96,8 @@ src/
 │   │   └── project.ts          World → slice projection
 │   ├── rng/
 │   │   └── rng.ts              Seeded PRNG. The ONLY randomness source.
+│   ├── time/
+│   │   └── game-clock.ts       Tick↔time conversion. The time source.
 │   ├── pathing/
 │   │   └── astar.ts
 │   └── tick.ts                 stepSimulation(world)

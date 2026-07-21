@@ -1,11 +1,14 @@
 /**
- * The control surface devtools needs over the frame loop.
+ * The control surface for the frame loop.
  *
- * The INTERFACE lives here; the IMPLEMENTATION lives in the renderer bootstrap,
- * which owns the loop. That direction matters: `bootstrap` may import
- * `devtools`, but nothing in the game may import devtools (deliverable 8). If
- * this interface lived in bootstrap, devtools would depend on it and the
- * dependency would run the wrong way.
+ * Lives in `shared` because BOTH sides need it and neither may depend on the
+ * other: the renderer bootstrap implements it, devtools consumes it, and
+ * nothing in the game may import devtools (phase-01.5 deliverable 8).
+ *
+ * It was originally declared in `src/devtools/`. That gave `game-loop.ts` — game
+ * code — a source dependency on the debug layer. Type-only, so erased at build
+ * time and invisible at runtime, but still a compile-time edge pointing the
+ * wrong way. Found by the phase-01.6 architecture review.
  *
  * Pausing is a development capability, not a game feature. There is no pause in
  * the shipped product — an idle game that can be paused is a contradiction, and

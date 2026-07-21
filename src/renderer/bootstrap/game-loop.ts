@@ -9,7 +9,7 @@
  * an idle game you can pause is a contradiction (VISION.md §2.2).
  */
 
-import type { SimulationControl } from '../../devtools/simulation-control';
+import type { SimulationControl } from '../../shared/simulation-control';
 import { stepSimulationBy } from '../../sim/tick';
 import type { World } from '../../sim/world/world';
 

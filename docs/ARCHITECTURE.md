@@ -132,7 +132,28 @@ Registries: `crops`, `items`, `buildings`, `tileKinds`, `workerRoles`.
 
 **Systems never hardcode content.** No `switch (cropId)` anywhere. A system asks the registry for a definition and acts on its data. This is what makes a plugin-added crop work with zero core changes, and it is the rule most likely to be violated by a session taking a shortcut.
 
+### 3.4a Simulation time
+
+`src/sim/time/game-clock.ts` is the authoritative conversion between ticks and
+human time. `world.tick` remains the only notion of time the simulation has
+(ADR-007 §1); the clock owns the derivation so it lives in one place.
+
+**Rendering timing is independent.** The render loop measures real elapsed
+milliseconds for interpolation (ADR-007 §5) and does not route through the
+clock — presentation timing and simulation time are different concerns.
+
+Extension points (game days, seasons, offline catch-up) are documented in
+`docs/phases/phase-01.6-hardening.md` §1 rather than stubbed, because each needs
+semantics that only its owning system can define.
+
 ### 3.5 Events
+
+> **Status: designed, not yet built.** The bus lands in **phase-03**, where
+> `harvestSystem` produces the first real event (`cropHarvested`) and inventory
+> consumes it. It was deliberately not built earlier: with one system in
+> existence there were no producers, no consumers, and no cross-system calls to
+> replace, so the API would have been designed against imagined use cases.
+> See `docs/phases/phase-01.6-hardening.md` §3.
 
 A typed, synchronous, in-simulation bus. Events are **queued during the tick and flushed by `eventFlushSystem`**, never dispatched mid-system — dispatching mid-system would let a listener mutate state another system is iterating.
 
