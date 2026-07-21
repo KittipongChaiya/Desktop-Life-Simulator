@@ -28,7 +28,7 @@ This document describes _what the parts are and how they talk_. Every significan
 │   │  │ panels, HUD       │        │ 7 layers, dirty-gated    │  │   │
 │   │  └─────────┬─────────┘        └────────────┬─────────────┘  │   │
 │   └────────────┼───────────────────────────────┼────────────────┘   │
-│         intents│                       snapshots│                    │
+│        commands│                       snapshots│                    │
 │                ▼                               ▲                    │
 │   ┌────────────────────────────────────────────┴────────────────┐   │
 │   │  SIM  (pure · deterministic · headless)                     │   │
@@ -85,7 +85,7 @@ This single invariant is what makes the game testable at 90% coverage, savable (
 | `workers`             | `Map<WorkerId, Worker>`                             | Sparse, irregular, few                                |
 | `buildings`           | `Map<BuildingId, Building>`                         | Sparse                                                |
 | `inventory`, `wallet` | Single records                                      | Singletons                                            |
-| `intents`             | FIFO queue                                          | Drained each tick by `intentSystem`                   |
+| `commands`            | FIFO queue behind a dispatcher                      | Drained each tick by `commandSystem` (ADR-010)        |
 | `events`              | Typed bus                                           | Flushed each tick by `eventFlushSystem`               |
 | `rng`                 | Seeded PRNG                                         | Deterministic; `Math.random()` is banned              |
 
@@ -94,15 +94,15 @@ This single invariant is what makes the game testable at 90% coverage, savable (
 Fixed 20 Hz, accumulator-driven, decoupled from render (ADR-007). System order is declared once:
 
 ```
-intentSystem → growthSystem → workerSystem → movementSystem
-             → harvestSystem → economySystem → eventFlushSystem → snapshotSystem
+commandSystem → growthSystem → workerSystem → movementSystem
+              → harvestSystem → economySystem → eventFlushSystem → snapshotSystem
 ```
 
-Correctness-critical orderings (`intentSystem` first, `growthSystem` before `harvestSystem`, `snapshotSystem` last) are documented in ADR-007 §4 and covered by tests.
+Correctness-critical orderings (`commandSystem` first, `growthSystem` before `harvestSystem`, `snapshotSystem` last) are documented in ADR-007 §4 and ADR-010 §3, and covered by tests.
 
 ### 3.3 Systems
 
-A system is a free function `(world: World) => void`. It may mutate stores it owns (`CODE_STYLE.md` §2.2), and must not:
+A system is a free function `(world: World) => void`. It may mutate stores it owns (`CODE_STYLE.md` §2.2) — and since ADR-010, **only through a command handler** (§3.3a), never by writing a store directly. It must not:
 
 - read a clock or call `Math.random()`
 - perform I/O or log
@@ -111,7 +111,7 @@ A system is a free function `(world: World) => void`. It may mutate stores it ow
 
 | System             | Owns                               | Reads                                |
 | ------------------ | ---------------------------------- | ------------------------------------ |
-| `intentSystem`     | `intents`                          | everything (validates, then applies) |
+| `commandSystem`    | the command queue                  | everything (validates, then applies) |
 | `growthSystem`     | `crops.growth`, `crops.stage`      | `tiles` (moisture)                   |
 | `workerSystem`     | `workers.state`, `workers.task`    | `crops`, `tiles`, `buildings`        |
 | `movementSystem`   | `workers.position`, `workers.path` | `tiles` (walkability)                |
@@ -119,6 +119,35 @@ A system is a free function `(world: World) => void`. It may mutate stores it ow
 | `economySystem`    | `wallet`, price state              | `inventory`                          |
 | `eventFlushSystem` | `events`                           | —                                    |
 | `snapshotSystem`   | snapshot slices                    | everything (read-only)               |
+
+### 3.3a Commands — the only write path
+
+> **Status: BUILT (phase-03.5).** ADR-010 records the decision.
+
+`World` and its stores are readable from anywhere and **writable only from a command handler**. Player input, worker AI, automation, and replay all go through one dispatcher; none gets a shortcut.
+
+```
+dispatch(command)                       commandSystem (preUpdate, FIRST)
+  ├─ validate  ── pure, no mutation       ├─ re-validate
+  ├─ rejected ──► CommandResult           ├─ execute  ── mutates
+  │               world untouched         └─ publish  ── queued to the bus
+  │               nothing published
+  └─ accepted ──► queued                          ↓
+                                          eventFlush (postUpdate)
+```
+
+Four properties this buys, each asserted by test:
+
+| Property                             | Why it matters                                                  |
+| ------------------------------------ | --------------------------------------------------------------- |
+| Dispatch never mutates               | A rejected command leaves the world byte-identical              |
+| Execution is on a tick boundary      | Outcome no longer depends on where in a frame the call happened |
+| Events publish only on success       | The event stream stays a record of facts (ADR-008 §2)           |
+| Commands are plain serializable data | `seed + ordered command stream` is a replay format for free     |
+
+**Validation is two-stage on purpose.** `dispatch` validates against _committed_ state so the caller gets immediate feedback; handlers re-validate at execution because the world can change in between. A command whose precondition only a still-queued command would satisfy is therefore rejected at dispatch — the caller re-issues once it lands.
+
+The rule "nothing outside `src/sim/commands/` writes to a world store" is not expressible to the boundary linter, which sees imports rather than mutations. It is held by convention, review, and the mechanical aid that mutating code is confined to one directory (ADR-010 §1).
 
 ### 3.4 Content registries
 
@@ -176,17 +205,18 @@ Core uses the bus for its own decoupling in v0.1, so the hook points are real an
 
 ## 4. Data Flow
 
-### 4.1 Intents down
+### 4.1 Commands down
 
 ```
 Click / keypress
-  → UI builds an Intent          { type: 'plant', tile: 4172, seed: 'core:wheat' }
-  → dispatched to the intent queue
-  → next tick: intentSystem validates → applies → emits Result + events
-  → failure surfaces as a UI notification; state is untouched
+  → UI builds a Command          { type: 'plantCrop', tile: 4172, cropId: 'core:wheat' }
+  → dispatch() validates purely → accepted or rejected IMMEDIATELY
+  → accepted: queued; world untouched, nothing published
+  → next tick: commandSystem re-validates → executes → publishes events
+  → rejection surfaces as a UI notification; state is untouched
 ```
 
-Applying intents **on a tick boundary** is what preserves determinism (ADR-007 §1) and puts every player action in the shape a replay or network layer would need.
+Applying commands **on a tick boundary** is what preserves determinism (ADR-007 §1), and because a command is plain serializable data, every player action is already in the shape a replay or network layer would need (ADR-010 §5). Worker AI and automation emit the same commands through the same dispatcher — §3.3a.
 
 ### 4.2 Snapshots up
 
@@ -235,7 +265,7 @@ The render layer holds **no authoritative state**. It maps `snapshot → scene g
 
 ## 6. UI
 
-React renders panels only, in a DOM tree sibling to the canvas (ADR-005 §1). It subscribes to snapshot slices, dispatches intents, and never imports from `src/sim/systems/` or `pixi.js`.
+React renders panels only, in a DOM tree sibling to the canvas (ADR-005 §1). It subscribes to snapshot slices, dispatches commands, and never imports from `src/sim/systems/` or `pixi.js`.
 
 The UI root is pointer-transparent except over actual controls, which combined with the main process's `setIgnoreMouseEvents(..., { forward: true })` is what makes click-through work (phase-01).
 
@@ -289,6 +319,14 @@ First-party content registers through the **public plugin API** but is staticall
 4. Add `catchUp` if it accrues over time (ADR-007 §6)
 5. Add unit tests, including a determinism test
 
+### A new gameplay action
+
+1. Add a member to the `Command` union in `src/sim/commands/types.ts` — plain data, primitive fields only
+2. Write its `validate` (pure) and `execute` (mutates, re-validates) halves in `src/sim/commands/`
+3. Register it explicitly; never rely on discovery (ADR-010 §8)
+4. Add tests for accept, reject, queued execution, and "rejected publishes nothing"
+5. Never add an exported mutator instead — that is the failure mode ADR-010 exists to prevent
+
 ### A new content type
 
 1. Define the definition type in `src/sim/content/`
@@ -302,7 +340,7 @@ First-party content registers through the **public plugin API** but is staticall
 
 1. Component in `src/renderer/app/panels/`
 2. Subscribe only to the slices it reads; add a slice if needed, with its change condition
-3. Dispatch intents; never mutate
+3. Dispatch commands; never mutate
 4. Verify no re-render occurs on a static world (ADR-005 §Validation)
 
 ### A new IPC channel
@@ -323,6 +361,7 @@ First-party content registers through the **public plugin API** but is staticall
 | Snapshot over-publishing | A slice republishing every tick              | The zero-React-commit idle test (ADR-005) fails                         |
 | Sim thread contention    | p99 tick > 3 ms                              | Move sim to a worker (ADR-003 §2)                                       |
 | Content hardcoding       | `switch (cropId)` in a system                | Review gate; breaks plugin support silently                             |
+| Write-path erosion       | A store mutated outside `src/sim/commands/`  | Review gate; replay stops reproducing before anything visibly fails     |
 | Save schema drift        | Persisted shape changed without a migration  | Golden-fixture tests fail (ADR-002)                                     |
 
 Each risk has a mechanical detector. That is deliberate — architectural invariants that rely on vigilance decay, and the ones here have to survive a hundred sessions.

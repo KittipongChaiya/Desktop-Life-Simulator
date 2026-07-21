@@ -10,6 +10,8 @@
  * (AI_RULES.md §3.2).
  */
 
+import { registerCropCommands } from '../commands/crop-commands';
+import { createCommandDispatcher, type CommandDispatcher } from '../commands/dispatcher';
 import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
 import {
   createTileKindRegistry,
@@ -65,6 +67,15 @@ export interface World {
   readonly events: EventBus;
 
   /**
+   * THE ONLY WRITE PATH INTO THIS WORLD (ADR-010 §1).
+   *
+   * Every store above is readable from anywhere and writable only from a
+   * command handler. Per-world, never a module singleton, so two worlds can
+   * coexist in one process (ADR-010 §8).
+   */
+  readonly commands: CommandDispatcher;
+
+  /**
    * Entity ID allocation. An ID SERVICE, not an entity store — systems keep
    * their own typed stores (ADR-004).
    */
@@ -105,12 +116,20 @@ export function createWorld(seed: number): World {
     cropRegistry,
     cropStats,
     events,
+    // Reads `world` lazily. The closure runs at dispatch time, never during
+    // construction, so the self-reference is sound — and it is what keeps the
+    // dispatcher bound to exactly one world (ADR-010 §8).
+    commands: createCommandDispatcher(() => world),
     ids: createIdAllocator(),
     snapshots: createSnapshotState(),
   };
 
   // Wire the consumer before any command can publish.
   attachCropStats(events, cropStats, () => world.tick);
+
+  // Explicit registration, not discovery: the command set must not depend on
+  // import order (ADR-010 §8).
+  registerCropCommands(world.commands);
 
   return world;
 }

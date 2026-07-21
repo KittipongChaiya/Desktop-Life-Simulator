@@ -72,7 +72,7 @@ src/
 │   │   ├── index.ts            TICK_SYSTEMS — the declared schedule
 │   │   ├── scheduler.ts        Phase ordering + startup validation
 │   │   ├── event-flush.ts      Publishes and drains the tick's events
-│   │   ├── intent.ts
+│   │   ├── command.ts          Drains the command queue. Runs FIRST (ADR-010)
 │   │   ├── growth.ts
 │   │   ├── worker.ts
 │   │   ├── movement.ts
@@ -87,9 +87,12 @@ src/
 │   │   ├── buildings.ts
 │   │   ├── tile-kinds.ts
 │   │   └── worker-roles.ts
-│   ├── intents/
-│   │   ├── types.ts            Intent union
-│   │   └── queue.ts
+│   ├── commands/               THE ONLY WRITE PATH INTO THE SIM (ADR-010)
+│   │   ├── types.ts            Command union, metadata, results, CommandWorld
+│   │   ├── queue.ts            FIFO queue + pending-window de-duplication
+│   │   ├── dispatcher.ts       Registration, validation, queueing, draining
+│   │   ├── sources.ts          Producer interfaces — player/worker/automation/replay
+│   │   └── crop-commands.ts    till / plant / harvest handlers + validators
 │   ├── entities/
 │   │   └── id-allocator.ts     Stable ID allocation. NOT an entity store.
 │   ├── events/
@@ -130,7 +133,7 @@ src/
 │   │   │                       may import (boundaries/entry-point)
 │   │   ├── loop.ts             Accumulator loop (ADR-007 §3)
 │   │   ├── snapshot-store.ts   Sliced store + throttling (ADR-005 §2)
-│   │   └── intent-dispatch.ts
+│   │   └── command-dispatch.ts
 │   ├── render/                 PixiJS only — no React
 │   │   ├── app.ts              Pixi init, backend detection, teardown
 │   │   ├── dirty-gate.ts       Render-on-demand gate (ADR-001 §1)
@@ -151,7 +154,7 @@ src/
 │       ├── App.tsx
 │       ├── hooks/
 │       │   ├── use-slice.ts    useSyncExternalStore wrapper
-│       │   └── use-intent.ts
+│       │   └── use-command.ts
 │       ├── panels/
 │       │   ├── InventoryPanel.tsx
 │       │   ├── ShopPanel.tsx
@@ -195,6 +198,7 @@ src/
 
 | If the code…                             | It goes in             |
 | ---------------------------------------- | ---------------------- |
+| **writes to a world store**              | `src/sim/commands/`    |
 | decides what happens in the game         | `src/sim/systems/`     |
 | defines game state shape                 | `src/sim/world/`       |
 | defines a _kind_ of thing (a crop type)  | `src/sim/content/`     |
@@ -232,7 +236,7 @@ tests/
 ├── integration/
 │   ├── save-round-trip.test.ts
 │   ├── migration-chain.test.ts
-│   └── determinism.test.ts     Same seed + intents → identical state
+│   └── determinism.test.ts     Same seed + commands → identical state
 ├── property/                   fast-check
 │   ├── save.property.test.ts
 │   └── catch-up.property.test.ts
@@ -309,7 +313,7 @@ docs/
 ├── ASSETS.md              Asset pipeline and conventions
 ├── TESTING.md             Strategy, tooling, coverage gates
 ├── CHANGELOG.md           Semantic-versioned change history
-├── decisions/             ADR-001 … ADR-007
+├── decisions/             ADR-001 … ADR-010
 └── phases/                phase-00 … phase-07
 ```
 

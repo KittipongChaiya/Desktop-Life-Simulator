@@ -15,6 +15,7 @@ export const ErrorCode = {
   UnknownContent: 'unknown_content',
   DuplicateContent: 'duplicate_content',
   InvalidIntent: 'invalid_intent',
+  DuplicateCommand: 'duplicate_command',
   PathUnreachable: 'path_unreachable',
   SaveCorrupt: 'save_corrupt',
   SaveFromNewerVersion: 'save_from_newer_version',

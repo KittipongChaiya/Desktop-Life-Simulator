@@ -314,9 +314,13 @@ Blocking rather than discarding is deliberate. Losing a harvest to a full invent
 
 Player actions are **instant**; worker actions take time (§4.3). The player is more efficient per action but has finite attention — which is precisely the trade the game is about.
 
-### 8.2 Intent model
+### 8.2 Command model
 
-Every action becomes an Intent applied on the next tick boundary (ADR-003 §5, ADR-007 §4). At 20 Hz the worst-case latency is 50 ms — imperceptible — and determinism is preserved.
+Every action becomes a Command, accepted or rejected immediately and applied on the next tick boundary (ADR-010). At 20 Hz the worst-case latency is 50 ms — imperceptible — and determinism is preserved.
+
+"Instant" above is about **feedback, not application**. The player learns straight away whether an action was legal, because validation is pure and runs at the moment of the click; the world changes up to one tick later. The two are separable, and separating them is what keeps the outcome independent of where in a frame the click landed.
+
+Workers, automation, and the player all issue the **same** commands through the same path (ADR-010 §6). There is no faster route for any of them — which is what makes the player's efficiency advantage a matter of attention, as §8.1 intends, rather than an artifact of the code.
 
 Failures surface as a brief inline message ("Inventory full", "Not enough coins"). Never a modal dialog (§10).
 

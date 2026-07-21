@@ -12,10 +12,11 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Complete documentation foundation: vision, roadmap, architecture, game design, and development rules
-- Seven architecture decision records covering rendering, persistence, process architecture, entity model, UI framework, asset pipeline, and simulation tick
+- Ten architecture decision records covering rendering, persistence, process architecture, entity model, UI framework, asset pipeline, simulation tick, event system, world model, and the command model
 - Eight phase specifications for v0.1 (foundation through save/load)
 - Project foundation (phase-00): build toolchain, architecture boundary enforcement, asset pipeline, seeded RNG, and the 20 Hz fixed-timestep loop
 - Docked overlay with click-through, tray, and collapse/expand (phase-01)
+- Command model (phase-03.5): a single dispatcher as the only write path into the simulation — commands validate purely at dispatch, queue, and execute on the tick boundary, publishing events only on success (ADR-010)
 - World and crop domain (phase-03): tile states, four crops, deterministic growth, plant/harvest commands
 - Engine foundations (phase-02.5): typed event bus, phase-based simulation scheduler, deterministic ID allocation, development time scaling
 - Tile world with render-on-demand (phase-02)

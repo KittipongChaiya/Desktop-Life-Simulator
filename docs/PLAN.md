@@ -37,6 +37,7 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 02.5 | Engine Foundations       | Event bus, scheduler, ID allocator, time scaling                                 | No gameplay                         |
 | 02   | Tile World               | PixiJS, 7 layers, terrain chunks, camera, render-on-demand                       | A visible, pannable farm plot       |
 | 03   | Farming                  | Crops, growth, till/plant/water/harvest, content registries                      | The manual loop is playable         |
+| 03.5 | Command Model            | Command dispatcher, queue, tick-boundary execution, source interfaces            | No behavior change                  |
 | 04   | Worker AI                | Worker entities, FSM, pathing, task priority, energy                             | **Stage 2 — delegation**            |
 | 05   | Inventory                | Items, stacks, capacity, storage buildings                                       | Unattended runs become possible     |
 | 06   | Economy                  | Coins, dynamic pricing, shop, land expansion, buildings                          | **Stage 4 — full idle loop**        |
