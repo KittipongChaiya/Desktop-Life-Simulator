@@ -143,6 +143,19 @@ src/
 │       ├── components/         Shared primitives (Button, List, Modal)
 │       └── styles/             CSS Modules
 │
+├── devtools/                   DEVELOPER TOOLING — nothing in the game may
+│   │                           import this (phase-01.5 deliverable 8).
+│   │                           Excluded from production builds entirely.
+│   ├── flags.ts                Feature flags, injected as Vite `define` literals
+│   ├── host.ts                 Composition root; created only if FEATURE_DEBUG
+│   ├── simulation-control.ts   Interface bootstrap implements (pause/step/rates)
+│   ├── logger/                 Levels, subsystems, sinks, console sink
+│   ├── profiler/               Rolling-window scope timings
+│   ├── metrics/                Registry backing the F3 overlay
+│   ├── console/                Command registry + engine (F1)
+│   ├── inspector/              Inspection provider registry (F4)
+│   └── ui/                     DebugOverlay, DevConsole, Inspector
+│
 ├── main/                       Electron main process
 │   ├── index.ts                Entry
 │   ├── overlay-window.ts       Frameless, transparent, docked, always-on-top
@@ -160,17 +173,18 @@ src/
 
 ### 2.1 Placement rules
 
-| If the code… | It goes in |
-|---|---|
-| decides what happens in the game | `src/sim/systems/` |
-| defines game state shape | `src/sim/world/` |
-| defines a *kind* of thing (a crop type) | `src/sim/content/` |
-| draws the world | `src/renderer/render/` |
-| draws a panel or control | `src/renderer/app/` |
-| touches the filesystem | `src/main/` |
-| touches `BrowserWindow` or `screen` | `src/main/` |
-| converts world ↔ save | `src/persistence/` |
-| is a type or constant used by two layers | `src/shared/` |
+| If the code…                             | It goes in             |
+| ---------------------------------------- | ---------------------- |
+| decides what happens in the game         | `src/sim/systems/`     |
+| defines game state shape                 | `src/sim/world/`       |
+| defines a _kind_ of thing (a crop type)  | `src/sim/content/`     |
+| draws the world                          | `src/renderer/render/` |
+| draws a panel or control                 | `src/renderer/app/`    |
+| touches the filesystem                   | `src/main/`            |
+| touches `BrowserWindow` or `screen`      | `src/main/`            |
+| is a debugging or development aid        | `src/devtools/`        |
+| converts world ↔ save                    | `src/persistence/`     |
+| is a type or constant used by two layers | `src/shared/`          |
 
 If it seems to belong in two places, it is two things. Split it.
 
@@ -230,7 +244,7 @@ plugins/
 
 `plugins/core/` registers through the **public plugin API** while being statically imported (ADR-003 §6). This proves the API is sufficient before third parties depend on it.
 
-**No plugin loader exists in v0.1.** `plugins/core/index.ts` is imported directly by the sim bootstrap. Adding the v0.2 loader changes *how* content arrives, not the content system's shape.
+**No plugin loader exists in v0.1.** `plugins/core/index.ts` is imported directly by the sim bootstrap. Adding the v0.2 loader changes _how_ content arrives, not the content system's shape.
 
 ---
 
@@ -305,5 +319,5 @@ Obtained via `app.getPath('userData')`. **Never hardcode a path.** Game state li
 1. **Adding a top-level directory requires an ADR.** The tree encodes the architecture; changing it changes the architecture.
 2. **Adding a directory under `src/sim/` or `src/renderer/` requires updating this file in the same commit** (`AI_RULES.md` §5.1).
 3. **Never create `utils/`, `helpers/`, `common/`, or `misc/`.** These become dumping grounds where cohesion goes to die. Name the directory for what it does; if you cannot, the code belongs somewhere that already exists.
-4. **Never add a barrel `index.ts` that re-exports a whole directory** (`CODE_STYLE.md` §1.2). The one permitted `index.ts` files are `src/sim/systems/index.ts` (the ordered tick list) and `src/persistence/migrations/index.ts` (the ordered chain) — both are *ordered data*, not re-exports.
+4. **Never add a barrel `index.ts` that re-exports a whole directory** (`CODE_STYLE.md` §1.2). The one permitted `index.ts` files are `src/sim/systems/index.ts` (the ordered tick list) and `src/persistence/migrations/index.ts` (the ordered chain) — both are _ordered data_, not re-exports.
 5. **Generated files are never committed** and always carry a `GENERATED — do not edit` header.

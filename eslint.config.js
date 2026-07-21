@@ -33,6 +33,7 @@ const ELEMENTS = [
   { type: 'main', pattern: 'src/main' },
   { type: 'preload', pattern: 'src/preload' },
   { type: 'plugins', pattern: 'plugins' },
+  { type: 'devtools', pattern: 'src/devtools' },
 ];
 
 /** Which layers may import which. Anything not listed is forbidden. */
@@ -42,7 +43,11 @@ const LAYER_POLICIES = [
   { from: 'persistence', to: ['shared', 'sim', 'persistence'] },
   { from: 'render', to: ['shared', 'sim', 'render'] },
   { from: 'ui', to: ['shared', 'sim', 'ui'] },
-  { from: 'bootstrap', to: ['shared', 'sim', 'persistence', 'render', 'ui', 'bootstrap'] },
+  { from: 'bootstrap', to: ['shared', 'sim', 'persistence', 'render', 'ui', 'bootstrap', 'devtools'] },
+  // Devtools reads game state but nothing in the game may import devtools
+  // (phase-01.5 deliverable 8). Absence from every other `to` list is what
+  // enforces that.
+  { from: 'devtools', to: ['shared', 'sim', 'devtools'] },
   { from: 'main', to: ['shared', 'persistence', 'main'] },
   { from: 'preload', to: ['shared', 'preload'] },
   { from: 'plugins', to: ['shared', 'sim', 'plugins'] },
@@ -72,6 +77,7 @@ const FORBIDDEN_EXTERNALS = [
   { from: ['render'], disallow: ['react', 'react-dom', 'electron'] },
   { from: ['ui'], disallow: ['pixi.js', 'electron'] },
   { from: ['plugins'], disallow: ['pixi.js', 'react', 'react-dom', 'electron'] },
+  { from: ['devtools'], disallow: ['electron', 'pixi.js'] },
 ];
 
 export default tseslint.config(
@@ -190,6 +196,14 @@ export default tseslint.config(
   // `process` are type errors. These rules cover what remains: globals that
   // exist in every environment and would silently break determinism.
   // ---------------------------------------------------------------------------
+  // `console.*` is banned across src/. The single exception is the logger's
+  // console sink, which opts out with a file-level disable and a reason
+  // (phase-01.5 deliverable 6).
+  {
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    rules: { 'no-console': 'error' },
+  },
+
   {
     files: ['src/sim/**/*.ts', 'src/persistence/**/*.ts', 'plugins/**/*.ts'],
     rules: {

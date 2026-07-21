@@ -1,0 +1,72 @@
+/* Developer console. Docked to the top so it never covers the status bar the
+   overlay itself occupies at the bottom of the screen. */
+
+.console {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9500;
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  background: rgb(6 8 12 / 96%);
+  border-bottom: 1px solid rgb(120 200 255 / 30%);
+  color: #d7e3f4;
+  font:
+    12px/1.5 ui-monospace,
+    'Cascadia Code',
+    Consolas,
+    monospace;
+  pointer-events: auto;
+}
+
+.output {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lineInput {
+  color: #6ec5ff;
+}
+.lineResult {
+  color: #d7e3f4;
+}
+.lineInfo {
+  color: #7fd1a3;
+}
+.lineError {
+  color: #f08a8a;
+}
+
+.hint {
+  padding: 3px 10px;
+  background: rgb(255 255 255 / 4%);
+  color: rgb(215 227 244 / 60%);
+  font-size: 11px;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.prompt {
+  color: #6ec5ff;
+  font-weight: 700;
+}
+
+.input {
+  flex: 1 1 auto;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}

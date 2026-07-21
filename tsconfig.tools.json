@@ -15,7 +15,8 @@
       "@persistence/*": ["src/persistence/*"],
       "@render/*": ["src/renderer/render/*"],
       "@ui/*": ["src/renderer/app/*"],
-      "@assets/*": ["assets/dist/*"]
+      "@assets/*": ["assets/dist/*"],
+      "@devtools/*": ["src/devtools/*"]
     }
   },
   "include": [

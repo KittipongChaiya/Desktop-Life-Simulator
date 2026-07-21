@@ -13,11 +13,14 @@
       "@persistence/*": ["src/persistence/*"],
       "@render/*": ["src/renderer/render/*"],
       "@ui/*": ["src/renderer/app/*"],
-      "@assets/*": ["assets/dist/*"]
+      "@assets/*": ["assets/dist/*"],
+      "@devtools/*": ["src/devtools/*"]
     }
   },
   "include": [
     "src/renderer/**/*.ts",
+    "src/devtools/**/*.ts",
+    "src/devtools/**/*.tsx",
     "src/renderer/**/*.tsx",
     "src/shared/**/*.ts",
     "src/sim/**/*.ts",

@@ -10,13 +10,13 @@
 
 ## 1. Version Roadmap
 
-| Version | Theme | Ships |
-|---|---|---|
-| **v0.1** | Farm & Overlay | The core loop, running in a livable overlay |
-| **v0.2** | A Living World | Seasons, weather, day/night, audio, the plugin loader |
-| **v0.3** | Town & Trade | NPCs, settlement, contracts, a market that moves |
-| **v0.4** | Automation & Exploration | Factories, logistics, a map beyond the farm |
-| **v1.0** | Full Life Simulator | RPG, dungeons, bosses, city defense, mod ecosystem |
+| Version  | Theme                    | Ships                                                 |
+| -------- | ------------------------ | ----------------------------------------------------- |
+| **v0.1** | Farm & Overlay           | The core loop, running in a livable overlay           |
+| **v0.2** | A Living World           | Seasons, weather, day/night, audio, the plugin loader |
+| **v0.3** | Town & Trade             | NPCs, settlement, contracts, a market that moves      |
+| **v0.4** | Automation & Exploration | Factories, logistics, a map beyond the farm           |
+| **v1.0** | Full Life Simulator      | RPG, dungeons, bosses, city defense, mod ecosystem    |
 
 Ordering rationale — why each tier is a prerequisite rather than an arbitrary sequence — is in `VISION.md` §4.1.
 
@@ -28,33 +28,36 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 
 ### 2.1 Phases
 
-| # | Phase | Delivers | Independently runnable? |
-|---|---|---|---|
-| 00 | Foundation | Toolchain, three tsconfigs, boundary linter, asset pipeline, tick loop, CI | Empty window, headless sim ticks |
-| 01 | Overlay | Docked transparent window, click-through, tray, collapse/expand, snapshot bridge | A livable overlay with a status bar |
-| 02 | Tile World | PixiJS, 7 layers, terrain chunks, camera, render-on-demand | A visible, pannable farm plot |
-| 03 | Farming | Crops, growth, till/plant/water/harvest, content registries | The manual loop is playable |
-| 04 | Worker AI | Worker entities, FSM, pathing, task priority, energy | **Stage 2 — delegation** |
-| 05 | Inventory | Items, stacks, capacity, storage buildings | Unattended runs become possible |
-| 06 | Economy | Coins, dynamic pricing, shop, land expansion, buildings | **Stage 4 — full idle loop** |
-| 07 | Save/Load | Schema, atomic writes, migrations, autosave, offline progress | The game persists |
+| #    | Phase                    | Delivers                                                                         | Independently runnable?             |
+| ---- | ------------------------ | -------------------------------------------------------------------------------- | ----------------------------------- |
+| 00   | Foundation               | Toolchain, three tsconfigs, boundary linter, asset pipeline, tick loop, CI       | Empty window, headless sim ticks    |
+| 01   | Overlay                  | Docked transparent window, click-through, tray, collapse/expand, snapshot bridge | A livable overlay with a status bar |
+| 01.5 | Developer Infrastructure | Debug overlay, console, profiler, inspector, logger, feature flags               | Tooling usable in a running app     |
+| 02   | Tile World               | PixiJS, 7 layers, terrain chunks, camera, render-on-demand                       | A visible, pannable farm plot       |
+| 03   | Farming                  | Crops, growth, till/plant/water/harvest, content registries                      | The manual loop is playable         |
+| 04   | Worker AI                | Worker entities, FSM, pathing, task priority, energy                             | **Stage 2 — delegation**            |
+| 05   | Inventory                | Items, stacks, capacity, storage buildings                                       | Unattended runs become possible     |
+| 06   | Economy                  | Coins, dynamic pricing, shop, land expansion, buildings                          | **Stage 4 — full idle loop**        |
+| 07   | Save/Load                | Schema, atomic writes, migrations, autosave, offline progress                    | The game persists                   |
 
 Phase order is dictated by dependency, not preference. Two orderings are worth stating explicitly:
 
 - **Overlay before world (01 → 02).** If the overlay is not livable, nothing else matters. It carries the highest product risk and is deliberately faced first, alone.
-- **Save/load last (07).** Persistence must serialize a *complete* world. Building it earlier means migrating the schema after every subsequent phase — seven migrations before v0.1 ships, each one an opportunity to lose data.
+- **Save/load last (07).** Persistence must serialize a _complete_ world. Building it earlier means migrating the schema after every subsequent phase — seven migrations before v0.1 ships, each one an opportunity to lose data.
 
 ### 2.2 Success criteria
 
 v0.1 ships when **all** are true:
 
 **Product**
+
 - [ ] Runs an 8-hour workday without being noticed in Task Manager
 - [ ] Reaching stage 4 (`GAME_DESIGN.md` §1.1) takes under ~4 hours of play
 - [ ] The first worker hire produces a visible "oh, I see" moment in playtesting
 - [ ] A tester returns unprompted on a second day
 
 **Technical**
+
 - [ ] All `PERFORMANCE.md` ceilings measured and met on baseline hardware
 - [ ] All `TESTING.md` coverage gates met
 - [ ] Determinism test passes at 100k ticks
@@ -62,13 +65,14 @@ v0.1 ships when **all** are true:
 - [ ] Zero known data-loss defects
 
 **Documentation**
+
 - [ ] A new AI session can implement a v0.2 feature using only `docs/` and the code, without asking a question these documents already answer
 
 The last criterion is what this documentation set exists to satisfy (`VISION.md` §6.4).
 
 ### 2.3 v0.1 is explicitly not
 
-Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs · trading · exploration · multiplayer · audio · weather · seasons · day/night · achievements · plugin *loading* · auto-update · telemetry · non-Windows platforms
+Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs · trading · exploration · multiplayer · audio · weather · seasons · day/night · achievements · plugin _loading_ · auto-update · telemetry · non-Windows platforms
 
 ---
 
@@ -76,17 +80,18 @@ Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs �
 
 **Goal:** the world changes on its own, and other people can add to it.
 
-| Milestone | Delivers | Depends on |
-|---|---|---|
-| Plugin loader | Dynamic loading, manifests, dependency resolution, plugin settings UI | v0.1 registries (ADR-003 §6) |
-| Time of day | Day/night cycle, lighting layer 5 | v0.1 layer reservation |
-| Seasons | Season cycle, per-crop seasonal modifiers | v0.1 growth modifiers |
-| Weather | Rain (auto-waters), storms; effects layer 4 | v0.1 moisture system |
-| Audio | Ambient, effects, music; volume settings | v0.1 asset pipeline (§8 of `ASSETS.md`) |
-| Worker priorities | Player-configurable task priority | v0.1 fixed priority list |
-| Auto-update | Signed updates with save-integrity guarantees | v0.1 phase-07 |
+| Milestone         | Delivers                                                              | Depends on                              |
+| ----------------- | --------------------------------------------------------------------- | --------------------------------------- |
+| Plugin loader     | Dynamic loading, manifests, dependency resolution, plugin settings UI | v0.1 registries (ADR-003 §6)            |
+| Time of day       | Day/night cycle, lighting layer 5                                     | v0.1 layer reservation                  |
+| Seasons           | Season cycle, per-crop seasonal modifiers                             | v0.1 growth modifiers                   |
+| Weather           | Rain (auto-waters), storms; effects layer 4                           | v0.1 moisture system                    |
+| Audio             | Ambient, effects, music; volume settings                              | v0.1 asset pipeline (§8 of `ASSETS.md`) |
+| Worker priorities | Player-configurable task priority                                     | v0.1 fixed priority list                |
+| Auto-update       | Signed updates with save-integrity guarantees                         | v0.1 phase-07                           |
 
 **Success criteria**
+
 - [ ] A third party writes a plugin adding a crop, using only `plugins/README.md`
 - [ ] A v0.1 save loads in v0.2 with no data loss
 - [ ] Uninstalling a plugin preserves its save data (`SAVE_FORMAT.md` §8)
@@ -101,16 +106,17 @@ Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs �
 
 **Goal:** the player gains neighbours, and the economy gains a counterparty.
 
-| Milestone | Delivers | Depends on |
-|---|---|---|
-| NPCs | NPC entities with schedules and needs | v0.2 time of day; v0.1 worker FSM generalized |
-| Settlement | A town area, buildings, residents | v0.1 building model |
-| Contracts | Timed delivery requests with rewards | v0.1 economy |
-| Dynamic market | Demand curves replacing flat multipliers | v0.1 price multipliers |
-| Reputation | Standing with the town, gating access | New |
-| Quests | Simple objective chains | New |
+| Milestone      | Delivers                                 | Depends on                                    |
+| -------------- | ---------------------------------------- | --------------------------------------------- |
+| NPCs           | NPC entities with schedules and needs    | v0.2 time of day; v0.1 worker FSM generalized |
+| Settlement     | A town area, buildings, residents        | v0.1 building model                           |
+| Contracts      | Timed delivery requests with rewards     | v0.1 economy                                  |
+| Dynamic market | Demand curves replacing flat multipliers | v0.1 price multipliers                        |
+| Reputation     | Standing with the town, gating access    | New                                           |
+| Quests         | Simple objective chains                  | New                                           |
 
 **Success criteria**
+
 - [ ] NPCs follow believable daily schedules
 - [ ] Contracts create a reason to plant specific crops
 - [ ] The economy feels responsive without becoming unpredictable
@@ -123,16 +129,17 @@ Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs �
 
 **Goal:** the player gains reach.
 
-| Milestone | Delivers | Depends on |
-|---|---|---|
-| Factories | Buildings that consume and produce items | v0.1 inventory + buildings |
-| Logistics | Item routing between buildings | v0.1 worker movement |
-| Recipes | Multi-input crafting chains | v0.1 item registry |
-| World map | Regions beyond the farm | v0.1 grid (already 64× the starting plot) |
-| Expeditions | Send workers away for timed returns | v0.1 worker tasks + offline catch-up |
-| Resources | Mining, foraging, gathering | v0.1 tile kinds |
+| Milestone   | Delivers                                 | Depends on                                |
+| ----------- | ---------------------------------------- | ----------------------------------------- |
+| Factories   | Buildings that consume and produce items | v0.1 inventory + buildings                |
+| Logistics   | Item routing between buildings           | v0.1 worker movement                      |
+| Recipes     | Multi-input crafting chains              | v0.1 item registry                        |
+| World map   | Regions beyond the farm                  | v0.1 grid (already 64× the starting plot) |
+| Expeditions | Send workers away for timed returns      | v0.1 worker tasks + offline catch-up      |
+| Resources   | Mining, foraging, gathering              | v0.1 tile kinds                           |
 
 **Success criteria**
+
 - [ ] A production chain runs unattended for 8 hours without jamming
 - [ ] Exploration yields meaningfully feed the farm economy
 - [ ] Entity and building counts stay within budget — **worker-thread migration likely lands here** (ADR-003 §2)
@@ -144,16 +151,17 @@ Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs �
 
 **Goal:** the player gains a life.
 
-| Milestone | Delivers | Depends on |
-|---|---|---|
-| RPG progression | Character levels, skills, equipment | v0.4 resources |
-| Combat | `health` side-table over entity stores (ADR-004 §4) | v0.1 entity model |
-| Dungeons | Generated encounters with rewards | v0.4 expeditions |
-| Bosses | Set-piece encounters | Combat |
-| City defense | Waves threatening the settlement | v0.3 town + combat |
-| Mod ecosystem | Registry, discovery, versioning | v0.2 loader |
+| Milestone       | Delivers                                            | Depends on         |
+| --------------- | --------------------------------------------------- | ------------------ |
+| RPG progression | Character levels, skills, equipment                 | v0.4 resources     |
+| Combat          | `health` side-table over entity stores (ADR-004 §4) | v0.1 entity model  |
+| Dungeons        | Generated encounters with rewards                   | v0.4 expeditions   |
+| Bosses          | Set-piece encounters                                | Combat             |
+| City defense    | Waves threatening the settlement                    | v0.3 town + combat |
+| Mod ecosystem   | Registry, discovery, versioning                     | v0.2 loader        |
 
 **Success criteria**
+
 - [ ] Combat integrates without violating `VISION.md` §5.1 — **no mechanic requires reaction speed**
 - [ ] A v0.1 save still loads, through every intervening migration
 - [ ] The overlay constraint still holds under the heaviest content
@@ -173,7 +181,7 @@ Named to show they were considered, and deliberately left unplanned:
 
 Multiplayer · cross-platform (macOS/Linux) · Steam release · cloud saves · mobile companion
 
-**Multiplayer** deserves a note: the determinism work in v0.1 (ADR-007) makes it *possible*, not *planned*. It would require netcode, an authoritative server, anti-cheat, and infrastructure — a larger project than everything above it combined. Determinism was paid for because it is cheap now and impossible to retrofit, not because multiplayer is committed.
+**Multiplayer** deserves a note: the determinism work in v0.1 (ADR-007) makes it _possible_, not _planned_. It would require netcode, an authoritative server, anti-cheat, and infrastructure — a larger project than everything above it combined. Determinism was paid for because it is cheap now and impossible to retrofit, not because multiplayer is committed.
 
 ---
 
@@ -181,16 +189,16 @@ Multiplayer · cross-platform (macOS/Linux) · Steam release · cloud saves · m
 
 Binding at every version boundary. No exceptions, and none of these may be waived to hit a date — there are no dates (§Preamble).
 
-| Gate | Requirement |
-|---|---|
+| Gate               | Requirement                                                        |
+| ------------------ | ------------------------------------------------------------------ |
 | Save compatibility | Every prior version's golden fixture loads (`SAVE_FORMAT.md` §4.4) |
-| Performance | All ceilings measured on baseline hardware (`PERFORMANCE.md` §10) |
-| Coverage | All thresholds met (`TESTING.md` §4) |
-| Boundaries | `check:boundaries` and `check:cycles` clean |
-| Docs | `ARCHITECTURE.md`, `SAVE_FORMAT.md`, `CHANGELOG.md` current |
-| ADRs | Every architectural change recorded |
-| Data loss | **Zero known defects. Blocking, always.** |
-| Dead code | None; no placeholders; no skipped tests |
+| Performance        | All ceilings measured on baseline hardware (`PERFORMANCE.md` §10)  |
+| Coverage           | All thresholds met (`TESTING.md` §4)                               |
+| Boundaries         | `check:boundaries` and `check:cycles` clean                        |
+| Docs               | `ARCHITECTURE.md`, `SAVE_FORMAT.md`, `CHANGELOG.md` current        |
+| ADRs               | Every architectural change recorded                                |
+| Data loss          | **Zero known defects. Blocking, always.**                          |
+| Dead code          | None; no placeholders; no skipped tests                            |
 
 ---
 

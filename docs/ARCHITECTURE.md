@@ -4,7 +4,7 @@
 > **Owns:** System composition, layer responsibilities, data flow, extension points.
 > **Does not own:** The file tree (`PROJECT_STRUCTURE.md`), the reasoning behind major choices (`docs/decisions/`), code-level rules (`CODE_STYLE.md`).
 
-This document describes *what the parts are and how they talk*. Every significant choice here is a consequence of an ADR, cited inline.
+This document describes _what the parts are and how they talk_. Every significant choice here is a consequence of an ADR, cited inline.
 
 ---
 
@@ -47,15 +47,18 @@ This document describes *what the parts are and how they talk*. Every significan
 
 ## 2. Layers and Responsibilities
 
-| Layer | Responsibility | Holds truth? | Disposable? |
-|---|---|---|---|
-| `shared` | Types, constants, IPC contracts, `Result` | No | — |
-| `sim` | The game. World state, systems, content, RNG, events | **Yes** | No |
-| `persistence` | Serialize, deserialize, migrate, catch-up orchestration | No | No |
-| `renderer/render` | Draw the world with PixiJS | No | **Yes** |
-| `renderer/app` | Draw the UI with React | No | **Yes** |
-| `main` | Window, overlay behavior, tray, disk I/O, IPC validation | No | No |
-| `preload` | Typed bridge between renderer and main | No | — |
+| Layer             | Responsibility                                           | Holds truth? | Disposable? |
+| ----------------- | -------------------------------------------------------- | ------------ | ----------- |
+| `shared`          | Types, constants, IPC contracts, `Result`                | No           | —           |
+| `sim`             | The game. World state, systems, content, RNG, events     | **Yes**      | No          |
+| `persistence`     | Serialize, deserialize, migrate, catch-up orchestration  | No           | No          |
+| `renderer/render` | Draw the world with PixiJS                               | No           | **Yes**     |
+| `renderer/app`    | Draw the UI with React                                   | No           | **Yes**     |
+| `main`            | Window, overlay behavior, tray, disk I/O, IPC validation | No           | No          |
+| `preload`         | Typed bridge between renderer and main                   | No           | —           |
+| `devtools`        | Debug overlay, console, profiler, inspector, logger      | No           | **Yes**     |
+
+**`devtools` is one-directional.** It may read `shared` and `sim`; nothing in the game may import it (phase-01.5 deliverable 8), and it is stripped from production builds entirely. A game system that needs a devtools type has a design problem, not an import problem.
 
 The import matrix that enforces this is in `CODE_STYLE.md` §8.1 and is verified by `npm run check:boundaries`. Rationale: ADR-003 §4.
 
@@ -75,16 +78,16 @@ This single invariant is what makes the game testable at 90% coverage, savable (
 
 `World` is a struct of stores, not an object graph (ADR-004 §2):
 
-| Store | Layout | Why |
-|---|---|---|
-| `tiles` | Parallel flat typed arrays, indexed `y * width + x` | Dense, uniform, cache-friendly, directly serializable |
-| `crops` | `Map<TileIndex, Crop>` | Sparse — most tiles have no crop |
-| `workers` | `Map<WorkerId, Worker>` | Sparse, irregular, few |
-| `buildings` | `Map<BuildingId, Building>` | Sparse |
-| `inventory`, `wallet` | Single records | Singletons |
-| `intents` | FIFO queue | Drained each tick by `intentSystem` |
-| `events` | Typed bus | Flushed each tick by `eventFlushSystem` |
-| `rng` | Seeded PRNG | Deterministic; `Math.random()` is banned |
+| Store                 | Layout                                              | Why                                                   |
+| --------------------- | --------------------------------------------------- | ----------------------------------------------------- |
+| `tiles`               | Parallel flat typed arrays, indexed `y * width + x` | Dense, uniform, cache-friendly, directly serializable |
+| `crops`               | `Map<TileIndex, Crop>`                              | Sparse — most tiles have no crop                      |
+| `workers`             | `Map<WorkerId, Worker>`                             | Sparse, irregular, few                                |
+| `buildings`           | `Map<BuildingId, Building>`                         | Sparse                                                |
+| `inventory`, `wallet` | Single records                                      | Singletons                                            |
+| `intents`             | FIFO queue                                          | Drained each tick by `intentSystem`                   |
+| `events`              | Typed bus                                           | Flushed each tick by `eventFlushSystem`               |
+| `rng`                 | Seeded PRNG                                         | Deterministic; `Math.random()` is banned              |
 
 ### 3.2 The tick
 
@@ -106,16 +109,16 @@ A system is a free function `(world: World) => void`. It may mutate stores it ow
 - mutate a store owned by another system
 - allocate per-entity in its hot loop
 
-| System | Owns | Reads |
-|---|---|---|
-| `intentSystem` | `intents` | everything (validates, then applies) |
-| `growthSystem` | `crops.growth`, `crops.stage` | `tiles` (moisture) |
-| `workerSystem` | `workers.state`, `workers.task` | `crops`, `tiles`, `buildings` |
-| `movementSystem` | `workers.position`, `workers.path` | `tiles` (walkability) |
-| `harvestSystem` | `inventory`, `crops` (removal) | `workers` |
-| `economySystem` | `wallet`, price state | `inventory` |
-| `eventFlushSystem` | `events` | — |
-| `snapshotSystem` | snapshot slices | everything (read-only) |
+| System             | Owns                               | Reads                                |
+| ------------------ | ---------------------------------- | ------------------------------------ |
+| `intentSystem`     | `intents`                          | everything (validates, then applies) |
+| `growthSystem`     | `crops.growth`, `crops.stage`      | `tiles` (moisture)                   |
+| `workerSystem`     | `workers.state`, `workers.task`    | `crops`, `tiles`, `buildings`        |
+| `movementSystem`   | `workers.position`, `workers.path` | `tiles` (walkability)                |
+| `harvestSystem`    | `inventory`, `crops` (removal)     | `workers`                            |
+| `economySystem`    | `wallet`, price state              | `inventory`                          |
+| `eventFlushSystem` | `events`                           | —                                    |
+| `snapshotSystem`   | snapshot slices                    | everything (read-only)               |
 
 ### 3.4 Content registries
 
@@ -213,15 +216,15 @@ The UI root is pointer-transparent except over actual controls, which combined w
 
 ## 7. Main Process
 
-| Concern | Notes |
-|---|---|
-| Overlay window | Frameless, transparent, always-on-top, `skipTaskbar`, docked to `workArea` bottom edge |
-| Click-through | `setIgnoreMouseEvents` toggled from renderer hit-testing |
-| Display changes | Re-dock on resolution, DPI, monitor add/remove |
-| Tray | Show/hide, collapse/expand, quit |
-| Single instance | `requestSingleInstanceLock` — two instances would race on the save file |
-| Save I/O | Atomic write, `.bak` rotation, backups (ADR-002 §2) |
-| IPC | Every payload validated on receipt; renderer treated as untrusted |
+| Concern         | Notes                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------- |
+| Overlay window  | Frameless, transparent, always-on-top, `skipTaskbar`, docked to `workArea` bottom edge |
+| Click-through   | `setIgnoreMouseEvents` toggled from renderer hit-testing                               |
+| Display changes | Re-dock on resolution, DPI, monitor add/remove                                         |
+| Tray            | Show/hide, collapse/expand, quit                                                       |
+| Single instance | `requestSingleInstanceLock` — two instances would race on the save file                |
+| Save I/O        | Atomic write, `.bak` rotation, backups (ADR-002 §2)                                    |
+| IPC             | Every payload validated on receipt; renderer treated as untrusted                      |
 
 ---
 
@@ -229,26 +232,30 @@ The UI root is pointer-transparent except over actual controls, which combined w
 
 Reserved in v0.1, implemented in v0.2+ (ADR-003 §6). This list is **exhaustive** — anything not here is not paid for in v0.1 (`VISION.md` §4.2).
 
-| Extension point | v0.1 state | Enables |
-|---|---|---|
-| Namespaced content IDs | Used from the first crop | Mods, content packs |
-| Content registries | Core registers through the public API | Plugin-added content, no core change |
-| Typed event bus | Used by core for decoupling | Plugin hooks |
-| Save namespacing | `plugins: {}` present, absent-plugin data preserved | Mod state that survives uninstall |
-| `plugins/` directory | Contains `core/` + manifest schema | The v0.2 loader |
-| Render layers 4–5 | Created, empty | Particles, weather, lighting |
-| `catchUp` per system | Implemented for accruing systems | Offline progress for any future system |
-| Snapshot slices | Sliced from the start | New panels without re-plumbing |
+| Extension point             | v0.1 state                                          | Enables                                                 |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------------- |
+| Namespaced content IDs      | Used from the first crop                            | Mods, content packs                                     |
+| Content registries          | Core registers through the public API               | Plugin-added content, no core change                    |
+| Typed event bus             | Used by core for decoupling                         | Plugin hooks                                            |
+| Save namespacing            | `plugins: {}` present, absent-plugin data preserved | Mod state that survives uninstall                       |
+| `plugins/` directory        | Contains `core/` + manifest schema                  | The v0.2 loader                                         |
+| Render layers 4–5           | Created, empty                                      | Particles, weather, lighting                            |
+| `catchUp` per system        | Implemented for accruing systems                    | Offline progress for any future system                  |
+| Snapshot slices             | Sliced from the start                               | New panels without re-plumbing                          |
+| Devtools metric registry    | Populated with runtime metrics                      | Phase-02 camera/chunks/tiles, phase-04 entities         |
+| Devtools command registry   | 12 working commands                                 | Phase-03 `spawn`, phase-04 `teleport`, phase-06 `money` |
+| Devtools inspector registry | Runtime provider                                    | Phase-02 tile hover, phase-04 entity click              |
 
 ### 8.1 Why `plugins/core/` matters
 
-First-party content registers through the **public plugin API** but is statically imported. This proves the API is sufficient before any third party depends on it, and means the v0.2 loader changes *how content arrives*, not the shape of the content system.
+First-party content registers through the **public plugin API** but is statically imported. This proves the API is sufficient before any third party depends on it, and means the v0.2 loader changes _how content arrives_, not the shape of the content system.
 
 ---
 
 ## 9. Adding Things — Checklists
 
 ### A new system
+
 1. Create `src/sim/systems/<name>.ts` as `(world: World) => void`
 2. Insert into `TICK_SYSTEMS` at a deliberate position; comment any ordering dependency
 3. Declare which stores it owns (§3.3 table)
@@ -256,6 +263,7 @@ First-party content registers through the **public plugin API** but is staticall
 5. Add unit tests, including a determinism test
 
 ### A new content type
+
 1. Define the definition type in `src/sim/content/`
 2. Create its registry and the `register<Thing>` function
 3. Register core content in `plugins/core/`
@@ -264,12 +272,14 @@ First-party content registers through the **public plugin API** but is staticall
 6. Add sprites to an atlas group (ADR-006 §3)
 
 ### A new UI panel
+
 1. Component in `src/renderer/app/panels/`
 2. Subscribe only to the slices it reads; add a slice if needed, with its change condition
 3. Dispatch intents; never mutate
 4. Verify no re-render occurs on a static world (ADR-005 §Validation)
 
 ### A new IPC channel
+
 1. Add to the typed contract in `src/shared/ipc/`
 2. Expose through preload's enumerated surface — never expose `ipcRenderer`
 3. Validate the payload in main on receipt
@@ -279,13 +289,13 @@ First-party content registers through the **public plugin API** but is staticall
 
 ## 10. Known Architectural Risks
 
-| Risk | Watch for | Response |
-|---|---|---|
-| Boundary erosion | One "harmless" import from sim into a view | Linter blocks it; treat a request to disable the rule as a design smell |
-| Render-on-demand decay | An animation increments without decrementing | The zero-rAF idle test (ADR-001) fails |
-| Snapshot over-publishing | A slice republishing every tick | The zero-React-commit idle test (ADR-005) fails |
-| Sim thread contention | p99 tick > 3 ms | Move sim to a worker (ADR-003 §2) |
-| Content hardcoding | `switch (cropId)` in a system | Review gate; breaks plugin support silently |
-| Save schema drift | Persisted shape changed without a migration | Golden-fixture tests fail (ADR-002) |
+| Risk                     | Watch for                                    | Response                                                                |
+| ------------------------ | -------------------------------------------- | ----------------------------------------------------------------------- |
+| Boundary erosion         | One "harmless" import from sim into a view   | Linter blocks it; treat a request to disable the rule as a design smell |
+| Render-on-demand decay   | An animation increments without decrementing | The zero-rAF idle test (ADR-001) fails                                  |
+| Snapshot over-publishing | A slice republishing every tick              | The zero-React-commit idle test (ADR-005) fails                         |
+| Sim thread contention    | p99 tick > 3 ms                              | Move sim to a worker (ADR-003 §2)                                       |
+| Content hardcoding       | `switch (cropId)` in a system                | Review gate; breaks plugin support silently                             |
+| Save schema drift        | Persisted shape changed without a migration  | Golden-fixture tests fail (ADR-002)                                     |
 
 Each risk has a mechanical detector. That is deliberate — architectural invariants that rely on vigilance decay, and the ones here have to survive a hundred sessions.

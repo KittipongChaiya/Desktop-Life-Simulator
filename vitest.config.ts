@@ -8,11 +8,21 @@ export default defineConfig({
   // compiles to classic `React.createElement` and every render throws
   // "React is not defined".
   plugins: [react()],
+  // Tests exercise the developer tooling, so the flags are on. The production
+  // exclusion is asserted separately against a real build artifact.
+  define: {
+    __APP_VERSION__: JSON.stringify('0.0.0-test'),
+    __FEATURE_DEBUG__: 'true',
+    __FEATURE_PROFILER__: 'true',
+    __FEATURE_CONSOLE__: 'true',
+    __FEATURE_INSPECTOR__: 'true',
+  },
   resolve: {
     alias: {
       '@shared': resolve(import.meta.dirname, 'src/shared'),
       '@sim': resolve(import.meta.dirname, 'src/sim'),
       '@persistence': resolve(import.meta.dirname, 'src/persistence'),
+      '@devtools': resolve(import.meta.dirname, 'src/devtools'),
     },
   },
   test: {

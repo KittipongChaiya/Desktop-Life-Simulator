@@ -1,6 +1,6 @@
 # CODE_STYLE
 
-> **Status:** Enforced by ESLint, Prettier, and `tsc`. Where a rule can be automated, it is — this document explains the *why* so future sessions do not fight the tooling.
+> **Status:** Enforced by ESLint, Prettier, and `tsc`. Where a rule can be automated, it is — this document explains the _why_ so future sessions do not fight the tooling.
 > **Owns:** TypeScript rules, naming, comments, imports, module boundaries in code.
 > **Does not own:** The folder tree (`PROJECT_STRUCTURE.md`), process rules (`AI_RULES.md`), test style (`TESTING.md`).
 
@@ -15,14 +15,14 @@
 ```jsonc
 {
   "strict": true,
-  "noUncheckedIndexedAccess": true,      // arr[i] is T | undefined — critical for tile grids
-  "exactOptionalPropertyTypes": true,     // `{ a?: string }` ≠ `{ a: string | undefined }`
+  "noUncheckedIndexedAccess": true, // arr[i] is T | undefined — critical for tile grids
+  "exactOptionalPropertyTypes": true, // `{ a?: string }` ≠ `{ a: string | undefined }`
   "noImplicitOverride": true,
   "noFallthroughCasesInSwitch": true,
   "noImplicitReturns": true,
   "isolatedModules": true,
   "verbatimModuleSyntax": true,
-  "erasableSyntaxOnly": true
+  "erasableSyntaxOnly": true,
 }
 ```
 
@@ -30,17 +30,17 @@
 
 ### 1.2 Banned constructs
 
-| Banned | Why | Instead |
-|---|---|---|
-| `any` | Erases the type system exactly where it matters | `unknown` + narrowing |
-| `as` assertions on unvalidated data | Lies to the compiler about runtime shape | A parse/validate function returning a typed result |
-| Non-null `!` | Asserts an invariant the compiler can't see and you can't test | Explicit check with a real error |
-| `@ts-ignore` | Hides the problem | `@ts-expect-error` with a reason comment, or fix it |
-| `enum` | Emits runtime code, breaks `erasableSyntaxOnly`, has surprising semantics | `as const` object + derived union type |
-| `namespace` | Legacy module system | ES modules |
-| Class inheritance beyond one level | Deep hierarchies are the abstraction trap `AI_RULES.md` §1.5 forbids | Composition, plain functions |
-| Default exports | Break rename refactors and make imports inconsistent | Named exports only |
-| Barrel files re-exporting everything | Destroy tree-shaking, create import cycles | Import from the defining module |
+| Banned                               | Why                                                                       | Instead                                             |
+| ------------------------------------ | ------------------------------------------------------------------------- | --------------------------------------------------- |
+| `any`                                | Erases the type system exactly where it matters                           | `unknown` + narrowing                               |
+| `as` assertions on unvalidated data  | Lies to the compiler about runtime shape                                  | A parse/validate function returning a typed result  |
+| Non-null `!`                         | Asserts an invariant the compiler can't see and you can't test            | Explicit check with a real error                    |
+| `@ts-ignore`                         | Hides the problem                                                         | `@ts-expect-error` with a reason comment, or fix it |
+| `enum`                               | Emits runtime code, breaks `erasableSyntaxOnly`, has surprising semantics | `as const` object + derived union type              |
+| `namespace`                          | Legacy module system                                                      | ES modules                                          |
+| Class inheritance beyond one level   | Deep hierarchies are the abstraction trap `AI_RULES.md` §1.5 forbids      | Composition, plain functions                        |
+| Default exports                      | Break rename refactors and make imports inconsistent                      | Named exports only                                  |
+| Barrel files re-exporting everything | Destroy tree-shaking, create import cycles                                | Import from the defining module                     |
 
 ### 1.3 The `as const` enum pattern
 
@@ -68,7 +68,7 @@ type Brand<T, B> = T & { readonly [brand]: B };
 export type EntityId = Brand<number, 'EntityId'>;
 export type WorkerId = Brand<EntityId, 'Worker'>;
 export type TileIndex = Brand<number, 'TileIndex'>;
-export type ContentId = Brand<string, 'ContentId'>;   // e.g. "core:wheat"
+export type ContentId = Brand<string, 'ContentId'>; // e.g. "core:wheat"
 ```
 
 ### 1.5 Result types over exceptions at boundaries
@@ -77,8 +77,7 @@ Inside a module, throw freely. At a boundary — IPC, disk, plugin, user input, 
 
 ```ts
 export type Result<T, E = AppError> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: E };
+  { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };
 ```
 
 ---
@@ -114,27 +113,31 @@ export function growthSystem(world: World): void {
 }
 
 // NOT OK — anywhere else
-function addCoins(wallet: Wallet, n: number) { wallet.coins += n; }        // no
-function addCoins(wallet: Wallet, n: number) { return { ...wallet, coins: wallet.coins + n }; } // yes
+function addCoins(wallet: Wallet, n: number) {
+  wallet.coins += n;
+} // no
+function addCoins(wallet: Wallet, n: number) {
+  return { ...wallet, coins: wallet.coins + n };
+} // yes
 ```
 
 ---
 
 ## 3. Naming
 
-| Kind | Convention | Example |
-|---|---|---|
-| Files (code) | `kebab-case.ts` | `worker-assignment.ts` |
-| Files (React components) | `PascalCase.tsx` | `InventoryPanel.tsx` |
-| Directories | `kebab-case` | `src/sim/systems/` |
-| Types, interfaces, components | `PascalCase` | `CropDefinition` |
-| Variables, functions | `camelCase` | `harvestCrop` |
-| Constants (module-level, fixed) | `UPPER_SNAKE_CASE` | `TICKS_PER_SECOND` |
-| React hooks | `useCamelCase` | `useWorldSnapshot` |
-| Booleans | `is` / `has` / `can` / `should` prefix | `isMature`, `canAfford` |
-| Systems | `<noun>System` | `growthSystem` |
-| Content IDs | `namespace:kebab-case` | `core:wheat` |
-| Test files | `<subject>.test.ts` | `growth.test.ts` |
+| Kind                            | Convention                             | Example                 |
+| ------------------------------- | -------------------------------------- | ----------------------- |
+| Files (code)                    | `kebab-case.ts`                        | `worker-assignment.ts`  |
+| Files (React components)        | `PascalCase.tsx`                       | `InventoryPanel.tsx`    |
+| Directories                     | `kebab-case`                           | `src/sim/systems/`      |
+| Types, interfaces, components   | `PascalCase`                           | `CropDefinition`        |
+| Variables, functions            | `camelCase`                            | `harvestCrop`           |
+| Constants (module-level, fixed) | `UPPER_SNAKE_CASE`                     | `TICKS_PER_SECOND`      |
+| React hooks                     | `useCamelCase`                         | `useWorldSnapshot`      |
+| Booleans                        | `is` / `has` / `can` / `should` prefix | `isMature`, `canAfford` |
+| Systems                         | `<noun>System`                         | `growthSystem`          |
+| Content IDs                     | `namespace:kebab-case`                 | `core:wheat`            |
+| Test files                      | `<subject>.test.ts`                    | `growth.test.ts`        |
 
 ### 3.1 No abbreviations
 
@@ -181,7 +184,7 @@ Every meaningful number is a named constant in the module that owns it, or in `s
 ```ts
 // src/shared/constants.ts
 export const TICKS_PER_SECOND = 20;
-export const TICK_MS = 1000 / TICKS_PER_SECOND;   // 50
+export const TICK_MS = 1000 / TICKS_PER_SECOND; // 50
 export const MAX_CATCHUP_TICKS = 5;
 export const AUTOSAVE_INTERVAL_TICKS = TICKS_PER_SECOND * 60;
 ```
@@ -229,7 +232,9 @@ Required on exported functions in `src/sim/`, `src/persistence/`, and any plugin
  * Must run before `harvestSystem` within the same tick so a crop maturing this
  * tick is harvestable this tick. Deterministic: no RNG, no wall-clock reads.
  */
-export function growthSystem(world: World): void { /* ... */ }
+export function growthSystem(world: World): void {
+  /* ... */
+}
 ```
 
 ---
@@ -297,15 +302,20 @@ The layering below is **mechanically enforced** by `eslint-plugin-boundaries` an
 
 ### 8.1 The rules
 
-| Layer | May import | May **never** import |
-|---|---|---|
-| `src/shared` | nothing internal | everything else |
-| `src/sim` | `shared` | `electron`, `pixi.js`, `react`, `node:*`, `main`, `renderer`, `persistence` |
-| `src/persistence` | `shared`, `sim` (types + factories) | `pixi.js`, `react`, `renderer` |
-| `src/renderer/render` | `shared`, `sim` (read-only), `pixi.js` | `react`, `electron`, `main` |
-| `src/renderer/app` | `shared`, `sim` (read-only), `react` | `pixi.js`, `electron`, `main` |
-| `src/main` | `shared`, `persistence`, `electron`, `node:*` | `sim` systems, `pixi.js`, `react`, `renderer` |
-| `src/preload` | `shared` | everything else |
+| Layer                 | May import                                    | May **never** import                                                        |
+| --------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| `src/shared`          | nothing internal                              | everything else                                                             |
+| `src/sim`             | `shared`                                      | `electron`, `pixi.js`, `react`, `node:*`, `main`, `renderer`, `persistence` |
+| `src/persistence`     | `shared`, `sim` (types + factories)           | `pixi.js`, `react`, `renderer`                                              |
+| `src/renderer/render` | `shared`, `sim` (read-only), `pixi.js`        | `react`, `electron`, `main`                                                 |
+| `src/renderer/app`    | `shared`, `sim` (read-only), `react`          | `pixi.js`, `electron`, `main`                                               |
+| `src/main`            | `shared`, `persistence`, `electron`, `node:*` | `sim` systems, `pixi.js`, `react`, `renderer`                               |
+| `src/preload`         | `shared`                                      | everything else                                                             |
+| `src/devtools`        | `shared`, `sim` (read-only)                   | `electron`, `pixi.js`, and **anything importing it**                        |
+
+**`src/devtools` is import-only-by-bootstrap.** Game systems must never depend on debug infrastructure (phase-01.5 deliverable 8); the renderer bootstrap mounts it, and nothing else may reference it. Enforced by the boundary linter.
+
+**`console.*` is banned across `src/`.** The single exception is `src/devtools/logger/console-sink.ts`, which is the console boundary and opts out with a file-level disable and a reason.
 
 ### 8.2 The two rules that matter most
 
@@ -349,7 +359,7 @@ Prettier owns it. Do not argue with it, do not hand-format around it, do not add
   "printWidth": 100,
   "tabWidth": 2,
   "arrowParens": "always",
-  "endOfLine": "lf"
+  "endOfLine": "lf",
 }
 ```
 
@@ -359,10 +369,10 @@ Prettier owns it. Do not argue with it, do not hand-format around it, do not add
 
 ## 12. File Size
 
-| Threshold | Meaning |
-|---|---|
-| ~200 lines | Comfortable |
-| 400 lines | Look for a split |
-| 800 lines | **Hard limit** — CI warns; split before merging |
+| Threshold  | Meaning                                         |
+| ---------- | ----------------------------------------------- |
+| ~200 lines | Comfortable                                     |
+| 400 lines  | Look for a split                                |
+| 800 lines  | **Hard limit** — CI warns; split before merging |
 
 Many small, cohesive files over few large ones. Split by responsibility, not by arbitrary line count: if a file is 700 lines and every function serves one clear purpose, leave it and note why.

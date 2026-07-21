@@ -1,0 +1,59 @@
+/* Debug overlay. Monospace, high contrast, pinned top-left, pointer-transparent
+   so it never blocks interaction with the app underneath. */
+
+.overlay {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 9000;
+  max-width: 340px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: rgb(8 10 14 / 88%);
+  border: 1px solid rgb(120 200 255 / 25%);
+  border-radius: 4px;
+  color: #d7e3f4;
+  font:
+    11px/1.45 ui-monospace,
+    'Cascadia Code',
+    Consolas,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.group {
+  margin-bottom: 6px;
+}
+
+.heading {
+  margin: 0 0 2px;
+  color: #6ec5ff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.label {
+  color: rgb(215 227 244 / 62%);
+}
+.value {
+  color: #eaf2ff;
+  font-weight: 600;
+}
+
+.hint {
+  margin: 6px 0 0;
+  padding-top: 5px;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  color: rgb(215 227 244 / 40%);
+  font-size: 10px;
+}

@@ -15,6 +15,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Seven architecture decision records covering rendering, persistence, process architecture, entity model, UI framework, asset pipeline, and simulation tick
 - Eight phase specifications for v0.1 (foundation through save/load)
 - Project foundation (phase-00): build toolchain, architecture boundary enforcement, asset pipeline, seeded RNG, and the 20 Hz fixed-timestep loop
+- Docked overlay with click-through, tray, and collapse/expand (phase-01)
+- Developer tooling (phase-01.5): F3 debug overlay, F1 console, F4 inspector, profiler, logger, and feature flags — excluded from production builds
 
 ### Notes
 

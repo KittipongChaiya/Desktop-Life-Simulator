@@ -49,10 +49,23 @@ export function App(): ReactNode {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      // Space toggles collapse (GAME_DESIGN.md §8.3). Ignored while a control
-      // has focus so it does not hijack the button it is meant to activate.
+      // Space toggles collapse (GAME_DESIGN.md §8.3).
+      //
+      // Ignored whenever focus is in an editable field or on a control:
+      // otherwise a space typed into the developer console (or any future text
+      // input) collapses the overlay and never reaches the field. Found by
+      // driving the real console — `tick 40` arrived as `tick40`.
       if (event.code !== 'Space') return;
-      if (document.activeElement instanceof HTMLButtonElement) return;
+
+      const active = document.activeElement;
+      const isEditable =
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement ||
+        active instanceof HTMLButtonElement ||
+        (active instanceof HTMLElement && active.isContentEditable);
+
+      if (isEditable) return;
 
       event.preventDefault();
       overlay.toggle();
