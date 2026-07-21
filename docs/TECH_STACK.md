@@ -4,7 +4,9 @@
 > **Owns:** Technology choices, versions, dependency policy.
 > **Does not own:** *Why* the major choices were made — that is `docs/decisions/` (ADR-001, 003, 005, 006).
 
-**Version policy:** every version below is a **floor**, expressed as "verify and pin at phase-00." Exact versions are pinned in `package.json` with a lockfile committed. Do not upgrade a major version as a side effect of feature work (`AI_RULES.md` §1.2); upgrades are their own commit with their own testing.
+**Version policy:** exact versions are pinned in `package.json` with a lockfile committed. Do not upgrade a major version as a side effect of feature work (`AI_RULES.md` §1.2); upgrades are their own commit with their own testing.
+
+**Versions were verified and pinned in phase-00.** §9 records what was found, including two upstream constraints that force us *off* the latest release of TypeScript and Vite. Read §9 before upgrading anything.
 
 ---
 
@@ -69,7 +71,7 @@ Node 20 LTS or newer, as bundled with Electron. The `node:` prefix is required o
 
 ### 3.1 TypeScript
 
-**Floor:** TypeScript 5.6+.
+**Pinned: 5.9.3.** Not the latest — see §9.1. Do not upgrade without reading it.
 
 Configuration and banned constructs: `CODE_STYLE.md` §1. Notable requirements from newer versions: `erasableSyntaxOnly` (bans `enum` and parameter properties), `verbatimModuleSyntax`, and `noUncheckedIndexedAccess`.
 
@@ -145,8 +147,8 @@ Produces the Windows NSIS installer and a portable build. Configured for `win/x6
 | Tool | Enforces |
 |---|---|
 | **ESLint** (flat config) + `typescript-eslint` | `CODE_STYLE.md` |
-| **eslint-plugin-boundaries** | Layer rules (`CODE_STYLE.md` §8) — **this is the one that protects the architecture** |
-| **eslint-plugin-import** | Import order, no cycles |
+| **eslint-plugin-boundaries** | Layer rules (`CODE_STYLE.md` §8) — **this is the one that protects the architecture**. Config has three non-obvious requirements; see §9.3 |
+| **eslint-plugin-import-x** | Import order, no cycles. The maintained fork — see §9.2 |
 | **Prettier** | Formatting |
 | **dependency-cruiser** | Cycle detection and a visual dependency graph in CI |
 | **Husky + lint-staged** | Pre-commit typecheck, lint, format on staged files |
@@ -218,3 +220,51 @@ This document lists *what*. The reasoning, alternatives considered, and tradeoff
 | React for UI, snapshot bridge | `decisions/ADR-005-ui-framework.md` |
 | AssetPack asset pipeline | `decisions/ADR-006-asset-pipeline.md` |
 | 20 Hz fixed tick | `decisions/ADR-007-simulation-tick.md` |
+
+---
+
+## 9. Phase-00 Version Findings
+
+Recorded because each of these looks like an accident and will otherwise be "fixed" by a future session, breaking the build or — worse — silently disabling the architecture checks.
+
+### 9.1 TypeScript is pinned BELOW latest, deliberately
+
+At phase-00, `typescript@latest` was **7.0.2** (the native compiler rewrite). We pin **5.9.3**.
+
+**Reason:** `typescript-eslint@8.65.0` declares `typescript: ">=4.8.4 <6.1.0"`. TypeScript 7 is outside that range, so installing it disables `typescript-eslint` — and with it the boundary linter, which is the mechanism protecting the entire architecture (`ARCHITECTURE.md` §10). The failure mode is not a build break; it is checks that stop running.
+
+5.9.3 satisfies everything `CODE_STYLE.md` §1.1 requires, including `erasableSyntaxOnly` (added in 5.8).
+
+**Before upgrading:** confirm `typescript-eslint`'s peer range covers the target, then re-run the phase-00 deliberate-violation tests (§9.4). Do not upgrade TypeScript to satisfy a "you're behind" prompt.
+
+### 9.2 `eslint-plugin-import` → `eslint-plugin-import-x`
+
+`eslint-plugin-import@2.32.0` supports ESLint `^8 || ^9`. We are on ESLint 10, so install fails with `ERESOLVE`.
+
+We use **`eslint-plugin-import-x@4.17.1`**, the actively maintained fork, which declares `eslint: "^8.57.0 || ^9.0.0 || ^10.0.0"`. Rule names change from `import/*` to `import-x/*`.
+
+**Exception:** `eslint-plugin-boundaries` reads the resolver from the **`import/resolver`** settings key, not `import-x/resolver`. Both keys appear in `eslint.config.js` and that is not a mistake.
+
+### 9.3 eslint-plugin-boundaries: three things that silently disable it
+
+All three were found by writing deliberate violations and observing that **nothing was reported**. Each fails open — the check passes and the architecture is unguarded.
+
+1. **Element patterns must be folder patterns.** `pattern: 'src/sim'` works; `pattern: 'src/sim/**/*'` leaves every file `isUnknown: true` and no rule ever fires.
+2. **A TypeScript resolver is required.** Without `'import/resolver': { typescript: … }`, extensionless relative imports don't resolve and every *internal* layer violation passes silently.
+3. **External package bans need the deprecated `boundaries/external` rule.** In 7.1.0 the replacement `boundaries/dependencies` handles internal layers correctly but ignores `to.module.origin: "external"` denials entirely. We use `dependencies` for layers and `external` for package bans, and accept the deprecation warning. Re-test on every upgrade.
+
+Diagnose with `ESLINT_PLUGIN_BOUNDARIES_DEBUG=1`; `isUnknown: true` on a file that should belong to a layer means detection is broken.
+
+### 9.4 The regression test for all of the above
+
+Because every failure here is silent, `tests/boundaries.test.ts` asserts that known-bad source is **rejected**. It is the only proof the architecture is enforced rather than merely configured.
+
+**After any upgrade to TypeScript, ESLint, `typescript-eslint`, or `eslint-plugin-boundaries`, run it.** A green `npm run lint` proves nothing on its own — that is exactly what a disabled linter looks like.
+
+### 9.5 Other pins
+
+| Package | Latest at phase-00 | Pinned | Reason |
+|---|---|---|---|
+| `vite` | 8.1.5 | **7.3.6** | `electron-vite@5` peer allows `^5 \|\| ^6 \|\| ^7` |
+| `lint-staged` | 17.1.0 | **16.4.0** | 17 requires Node ≥22.22.1; toolchain is 22.21.0 |
+| `@eslint/js` | 10.0.1 | 10.0.1 | Required explicitly by flat config; not bundled with ESLint |

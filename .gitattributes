@@ -1,2 +1,13 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalize all text files to LF in the repository and in working copies.
+# Prettier is configured with endOfLine: "lf" (CODE_STYLE.md 11); without
+# eol=lf, Windows checkouts get CRLF and every file shows as modified.
+* text=auto eol=lf
+
+# Binary assets must never be normalized.
+*.png binary
+*.jpg binary
+*.ico binary
+*.aseprite binary
+*.ogg binary
+*.wav binary
+*.ttf binary

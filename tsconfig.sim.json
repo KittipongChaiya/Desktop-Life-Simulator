@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "THE PURITY BOUNDARY. `lib` is ES2022 only and `types` is empty, so `document`, `window`, `process`, `Buffer`, and `require` DO NOT EXIST in src/sim, src/shared, and src/persistence. This turns AI_RULES.md §2.1 from a review comment into a compile error. Do not add `dom` or `node` here — see ARCHITECTURE.md §2.1.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@sim/*": ["src/sim/*"],
+      "@persistence/*": ["src/persistence/*"]
+    }
+  },
+  "include": ["src/shared/**/*.ts", "src/sim/**/*.ts", "src/persistence/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
+}

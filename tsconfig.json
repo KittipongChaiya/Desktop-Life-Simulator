@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "Solution file. Editors resolve per-file config through these references. `npm run typecheck` runs all three explicitly — see package.json. This file compiles nothing itself.",
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.sim.json" },
+    { "path": "./tsconfig.main.json" },
+    { "path": "./tsconfig.renderer.json" }
+  ]
+}

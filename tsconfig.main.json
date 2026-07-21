@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "Electron main and preload. Node globals available, DOM deliberately absent — the main process must never touch DOM APIs (ARCHITECTURE.md §7).",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@persistence/*": ["src/persistence/*"]
+    }
+  },
+  "include": [
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/persistence/**/*.ts"
+  ],
+  "exclude": ["**/*.test.ts"]
+}

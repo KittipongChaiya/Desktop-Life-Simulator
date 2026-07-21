@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "Renderer: DOM available, Node types deliberately absent (contextIsolation means the renderer has no Node access — TECH_STACK.md §2.1). Includes src/sim because the simulation runs here (ADR-003 §2); sim purity is enforced separately by tsconfig.sim.json.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [],
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@sim/*": ["src/sim/*"],
+      "@persistence/*": ["src/persistence/*"],
+      "@render/*": ["src/renderer/render/*"],
+      "@ui/*": ["src/renderer/app/*"],
+      "@assets/*": ["assets/dist/*"]
+    }
+  },
+  "include": [
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.tsx",
+    "src/shared/**/*.ts",
+    "src/sim/**/*.ts",
+    "src/persistence/**/*.ts"
+  ],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}
