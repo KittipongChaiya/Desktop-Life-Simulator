@@ -11,7 +11,7 @@
  * exact failure ADR-005 exists to prevent.
  */
 
-import { TICKS_PER_SECOND } from '../../shared/constants';
+import { ticksToWholeSeconds } from '../time/game-clock';
 
 /**
  * Status readout for the collapsed status bar.
@@ -38,7 +38,7 @@ export const SLICE_NAMES = ['status'] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */
 export function projectStatus(tick: number): StatusSlice {
-  return { tick, uptimeSeconds: Math.floor(tick / TICKS_PER_SECOND) };
+  return { tick, uptimeSeconds: ticksToWholeSeconds(tick) };
 }
 
 /**

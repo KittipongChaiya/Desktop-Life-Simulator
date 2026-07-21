@@ -9,11 +9,12 @@
  */
 
 import { TICKS_PER_SECOND } from '../../shared/constants';
+import type { SimulationControl } from '../../shared/simulation-control';
+import { ticksToSeconds } from '../../sim/time/game-clock';
 import { flagSnapshot } from '../flags';
 import { levelName, LOG_LEVEL_NAMES, type LogManager } from '../logger/logger';
 import type { MetricRegistry } from '../metrics/registry';
 import type { Profiler } from '../profiler/profiler';
-import type { SimulationControl } from '../simulation-control';
 
 import {
   EMPTY_RESULT,
@@ -169,7 +170,7 @@ export function createBuiltinCommands(deps: BuiltinDependencies): readonly Comma
       run: () => {
         const ticks = simulation.tick();
         return linesOf([
-          `game time  ${formatDuration(ticks / TICKS_PER_SECOND)}`,
+          `game time  ${formatDuration(ticksToSeconds(ticks))}`,
           `ticks      ${ticks.toLocaleString()} @ ${String(TICKS_PER_SECOND)} Hz`,
         ]);
       },
