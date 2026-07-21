@@ -42,6 +42,20 @@ export function splitContentId(id: ContentId): { namespace: string; name: string
 }
 
 /** Unchecked casts. Use only where the value's shape is already guaranteed. */
+/**
+ * Asserts a string is a well-formed content ID.
+ *
+ * Throws rather than returning a Result: content IDs are authored as literals
+ * in source, so a malformed one is a programming error caught at startup, not a
+ * runtime condition to handle.
+ */
+export function asContentId(value: string): ContentId {
+  if (!isContentId(value)) {
+    throw new Error(`malformed content id "${value}" — expected namespace:name`);
+  }
+  return value;
+}
+
 export const asTileIndex = (value: number): TileIndex => value as TileIndex;
 export const asWorkerId = (value: number): WorkerId => value as WorkerId;
 export const asBuildingId = (value: number): BuildingId => value as BuildingId;

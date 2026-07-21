@@ -24,3 +24,11 @@ declare module '*.css' {
   const content: string;
   export default content;
 }
+
+/* eslint-disable no-restricted-exports */
+
+declare module '*.png' {
+  /** Vite rewrites the import to a bundled URL. */
+  const url: string;
+  export default url;
+}

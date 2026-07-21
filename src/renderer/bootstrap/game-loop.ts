@@ -27,8 +27,14 @@ export interface GameLoop extends SimulationControl {
 export interface GameLoopOptions {
   readonly world: World;
   readonly store: SnapshotStore;
-  /** Called once per frame after the simulation advances. */
-  readonly onFrame?: (alpha: number) => void;
+  /**
+   * Called once per frame after the simulation advances.
+   *
+   * Returns true if the frame actually DREW. The loop counts drawn frames
+   * rather than scheduled ones, so the reported FPS reflects real work — a
+   * static world correctly reads 0 rather than 60 (ADR-001 §1).
+   */
+  readonly onFrame?: (alpha: number) => boolean | void;
   /** Injected for tests; defaults to requestAnimationFrame. */
   readonly schedule?: (callback: (now: number) => void) => number;
   readonly cancel?: (handle: number) => void;
@@ -72,9 +78,10 @@ export function createGameLoop(options: GameLoopOptions): GameLoop {
     }
 
     store.pump(timestamp);
-    onFrame?.(accumulator.alpha());
 
-    framesInWindow += 1;
+    const drew = onFrame?.(accumulator.alpha());
+    if (drew !== false) framesInWindow += 1;
+
     const windowElapsed = timestamp - windowStart;
     if (windowElapsed >= RATE_WINDOW_MS) {
       fps = (framesInWindow * 1000) / windowElapsed;

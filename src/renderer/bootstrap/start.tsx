@@ -21,6 +21,7 @@ import { AppProviders } from '../app/store-context';
 import { mountDevTools } from './devtools-mount';
 import { createGameLoop } from './game-loop';
 import { createSnapshotStore } from './snapshot-store';
+import { createWorldMount } from './world-mount';
 
 import '../app/global.css';
 
@@ -31,14 +32,61 @@ import '../app/global.css';
  * first render already has a settled snapshot, and devtools mount last so a
  * failure there can never prevent the game from starting.
  */
+/** Last world-view mount failure, surfaced as a devtools metric. */
+let lastWorldError: string | null = null;
+
 export function startApplication(): void {
   // Fixed seed until phase-07 introduces save/load.
   const world = createWorld(1);
   const store = createSnapshotStore(world.snapshots);
   const overlay = createOverlayController(window.desktopLife.overlay);
 
-  const loop = createGameLoop({ world, store });
+  const canvas = document.getElementById('world');
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    throw new Error('#world canvas is missing from index.html');
+  }
+
+  const worldMount = createWorldMount({
+    canvas,
+    world,
+    atlas: 'terrain',
+    viewport: () => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      resolution: window.devicePixelRatio,
+    }),
+    // A GPU failure must be VISIBLE. Swallowing it leaves the overlay running
+    // with no world and no explanation, which is what happened on the first
+    // live check of phase-02.
+    onError: (error) => {
+      lastWorldError = error instanceof Error ? error.message : String(error);
+    },
+  });
+
+  const loop = createGameLoop({
+    world,
+    store,
+    // Returning false when nothing was drawn keeps the FPS metric honest: a
+    // static world reads 0 fps, which is the intended behaviour, not a stall.
+    onFrame: () => worldMount.current()?.renderFrame() ?? false,
+  });
   loop.start();
+
+  // The world view exists only while expanded. Collapsing destroys the GPU
+  // context entirely (ADR-001 §2).
+  const syncWorldToOverlay = (): void => {
+    if (overlay.isCollapsed()) {
+      worldMount.unmount();
+    } else {
+      void worldMount.mount();
+    }
+  };
+  overlay.subscribe(syncWorldToOverlay);
+  syncWorldToOverlay();
+
+  window.addEventListener('resize', () => {
+    worldMount.resize(window.innerWidth, window.innerHeight);
+  });
 
   const container = document.getElementById('ui');
   if (container === null) throw new Error('#ui root is missing from index.html');
@@ -53,6 +101,8 @@ export function startApplication(): void {
 
   void mountDevTools({
     simulation: loop,
+    world: () => worldMount.current(),
+    worldError: () => lastWorldError,
     appVersion: __APP_VERSION__,
     reload: () => {
       window.location.reload();
