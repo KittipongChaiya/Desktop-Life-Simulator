@@ -1,39 +1,48 @@
 /**
  * Command sources — the interaction layer. ADR-010 §6.
  *
- * INTERFACES ONLY. The player UI (phase-05), worker AI (phase-04), automation
- * (phase-06), and replay (post-v1.0) each implement one of these when they
- * arrive. Nothing here is implemented now, and nothing here is a stub: these
- * are contracts, not placeholders (`AI_RULES.md` §1.6).
+ * A source PUSHES: it decides intent, builds a command, and submits it. Nothing
+ * polls a source, and no source holds a buffer the simulation drains.
  *
- * They exist as a set rather than one interface because the distinction they
- * encode is the entire point of ADR-010 §6: a producer declares WHICH source it
- * is, and cannot claim to be another. `WorkerCommandSource` cannot report
- * itself as the player, so "worker AI took a privileged shortcut" becomes a
- * compile error rather than a review comment — and a replay's provenance stays
- * honest.
+ * This mirrors ADR-010 §3 exactly. There the input handler calls `dispatch`
+ * during the frame and learns immediately whether the command was accepted;
+ * only EXECUTION waits for the tick boundary. A pull model would defer
+ * validation to the next poll, so the caller could not be told "rejected" at
+ * the moment it acted — which is the feedback `GAME_DESIGN.md` §8.2 promises.
  *
- * What every source shares, and what makes replay possible at all: they all
- * produce the SAME `Command` values and dispatch them through the SAME
- * dispatcher. There is no privileged variant, no "internal callers only" API.
+ * PHASE-03.6 CORRECTION. Phase-03.5 defined these with a `take(): Command[]`
+ * pull method, on the assumption that all four sources were symmetric. The
+ * first real implementation — player input — showed they are not: the player
+ * acts on events, not on ticks. Rather than bend the player to fit, the
+ * abstraction was corrected. Worker AI, automation, and replay submit the same
+ * way when they arrive; a tick-driven source simply submits from inside its
+ * system.
+ *
+ * The four interfaces exist as a set because each fixes its own `source` tag.
+ * A producer is bound to its identity at construction and cannot submit under
+ * another — so "worker AI took a privileged path" is a compile error rather
+ * than a review comment, and a replay's provenance stays honest.
  */
 
-import type { Command, CommandSource } from './types';
+import type { Command, CommandResult, CommandSource } from './types';
 
 /**
- * Anything that produces commands for the simulation.
+ * Anything that submits commands to the simulation.
  *
- * `take` must be PURE with respect to world state — a producer reads the world
- * and returns what it wants to happen; it never applies anything itself. That
- * is the dispatcher's job, and keeping it so is what ADR-010 §1 protects.
+ * `submit` forwards to the world's `CommandDispatcher`, which stays the single
+ * entry point for every write (ADR-010 §1). Implementations bind their own
+ * source tag; they do not accept one per call.
+ *
+ * The returned `CommandResult` reports ACCEPTANCE, not execution: `ok` means
+ * validated and queued. A command may still be rejected when it executes
+ * (ADR-010 §3).
  */
 export interface CommandProducer {
   readonly source: CommandSource;
-  /** Commands produced since the last call, in the order they should apply. */
-  take(): readonly Command[];
+  submit(command: Command): CommandResult;
 }
 
-/** Commands originating from direct player interaction. Phase-05. */
+/** Commands originating from direct player interaction. Phase-03.6. */
 export interface PlayerInputSource extends CommandProducer {
   readonly source: typeof CommandSource.Player;
 }
@@ -57,7 +66,7 @@ export interface AutomationSource extends CommandProducer {
  * Commands re-applied from a recorded stream. Post-v1.0.
  *
  * `seed + ordered command stream` is the whole replay format (ADR-010 §5); this
- * is the end that plays it back.
+ * is the end that plays it back, submitting each command in recorded order.
  */
 export interface ReplaySource extends CommandProducer {
   readonly source: typeof CommandSource.Replay;

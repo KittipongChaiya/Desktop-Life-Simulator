@@ -36,6 +36,7 @@ import {
   type CameraState,
 } from './camera';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
+import { createHighlight, type Highlight, type HighlightState } from './highlight';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
 
@@ -51,6 +52,13 @@ export interface WorldView {
   tileAt(screenX: number, screenY: number): { x: number; y: number } | null;
   /** Marks a tile changed so its chunk re-renders. */
   invalidateTile(tile: TileIndex): void;
+  /**
+   * Draws the hover, selection, and rejection boxes in the `worldUi` layer.
+   *
+   * The view owns the drawing; the caller owns the state. Interaction state is
+   * presentation state and never reaches `World` (ADR-007 §1).
+   */
+  setHighlight(state: HighlightState): void;
   resize(width: number, height: number): void;
   /**
    * Attaches drag-to-pan and wheel-to-zoom to an element. Returns teardown.
@@ -160,9 +168,16 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   };
   applyCamera();
 
+  const highlight: Highlight = createHighlight(app.layers.worldUi);
+
   return {
     gate,
     backend: app.backend,
+
+    setHighlight(state) {
+      highlight.update(state);
+      gate.markDirty();
+    },
 
     renderFrame() {
       const range = visibleTileRange(camera, limits);
@@ -268,6 +283,8 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     },
 
     destroy() {
+      // Before `app.destroy()`, which tears down the layer that parents it.
+      highlight.destroy();
       terrain.destroy();
       app.destroy();
     },

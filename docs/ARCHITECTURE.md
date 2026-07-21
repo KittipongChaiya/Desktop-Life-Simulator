@@ -209,7 +209,7 @@ Core uses the bus for its own decoupling in v0.1, so the hook points are real an
 
 ```
 Click / keypress
-  → UI builds a Command          { type: 'plantCrop', tile: 4172, cropId: 'core:wheat' }
+  → input layer maps (tool, tile) to a Command    { type: 'plantCrop', tile: 4172, cropId: 'core:wheat' }
   → dispatch() validates purely → accepted or rejected IMMEDIATELY
   → accepted: queued; world untouched, nothing published
   → next tick: commandSystem re-validates → executes → publishes events
@@ -217,6 +217,12 @@ Click / keypress
 ```
 
 Applying commands **on a tick boundary** is what preserves determinism (ADR-007 §1), and because a command is plain serializable data, every player action is already in the shape a replay or network layer would need (ADR-010 §5). Worker AI and automation emit the same commands through the same dispatcher — §3.3a.
+
+**Every source pushes.** A `CommandProducer` decides intent and submits; nothing polls it for a buffer. The player submits from an event handler, a tick-driven source submits from inside its system, and both reach the identical dispatcher.
+
+**The input layer holds no rules.** It maps (selected tool + clicked tile) to a command and stops. Whether the tile is owned, tilled, or ripe is the validator's answer — duplicating those checks in the UI would give the player and worker AI two rule sets that drift, which is the failure ADR-010 §6 exists to prevent.
+
+**Interaction state is presentation state.** Tool, hover, and selection live in the renderer and never enter `World`. Hover changes at pointer rate; if the tick could see it, mouse movement would be a simulation input and determinism would be gone.
 
 ### 4.2 Snapshots up
 

@@ -133,7 +133,9 @@ src/
 │   │   │                       may import (boundaries/entry-point)
 │   │   ├── loop.ts             Accumulator loop (ADR-007 §3)
 │   │   ├── snapshot-store.ts   Sliced store + throttling (ADR-005 §2)
-│   │   └── command-dispatch.ts
+│   │   ├── command-dispatch.ts The player's CommandProducer (ADR-010 §6)
+│   │   ├── player-input.ts     Tool/hover/selection state; intent, not rules
+│   │   └── pointer-actions.ts  DOM events → player intent
 │   ├── render/                 PixiJS only — no React
 │   │   ├── app.ts              Pixi init, backend detection, teardown
 │   │   ├── dirty-gate.ts       Render-on-demand gate (ADR-001 §1)
@@ -141,6 +143,7 @@ src/
 │   │   ├── terrain-renderer.ts RenderTexture chunk cache
 │   │   ├── terrain-chunks.ts   Chunk index maths (pure, GPU-free)
 │   │   ├── layers.ts           The 7 named layers
+│   │   ├── highlight.ts        Hover/selection boxes in worldUi (layer 6)
 │   │   ├── camera.ts
 │   │   ├── terrain-chunks.ts   RenderTexture chunk cache
 │   │   ├── sprites/

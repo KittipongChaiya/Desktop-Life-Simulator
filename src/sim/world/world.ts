@@ -11,7 +11,11 @@
  */
 
 import { registerCropCommands } from '../commands/crop-commands';
-import { createCommandDispatcher, type CommandDispatcher } from '../commands/dispatcher';
+import {
+  createCommandDispatcher,
+  type CommandDispatcher,
+  type CommandDispatcherOptions,
+} from '../commands/dispatcher';
 import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
 import {
   createTileKindRegistry,
@@ -91,7 +95,37 @@ export interface World {
 /** Starting owned plot, in tiles per side. GAME_DESIGN.md §2.1. */
 const STARTING_PLOT_SIZE = 8;
 
-export function createWorld(seed: number): World {
+/**
+ * Optional dependencies supplied when the world is built.
+ *
+ * INJECTED AT CONSTRUCTION, never through a setter: a world's dependencies are
+ * fixed the moment it exists, so no later caller can redirect them and no test
+ * can observe a half-wired world.
+ *
+ * These carry SIMULATION types only. A rejection reports a `Command` and an
+ * `AppError`; what a consumer does with that — a UI message, a log line, a
+ * replay annotation — is the consumer's business. The world must not know a
+ * view exists (`ARCHITECTURE.md` §2).
+ */
+export interface WorldOptions {
+  /** Notified when an accepted command fails at execution (ADR-010 §7). */
+  readonly onExecutionRejected?: CommandDispatcherOptions['onExecutionRejected'];
+}
+
+/**
+ * Narrows world options to dispatcher options.
+ *
+ * Built explicitly rather than spread: `exactOptionalPropertyTypes` treats an
+ * absent property and one set to `undefined` as different types, and the
+ * dispatcher's is absent-or-present.
+ */
+function dispatcherOptions(options: WorldOptions): CommandDispatcherOptions {
+  return options.onExecutionRejected === undefined
+    ? {}
+    : { onExecutionRejected: options.onExecutionRejected };
+}
+
+export function createWorld(seed: number, options: WorldOptions = {}): World {
   const tileKinds = createTileKindRegistry();
   registerCoreTileKinds(tileKinds);
 
@@ -119,7 +153,7 @@ export function createWorld(seed: number): World {
     // Reads `world` lazily. The closure runs at dispatch time, never during
     // construction, so the self-reference is sound — and it is what keeps the
     // dispatcher bound to exactly one world (ADR-010 §8).
-    commands: createCommandDispatcher(() => world),
+    commands: createCommandDispatcher(() => world, dispatcherOptions(options)),
     ids: createIdAllocator(),
     snapshots: createSnapshotState(),
   };

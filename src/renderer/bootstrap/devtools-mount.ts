@@ -27,6 +27,15 @@ export interface DevToolsMountOptions {
   readonly world?: () => WorldView | null;
   /** Last mount failure, if any. Surfaced so a GPU failure is diagnosable. */
   readonly worldError?: () => string | null;
+  /**
+   * Last command rejected at EXECUTION, if any. Phase-03.6.
+   *
+   * These are rejections the player never sees: the command passed validation
+   * at dispatch and failed a tick later because the world moved. Until the HUD
+   * lands in phase-05 this is where they surface, so they are recorded rather
+   * than discarded (`AI_RULES.md` §2.2).
+   */
+  readonly commandRejection?: () => string | null;
 }
 
 /** Resolves once tooling is mounted, or immediately when the build has none. */
@@ -41,6 +50,17 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
   ]);
 
   const host = createDevTools(options);
+
+  const commandRejection = options.commandRejection;
+  if (commandRejection !== undefined) {
+    host.metrics.register({
+      id: 'sim.lastCommandRejection',
+      label: 'Last Rejection',
+      group: MetricGroup.Simulation,
+      order: 10,
+      read: () => commandRejection() ?? 'none',
+    });
+  }
 
   // PHASE-02 METRICS. Registered here in `bootstrap`, not in devtools: the
   // metrics read the render layer, and `devtools` may not import `render`

@@ -10,6 +10,7 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
+import { CORE_WHEAT } from '@sim/content/crops';
 import { createWorld } from '@sim/world/world';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -18,8 +19,11 @@ import { App } from '../app/App';
 import { createOverlayController } from '../app/overlay-controller';
 import { AppProviders } from '../app/store-context';
 
+import { createPlayerInputSource } from './command-dispatch';
 import { mountDevTools } from './devtools-mount';
 import { createGameLoop } from './game-loop';
+import { createPlayerInput } from './player-input';
+import { attachPointerActions, toHighlight } from './pointer-actions';
 import { createSnapshotStore } from './snapshot-store';
 import { createWorldMount } from './world-mount';
 
@@ -35,9 +39,28 @@ import '../app/global.css';
 /** Last world-view mount failure, surfaced as a devtools metric. */
 let lastWorldError: string | null = null;
 
+/**
+ * Last command rejected at execution, surfaced as a devtools metric.
+ *
+ * Dispatch-time rejections reach the player through the highlight; these
+ * happen a tick later, when the world has changed since the click, and have
+ * nowhere to surface until the HUD arrives in phase-05. Recording them beats
+ * discarding them (`AI_RULES.md` §2.2).
+ */
+let lastCommandRejection: string | null = null;
+
 export function startApplication(): void {
   // Fixed seed until phase-07 introduces save/load.
-  const world = createWorld(1);
+  //
+  // Execution-time command rejections are injected here, at the construction
+  // boundary. The world reports a `Command` and an `AppError` and knows nothing
+  // about a view; deciding that this becomes a log line is the composition
+  // root's job, not the simulation's (ADR-010 §7).
+  const world = createWorld(1, {
+    onExecutionRejected: (command, error) => {
+      lastCommandRejection = `${command.type}: ${error.code}`;
+    },
+  });
   const store = createSnapshotStore(world.snapshots);
   const overlay = createOverlayController(window.desktopLife.overlay);
 
@@ -65,6 +88,22 @@ export function startApplication(): void {
     onError: (error) => {
       lastWorldError = error instanceof Error ? error.message : String(error);
     },
+  });
+
+  // The player's write path into the simulation. The same dispatcher worker AI
+  // and automation will use — no privileged variant exists (ADR-010 §6).
+  const playerInput = createPlayerInput({
+    source: createPlayerInputSource(world.commands),
+    seed: CORE_WHEAT,
+    onChange: (state) => worldMount.current()?.setHighlight(toHighlight(state)),
+  });
+  // Teardown is intentionally not held: these listeners live for the process,
+  // exactly like the resize handler below. Pointer actions stay attached while
+  // collapsed, where `tileAt` returns null and every click is a no-op.
+  attachPointerActions({
+    target: document.body,
+    input: playerInput,
+    view: () => worldMount.current(),
   });
 
   const loop = createGameLoop({
@@ -107,6 +146,7 @@ export function startApplication(): void {
     simulation: loop,
     world: () => worldMount.current(),
     worldError: () => lastWorldError,
+    commandRejection: () => lastCommandRejection,
     appVersion: __APP_VERSION__,
     reload: () => {
       window.location.reload();

@@ -333,6 +333,35 @@ describe('duplicate command protection', () => {
   });
 });
 
+describe('world wiring (phase-03.6)', () => {
+  it('routes execution-time rejections to a handler injected at construction', () => {
+    // Feedback is injected through the construction boundary, never a mutable
+    // setter: the world's dependencies are fixed once it exists. The handler
+    // takes only domain types, so no UI shape reaches the simulation.
+    const reasons: string[] = [];
+    const world = createWorld(1, {
+      onExecutionRejected: (_command, error) => reasons.push(error.code),
+    });
+
+    send(world, till(OWNED));
+    stepSimulation(world);
+
+    // Both pass dispatch validation; only the first can execute.
+    send(world, plant(OWNED, CORE_WHEAT));
+    send(world, plant(OWNED, CORE_TURNIP));
+    stepSimulation(world);
+
+    expect(reasons).toEqual([ErrorCode.TileWrongKind]);
+  });
+
+  it('works without options, as every existing caller constructs it', () => {
+    const world = createWorld(1);
+    send(world, till(OWNED));
+
+    expect(() => stepSimulation(world)).not.toThrow();
+  });
+});
+
 describe('serialization safety (ADR-010 §5)', () => {
   it('round-trips every command shape through JSON unchanged', () => {
     const commands: Command[] = [till(OWNED), plant(OWNED, CORE_WHEAT), harvest(OWNED)];
