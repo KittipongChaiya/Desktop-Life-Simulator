@@ -148,7 +148,13 @@ semantics that only its owning system can define.
 
 ### 3.5 Events
 
-> **Status: designed, not yet built.** The bus lands in **phase-03**, where
+> **Status: BUILT (phase-02.5).** ADR-008 records the decision. Queue-and-flush,
+> per-world, no global state. `appStarted` and `simulationTick` are the initial
+> events; `cropHarvested` (phase-03), `workerIdle` (phase-04),
+> `inventoryChanged` (phase-05) and `worldLoaded`/`worldSaved` (phase-07) each
+> arrive with a real producer and consumer.
+>
+> Historical note, retained deliberately: The bus lands in **phase-03**, where
 > `harvestSystem` produces the first real event (`cropHarvested`) and inventory
 > consumes it. It was deliberately not built earlier: with one system in
 > existence there were no producers, no consumers, and no cross-system calls to

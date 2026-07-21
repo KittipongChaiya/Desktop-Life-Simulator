@@ -22,6 +22,22 @@ const RATE_WINDOW_MS = 500;
 export interface GameLoop extends SimulationControl {
   start(): void;
   stop(): void;
+  /**
+   * Multiplies how much simulated time each real second produces.
+   *
+   * Scaling changes the NUMBER OF TICKS per frame, never the tick duration.
+   * That distinction is the whole design: `TICK_MS` is frozen (ADR-007 §7), so
+   * a scaled run visits exactly the same tick states as an unscaled one, just
+   * sooner. Determinism, save `lastTick` semantics, and content authored in
+   * ticks all survive.
+   *
+   * A scale that stretched TICK_MS would make tick counts stop mapping to game
+   * time and silently corrupt every duration in the game.
+   *
+   * Development and testing only; there is no time control in the product.
+   */
+  setTimeScale(scale: number): void;
+  timeScale(): number;
 }
 
 export interface GameLoopOptions {
@@ -56,6 +72,7 @@ export function createGameLoop(options: GameLoopOptions): GameLoop {
   let handle: number | null = null;
   let previous = now();
   let paused = false;
+  let scale = 1;
 
   let frameTimeMs = 0;
   let framesInWindow = 0;
@@ -71,7 +88,9 @@ export function createGameLoop(options: GameLoopOptions): GameLoop {
 
     // While paused the accumulator is still drained, so unpausing does not
     // replay the entire paused duration as a burst of ticks.
-    const ticks = accumulator.advance(delta);
+    // Scale the INPUT to the accumulator. The accumulator's own cap still
+    // applies, so a large scale cannot spiral (ADR-007 §3).
+    const ticks = accumulator.advance(delta * scale);
     if (!paused && ticks > 0) {
       stepSimulationBy(world, ticks);
       ticksInWindow += ticks;
@@ -107,6 +126,15 @@ export function createGameLoop(options: GameLoopOptions): GameLoop {
       cancel(handle);
       handle = null;
     },
+
+    setTimeScale(next) {
+      if (!Number.isFinite(next) || next <= 0) {
+        throw new Error(`setTimeScale: expected a positive finite number, got ${String(next)}`);
+      }
+      scale = next;
+    },
+
+    timeScale: () => scale,
 
     isPaused: () => paused,
     pause() {

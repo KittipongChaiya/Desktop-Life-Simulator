@@ -7,7 +7,21 @@
  */
 
 import { TICK_SYSTEMS } from './systems/index';
+import { createScheduler } from './systems/scheduler';
 import type { World } from './world/world';
+
+/**
+ * The scheduler is built ONCE at module load and validated immediately, so a
+ * duplicate system name or an unknown phase fails at startup rather than on
+ * some later tick.
+ */
+const scheduler = createScheduler();
+scheduler.registerAll(TICK_SYSTEMS);
+
+/** System names in execution order. Exposed so tests can assert tick order. */
+export function tickOrder(): readonly string[] {
+  return scheduler.order();
+}
 
 /**
  * Advances the world by one tick.
@@ -22,10 +36,7 @@ import type { World } from './world/world';
  */
 export function stepSimulation(world: World): void {
   world.tick += 1;
-
-  for (const system of TICK_SYSTEMS) {
-    system(world);
-  }
+  scheduler.step(world);
 }
 
 /** Advances the world by `count` ticks. Used by tests and offline catch-up. */

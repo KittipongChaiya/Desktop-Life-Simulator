@@ -69,7 +69,9 @@ src/
 │   │   ├── inventory.ts        Inventory store
 │   │   └── wallet.ts           Currency store
 │   ├── systems/
-│   │   ├── index.ts            TICK_SYSTEMS — the ordered list
+│   │   ├── index.ts            TICK_SYSTEMS — the declared schedule
+│   │   ├── scheduler.ts        Phase ordering + startup validation
+│   │   ├── event-flush.ts      Publishes and drains the tick's events
 │   │   ├── intent.ts
 │   │   ├── growth.ts
 │   │   ├── worker.ts
@@ -88,9 +90,11 @@ src/
 │   ├── intents/
 │   │   ├── types.ts            Intent union
 │   │   └── queue.ts
+│   ├── entities/
+│   │   └── id-allocator.ts     Stable ID allocation. NOT an entity store.
 │   ├── events/
-│   │   ├── types.ts            SimEvent union
-│   │   └── bus.ts
+│   │   ├── types.ts            SimEventMap — real producers only
+│   │   └── bus.ts              Queue-and-flush bus (ADR-008)
 │   ├── snapshot/
 │   │   ├── slices.ts           Slice definitions + change conditions
 │   │   └── project.ts          World → slice projection

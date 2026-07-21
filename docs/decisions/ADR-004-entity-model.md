@@ -1,12 +1,12 @@
 # ADR-004: Data-Oriented Entity Stores, Not an ECS
 
-| | |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-07-21 |
-| **Deciders** | Project owner, lead architect |
-| **Supersedes** | — |
-| **Superseded by** | — |
+|                   |                               |
+| ----------------- | ----------------------------- |
+| **Status**        | Accepted                      |
+| **Date**          | 2026-07-21                    |
+| **Deciders**      | Project owner, lead architect |
+| **Supersedes**    | —                             |
+| **Superseded by** | —                             |
 
 ---
 
@@ -16,11 +16,11 @@ The simulation must represent tiles, crops, workers, buildings, and items — an
 
 Scale, honestly assessed:
 
-| Version | Tiles | Active entities | Ticked entities/sec @ 20 Hz |
-|---|---|---|---|
-| v0.1 | ~4,096 | ~10 workers, ~500 crops | ~10,000 |
-| v0.4 | ~65,000 | ~200 | ~4,000 (most sleeping) |
-| v1.0 | ~250,000 | ~1,000 | ~20,000 |
+| Version | Tiles    | Active entities         | Ticked entities/sec @ 20 Hz |
+| ------- | -------- | ----------------------- | --------------------------- |
+| v0.1    | ~4,096   | ~10 workers, ~500 crops | ~10,000                     |
+| v0.4    | ~65,000  | ~200                    | ~4,000 (most sleeping)      |
+| v1.0    | ~250,000 | ~1,000                  | ~20,000                     |
 
 This is small. A 20 Hz tick over a thousand entities is not a performance problem on any machine from the last decade — the design pressure here is **maintainability and extensibility**, not throughput.
 
@@ -37,7 +37,7 @@ The genuine tension: a full ECS is the standard answer for entity-heavy games wi
 ```ts
 export interface Worker {
   readonly id: WorkerId;
-  position: TilePosition;         // mutable: sim hot state (CODE_STYLE.md §2.2)
+  position: TilePosition; // mutable: sim hot state (CODE_STYLE.md §2.2)
   state: WorkerState;
   task: WorkerTask | null;
   path: readonly TileIndex[];
@@ -56,9 +56,9 @@ export interface World {
   tick: number;
   readonly rng: Rng;
 
-  readonly tiles: TileGrid;                        // dense: flat typed arrays
-  readonly crops: Map<TileIndex, Crop>;            // sparse: keyed by tile
-  readonly workers: Map<WorkerId, Worker>;         // sparse: keyed by id
+  readonly tiles: TileGrid; // dense: flat typed arrays
+  readonly crops: Map<TileIndex, Crop>; // sparse: keyed by tile
+  readonly workers: Map<WorkerId, Worker>; // sparse: keyed by id
   readonly buildings: Map<BuildingId, Building>;
 
   readonly inventory: Inventory;
@@ -75,8 +75,12 @@ Choosing per-store rather than imposing one uniform layout is the whole point: t
 ### 3. Systems are pure free functions, ordered explicitly
 
 ```ts
-export function growthSystem(world: World): void { /* ... */ }
-export function workerSystem(world: World): void { /* ... */ }
+export function growthSystem(world: World): void {
+  /* ... */
+}
+export function workerSystem(world: World): void {
+  /* ... */
+}
 ```
 
 The tick runs a **fixed, explicitly ordered list** of systems (ADR-007 §Tick Order). Order is data, declared in one file, not implied by registration order or discovery. Where order matters for correctness — growth before harvest, so a crop maturing this tick is harvestable this tick — it is stated in a comment and covered by a test.
@@ -96,13 +100,13 @@ When combat arrives in v1.0, `health` becomes a side-table over whatever entity 
 
 This is the load-bearing distinction for mod support (ADR-003 §6).
 
-| | Definition | Instance |
-|---|---|---|
-| Example | `core:wheat` — grows in 1200 ticks, yields 3 wheat | *this* wheat plant on tile 4172, 340 ticks grown |
-| Count | Tens | Thousands |
-| Mutable | Never | Yes |
-| Source | Content registry (core or plugin) | Runtime |
-| Saved | **No** — referenced by ID | **Yes** |
+|         | Definition                                         | Instance                                         |
+| ------- | -------------------------------------------------- | ------------------------------------------------ |
+| Example | `core:wheat` — grows in 1200 ticks, yields 3 wheat | _this_ wheat plant on tile 4172, 340 ticks grown |
+| Count   | Tens                                               | Thousands                                        |
+| Mutable | Never                                              | Yes                                              |
+| Source  | Content registry (core or plugin)                  | Runtime                                          |
+| Saved   | **No** — referenced by ID                          | **Yes**                                          |
 
 Instances store a `ContentId`, never a copy of the definition. Definitions live in registries populated at startup. This is why a plugin can add a crop without touching core, and why rebalancing a crop's growth time in a patch applies to already-planted crops rather than requiring a migration.
 
@@ -117,7 +121,7 @@ Views never read `World` directly. The sim produces an immutable snapshot when s
 ### A. A real ECS library (bitECS, miniplex, becsy)
 
 - **For:** the standard answer for entity-heavy games. Excellent cache locality via archetypes. Composition is native. Query systems scale to tens of thousands of entities.
-- **Against:** archetype storage is *hostile to the save format* — reconstructing archetype layouts across schema versions is far harder than migrating plain records (ADR-002 §3). Component-ID registration adds ceremony to every new entity kind. Debugging means inspecting parallel component arrays rather than reading an object. And the performance it buys is for a problem this game does not have: the table above shows peak load at ~20,000 entity-ticks per second, roughly three orders of magnitude below where archetype iteration matters.
+- **Against:** archetype storage is _hostile to the save format_ — reconstructing archetype layouts across schema versions is far harder than migrating plain records (ADR-002 §3). Component-ID registration adds ceremony to every new entity kind. Debugging means inspecting parallel component arrays rather than reading an object. And the performance it buys is for a problem this game does not have: the table above shows peak load at ~20,000 entity-ticks per second, roughly three orders of magnitude below where archetype iteration matters.
 - **Rejected because:** it is speculative generality of exactly the kind `AI_RULES.md` §1.5 forbids — real costs in every phase, paid against a bottleneck that never arrives. Critically, the chosen design **upgrades into it** if that assessment turns out wrong: entities are already plain data with no behavior, systems already iterate stores, and behavior is already separate from state. The migration would be mechanical rather than a rewrite.
 
 ### B. OOP class hierarchy (`Entity` → `Actor` → `Worker`)
@@ -140,14 +144,14 @@ Views never read `World` directly. The sim produces an immutable snapshot when s
 
 ## Tradeoffs Accepted
 
-| We accept | To gain | Mitigation |
-|---|---|---|
-| Manual system ordering | Explicit, debuggable, deterministic tick | Order declared in one file; correctness-critical pairs tested |
-| Mutation inside `src/sim/systems/` | No per-tick allocation | Bounded to one directory by `CODE_STYLE.md` §2.2; views get immutable snapshots |
-| No archetype cache locality | Simplicity, save-friendliness | Entity counts are ~1000× below where it matters |
-| Adding an entity kind touches several places | No framework ceremony | Documented checklist in `ARCHITECTURE.md` |
-| Hand-written serialization per store | Explicit, migratable saves | Required by ADR-002 anyway |
-| No built-in query language | No indirection | Stores are small; direct iteration is clear and fast |
+| We accept                                    | To gain                                  | Mitigation                                                                      |
+| -------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| Manual system ordering                       | Explicit, debuggable, deterministic tick | Order declared in one file; correctness-critical pairs tested                   |
+| Mutation inside `src/sim/systems/`           | No per-tick allocation                   | Bounded to one directory by `CODE_STYLE.md` §2.2; views get immutable snapshots |
+| No archetype cache locality                  | Simplicity, save-friendliness            | Entity counts are ~1000× below where it matters                                 |
+| Adding an entity kind touches several places | No framework ceremony                    | Documented checklist in `ARCHITECTURE.md`                                       |
+| Hand-written serialization per store         | Explicit, migratable saves               | Required by ADR-002 anyway                                                      |
+| No built-in query language                   | No indirection                           | Stores are small; direct iteration is clear and fast                            |
 
 ---
 
@@ -159,6 +163,26 @@ Views never read `World` directly. The sim produces an immutable snapshot when s
 - Branded IDs from the start (`CODE_STYLE.md` §1.4) — retrofitting them after entity types exist is a wide, mechanical, error-prone change.
 - The tile grid uses flat typed arrays from phase-02. Converting an array-of-objects grid to typed arrays later would touch every tile consumer.
 - Content registries exist from phase-03, the first phase that defines content.
+
+### The ID allocator is NOT an entity registry (phase-02.5)
+
+`src/sim/entities/id-allocator.ts` allocates and tracks globally unique,
+serializable IDs. It **does not store entities**.
+
+Each system owns its own typed store — `crops` keyed by tile, `workers` keyed by
+`WorkerId`. That is this ADR's decision, and alternative C above rejected
+"uniform generic entity bags" precisely because they discard type safety in the
+one module where correctness matters most.
+
+**If a future change makes the allocator hold entity data, that is the generic
+bag this ADR rejected arriving through the back door.** Store entities in their
+system's typed store instead.
+
+IDs are a monotonic counter — never random, never clock-derived — so two runs
+from the same seed allocate the same IDs in the same order. They are never
+reused, so a stale reference cannot silently resolve to a different entity that
+recycled its number. Zero is reserved as "no entity", so a zeroed field never
+reads as a valid reference.
 
 ### Ongoing — adding a new entity kind
 

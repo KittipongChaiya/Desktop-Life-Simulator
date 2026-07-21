@@ -15,6 +15,8 @@ import {
   registerCoreTileKinds,
   type TileKindRegistry,
 } from '../content/tile-kinds';
+import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
+import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
 import { createSnapshotState, type SnapshotState } from '../snapshot/state';
 
@@ -42,6 +44,18 @@ export interface World {
   readonly tileKinds: TileKindRegistry;
 
   /**
+   * Typed event bus. Queue-and-flush; subscribers run in `postUpdate` only
+   * (ADR-008).
+   */
+  readonly events: EventBus;
+
+  /**
+   * Entity ID allocation. An ID SERVICE, not an entity store — systems keep
+   * their own typed stores (ADR-004).
+   */
+  readonly ids: IdAllocator;
+
+  /**
    * Versioned projections for views. Written by `snapshotSystem` at the end of
    * each tick; never read by other systems (ADR-005 §2).
    */
@@ -66,6 +80,8 @@ export function createWorld(seed: number): World {
     rng: createRng(seed),
     tiles,
     tileKinds,
+    events: createEventBus(),
+    ids: createIdAllocator(),
     snapshots: createSnapshotState(),
   };
 }
