@@ -23,16 +23,32 @@ export interface SimulationTick {
   readonly tick: number;
 }
 
+/** Fired when a crop is successfully planted. */
+export interface CropPlanted {
+  readonly tile: number;
+  readonly cropId: string;
+  readonly plantedTick: number;
+}
+
+/** Fired when a mature crop is harvested. */
+export interface CropHarvested {
+  readonly tile: number;
+  readonly cropId: string;
+  readonly yields: readonly { readonly item: string; readonly quantity: number }[];
+}
+
 /**
  * The event map. Adding a member here is all a new event needs — the bus,
  * subscription, and dispatch are generic over it.
  *
- * Phase-03 adds `cropHarvested`; phase-04 `workerIdle`; phase-05
+ * Phase-04 `workerIdle`; phase-05
  * `inventoryChanged`; phase-07 `worldLoaded` / `worldSaved`.
  */
 export interface SimEventMap {
   readonly appStarted: AppStarted;
   readonly simulationTick: SimulationTick;
+  readonly cropPlanted: CropPlanted;
+  readonly cropHarvested: CropHarvested;
 }
 
 export type SimEventName = keyof SimEventMap;

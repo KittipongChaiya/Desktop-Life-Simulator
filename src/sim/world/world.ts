@@ -10,6 +10,7 @@
  * (AI_RULES.md §3.2).
  */
 
+import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
 import {
   createTileKindRegistry,
   registerCoreTileKinds,
@@ -20,6 +21,8 @@ import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
 import { createSnapshotState, type SnapshotState } from '../snapshot/state';
 
+import { createCropStore, type CropStore } from './crop';
+import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
 
 export interface World {
@@ -42,6 +45,18 @@ export interface World {
 
   /** Registered tile kinds. Instances store the dense index, not the ID. */
   readonly tileKinds: TileKindRegistry;
+
+  /** Planted crops, keyed by tile. Sparse — most tiles have none. */
+  readonly crops: CropStore;
+
+  /** Registered crop definitions. Instances reference these by id. */
+  readonly cropRegistry: CropRegistry;
+
+  /**
+   * Cumulative crop activity. Maintained by an event SUBSCRIBER, not derived —
+   * "ever harvested" cannot be recomputed from the current crop map (ADR-008).
+   */
+  readonly cropStats: CropStats;
 
   /**
    * Typed event bus. Queue-and-flush; subscribers run in `postUpdate` only
@@ -69,19 +84,33 @@ export function createWorld(seed: number): World {
   const tileKinds = createTileKindRegistry();
   registerCoreTileKinds(tileKinds);
 
+  const cropRegistry = createCropRegistry();
+  registerCoreCrops(cropRegistry);
+
   const tiles = createTileGrid();
   // Every tile defaults to kind index 0, which is core:grass by registration
   // order — so an all-zero grid is a valid grass world with no fill pass.
   claimCenteredPlot(tiles, STARTING_PLOT_SIZE);
 
-  return {
+  const events = createEventBus();
+  const cropStats = createCropStats();
+
+  const world: World = {
     seed,
     tick: 0,
     rng: createRng(seed),
     tiles,
     tileKinds,
-    events: createEventBus(),
+    crops: createCropStore(),
+    cropRegistry,
+    cropStats,
+    events,
     ids: createIdAllocator(),
     snapshots: createSnapshotState(),
   };
+
+  // Wire the consumer before any command can publish.
+  attachCropStats(events, cropStats, () => world.tick);
+
+  return world;
 }

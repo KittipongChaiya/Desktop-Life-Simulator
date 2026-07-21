@@ -4,7 +4,7 @@
 > **Owns:** Gameplay systems, content tables, numbers, player interaction, UI philosophy.
 > **Does not own:** Product intent (`VISION.md`), technical implementation (`ARCHITECTURE.md`).
 
-**All durations are in ticks.** `TICKS_PER_SECOND = 20` (ADR-007). Numbers here are the *initial* balance; they live in content definitions (ADR-004 §5) and are tunable without code changes or save migrations.
+**All durations are in ticks.** `TICKS_PER_SECOND = 20` (ADR-007). Numbers here are the _initial_ balance; they live in content definitions (ADR-004 §5) and are tunable without code changes or save migrations.
 
 ---
 
@@ -25,14 +25,14 @@
 
 ### 1.1 The progression arc
 
-v0.1's entire design is a four-stage transition from *playing the loop* to *owning a machine that plays it for you*.
+v0.1's entire design is a four-stage transition from _playing the loop_ to _owning a machine that plays it for you_.
 
-| Stage | Player does | Unlocked by | Roughly |
-|---|---|---|---|
-| **1. Manual** | Tills, plants, harvests, sells by hand | — | First 10 min |
-| **2. Delegation** | Hires a worker; watches it farm | 150 coins | 10–30 min |
+| Stage             | Player does                                           | Unlocked by   | Roughly       |
+| ----------------- | ----------------------------------------------------- | ------------- | ------------- |
+| **1. Manual**     | Tills, plants, harvests, sells by hand                | —             | First 10 min  |
+| **2. Delegation** | Hires a worker; watches it farm                       | 150 coins     | 10–30 min     |
 | **3. Automation** | Buys auto-replant and storage; checks in occasionally | 500–700 coins | 30 min – 3 hr |
-| **4. Idle** | Auto-sell running; returns to collect and expand | 1,200 coins | 3 hr+ |
+| **4. Idle**       | Auto-sell running; returns to collect and expand      | 1,200 coins   | 3 hr+         |
 
 **Stage 2 is the emotional core of v0.1** (`VISION.md` §6.3). Everything before it exists to make it feel earned; everything after it exists to prove the promise was real.
 
@@ -44,22 +44,22 @@ Reaching stage 4 means the player can close the panel and the game genuinely pla
 
 ### 2.1 Tile grid
 
-| Property | Value | Notes |
-|---|---|---|
-| World size | 64 × 64 = 4,096 tiles | Fixed in v0.1; ADR-004 §Context |
-| Tile size | 32 × 32 logical px | ADR-006 §5 |
-| Starting owned plot | 8 × 8 = 64 tiles, centered | |
-| Expansion | Ring of tiles around the owned area | Cost escalates, §6.3 |
+| Property            | Value                               | Notes                           |
+| ------------------- | ----------------------------------- | ------------------------------- |
+| World size          | 64 × 64 = 4,096 tiles               | Fixed in v0.1; ADR-004 §Context |
+| Tile size           | 32 × 32 logical px                  | ADR-006 §5                      |
+| Starting owned plot | 8 × 8 = 64 tiles, centered          |                                 |
+| Expansion           | Ring of tiles around the owned area | Cost escalates, §6.3            |
 
 ### 2.2 Tile kinds
 
-| ID | Walkable | Tillable | Notes |
-|---|---|---|---|
-| `core:grass` | Yes | Yes | Default unowned and owned terrain |
-| `core:tilled` | Yes | — | Ready to plant; reverts to grass after 6,000 idle ticks (5 min) |
-| `core:water` | No | No | Decoration; blocks pathing |
-| `core:stone` | No | No | Decoration; blocks pathing |
-| `core:path` | Yes | No | Player-placed; workers move 1.5× faster |
+| ID            | Walkable | Tillable | Notes                                                           |
+| ------------- | -------- | -------- | --------------------------------------------------------------- |
+| `core:grass`  | Yes      | Yes      | Default unowned and owned terrain                               |
+| `core:tilled` | Yes      | —        | Ready to plant; reverts to grass after 6,000 idle ticks (5 min) |
+| `core:water`  | No       | No       | Decoration; blocks pathing                                      |
+| `core:stone`  | No       | No       | Decoration; blocks pathing                                      |
+| `core:path`   | Yes      | No       | Player-placed; workers move 1.5× faster                         |
 
 Tilled soil reverting to grass is the only decay in v0.1, and it is deliberately gentle: it costs a few seconds of work, never a crop or an item. `VISION.md` §2.2 forbids anything harsher.
 
@@ -79,12 +79,12 @@ Crops are stored separately, keyed by tile index (ADR-004 §2) — most tiles ha
 
 ### 3.1 The v0.1 crop table
 
-| ID | Growth | Seed cost | Sell (base) | Yield | Profit/tile | Coins/sec/tile |
-|---|---|---|---|---|---|---|
-| `core:turnip` | 900 t (45 s) | 5 | 12 | 1 | 7 | **0.156** |
-| `core:wheat` | 2,400 t (120 s) | 12 | 34 | 1 | 22 | **0.183** |
-| `core:carrot` | 4,800 t (240 s) | 25 | 80 | 1 | 55 | **0.229** |
-| `core:pumpkin` | 12,000 t (600 s) | 60 | 230 | 1 | 170 | **0.283** |
+| ID             | Growth           | Seed cost | Sell (base) | Yield | Profit/tile | Coins/sec/tile |
+| -------------- | ---------------- | --------- | ----------- | ----- | ----------- | -------------- |
+| `core:turnip`  | 900 t (45 s)     | 5         | 12          | 1     | 7           | **0.156**      |
+| `core:wheat`   | 2,400 t (120 s)  | 12        | 34          | 1     | 22          | **0.183**      |
+| `core:carrot`  | 4,800 t (240 s)  | 25        | 80          | 1     | 55          | **0.229**      |
+| `core:pumpkin` | 12,000 t (600 s) | 60        | 230         | 1     | 170         | **0.283**      |
 
 ### 3.2 Why the curve slopes this way
 
@@ -92,18 +92,18 @@ Longer crops yield strictly better coins-per-second. This is the opposite of mos
 
 A player checking in every 30 seconds is best served by turnips and earns 0.156/tile/sec. A player who plants pumpkins and comes back after lunch earns 0.283 — nearly twice as much for a fraction of the attention. This is `VISION.md` §2.2 expressed as arithmetic.
 
-The counterweight is capital: pumpkin seeds cost 12× turnip seeds, so early players cannot access the efficient crops. Progression is therefore about *affording patience*.
+The counterweight is capital: pumpkin seeds cost 12× turnip seeds, so early players cannot access the efficient crops. Progression is therefore about _affording patience_.
 
 ### 3.3 Growth stages
 
 Every crop has four visual stages, mapped to growth fractions:
 
-| Stage | Fraction | Sprite |
-|---|---|---|
-| `seed` | 0 – 0.25 | `<crop>_0` |
-| `sprout` | 0.25 – 0.55 | `<crop>_1` |
+| Stage     | Fraction    | Sprite     |
+| --------- | ----------- | ---------- |
+| `seed`    | 0 – 0.25    | `<crop>_0` |
+| `sprout`  | 0.25 – 0.55 | `<crop>_1` |
 | `growing` | 0.55 – 0.99 | `<crop>_2` |
-| `mature` | 1.0 | `<crop>_3` |
+| `mature`  | 1.0         | `<crop>_3` |
 
 Stage changes are the only thing that dirties the scene for a growing crop (ADR-001 §1) — four redraws over ten minutes rather than continuous animation. This is why growth is staged rather than smoothly scaled.
 
@@ -116,7 +116,7 @@ growth      : ticks accumulated       (Uint32)
 stage       : CropStage
 ```
 
-`growth` accumulates rather than being derived from `plantedAt`, because moisture (§3.5) makes the rate variable and a derived value could not represent it.
+**AMENDED IN PHASE-03 (ADR-009 §2).** Growth is now DERIVED from `plantedTick`, not accumulated. A crop instance stores `cropId`, `tile`, and `plantedTick` only. The moisture multiplier below is deferred with it. The payoff: offline progress is **exact** — there is no catch-up pass and no error budget.
 
 ### 3.5 Moisture
 
@@ -137,12 +137,12 @@ cost(n) = floor(150 × 1.6^(n-1))
 ```
 
 | Worker | Cost | Cumulative |
-|---|---|---|
-| 1st | 150 | 150 |
-| 2nd | 240 | 390 |
-| 3rd | 384 | 774 |
-| 4th | 614 | 1,388 |
-| 5th | 983 | 2,371 |
+| ------ | ---- | ---------- |
+| 1st    | 150  | 150        |
+| 2nd    | 240  | 390        |
+| 3rd    | 384  | 774        |
+| 4th    | 614  | 1,388      |
+| 5th    | 983  | 2,371      |
 
 Exponential cost against linear throughput means each worker takes meaningfully longer to afford — which is what keeps the progression loop (`VISION.md` §3.3) supplied with a target.
 
@@ -172,15 +172,15 @@ Five states: `IDLE`, `MOVING`, `WORKING`, `SEEKING_REST`, `REST`.
 
 ### 4.3 Action timings
 
-| Action | Ticks | Seconds |
-|---|---|---|
-| Move one tile | 10 | 0.5 |
-| Move one tile on `core:path` | 7 | 0.35 |
-| Till | 30 | 1.5 |
-| Plant | 20 | 1.0 |
-| Water | 20 | 1.0 |
-| Harvest | 30 | 1.5 |
-| Deposit to storage | 20 | 1.0 |
+| Action                       | Ticks | Seconds |
+| ---------------------------- | ----- | ------- |
+| Move one tile                | 10    | 0.5     |
+| Move one tile on `core:path` | 7     | 0.35    |
+| Till                         | 30    | 1.5     |
+| Plant                        | 20    | 1.0     |
+| Water                        | 20    | 1.0     |
+| Harvest                      | 30    | 1.5     |
+| Deposit to storage           | 20    | 1.0     |
 
 ### 4.4 Task priority
 
@@ -198,12 +198,12 @@ Ties break by lowest tile index — never by RNG. Deterministic tie-breaking is 
 
 ### 4.5 Energy
 
-| Property | Value |
-|---|---|
-| Maximum | 100 |
-| Consumed | 1 per 20 ticks while `WORKING` or `MOVING` |
-| Recovered | 2 per 20 ticks while `REST` |
-| Recovered at a Rest Hut | 4 per 20 ticks |
+| Property                | Value                                      |
+| ----------------------- | ------------------------------------------ |
+| Maximum                 | 100                                        |
+| Consumed                | 1 per 20 ticks while `WORKING` or `MOVING` |
+| Recovered               | 2 per 20 ticks while `REST`                |
+| Recovered at a Rest Hut | 4 per 20 ticks                             |
 
 A worker at 100 energy works for 100 seconds and rests for 50 — a 2:1 duty cycle, improving to 4:1 with a Rest Hut. This gives the Rest Hut a concrete purpose and makes worker throughput a thing the player can invest in.
 
@@ -217,16 +217,16 @@ A worker carries 20 items. At capacity it deposits to storage, or to the player 
 
 ## 5. Buildings
 
-| ID | Cost | Effect | Unlocks |
-|---|---|---|---|
-| `core:storage_shed` | 200 | +50 inventory slots; workers deposit here | Longer unattended runs |
-| `core:rest_hut` | 300 | Worker rest at 4/20t instead of 2/20t | Higher worker throughput |
-| `core:seed_bin` | 500 | Workers auto-replant the last crop planted on a tile | **Removes manual replanting** |
-| `core:market_stall` | 1,200 | Auto-sells deposited crops at 90% of market price | **Removes manual selling** |
+| ID                  | Cost  | Effect                                               | Unlocks                       |
+| ------------------- | ----- | ---------------------------------------------------- | ----------------------------- |
+| `core:storage_shed` | 200   | +50 inventory slots; workers deposit here            | Longer unattended runs        |
+| `core:rest_hut`     | 300   | Worker rest at 4/20t instead of 2/20t                | Higher worker throughput      |
+| `core:seed_bin`     | 500   | Workers auto-replant the last crop planted on a tile | **Removes manual replanting** |
+| `core:market_stall` | 1,200 | Auto-sells deposited crops at 90% of market price    | **Removes manual selling**    |
 
 ### 5.1 The 10% auto-sell tax
 
-The market stall sells at 90%, so full automation is *slightly* worse per-item than selling by hand. This is deliberate: it gives an attentive player a small, real edge without making inattention feel punished. The player who never opens the panel still earns 90% of optimal — well inside "reward absence" (`VISION.md` §2.2), while leaving a reason to check in.
+The market stall sells at 90%, so full automation is _slightly_ worse per-item than selling by hand. This is deliberate: it gives an attentive player a small, real edge without making inattention feel punished. The player who never opens the panel still earns 90% of optimal — well inside "reward absence" (`VISION.md` §2.2), while leaving a reason to check in.
 
 ### 5.2 Placement
 
@@ -262,24 +262,24 @@ Multipliers are per-item, persisted, and recover during offline time via the eco
 cost(n) = floor(100 × 1.8^n)     // n = expansions already purchased
 ```
 
-| Expansion | Cost | Plot becomes | Tiles |
-|---|---|---|---|
-| 1st | 100 | 10 × 10 | 100 |
-| 2nd | 180 | 12 × 12 | 144 |
-| 3rd | 324 | 14 × 14 | 196 |
-| 4th | 583 | 16 × 16 | 256 |
-| 5th | 1,049 | 18 × 18 | 324 |
+| Expansion | Cost  | Plot becomes | Tiles |
+| --------- | ----- | ------------ | ----- |
+| 1st       | 100   | 10 × 10      | 100   |
+| 2nd       | 180   | 12 × 12      | 144   |
+| 3rd       | 324   | 14 × 14      | 196   |
+| 4th       | 583   | 16 × 16      | 256   |
+| 5th       | 1,049 | 18 × 18      | 324   |
 
 Land competes with workers for the same coins. Land raises the ceiling; workers raise throughput toward it. Neither is right on its own, which is the strategic content of v0.1.
 
 ### 6.4 Sinks and sources
 
-| Sources | Sinks |
-|---|---|
-| Selling crops | Seeds (recurring) |
+| Sources                     | Sinks                |
+| --------------------------- | -------------------- |
+| Selling crops               | Seeds (recurring)    |
 | Starting capital: 100 coins | Workers (escalating) |
-| | Buildings (one-time) |
-| | Land (escalating) |
+|                             | Buildings (one-time) |
+|                             | Land (escalating)    |
 
 Escalating sinks against linear sources is what keeps the progression loop from terminating. There is no prestige or reset in v0.1.
 
@@ -287,11 +287,11 @@ Escalating sinks against linear sources is what keeps the progression loop from 
 
 ## 7. Inventory
 
-| Property | Value |
-|---|---|
-| Base slots | 40 |
-| Per storage shed | +50 |
-| Stack size | 99 |
+| Property           | Value                                 |
+| ------------------ | ------------------------------------- |
+| Base slots         | 40                                    |
+| Per storage shed   | +50                                   |
+| Stack size         | 99                                    |
 | Behavior when full | Harvest is **blocked**, not discarded |
 
 Blocking rather than discarding is deliberate. Losing a harvest to a full inventory while away is exactly the punish-absence failure `VISION.md` §2.2 forbids; a blocked harvest simply waits, and the player loses time rather than goods.
@@ -302,15 +302,15 @@ Blocking rather than discarding is deliberate. Losing a harvest to a full invent
 
 ### 8.1 Direct actions
 
-| Action | Input | Cost |
-|---|---|---|
-| Till | Click an owned grass tile with the hoe tool | Instant |
-| Plant | Click tilled soil with a seed selected | 1 seed |
-| Water | Click a planted tile with the can tool | Instant |
-| Harvest | Click a mature crop | Instant |
-| Place building | Select from shop, click a tile | Coins |
-| Select worker | Click a worker | — |
-| Pan camera | Drag, or scroll horizontally | — |
+| Action         | Input                                       | Cost    |
+| -------------- | ------------------------------------------- | ------- |
+| Till           | Click an owned grass tile with the hoe tool | Instant |
+| Plant          | Click tilled soil with a seed selected      | 1 seed  |
+| Water          | Click a planted tile with the can tool      | Instant |
+| Harvest        | Click a mature crop                         | Instant |
+| Place building | Select from shop, click a tile              | Coins   |
+| Select worker  | Click a worker                              | —       |
+| Pan camera     | Drag, or scroll horizontally                | —       |
 
 Player actions are **instant**; worker actions take time (§4.3). The player is more efficient per action but has finite attention — which is precisely the trade the game is about.
 
@@ -322,12 +322,12 @@ Failures surface as a brief inline message ("Inventory full", "Not enough coins"
 
 ### 8.3 Keyboard
 
-| Key | Action |
-|---|---|
+| Key     | Action                             |
+| ------- | ---------------------------------- |
 | `1`–`4` | Select tool (hoe, seed, can, hand) |
-| `Space` | Collapse / expand overlay |
-| `Esc` | Close panel, deselect |
-| `Tab` | Cycle panels |
+| `Space` | Collapse / expand overlay          |
+| `Esc`   | Close panel, deselect              |
+| `Tab`   | Cycle panels                       |
 
 A global hotkey to expand the overlay is a **v0.2** feature — registering system-wide hotkeys risks conflicting with the player's real work, which needs its own design pass.
 
@@ -343,15 +343,15 @@ The simulation runs continuously (ADR-003 §2). Nothing about the game changes w
 
 On load, elapsed real time converts to a tick delta, computed closed-form rather than simulated (ADR-002 §6, ADR-007 §6). Per-system contracts:
 
-| System | Catch-up | Accuracy |
-|---|---|---|
-| Growth | Advance `growth` by elapsed ticks × moisture rate at save time | Exact, unless moisture would have decayed below the watered threshold — bounded to ≤ 5% over-credit |
-| Moisture | Linear decay, clamped at 0 | Exact |
-| Workers | Statistical: estimated completed task cycles × average yield, using the task mix at save time | ±10%, deliberately rounded **down** |
-| Economy | Price multipliers recover toward 1.0 | Exact |
-| Auto-sell | Applies to catch-up harvest output at recovered prices | Inherits worker accuracy |
+| System    | Catch-up                                                                                      | Accuracy                                                                                            |
+| --------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Growth    | Advance `growth` by elapsed ticks × moisture rate at save time                                | Exact, unless moisture would have decayed below the watered threshold — bounded to ≤ 5% over-credit |
+| Moisture  | Linear decay, clamped at 0                                                                    | Exact                                                                                               |
+| Workers   | Statistical: estimated completed task cycles × average yield, using the task mix at save time | ±10%, deliberately rounded **down**                                                                 |
+| Economy   | Price multipliers recover toward 1.0                                                          | Exact                                                                                               |
+| Auto-sell | Applies to catch-up harvest output at recovered prices                                        | Inherits worker accuracy                                                                            |
 
-Worker catch-up is approximate because exactly simulating pathing over eight hours is the thing §9 exists to avoid. It rounds down so the player is never *over*-credited — returning to find slightly more than expected is fine; finding less than the game implied is not.
+Worker catch-up is approximate because exactly simulating pathing over eight hours is the thing §9 exists to avoid. It rounds down so the player is never _over_-credited — returning to find slightly more than expected is fine; finding less than the game implied is not.
 
 ### 9.3 Offline cap
 
@@ -400,19 +400,19 @@ Collapsed mode destroys the Pixi application entirely (ADR-001 §2) — the stat
 
 Where each future system attaches. **Designed for, not built** (`VISION.md` §4.2).
 
-| Future system | Attaches via | Cost paid in v0.1 |
-|---|---|---|
-| Seasons, weather | Growth-rate modifiers; render layers 4–5 | Moisture already modifies growth; layers exist |
-| Day/night | Lighting layer; worker schedules | Layer 5 exists; energy cycle exists |
-| NPCs (v0.3) | Worker state machine generalizes to any actor | FSM is data-driven, not worker-specific |
-| Town, contracts | Economy price multipliers become demand curves | Dynamic pricing already exists |
-| Trading | Item registry + price model | Both exist |
-| Factory (v0.4) | Buildings that consume and produce items | Building + inventory model supports it |
-| Exploration | World grid extends beyond the owned plot | Grid is already 64× the starting plot |
-| Combat (v1.0) | `health` side-table over entity stores (ADR-004 §4) | Composition model supports it |
-| Mods | Content registries + namespaced IDs | ADR-003 §6 |
+| Future system    | Attaches via                                        | Cost paid in v0.1                              |
+| ---------------- | --------------------------------------------------- | ---------------------------------------------- |
+| Seasons, weather | Growth-rate modifiers; render layers 4–5            | Moisture already modifies growth; layers exist |
+| Day/night        | Lighting layer; worker schedules                    | Layer 5 exists; energy cycle exists            |
+| NPCs (v0.3)      | Worker state machine generalizes to any actor       | FSM is data-driven, not worker-specific        |
+| Town, contracts  | Economy price multipliers become demand curves      | Dynamic pricing already exists                 |
+| Trading          | Item registry + price model                         | Both exist                                     |
+| Factory (v0.4)   | Buildings that consume and produce items            | Building + inventory model supports it         |
+| Exploration      | World grid extends beyond the owned plot            | Grid is already 64× the starting plot          |
+| Combat (v1.0)    | `health` side-table over entity stores (ADR-004 §4) | Composition model supports it                  |
+| Mods             | Content registries + namespaced IDs                 | ADR-003 §6                                     |
 
-**None of these may add v0.1 scope.** Each phase document's *Out of Scope* section is binding (`AI_RULES.md` §3.2).
+**None of these may add v0.1 scope.** Each phase document's _Out of Scope_ section is binding (`AI_RULES.md` §3.2).
 
 ---
 
