@@ -5,6 +5,7 @@
   "references": [
     { "path": "./tsconfig.sim.json" },
     { "path": "./tsconfig.main.json" },
-    { "path": "./tsconfig.renderer.json" }
+    { "path": "./tsconfig.renderer.json" },
+    { "path": "./tsconfig.tools.json" }
   ]
 }

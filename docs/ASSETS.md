@@ -8,6 +8,16 @@
 
 ---
 
+## 0. Implementation Note (phase-00)
+
+The pipeline composes AssetPack's `texturePacker` and `pixiManifest` pipes **explicitly**, rather than using the `pixiPipes()` convenience bundle.
+
+`pixiPipes()` always includes compression and mipmap pipes regardless of its options, emitting lossy WebP and an `@0.5x` downscale. Both are wrong for pixel art, and the 0.5x variant would be selected on standard-DPI displays — the common case. The explicit pipe list produces PNG at 1x only, matching §3 and §8.
+
+See `.assetpack.js`.
+
+---
+
 ## 1. Pipeline Overview
 
 ```
@@ -27,15 +37,15 @@ Runs automatically before `dev` and `build`; watches in development. Regeneratio
 
 ## 2. Art Direction
 
-| Property | Value |
-|---|---|
-| Style | Pixel art |
-| Base tile | 32 × 32 logical px |
-| Resolutions | 1× authored, 2× provided for high-DPI |
-| Palette | Limited, shared across all sprites — defined in `assets/src/PALETTE.md` |
-| Perspective | Top-down, slight 3/4 tilt for objects and entities |
-| Outlines | 1 px dark outline on entities and objects; none on terrain |
-| Authoring tool | Aseprite (`.aseprite` sources committed alongside PNGs) |
+| Property       | Value                                                                   |
+| -------------- | ----------------------------------------------------------------------- |
+| Style          | Pixel art                                                               |
+| Base tile      | 32 × 32 logical px                                                      |
+| Resolutions    | 1× authored, 2× provided for high-DPI                                   |
+| Palette        | Limited, shared across all sprites — defined in `assets/src/PALETTE.md` |
+| Perspective    | Top-down, slight 3/4 tilt for objects and entities                      |
+| Outlines       | 1 px dark outline on entities and objects; none on terrain              |
+| Authoring tool | Aseprite (`.aseprite` sources committed alongside PNGs)                 |
 
 A shared palette is what makes plugin-contributed art blend with core art. It is far cheaper to establish now than to retrofit across a content library.
 
@@ -43,13 +53,13 @@ A shared palette is what makes plugin-contributed art blend with core art. It is
 
 ## 3. Formats
 
-| Kind | Source (`assets/src/`) | Output (`assets/dist/`) |
-|---|---|---|
-| Sprites | `.png` (32-bit RGBA) + `.aseprite` | Packed into atlas `.png` + `.json` |
-| Tiles | `.png`, exactly 32×32 | Terrain atlas |
-| UI icons | `.png`, 16×16 or 24×24 | `ui-world` atlas or DOM `<img>` |
-| Audio (v0.2+) | `.wav` 44.1 kHz | `.ogg` |
-| Fonts | `.ttf` / bitmap font | Bitmap font atlas |
+| Kind          | Source (`assets/src/`)             | Output (`assets/dist/`)            |
+| ------------- | ---------------------------------- | ---------------------------------- |
+| Sprites       | `.png` (32-bit RGBA) + `.aseprite` | Packed into atlas `.png` + `.json` |
+| Tiles         | `.png`, exactly 32×32              | Terrain atlas                      |
+| UI icons      | `.png`, 16×16 or 24×24             | `ui-world` atlas or DOM `<img>`    |
+| Audio (v0.2+) | `.wav` 44.1 kHz                    | `.ogg`                             |
+| Fonts         | `.ttf` / bitmap font               | Bitmap font atlas                  |
 
 **PNG only for source art.** JPEG is lossy and destroys pixel-art edges; WebP source complicates Aseprite round-tripping. Compression is the pipeline's job.
 
@@ -59,24 +69,30 @@ A shared palette is what makes plugin-contributed art blend with core art. It is
 
 Atlases group by **what is drawn together**, not by asset type. Grouping by type scatters simultaneously-drawn sprites across atlases and breaks batching — which would negate the entire reason for choosing PixiJS (ADR-001, ADR-006 §3).
 
-| Atlas | Source directory | Contents | Loaded |
-|---|---|---|---|
-| `terrain` | `assets/src/terrain/` | Tile bases, soil states, path decals | Startup |
-| `crops` | `assets/src/crops/` | All crop growth-stage frames | Startup |
-| `entities` | `assets/src/entities/` | Worker sprites and animation frames | Startup |
-| `buildings` | `assets/src/buildings/` | Structures and props | Startup |
-| `ui-world` | `assets/src/ui-world/` | Selection, ghosts, in-world icons | Startup |
-| `effects` | `assets/src/effects/` | Particles, weather | v0.2+, lazy |
+| Atlas       | Source directory             | Contents                             | Loaded      |
+| ----------- | ---------------------------- | ------------------------------------ | ----------- |
+| `terrain`   | `assets/src/terrain{tps}/`   | Tile bases, soil states, path decals | Startup     |
+| `crops`     | `assets/src/crops{tps}/`     | All crop growth-stage frames         | Startup     |
+| `entities`  | `assets/src/entities{tps}/`  | Worker sprites and animation frames  | Startup     |
+| `buildings` | `assets/src/buildings{tps}/` | Structures and props                 | Startup     |
+| `ui-world`  | `assets/src/ui-world{tps}/`  | Selection, ghosts, in-world icons    | Startup     |
+| `effects`   | `assets/src/effects{tps}/`   | Particles, weather                   | v0.2+, lazy |
+
+### 4.0 The `{tps}` folder tag
+
+The `{tps}` suffix is AssetPack's texture-packer tag, and **it is what creates an atlas**. A directory without it is copied through as loose files — which silently breaks batching and therefore defeats ADR-001's reason for choosing a GPU renderer.
+
+A new atlas group is a new `{tps}`-tagged directory. A directory without the tag is not an atlas.
 
 ### 4.1 Constraints
 
-| Constraint | Value | Reason |
-|---|---|---|
-| Max atlas dimension | 2048 × 2048 | Safe on all integrated GPUs (ADR-006 §3) |
-| Padding | 2 px transparent | Prevents neighbour bleed |
-| Extrusion | 1 px edge repeat | Prevents seams at non-integer scales |
-| Power-of-two | Not required | Modern GPUs do not need it |
-| Overflow | Split into `<atlas>-1.png` | Never raise the size cap |
+| Constraint          | Value                      | Reason                                   |
+| ------------------- | -------------------------- | ---------------------------------------- |
+| Max atlas dimension | 2048 × 2048                | Safe on all integrated GPUs (ADR-006 §3) |
+| Padding             | 2 px transparent           | Prevents neighbour bleed                 |
+| Extrusion           | 1 px edge repeat           | Prevents seams at non-integer scales     |
+| Power-of-two        | Not required               | Modern GPUs do not need it               |
+| Overflow            | Split into `<atlas>-1.png` | Never raise the size cap                 |
 
 **Adding an atlas group is a draw-call decision, not a filing decision.** Each additional atlas is a potential extra draw call per frame. Add one only when the content is genuinely lazily loaded or genuinely never co-drawn.
 
@@ -89,12 +105,12 @@ The pipeline emits TypeScript, not bare JSON:
 ```ts
 // assets/dist/manifest.ts — GENERATED, do not edit
 export const Sprites = {
-  terrainGrass:      'terrain:grass',
-  terrainTilled:     'terrain:tilled',
-  cropWheatStage0:   'crops:wheat_0',
-  cropWheatStage3:   'crops:wheat_3',
-  workerIdleSouth:   'entities:worker_idle_s',
-  workerWalkSouth0:  'entities:worker_walk_s_0',
+  terrainGrass: 'terrain:grass',
+  terrainTilled: 'terrain:tilled',
+  cropWheatStage0: 'crops:wheat_0',
+  cropWheatStage3: 'crops:wheat_3',
+  workerIdleSouth: 'entities:worker_idle_s',
+  workerWalkSouth0: 'entities:worker_walk_s_0',
 } as const;
 
 export type SpriteKey = (typeof Sprites)[keyof typeof Sprites];
@@ -120,13 +136,13 @@ Deleting or renaming a source asset therefore breaks the build **at every use si
 
 ### 6.1 Files
 
-| Kind | Pattern | Example |
-|---|---|---|
-| Tile | `<kind>.png` | `grass.png` |
-| Crop stage | `<crop>_<stage>.png` | `wheat_2.png` |
-| Static entity | `<entity>_<action>_<dir>.png` | `worker_idle_s.png` |
+| Kind           | Pattern                               | Example               |
+| -------------- | ------------------------------------- | --------------------- |
+| Tile           | `<kind>.png`                          | `grass.png`           |
+| Crop stage     | `<crop>_<stage>.png`                  | `wheat_2.png`         |
+| Static entity  | `<entity>_<action>_<dir>.png`         | `worker_idle_s.png`   |
 | Animated frame | `<entity>_<action>_<dir>_<frame>.png` | `worker_walk_s_0.png` |
-| Building | `<building>.png` | `storage_shed.png` |
+| Building       | `<building>.png`                      | `storage_shed.png`    |
 
 Directions: `n`, `s`, `e`, `w`. Frames are zero-indexed. Stages are zero-indexed and must match the crop's `stageSprites` array order (`GAME_DESIGN.md` §3.3).
 
@@ -143,9 +159,12 @@ Frame-based, defined in a sidecar JSON beside the frames:
 ```jsonc
 // assets/src/entities/worker.anim.json
 {
-  "walk_s": { "frames": ["worker_walk_s_0", "worker_walk_s_1", "worker_walk_s_2"],
-              "frameTicks": 4, "loop": true },
-  "idle_s": { "frames": ["worker_idle_s"], "frameTicks": 0, "loop": false }
+  "walk_s": {
+    "frames": ["worker_walk_s_0", "worker_walk_s_1", "worker_walk_s_2"],
+    "frameTicks": 4,
+    "loop": true,
+  },
+  "idle_s": { "frames": ["worker_idle_s"], "frameTicks": 0, "loop": false },
 }
 ```
 
@@ -163,14 +182,14 @@ Animations on culled entities are paused, not merely hidden.
 
 Binding, from ADR-006 §5. Getting these wrong produces subtly blurry or shimmering art that is difficult to diagnose after the fact.
 
-| Rule | Setting |
-|---|---|
-| Scaling | `SCALE_MODES.NEAREST` globally — never linear |
-| Antialiasing | `antialias: false` on the Pixi application |
-| Camera | Snaps to whole device pixels |
-| Zoom | Integer multiples only (1×, 2×, 3×) |
-| Rotation | Avoided on pixel art; use pre-rotated frames |
-| Tinting | Permitted — does not resample |
+| Rule         | Setting                                       |
+| ------------ | --------------------------------------------- |
+| Scaling      | `SCALE_MODES.NEAREST` globally — never linear |
+| Antialiasing | `antialias: false` on the Pixi application    |
+| Camera       | Snaps to whole device pixels                  |
+| Zoom         | Integer multiples only (1×, 2×, 3×)           |
+| Rotation     | Avoided on pixel art; use pre-rotated frames  |
+| Tinting      | Permitted — does not resample                 |
 
 Sub-pixel camera offsets are the most common cause of shimmering pixel art, which is why §8 makes camera snapping a rule rather than a nicety.
 
@@ -185,8 +204,10 @@ registerCrop({
   id: 'core:wheat',
   growthTicks: 2400,
   stageSprites: [
-    Sprites.cropsWheat0, Sprites.cropsWheat1,
-    Sprites.cropsWheat2, Sprites.cropsWheat3,
+    Sprites.cropsWheat0,
+    Sprites.cropsWheat1,
+    Sprites.cropsWheat2,
+    Sprites.cropsWheat3,
   ],
 });
 ```
@@ -213,9 +234,9 @@ v0.1 builds no loading path. It only guarantees the namespace exists and that no
 Every asset directory carries an `ATTRIBUTION.md`:
 
 ```markdown
-| File | Source | Author | License |
-|---|---|---|---|
-| crops/wheat_*.png | Original | <name> | CC0 |
+| File                  | Source            | Author | License   |
+| --------------------- | ----------------- | ------ | --------- |
+| crops/wheat_*.png     | Original          | <name> | CC0       |
 | entities/worker_*.png | opengameart.org/… | <name> | CC-BY 3.0 |
 ```
 
@@ -244,13 +265,13 @@ Acceptable licenses: CC0, CC-BY (with attribution shipped), and original work. *
 
 Enforced by the build and by tests:
 
-| Check | Fails when |
-|---|---|
-| Orphan assets | A source asset is unreferenced by any manifest key |
-| Dangling keys | A manifest key resolves to a missing frame |
-| Dimension check | A tile sprite is not exactly 32×32 |
-| Atlas budget | Total texture memory exceeds `PERFORMANCE.md` §6 |
-| Draw calls | The static reference farm exceeds 30 draw calls |
-| Attribution | An asset directory has files not listed in `ATTRIBUTION.md` |
+| Check           | Fails when                                                  |
+| --------------- | ----------------------------------------------------------- |
+| Orphan assets   | A source asset is unreferenced by any manifest key          |
+| Dangling keys   | A manifest key resolves to a missing frame                  |
+| Dimension check | A tile sprite is not exactly 32×32                          |
+| Atlas budget    | Total texture memory exceeds `PERFORMANCE.md` §6            |
+| Draw calls      | The static reference farm exceeds 30 draw calls             |
+| Attribution     | An asset directory has files not listed in `ATTRIBUTION.md` |
 
 The draw-call check is the one that matters most: it is the direct measurement of whether atlas grouping is actually delivering batching, which is the entire justification for ADR-006.

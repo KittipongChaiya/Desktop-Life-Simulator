@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Strict CSP: no remote code is ever loaded (TECH_STACK.md §7.3).
+      'unsafe-inline' for styles only, which Vite needs for injected CSS.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
+    />
+    <title>Desktop Life Simulator</title>
+  </head>
+  <body>
+    <!--
+      The canvas and the UI root are SIBLINGS, never nested (ADR-005 §1).
+      PixiJS owns the canvas; React owns #ui. Neither touches the other.
+      Both are empty in phase-00 — phase-01 mounts React, phase-02 boots Pixi.
+    -->
+    <canvas id="world"></canvas>
+    <div id="ui"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

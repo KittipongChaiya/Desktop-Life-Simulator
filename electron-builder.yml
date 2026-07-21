@@ -1,0 +1,33 @@
+appId: com.desktoplife.simulator
+productName: Desktop Life Simulator
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# Windows-only in v0.1. macOS/Linux overlay semantics differ enough that
+# pretending otherwise would compromise the Windows implementation
+# (VISION.md §5.1). Revisit no earlier than v0.3.
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false # never destroy player saves on uninstall
+
+# No auto-updater in v0.1. An updater that can restart the app is a way to
+# lose player data, so it ships only after save integrity is proven in
+# phase-07. See PLAN.md §3.
+publish: null

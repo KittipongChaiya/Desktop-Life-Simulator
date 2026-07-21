@@ -13,7 +13,8 @@
     "build": "npm run assets && npm run typecheck && electron-vite build",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder --win --x64",
-    "assets": "assetpack --config .assetpack.js",
+    "assets": "assetpack --config .assetpack.js && node scripts/generate-sprite-manifest.mjs",
+    "assets:watch": "assetpack --config .assetpack.js --watch",
     "typecheck": "npm run typecheck:sim && npm run typecheck:main && npm run typecheck:renderer",
     "typecheck:sim": "tsc --noEmit -p tsconfig.sim.json",
     "typecheck:main": "tsc --noEmit -p tsconfig.main.json",
@@ -22,7 +23,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:boundaries": "eslint src plugins --max-warnings 0",
+    "check:boundaries": "eslint src plugins --max-warnings 0 --no-error-on-unmatched-pattern",
     "check:cycles": "depcruise src --config .dependency-cruiser.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -64,7 +65,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --max-warnings 0 --fix",
+      "eslint --max-warnings 0 --fix --no-warn-ignored",
       "prettier --write"
     ],
     "*.{json,md,css,yml}": [

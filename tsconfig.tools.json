@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "Tests, scripts, and build configs. Separate from the three environment projects because tests legitimately need both Node and DOM types, and because test files must never be part of a production compile. typescript-eslint's project service resolves lint parsing for these files through this config.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": false,
+    "noUnusedLocals": false,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@sim/*": ["src/sim/*"],
+      "@persistence/*": ["src/persistence/*"],
+      "@render/*": ["src/renderer/render/*"],
+      "@ui/*": ["src/renderer/app/*"],
+      "@assets/*": ["assets/dist/*"]
+    }
+  },
+  "include": [
+    "tests/**/*.ts",
+    "scripts/**/*.mjs",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "*.config.ts",
+    "*.config.js",
+    ".assetpack.js",
+    ".dependency-cruiser.cjs"
+  ]
+}

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Windows-first project (VISION.md §5.1). The overlay is the product, and
+# overlay behavior only exists on Windows — CI must run where it ships.
+jobs:
+  verify:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build assets
+        run: npm run assets
+
+      - name: Typecheck (all three projects)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Architecture boundaries
+        run: npm run check:boundaries
+
+      - name: Import cycles
+        run: npm run check:cycles
+
+      - name: Tests
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      # Generated assets must never be committed — they would produce
+      # unmergeable binary diffs and silently drift from source (ADR-006 §2).
+      - name: Assert generated assets are not committed
+        shell: bash
+        run: |
+          if git ls-files --error-unmatch assets/dist >/dev/null 2>&1; then
+            echo "::error::assets/dist is committed; it must stay gitignored"
+            exit 1
+          fi
+
+      # Golden save fixtures represent saves on real players' disks. Editing one
+      # to make a test pass defeats the migration system (TESTING.md §7.2).
+      - name: Assert golden save fixtures unmodified
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          changed=$(git diff --name-only --diff-filter=M \
+            origin/${{ github.base_ref }}...HEAD -- tests/fixtures/saves/ || true)
+          if [ -n "$changed" ]; then
+            echo "::error::golden save fixtures are append-only: $changed"
+            exit 1
+          fi

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://desktoplife.local/schemas/plugin-manifest.json",
+  "title": "Plugin Manifest",
+  "description": "Declares a content pack. Consumed by the v0.2 loader; used in v0.1 to describe plugins/core, which registers through the same public API it will (ADR-003 §6).",
+  "type": "object",
+  "required": ["id", "name", "version", "gameVersion", "entry"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Namespace owned by this plugin. PERMANENT — every content ID and save key derives from it, so changing it orphans player data. Collisions are rejected at load."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable display name. May change freely."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of this plugin, independent of the game version."
+    },
+    "gameVersion": {
+      "type": "string",
+      "description": "Semver range of game versions this plugin supports, e.g. \">=0.2.0 <0.4.0\"."
+    },
+    "saveSchemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version of this plugin's own save payload. Core never migrates plugin data — plugins version themselves (SAVE_FORMAT.md §8)."
+    },
+    "entry": {
+      "type": "string",
+      "description": "Module exporting register(api). Relative to the plugin root."
+    },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "license": { "type": "string" },
+    "homepage": { "type": "string", "format": "uri" },
+    "dependencies": {
+      "type": "object",
+      "description": "Other plugin IDs this one requires, mapped to semver ranges. Resolved by the v0.2 loader.",
+      "propertyNames": { "pattern": "^[a-z0-9_]+$" },
+      "additionalProperties": { "type": "string" }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pre-built atlases shipped by this plugin. Plugin atlases are never repacked into core atlases (ASSETS.md §10).",
+      "properties": {
+        "manifest": {
+          "type": "string",
+          "description": "Path to the plugin's generated asset manifest."
+        },
+        "atlases": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
