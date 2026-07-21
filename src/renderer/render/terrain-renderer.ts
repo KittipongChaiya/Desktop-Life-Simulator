@@ -21,11 +21,21 @@ import { Container, RenderTexture, Sprite, type Renderer, type Texture } from 'p
 import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
 import { asTileIndex } from '../../shared/ids';
 import type { TileKindRegistry } from '../../sim/content/tile-kinds';
-import { getKind, type TileGrid } from '../../sim/world/tile-grid';
+import { getKind, isOwned, type TileGrid } from '../../sim/world/tile-grid';
 
 import { CHUNK_SIZE, chunkOrigin, type ChunkTracker } from './terrain-chunks';
 
 const CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
+
+/**
+ * Tint applied to tiles OUTSIDE the owned plot.
+ *
+ * Darkening the unowned world rather than highlighting the owned plot keeps the
+ * player's land at full-brightness reference colour, and costs nothing: the
+ * tint is baked into the cached chunk texture, so it adds no draw calls and no
+ * per-frame work (criterion 2 without violating criterion 8).
+ */
+const UNOWNED_TINT = 0x6b7280;
 
 export interface TerrainRenderer {
   /**
@@ -89,6 +99,7 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
         const sprite = new Sprite(textureForKindIndex(getKind(grid, tile)));
         sprite.x = tx * TILE_SIZE;
         sprite.y = ty * TILE_SIZE;
+        if (!isOwned(grid, tile)) sprite.tint = UNOWNED_TINT;
         scratch.addChild(sprite);
       }
     }

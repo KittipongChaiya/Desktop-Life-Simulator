@@ -1,12 +1,12 @@
 # ADR-001: World Rendering with PixiJS
 
-| | |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-07-21 |
-| **Deciders** | Project owner, lead architect |
-| **Supersedes** | — |
-| **Superseded by** | — |
+|                   |                               |
+| ----------------- | ----------------------------- |
+| **Status**        | Accepted                      |
+| **Date**          | 2026-07-21                    |
+| **Deciders**      | Project owner, lead architect |
+| **Supersedes**    | —                             |
+| **Superseded by** | —                             |
 
 ---
 
@@ -18,7 +18,7 @@ Three forces pull in different directions:
 
 1. **Long-term entity load.** `VISION.md` §4 commits to weather, particles, day/night lighting, many animated entities, and eventually combat VFX and dungeon scenes. This is a long-lived project, and the renderer is the single hardest thing to swap once content is built against it.
 
-2. **The idle constraint.** `VISION.md` §2.1 makes background CPU a product feature. The overlay is visible for eight hours and *changing* for perhaps ten minutes of that. A renderer that burns a frame budget when nothing has moved is a product defect.
+2. **The idle constraint.** `VISION.md` §2.1 makes background CPU a product feature. The overlay is visible for eight hours and _changing_ for perhaps ten minutes of that. A renderer that burns a frame budget when nothing has moved is a product defect.
 
 3. **Rendering happens in the same process as the simulation.** Whatever the renderer costs, it costs against the same budget as the 20 Hz tick (ADR-007) and the React UI (ADR-005).
 
@@ -34,11 +34,11 @@ Canvas 2D is retained only as a **capability fallback** for machines where neith
 
 ### The three binding constraints
 
-PixiJS is accepted *conditionally*. These constraints are what make the choice compatible with force #2, and abandoning any of them re-opens this decision.
+PixiJS is accepted _conditionally_. These constraints are what make the choice compatible with force #2, and abandoning any of them re-opens this decision.
 
 #### 1. Render-on-demand is mandatory
 
-Pixi's shared ticker runs `autoStart: false`. The application maintains an explicit *dirty* flag and an *animating* count:
+Pixi's shared ticker runs `autoStart: false`. The application maintains an explicit _dirty_ flag and an _animating_ count:
 
 ```
 render this frame  ⟺  sceneDirty OR animatingEntityCount > 0
@@ -64,15 +64,15 @@ No runtime texture construction from loose files. All textures come from generat
 
 Render order is defined once, here, and implemented as named containers — never implied by `addChild` call order:
 
-| # | Layer | Contents | Typically static? |
-|---|---|---|---|
-| 0 | `terrain` | Tile base sprites | Yes — redrawn on tile change only |
-| 1 | `terrainOverlay` | Tilled soil, moisture, path decals | Yes |
-| 2 | `objects` | Crops, buildings, props — y-sorted | On growth-stage change |
-| 3 | `entities` | Workers and future NPCs — y-sorted | No, while moving |
-| 4 | `effects` | Particles, weather (v0.2+) | No, while active |
-| 5 | `lighting` | Day/night tint, light sources (v0.2+) | Slowly |
-| 6 | `worldUi` | Selection highlight, hover cursor, build ghost | On interaction |
+| #   | Layer            | Contents                                       | Typically static?                 |
+| --- | ---------------- | ---------------------------------------------- | --------------------------------- |
+| 0   | `terrain`        | Tile base sprites                              | Yes — redrawn on tile change only |
+| 1   | `terrainOverlay` | Tilled soil, moisture, path decals             | Yes                               |
+| 2   | `objects`        | Crops, buildings, props — y-sorted             | On growth-stage change            |
+| 3   | `entities`       | Workers and future NPCs — y-sorted             | No, while moving                  |
+| 4   | `effects`        | Particles, weather (v0.2+)                     | No, while active                  |
+| 5   | `lighting`       | Day/night tint, light sources (v0.2+)          | Slowly                            |
+| 6   | `worldUi`        | Selection highlight, hover cursor, build ghost | On interaction                    |
 
 Layers 4 and 5 are declared now and empty in v0.1. This costs two container allocations and prevents a re-layering migration later.
 
@@ -86,10 +86,10 @@ Terrain is drawn into `RenderTexture` chunks of 16×16 tiles, re-rendered only w
 
 ### A. Canvas 2D with dirty rectangles
 
-The original recommendation, and genuinely the better fit for v0.1 *in isolation*.
+The original recommendation, and genuinely the better fit for v0.1 _in isolation_.
 
 - **For:** zero dependencies, near-zero idle cost by construction, trivially debuggable, no GPU context, no driver variability, smallest memory footprint.
-- **Against:** the ceiling is real and arrives on the roadmap, not after it. Per-pixel effects (lighting, weather, shaders) are impractical. Thousands of animated sprites exceed a software blitter. Crossing that ceiling mid-project means rewriting the renderer *and* every piece of content built against it.
+- **Against:** the ceiling is real and arrives on the roadmap, not after it. Per-pixel effects (lighting, weather, shaders) are impractical. Thousands of animated sprites exceed a software blitter. Crossing that ceiling mid-project means rewriting the renderer _and_ every piece of content built against it.
 - **Rejected because:** the cost of switching later is far higher than the cost of the discipline required to make PixiJS idle-cheap now. The idle problem is solvable with §Decision constraints 1–3; the ceiling problem is not solvable without a rewrite.
 
 ### B. PixiJS with a continuously running ticker
@@ -114,14 +114,14 @@ The conventional way to use Pixi, and what most tutorials show.
 
 ## Tradeoffs Accepted
 
-| We accept | To gain | Mitigation |
-|---|---|---|
-| ~400 KB dependency | Batching, effects, long-term headroom | Acceptable against a desktop app's install size |
-| GPU context memory (~30–60 MB) | GPU-accelerated compositing | Destroyed entirely in collapsed mode (§2) |
-| Driver and GPU variability | Hardware acceleration | WebGL2 fallback, then Canvas 2D fallback; capability logged at startup |
-| Discipline required to stay idle-cheap | A renderer that lasts to v1.0 | Enforced by code rules + an automated idle-CPU test (`TESTING.md`) |
-| Higher debugging complexity than Canvas 2D | — | Pixi devtools; render layer is pure and snapshot-testable |
-| Risk of a laptop's discrete GPU being woken | — | Prefer integrated adapter via `powerPreference: 'low-power'` |
+| We accept                                   | To gain                               | Mitigation                                                             |
+| ------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| ~400 KB dependency                          | Batching, effects, long-term headroom | Acceptable against a desktop app's install size                        |
+| GPU context memory (~30–60 MB)              | GPU-accelerated compositing           | Destroyed entirely in collapsed mode (§2)                              |
+| Driver and GPU variability                  | Hardware acceleration                 | WebGL2 fallback, then Canvas 2D fallback; capability logged at startup |
+| Discipline required to stay idle-cheap      | A renderer that lasts to v1.0         | Enforced by code rules + an automated idle-CPU test (`TESTING.md`)     |
+| Higher debugging complexity than Canvas 2D  | —                                     | Pixi devtools; render layer is pure and snapshot-testable              |
+| Risk of a laptop's discrete GPU being woken | —                                     | Prefer integrated adapter via `powerPreference: 'low-power'`           |
 
 ---
 
@@ -140,6 +140,31 @@ The conventional way to use Pixi, and what most tutorials show.
 - Every display object needs an explicit `destroy()` path (`CODE_STYLE.md` §10).
 - Texture memory is a tracked budget line (`PERFORMANCE.md`).
 - The renderer stays a pure function of world snapshots. If rendering ever holds authoritative state, constraint §2 breaks and this ADR is violated.
+
+### Implementation note (phase-02)
+
+The Canvas fallback is a **renderer preference chain**, not a hand-written
+backend: PixiJS 8 ships a `CanvasRenderer`, so `preference: ['webgpu', 'webgl',
+'canvas']` gives the degraded path for free. The canvas renderer has no filters
+or blend modes, which matches the reduced-fidelity scope below — and layers 4-5
+are empty until v0.2 regardless.
+
+**Three CSP constraints were discovered while implementing this.** PixiJS
+assumes a permissive page; the renderer runs under a strict CSP
+(`TECH_STACK.md` §7.3) and each assumption failed silently:
+
+| Pixi behaviour                                  | Blocked by                                                              | Resolution                              |
+| ----------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| Generates shader/UBO sync with `new Function()` | no `'unsafe-eval'`                                                      | `import 'pixi.js/unsafe-eval'` polyfill |
+| Spawns a `blob:` worker to decode images        | `script-src 'self'` (worker-src falls back)                             | load the atlas via an `Image` element   |
+| Fetches image URLs                              | `connect-src 'self'` blocks both `file://` siblings and inlined `data:` | same                                    |
+
+All three were fixed in code. **Relaxing the CSP was rejected**: the renderer
+executes plugin code from v0.2 (ADR-003 §6), and eval or blob-workers handed to
+untrusted content is a far worse trade than three imports.
+
+Re-verify these after any PixiJS upgrade — a loader change can reintroduce any
+of them, and the failure mode is a blank world with no error.
 
 ### Fallback scope (explicit)
 

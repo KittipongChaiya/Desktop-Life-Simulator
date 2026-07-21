@@ -17,7 +17,7 @@
  * collapse/expand cycle leaks on every toggle.
  */
 
-import { Application, Container, TextureSource, type Renderer } from 'pixi.js';
+import { Application, Container, RendererType, TextureSource, type Renderer } from 'pixi.js';
 // SIDE-EFFECT IMPORT, and it must come before any renderer is created.
 //
 // PixiJS generates shader, uniform, and UBO sync code with `new Function()`.
@@ -63,10 +63,21 @@ export interface RenderAppOptions {
   readonly resolution: number;
 }
 
+/**
+ * Maps Pixi's renderer type to our backend name.
+ *
+ * `RendererType` is a NUMERIC enum (WEBGL=1, WEBGPU=2, CANVAS=4). An earlier
+ * version string-matched `String(renderer.type)` for 'gl'/'gpu', which never
+ * matched "1" or "2" and so reported `canvas` unconditionally — the metric
+ * confidently reported a fallback that was not happening.
+ */
 function detectBackend(renderer: Renderer): RenderBackend {
-  const type = String(renderer.type);
-  if (type.includes('gpu')) return RenderBackend.WebGPU;
-  if (type.includes('gl')) return RenderBackend.WebGL;
+  // Compared numerically rather than with a switch: `renderer.type` is widened
+  // to `number` on the union of renderer classes, so a switch over the enum
+  // members is flagged as an unsafe enum comparison.
+  const type: number = renderer.type;
+  if (type === Number(RendererType.WEBGPU)) return RenderBackend.WebGPU;
+  if (type === Number(RendererType.WEBGL)) return RenderBackend.WebGL;
   return RenderBackend.Canvas;
 }
 
@@ -96,6 +107,16 @@ export async function createRenderApp(options: RenderAppOptions): Promise<Render
 
     antialias: false,
     powerPreference: 'low-power',
+
+    // ADR-001 §Fallback, implemented as a preference CHAIN rather than a
+    // hand-written backend. Pixi 8 ships a CanvasRenderer, so the degraded path
+    // is a configuration choice: try WebGPU, then WebGL, then Canvas. A machine
+    // with no working GPU path still gets a playable game.
+    //
+    // The canvas renderer has no filters or blend modes, which is exactly the
+    // "reduced visual fidelity, layers 0-3 and 6" scope the ADR describes —
+    // layers 4 and 5 (effects, lighting) are empty until v0.2 anyway.
+    preference: ['webgpu', 'webgl', 'canvas'],
 
     // The overlay window is transparent; an opaque background would paint a
     // rectangle over the desktop.

@@ -31,11 +31,14 @@ export interface WorldMountOptions {
   readonly world: World;
   readonly atlas: string;
   readonly viewport: () => { width: number; height: number; resolution: number };
+  /** Element that receives drag-to-pan and wheel-to-zoom. */
+  readonly inputTarget: HTMLElement;
   readonly onError?: (error: unknown) => void;
 }
 
 export function createWorldMount(options: WorldMountOptions): WorldMount {
   let view: WorldView | null = null;
+  let detachInput: (() => void) | null = null;
   // Guards against a second mount starting while the first is still awaiting
   // GPU init — a fast collapse/expand toggle would otherwise create two apps.
   let mounting: Promise<void> | null = null;
@@ -51,6 +54,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         resolution: size.resolution,
         atlas: options.atlas,
       });
+      detachInput = view.attachInput(options.inputTarget);
     } catch (error) {
       // A GPU failure must not take the application down; the UI and the
       // simulation keep working without a world view.
@@ -72,6 +76,10 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
       // If a mount is still in flight there is nothing to destroy yet; the
       // caller re-checks collapse state once it resolves.
       if (view === null) return;
+      // Detach BEFORE destroying: a listener firing against a destroyed view
+      // would throw on every pointer move.
+      detachInput?.();
+      detachInput = null;
       view.destroy();
       view = null;
     },

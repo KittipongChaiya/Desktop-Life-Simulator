@@ -50,6 +50,10 @@ export function startApplication(): void {
     canvas,
     world,
     atlas: 'terrain',
+    // The canvas is pointer-transparent so clicks fall through to the desktop
+    // (App.module.css); pan/zoom therefore listen on the window and the UI
+    // layer stops events over real controls.
+    inputTarget: document.body,
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,

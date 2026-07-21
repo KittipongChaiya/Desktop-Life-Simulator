@@ -52,6 +52,13 @@ export interface WorldView {
   /** Marks a tile changed so its chunk re-renders. */
   invalidateTile(tile: TileIndex): void;
   resize(width: number, height: number): void;
+  /**
+   * Attaches drag-to-pan and wheel-to-zoom to an element. Returns teardown.
+   *
+   * Input lives here rather than in the UI layer because it manipulates the
+   * camera, which is render state. React never touches the camera.
+   */
+  attachInput(target: HTMLElement): () => void;
   /** Chunks redrawn on the most recent frame. Zero on a cached frame. */
   lastChunkRedraws(): number;
   visibleTileCount(): number;
@@ -127,6 +134,24 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     textureFor,
   });
 
+  const doPan = (deltaX: number): void => {
+    const next = panCamera(camera, deltaX, limits);
+    if (next === camera) return;
+    camera = next;
+    applyCamera();
+    gate.markDirty();
+  };
+
+  const doZoom = (nextZoom: number): void => {
+    const updated = zoomCamera(camera, nextZoom, limits);
+    if (updated === camera) return;
+    camera = updated;
+    applyCamera();
+    // Chunk textures are resolution-independent, but the visible set changes.
+    tracker.invalidateAll();
+    gate.markDirty();
+  };
+
   const applyCamera = (): void => {
     // The whole stage shifts; individual layers never track the camera
     // separately, which would let them drift out of alignment.
@@ -153,23 +178,8 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       return true;
     },
 
-    pan(deltaX) {
-      const next = panCamera(camera, deltaX, limits);
-      if (next === camera) return;
-      camera = next;
-      applyCamera();
-      gate.markDirty();
-    },
-
-    zoom(next) {
-      const updated = zoomCamera(camera, next, limits);
-      if (updated === camera) return;
-      camera = updated;
-      applyCamera();
-      // Chunk textures are resolution-independent, but the visible set changes.
-      tracker.invalidateAll();
-      gate.markDirty();
-    },
+    pan: doPan,
+    zoom: doZoom,
 
     camera: () => camera,
 
@@ -193,6 +203,61 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       app.resize(width, height);
       applyCamera();
       gate.markDirty();
+    },
+
+    attachInput(target) {
+      let dragging = false;
+      let lastX = 0;
+
+      const onPointerDown = (event: PointerEvent): void => {
+        if (event.button !== 0) return;
+        dragging = true;
+        lastX = event.clientX;
+        target.setPointerCapture(event.pointerId);
+      };
+
+      const onPointerMove = (event: PointerEvent): void => {
+        if (!dragging) return;
+        // Drag right moves the world right, i.e. the camera left.
+        doPan(lastX - event.clientX);
+        lastX = event.clientX;
+      };
+
+      const endDrag = (event: PointerEvent): void => {
+        if (!dragging) return;
+        dragging = false;
+        if (target.hasPointerCapture(event.pointerId)) {
+          target.releasePointerCapture(event.pointerId);
+        }
+      };
+
+      const onWheel = (event: WheelEvent): void => {
+        // Horizontal scroll pans; ctrl+wheel zooms. A bare vertical wheel is
+        // left alone so the gesture stays available to UI panels.
+        if (event.ctrlKey) {
+          event.preventDefault();
+          doZoom(camera.zoom + (event.deltaY < 0 ? 1 : -1));
+          return;
+        }
+        if (event.deltaX !== 0) {
+          event.preventDefault();
+          doPan(event.deltaX);
+        }
+      };
+
+      target.addEventListener('pointerdown', onPointerDown);
+      target.addEventListener('pointermove', onPointerMove);
+      target.addEventListener('pointerup', endDrag);
+      target.addEventListener('pointercancel', endDrag);
+      target.addEventListener('wheel', onWheel, { passive: false });
+
+      return () => {
+        target.removeEventListener('pointerdown', onPointerDown);
+        target.removeEventListener('pointermove', onPointerMove);
+        target.removeEventListener('pointerup', endDrag);
+        target.removeEventListener('pointercancel', endDrag);
+        target.removeEventListener('wheel', onWheel);
+      };
     },
 
     lastChunkRedraws: () => chunkRedraws,

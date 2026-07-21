@@ -94,6 +94,9 @@ src/
 │   ├── snapshot/
 │   │   ├── slices.ts           Slice definitions + change conditions
 │   │   └── project.ts          World → slice projection
+│   ├── content/
+│   │   ├── registry.ts         Generic content registry (ADR-004 §5)
+│   │   └── tile-kinds.ts       core:grass / water / stone
 │   ├── rng/
 │   │   └── rng.ts              Seeded PRNG. The ONLY randomness source.
 │   ├── time/
@@ -125,7 +128,11 @@ src/
 │   │   ├── snapshot-store.ts   Sliced store + throttling (ADR-005 §2)
 │   │   └── intent-dispatch.ts
 │   ├── render/                 PixiJS only — no React
-│   │   ├── app.ts              Pixi init, teardown, render-on-demand gate
+│   │   ├── app.ts              Pixi init, backend detection, teardown
+│   │   ├── dirty-gate.ts       Render-on-demand gate (ADR-001 §1)
+│   │   ├── world-view.ts       Composes Pixi + camera + terrain + input
+│   │   ├── terrain-renderer.ts RenderTexture chunk cache
+│   │   ├── terrain-chunks.ts   Chunk index maths (pure, GPU-free)
 │   │   ├── layers.ts           The 7 named layers
 │   │   ├── camera.ts
 │   │   ├── terrain-chunks.ts   RenderTexture chunk cache
