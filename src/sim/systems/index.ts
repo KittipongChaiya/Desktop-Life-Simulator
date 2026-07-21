@@ -16,6 +16,8 @@
 
 import type { World } from '../world/world';
 
+import { snapshotSystem } from './snapshot';
+
 /**
  * A system advances the world by exactly one tick.
  *
@@ -30,5 +32,9 @@ export const TICK_SYSTEMS: readonly System[] = [
   // phase-03: intentSystem, growthSystem, harvestSystem
   // phase-04: workerSystem, movementSystem
   // phase-06: economySystem
-  // phase-03: eventFlushSystem, snapshotSystem
+  // phase-03: eventFlushSystem
+
+  // MUST REMAIN LAST: views must observe fully settled state, never a
+  // half-stepped world (ADR-007 §4). Insert new systems ABOVE this line.
+  snapshotSystem,
 ];

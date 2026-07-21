@@ -11,6 +11,7 @@
  */
 
 import { createRng, type Rng } from '../rng/rng';
+import { createSnapshotState, type SnapshotState } from '../snapshot/state';
 
 export interface World {
   /** The seed this world was created from. Never changes. */
@@ -26,6 +27,12 @@ export interface World {
 
   /** Seeded generator. The only randomness source. */
   readonly rng: Rng;
+
+  /**
+   * Versioned projections for views. Written by `snapshotSystem` at the end of
+   * each tick; never read by other systems (ADR-005 §2).
+   */
+  readonly snapshots: SnapshotState;
 }
 
 export function createWorld(seed: number): World {
@@ -33,5 +40,6 @@ export function createWorld(seed: number): World {
     seed,
     tick: 0,
     rng: createRng(seed),
+    snapshots: createSnapshotState(),
   };
 }

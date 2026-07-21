@@ -1,19 +1,31 @@
 /**
  * Preload bridge.
  *
- * The ONLY channel between renderer and main. Exposes a narrow, explicitly
- * enumerated, typed surface — `ipcRenderer` itself is never exposed
- * (TECH_STACK.md §7.3). The renderer is treated as untrusted, which becomes
- * literally true once plugins load in v0.2.
- *
- * PHASE-00 SCOPE: version reporting only, proving the bridge works end to end.
- * Real channels (collapse/expand, display geometry, click-through) are phase-01;
- * save/load is phase-07.
+ * The ONLY channel between renderer and main. `ipcRenderer` is never exposed —
+ * only these named functions, so the renderer cannot reach a channel that is
+ * not listed in the contract (TECH_STACK.md §7.3).
  */
 
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
+
+import {
+  EventChannel,
+  InvokeChannel,
+  SendChannel,
+  type OverlayState,
+} from '../shared/ipc/contract';
 
 export interface DesktopLifeApi {
+  readonly overlay: {
+    setCollapsed(collapsed: boolean): Promise<OverlayState>;
+    getState(): Promise<OverlayState>;
+    setClickThrough(enabled: boolean): void;
+    /** Subscribes to external collapse/expand (tray, hotkey). Returns teardown. */
+    onStateChanged(listener: (state: OverlayState) => void): () => void;
+  };
+  readonly app: {
+    quit(): Promise<void>;
+  };
   readonly versions: {
     readonly electron: string;
     readonly chrome: string;
@@ -22,6 +34,31 @@ export interface DesktopLifeApi {
 }
 
 const api: DesktopLifeApi = {
+  overlay: {
+    setCollapsed: (collapsed) =>
+      ipcRenderer.invoke(InvokeChannel.SetCollapsed, collapsed) as Promise<OverlayState>,
+
+    getState: () => ipcRenderer.invoke(InvokeChannel.GetOverlayState) as Promise<OverlayState>,
+
+    setClickThrough: (enabled) => {
+      ipcRenderer.send(SendChannel.SetClickThrough, enabled);
+    },
+
+    onStateChanged: (listener) => {
+      const handler = (_event: unknown, state: OverlayState): void => {
+        listener(state);
+      };
+      ipcRenderer.on(EventChannel.OverlayStateChanged, handler);
+      return () => {
+        ipcRenderer.off(EventChannel.OverlayStateChanged, handler);
+      };
+    },
+  },
+
+  app: {
+    quit: () => ipcRenderer.invoke(InvokeChannel.Quit) as Promise<void>,
+  },
+
   versions: {
     electron: process.versions.electron ?? 'unknown',
     chrome: process.versions.chrome ?? 'unknown',

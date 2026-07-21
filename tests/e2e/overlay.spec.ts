@@ -1,0 +1,116 @@
+/**
+ * Overlay behavior. Phase-01 acceptance criteria 1, 2, 4, 7, 12.
+ *
+ * The properties asserted here are what make the overlay livable. They have no
+ * unit-testable surface — window geometry and always-on-top only exist in a
+ * real Electron process.
+ */
+
+import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+
+import { OVERLAY_HEIGHT_COLLAPSED, OVERLAY_HEIGHT_EXPANDED } from '../../src/shared/constants';
+
+let app: ElectronApplication;
+
+test.beforeEach(async () => {
+  app = await electron.launch({ args: ['.'] });
+  // Wait for the window to exist before any evaluate(): otherwise
+  // getAllWindows() is empty and assertions fail for the wrong reason.
+  await app.firstWindow();
+});
+
+test.afterEach(async () => {
+  await app.close();
+});
+
+test('docks to the bottom of the work area, spanning its full width', async () => {
+  const geometry = await app.evaluate(({ BrowserWindow, screen }) => {
+    const bounds = BrowserWindow.getAllWindows()[0]?.getBounds();
+    const { workArea } = screen.getPrimaryDisplay();
+    return { bounds, workArea };
+  });
+
+  expect(geometry.bounds).toBeDefined();
+  const bounds = geometry.bounds!;
+  const { workArea } = geometry;
+
+  expect(bounds.x).toBe(workArea.x);
+  expect(bounds.width).toBe(workArea.width);
+
+  // Bottom edge flush with the work area — ABOVE the taskbar, never over it.
+  expect(bounds.y + bounds.height).toBe(workArea.y + workArea.height);
+});
+
+test('is frameless, transparent, and absent from the taskbar', async () => {
+  const flags = await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    return {
+      resizable: win?.isResizable(),
+      alwaysOnTop: win?.isAlwaysOnTop(),
+      movable: win?.isMovable(),
+    };
+  });
+
+  expect(flags.alwaysOnTop).toBe(true);
+  expect(flags.resizable).toBe(false);
+  expect(flags.movable).toBe(false);
+});
+
+test('never takes focus', async () => {
+  // Focus stealing is the fastest way to get a desktop overlay uninstalled
+  // (VISION.md §2.1). The window is created non-focusable and shown with
+  // showInactive.
+  const focusable = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]?.isFocusable(),
+  );
+
+  expect(focusable).toBe(false);
+});
+
+test('collapse and expand resize the window and keep it docked', async () => {
+  const window = await app.firstWindow();
+  await window.waitForSelector('[title="Simulation uptime"]');
+
+  const heightFor = async (collapsed: boolean): Promise<number> => {
+    // Drive the real UI path — the preload bridge and the main-process IPC
+    // handler — rather than resizing the window directly.
+    //
+    // The cast is explicit because this callback is serialized into the page
+    // context: the ambient `window.desktopLife` declaration does not carry
+    // across that boundary, so the type has to be restated here.
+    await window.evaluate(async (target: boolean) => {
+      const api = (
+        globalThis as unknown as {
+          desktopLife: { overlay: { setCollapsed(collapsed: boolean): Promise<unknown> } };
+        }
+      ).desktopLife;
+
+      await api.overlay.setCollapsed(target);
+    }, collapsed);
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    return app.evaluate(
+      ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getBounds().height ?? -1,
+    );
+  };
+
+  expect(await heightFor(true)).toBe(OVERLAY_HEIGHT_COLLAPSED);
+  expect(await heightFor(false)).toBe(OVERLAY_HEIGHT_EXPANDED);
+
+  // Still flush with the bottom of the work area after resizing.
+  const docked = await app.evaluate(({ BrowserWindow, screen }) => {
+    const bounds = BrowserWindow.getAllWindows()[0]?.getBounds();
+    const { workArea } = screen.getPrimaryDisplay();
+    return bounds !== undefined && bounds.y + bounds.height === workArea.y + workArea.height;
+  });
+
+  expect(docked).toBe(true);
+});
+
+test('renders the status bar', async () => {
+  const window = await app.firstWindow();
+
+  await expect(window.locator('[title="Simulation uptime"]')).toBeVisible();
+  await expect(window.getByRole('button', { name: /overlay$/ })).toBeVisible();
+});

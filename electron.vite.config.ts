@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 
+import react from '@vitejs/plugin-react';
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 /**
@@ -34,12 +35,20 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: { index: resolve(import.meta.dirname, 'src/preload/index.ts') },
+        // MUST be CommonJS. This package is `"type": "module"`, so the default
+        // output is ESM — and a sandboxed preload cannot be an ES module.
+        // Electron fails it with "Cannot use import statement outside a
+        // module", `window.desktopLife` is never defined, and the renderer
+        // dies on first access. The app still launches and stays running, so
+        // this is invisible to a smoke test; only E2E catches it.
+        output: { format: 'cjs', entryFileNames: '[name].cjs' },
       },
     },
   },
 
   renderer: {
     root: resolve(import.meta.dirname, 'src/renderer'),
+    plugins: [react()],
     resolve: { alias },
     build: {
       rollupOptions: {

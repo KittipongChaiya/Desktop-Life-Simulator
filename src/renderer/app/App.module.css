@@ -1,0 +1,31 @@
+/*
+ * UI root layout.
+ *
+ * The root is POINTER-TRANSPARENT. Combined with the main process's
+ * setIgnoreMouseEvents(..., { forward: true }), this is what makes the overlay
+ * click-through everywhere except over real controls — the property
+ * VISION.md §2.1 depends on.
+ *
+ * Elements that should receive clicks set `pointer-events: auto` themselves
+ * and carry `data-interactive` for hit-testing.
+ */
+
+.root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.statusBar {
+  flex: 0 0 auto;
+  height: 48px; /* OVERLAY_HEIGHT_COLLAPSED */
+  pointer-events: auto;
+}
+
+/* Expanded mode: the status bar sits at the top and the world fills below. */
+.root[data-collapsed='false'] {
+  justify-content: flex-start;
+}

@@ -1,0 +1,65 @@
+/*
+ * Status bar. GAME_DESIGN.md §10.1.
+ *
+ * Read peripherally while the player is doing something else: high contrast,
+ * large numerals, no motion, no red. Red is reserved for genuine errors, of
+ * which there are almost none — nothing routine is ever alarming.
+ */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+  padding: 0 14px;
+
+  /* pointer-events is enabled here specifically: this IS interactive UI, and
+     the root above it is transparent to the pointer so clicks fall through to
+     the desktop everywhere else. */
+  pointer-events: auto;
+
+  background: rgb(18 20 26 / 88%);
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  color: #e8ecf4;
+  font:
+    600 15px/1 system-ui,
+    'Segoe UI',
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.readout {
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.muted {
+  color: rgb(232 236 244 / 55%);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.toggle {
+  margin-left: auto;
+  width: 28px;
+  height: 22px;
+  padding: 0;
+
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.toggle:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid #6ea8fe;
+  outline-offset: 1px;
+}

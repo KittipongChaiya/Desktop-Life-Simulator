@@ -1,63 +1,132 @@
 /**
- * Electron main process entry.
+ * Electron main process entry. Phase-01.
  *
- * PHASE-00 SCOPE: opens a plain window so the build is demonstrably runnable.
- * Overlay behavior — transparency, bottom docking, always-on-top, click-through,
- * tray, single-instance lock — is phase-01 and deliberately absent here.
- *
- * The `webPreferences` below are NOT placeholders. They are the security and
- * correctness posture required by TECH_STACK.md §2.1 and must not be relaxed.
+ * Owns the window, overlay geometry, tray, single-instance lock, and IPC
+ * validation. No game logic and no rendering ever happens here (ADR-003 §3).
  */
 
-import { join } from 'node:path';
+import { app, ipcMain, Menu, nativeImage, Tray, type BrowserWindow } from 'electron';
 
-import { app, BrowserWindow } from 'electron';
+import {
+  EventChannel,
+  InvokeChannel,
+  SendChannel,
+  type OverlayState,
+} from '../shared/ipc/contract';
+import { validateBoolean, validateVoid } from '../shared/ipc/schemas';
 
-import { OVERLAY_HEIGHT_EXPANDED } from '../shared/constants';
+import { dockedBounds, watchDisplayChanges } from './docking';
+import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
+import { loadSettings, saveSettings } from './settings';
 
-const isDev = !app.isPackaged;
+let overlay: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let collapsed = false;
+let stopWatchingDisplays: (() => void) | null = null;
 
-function createWindow(): BrowserWindow {
-  const window = new BrowserWindow({
-    width: 1280,
-    height: OVERLAY_HEIGHT_EXPANDED,
-    show: false,
-    webPreferences: {
-      preload: join(import.meta.dirname, '../preload/index.mjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      // CRITICAL: Chromium throttles background renderer timers to ~1 Hz.
-      // "Backgrounded" is this product's NORMAL state, so without this the
-      // simulation silently stalls whenever the player does their actual work.
-      // ADR-003 §2. Phase-01 adds an E2E test asserting the tick continues
-      // while the window is occluded.
-      backgroundThrottling: false,
-    },
-  });
-
-  // Show only once painted, so the window never flashes empty.
-  window.once('ready-to-show', () => window.show());
-
-  const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
-  if (isDev && devServerUrl !== undefined) {
-    void window.loadURL(devServerUrl);
-  } else {
-    void window.loadFile(join(import.meta.dirname, '../renderer/index.html'));
-  }
-
-  return window;
+function overlayState(): OverlayState {
+  const bounds = dockedBounds(collapsed);
+  return { collapsed, width: bounds.width, height: bounds.height };
 }
 
-void app.whenReady().then(() => {
-  createWindow();
+function applyCollapsed(next: boolean): OverlayState {
+  collapsed = next;
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (overlay !== null && !overlay.isDestroyed()) {
+    setCollapsed(overlay, collapsed);
+    overlay.webContents.send(EventChannel.OverlayStateChanged, overlayState());
+  }
+
+  saveSettings({ collapsed });
+  refreshTrayMenu();
+  return overlayState();
+}
+
+function refreshTrayMenu(): void {
+  if (tray === null) return;
+
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: collapsed ? 'Expand' : 'Collapse',
+        click: () => void applyCollapsed(!collapsed),
+      },
+      { type: 'separator' },
+      { label: 'Quit', click: () => app.quit() },
+    ]),
+  );
+}
+
+function createTray(): void {
+  // An empty image yields the platform's default tray icon. Real art lands
+  // with the rest of the icon set; shipping a placeholder PNG would violate
+  // AI_RULES.md §1.6.
+  tray = new Tray(nativeImage.createEmpty());
+  tray.setToolTip('Desktop Life Simulator');
+  refreshTrayMenu();
+
+  // Double-click toggles, matching the tray convention users expect.
+  tray.on('double-click', () => void applyCollapsed(!collapsed));
+}
+
+function registerIpc(): void {
+  ipcMain.handle(InvokeChannel.SetCollapsed, (_event, payload: unknown) => {
+    const parsed = validateBoolean(payload, InvokeChannel.SetCollapsed);
+    if (!parsed.ok) return overlayState();
+    return applyCollapsed(parsed.value);
   });
-});
+
+  ipcMain.handle(InvokeChannel.GetOverlayState, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.GetOverlayState);
+    return overlayState();
+  });
+
+  ipcMain.handle(InvokeChannel.Quit, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.Quit);
+    app.quit();
+  });
+
+  ipcMain.on(SendChannel.SetClickThrough, (_event, payload: unknown) => {
+    const parsed = validateBoolean(payload, SendChannel.SetClickThrough);
+    if (!parsed.ok || overlay === null) return;
+    setClickThrough(overlay, parsed.value);
+  });
+}
+
+function bootstrap(): void {
+  collapsed = loadSettings().collapsed;
+
+  overlay = createOverlayWindow(collapsed);
+  stopWatchingDisplays = watchDisplayChanges(() => collapsed, overlay);
+
+  overlay.on('closed', () => {
+    stopWatchingDisplays?.();
+    stopWatchingDisplays = null;
+    overlay = null;
+  });
+
+  createTray();
+  registerIpc();
+}
+
+// Two instances would race on the same save file, which is a data-loss bug
+// rather than an inconvenience (SAVE_FORMAT.md §7).
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (overlay !== null && !overlay.isDestroyed()) overlay.showInactive();
+  });
+
+  void app.whenReady().then(bootstrap);
+}
 
 app.on('window-all-closed', () => {
-  // Windows-first (VISION.md §5.1); quit on last window close.
   app.quit();
+});
+
+app.on('before-quit', () => {
+  saveSettings({ collapsed });
+  tray?.destroy();
+  tray = null;
 });
