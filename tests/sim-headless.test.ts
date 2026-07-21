@@ -12,7 +12,8 @@
  * would pass lint and fail here.
  */
 
-import { readdirSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -25,6 +26,13 @@ const SIM_ROOT = join(import.meta.dirname, '..', 'src', 'sim');
 
 function collectModules(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
+    // `__`-prefixed directories hold transient test scaffolding, not sim
+    // modules. `boundaries.test.ts` writes fixtures into
+    // `src/sim/__boundary_fixtures__/` and runs in a parallel worker, so this
+    // enumeration would otherwise pick up whatever happened to be on disk at
+    // the instant this file was collected — a different test count per run.
+    if (entry.startsWith('__')) return [];
+
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) return collectModules(full);
     return full.endsWith('.ts') && !full.endsWith('.test.ts') ? [full] : [];
@@ -36,6 +44,28 @@ describe('sim modules import in a bare environment (criterion 15)', () => {
 
   it('finds simulation modules to check', () => {
     expect(modules.length).toBeGreaterThan(0);
+  });
+
+  it('excludes transient test-fixture directories', () => {
+    // `boundaries.test.ts` writes deliberately-invalid fixtures into
+    // `src/sim/__boundary_fixtures__/` and runs in a PARALLEL worker, so those
+    // files may exist while this file is being collected. Enumerating them
+    // made the suite's test count vary run to run, and would eventually import
+    // a fixture that pulls in pixi.js — failing this suite for no real reason.
+    const probeRoot = mkdtempSync(join(tmpdir(), 'sim-collect-'));
+    try {
+      mkdirSync(join(probeRoot, '__boundary_fixtures__'), { recursive: true });
+      writeFileSync(join(probeRoot, 'real.ts'), 'export const a = 1;\n', 'utf8');
+      writeFileSync(
+        join(probeRoot, '__boundary_fixtures__', 'fixture.ts'),
+        'export const b = 2;\n',
+        'utf8',
+      );
+
+      expect(collectModules(probeRoot).map((m) => relative(probeRoot, m))).toEqual(['real.ts']);
+    } finally {
+      rmSync(probeRoot, { recursive: true, force: true });
+    }
   });
 
   it.each(modules.map((m) => relative(SIM_ROOT, m)))('imports %s without a DOM', async (rel) => {

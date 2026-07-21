@@ -22,6 +22,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Tile world with render-on-demand (phase-02)
 - Developer tooling (phase-01.5): F3 debug overlay, F1 console, F4 inspector, profiler, logger, and feature flags — excluded from production builds
 
+### Fixed
+
+- Non-deterministic test count: the headless import suite enumerated `src/sim` at collection time and picked up the temporary fixtures `boundaries.test.ts` writes into `src/sim/__boundary_fixtures__/` from a parallel worker, so identical runs reported different totals. Transient `__`-prefixed directories are now excluded from enumeration.
+
 ### Notes
 
 - No player-visible functionality yet. Phase-00 delivers infrastructure only; the overlay itself arrives in phase-01.

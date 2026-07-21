@@ -102,7 +102,7 @@ Deliberately **not** built, despite each being adjacent:
 - [x] Commands are plain serializable data — JSON round-trip asserted
 - [x] The same seed and command stream reproduce identical state and identical command ids
 - [x] Phase-03 behaviour unchanged; `crop-commands.test.ts` passes unmodified
-- [x] `npm test` green — 364 passing, up from 310: +49 new command tests, +5 from the headless import suite that auto-discovers sim modules
+- [x] `npm test` green — 365 passing, up from 310: +49 new command tests, +5 from the headless import suite that auto-discovers sim modules, +1 regression test pinning that enumeration deterministic
 - [x] `npm run typecheck`, `npm run lint`, `npm run check:boundaries`, `npm run check:cycles` clean
 - [x] `src/sim/commands` line coverage 98.3% (target 90%)
 
