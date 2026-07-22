@@ -65,6 +65,17 @@ export interface PointerActionsOptions {
   readonly selectWorkerAt?: (tile: TileIndex) => boolean;
   /** Clears the worker selection. Bound to `Esc` alongside deselecting the tool. */
   readonly clearSelection?: () => void;
+  /**
+   * Building placement, when a building is armed. While active, hover drives
+   * the build ghost instead of the tool highlight, a click places instead of
+   * acting on the tile, and `Esc` cancels. Absent until phase-05d.
+   */
+  readonly placement?: {
+    active(): boolean;
+    hover(tile: TileIndex | null): void;
+    place(tile: TileIndex): void;
+    cancel(): void;
+  };
 }
 
 /** Attaches click, hover, and tool-key handling. Returns teardown. */
@@ -104,7 +115,15 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
       if (far) dragged = true;
     }
 
-    options.input.hover(tileUnder(event.clientX, event.clientY));
+    const tile = tileUnder(event.clientX, event.clientY);
+    if (options.placement?.active() === true) {
+      // While placing, the pointer drives the ghost; the tool highlight is
+      // cleared so the two do not stack on one tile.
+      options.placement.hover(tile);
+      options.input.hover(null);
+    } else {
+      options.input.hover(tile);
+    }
   };
 
   const onPointerUp = (event: PointerEvent): void => {
@@ -118,6 +137,13 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
     // Outside the world is not an action, and not an error.
     if (tile === null) return;
 
+    // While placing, a click commits the building and nothing else — not a
+    // tool action, not a worker selection.
+    if (options.placement?.active() === true) {
+      options.placement.place(tile);
+      return;
+    }
+
     // A worker under the click is selected instead of acting on the tile.
     if (options.selectWorkerAt?.(tile) === true) return;
 
@@ -130,10 +156,13 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
 
   const onPointerLeave = (): void => {
     options.input.hover(null);
+    // Hide the ghost when the pointer leaves the world entirely.
+    options.placement?.hover(null);
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
+      options.placement?.cancel();
       options.input.selectTool(null);
       options.clearSelection?.();
       return;

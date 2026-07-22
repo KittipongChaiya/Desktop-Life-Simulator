@@ -30,6 +30,7 @@ import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
 import { createRenderApp, type RenderApp, type RenderBackend } from './app';
+import { createBuildingGhost, type BuildingGhost, type GhostState } from './building-ghost';
 import { createBuildingRenderer, type BuildingRenderer } from './building-view';
 import {
   clampCameraX,
@@ -72,6 +73,14 @@ export interface WorldView {
    * presentation state and never reaches `World` (ADR-007 §1).
    */
   setHighlight(state: HighlightState): void;
+  /**
+   * Draws the build ghost in the `worldUi` layer, or hides it when passed null.
+   *
+   * As with the highlight, the view owns the drawing and the caller owns the
+   * state: the placement wiring decides what building is under the cursor and
+   * whether it may go there; this only paints the result.
+   */
+  setGhost(state: GhostState | null): void;
   resize(width: number, height: number): void;
   /**
    * Attaches drag-to-pan and wheel-to-zoom to an element. Returns teardown.
@@ -222,12 +231,22 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     gate,
   });
 
+  // The build ghost shares the worldUi layer with the highlight (ADR-001
+  // §Layers). Created after it so the translucent building draws over the
+  // hover box on the same tile.
+  const ghost: BuildingGhost = createBuildingGhost({ layer: app.layers.worldUi, textureFor });
+
   return {
     gate,
     backend: app.backend,
 
     setHighlight(state) {
       highlight.update(state);
+      gate.markDirty();
+    },
+
+    setGhost(state) {
+      ghost.update(state);
       gate.markDirty();
     },
 
@@ -363,6 +382,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Before `app.destroy()`, which tears down the layer that parents them.
       workers.destroy();
       buildings.destroy();
+      ghost.destroy();
       highlight.destroy();
       terrain.destroy();
       app.destroy();

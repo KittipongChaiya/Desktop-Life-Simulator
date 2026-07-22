@@ -42,3 +42,33 @@
 .hire:active {
   transform: translateY(1px);
 }
+
+.build {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(40, 44, 54, 0.92);
+  color: #e8e8ec;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+}
+
+.build:hover {
+  background: rgba(54, 58, 70, 0.96);
+}
+
+.build:active {
+  transform: translateY(1px);
+}
+
+/* Armed: the button reads as "on" while a placement ghost is following the
+   cursor. Amber outline, matching the ghost's own not-red palette. */
+.buildActive {
+  border-color: rgba(255, 179, 71, 0.9);
+  background: rgba(255, 179, 71, 0.22);
+  color: #ffd9a0;
+}
+
+.buildActive:hover {
+  background: rgba(255, 179, 71, 0.3);
+}

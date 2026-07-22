@@ -79,6 +79,17 @@ export interface CommandDispatcher {
    * world is not touched and no event is published (ADR-010 §2).
    */
   dispatch(command: Command, options: DispatchOptions): CommandResult;
+  /**
+   * Runs a command's validator against the CURRENT world WITHOUT queuing it.
+   *
+   * The build ghost asks "is this legal here?" on every pointer move;
+   * dispatching to find out would queue a placement per hover. This runs the
+   * very same validator `dispatch` runs — no second rule set (ADR-010 §6) — and
+   * mutates nothing, queues nothing, publishes nothing. It answers legality
+   * only, so it returns a `ValidationResult`: no id is assigned because nothing
+   * was accepted.
+   */
+  preview(command: Command): ValidationResult;
   /** Executes every queued command in dispatch order. Returns the count drained. */
   drain(): number;
   /** Commands accepted but not yet executed. */
@@ -156,6 +167,20 @@ export function createCommandDispatcher(
 
       queue.enqueue(key === undefined ? { command, metadata } : { command, metadata, key });
       return ok(metadata);
+    },
+
+    preview(command) {
+      const definition = definitions.get(command.type);
+      if (definition === undefined) {
+        return err(
+          appError(ErrorCode.InvalidIntent, 'no handler is registered for this command', {
+            type: command.type,
+          }),
+        );
+      }
+      // Pure by contract (ADR-010 §3): reads the world as it is, mutates
+      // nothing. The queue and the world are untouched.
+      return definition.validate(readWorld(), command);
     },
 
     drain() {

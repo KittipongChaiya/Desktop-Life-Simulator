@@ -13,7 +13,7 @@
 | **05a**   | `Container` / `ItemStack` primitive, item registry, player inventory              | **Delivered** |
 | **05b**   | Worker holds, harvest into containers, deposit, block-when-full, no-jam           | **Delivered** |
 | **05c**   | Storage buildings (container-owning), placement, walkability, deposit-to-shed     | **Delivered** |
-| **05d**   | Inventory snapshot slice, `InventoryPanel`, shed rendering + placement ghost, art | Pending       |
+| **05d**   | Inventory snapshot slice, `InventoryPanel`, shed rendering + placement ghost, art | **Delivered** |
 
 **05c delivered** — storage buildings as container-owning buildings (ADR-011):
 
@@ -23,6 +23,15 @@
 - `ai/storage-target.ts` — the deposit-target service. Workers ask it for an opaque target (a building id or null); they never depend on a building type or the nearest-with-space strategy, which future work replaces alone.
 - `snapshot/buildings-slice.ts` — the building snapshot for rendering (05d).
 - Deterministic, conservation-preserving, and no-jam preserved. 533 tests pass.
+
+**05d delivered** — the snapshot bridge's first substantial panel, plus building rendering and placement (Phase 05 complete):
+
+- `snapshot/inventory-slice.ts` — the `inventory` slice: stacks + capacity + used slots, aggregating the player inventory and every building's storage, republished **only on content change** (crit 17). `snapshot/buildings-slice.ts` drives shed rendering.
+- `app/hud/InventoryPanel.tsx` + `ItemIcon.tsx` — the grid panel off `useSlice('inventory')`: icons (CSS-sliced from the `ui-world` atlas), counts, a used/total readout, sort, and an empty state. Opens without stealing focus (crit 16); a static inventory does zero React work (crit 18).
+- `render/building-view.ts` — sheds render in the y-sorted `objects` layer; `render/building-ghost.ts` — the placement ghost in `worldUi`, green/amber tinted by legality (never red, `GAME_DESIGN.md` §10.1).
+- **Placement mode** — `app/placement.ts` (presentation state, shared like worker selection) + `bootstrap/placement-preview.ts`. The build button arms a shed; the ghost's tint comes from `commands.preview` — the **same validator** the dispatch runs (ADR-010 §6), never a copy. A click places through the ordinary player command path.
+- Art via `scripts/generate-placeholder-item-building-art.mjs` — four item icons + the shed sprite.
+- 556 unit/integration tests and 12 E2E pass; determinism, conservation, and no-jam preserved.
 
 ---
 

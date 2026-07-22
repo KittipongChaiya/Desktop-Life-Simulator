@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
+import { CORE_STORAGE_SHED } from '../content/buildings';
 import { CORE_TURNIP, CORE_WHEAT } from '../content/crops';
 import { stepSimulation, stepSimulationBy } from '../tick';
 import { createWorld, type World } from '../world/world';
@@ -27,6 +28,11 @@ const OUTSIDE = toIndexUnchecked(2, 2) as number;
 const till = (tile: number): Command => ({ type: 'tillTile', tile });
 const plant = (tile: number, cropId: string): Command => ({ type: 'plantCrop', tile, cropId });
 const harvest = (tile: number): Command => ({ type: 'harvestCrop', tile });
+const place = (tile: number, buildingId: string): Command => ({
+  type: 'placeBuilding',
+  tile,
+  buildingId,
+});
 
 const PLAYER = { source: CommandSource.Player } as const;
 
@@ -132,6 +138,48 @@ describe('dispatch: rejection', () => {
     stepSimulation(world);
     expect(world.cropStats.planted).toBe(0);
     expect(world.cropStats.harvested).toBe(0);
+  });
+});
+
+describe('preview: legality without queuing', () => {
+  // The build ghost asks "is this legal here?" on every hover. `preview` runs
+  // the same validator `dispatch` runs (no second rule set, ADR-010 §6) but
+  // queues nothing and touches nothing.
+  it('reports a legal command as ok', () => {
+    const world = createWorld(1);
+    expect(world.commands.preview(place(OWNED, CORE_STORAGE_SHED)).ok).toBe(true);
+  });
+
+  it('reports an illegal command as not ok', () => {
+    const world = createWorld(1);
+    expect(world.commands.preview(place(OUTSIDE, CORE_STORAGE_SHED)).ok).toBe(false);
+  });
+
+  it('reports an unregistered command type as not ok', () => {
+    const world = createWorld(1);
+    const result = world.commands.preview({ type: 'noSuchCommand' } as unknown as Command);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe(ErrorCode.InvalidIntent);
+  });
+
+  it('queues nothing and leaves the world untouched', () => {
+    const world = createWorld(1);
+    world.commands.preview(place(OWNED, CORE_STORAGE_SHED));
+
+    expect(world.commands.pending()).toBe(0);
+    expect(world.buildings.size).toBe(0);
+    // `blocked` is a packed bitfield; no bit anywhere was set.
+    expect(world.tiles.blocked.every((byte) => byte === 0)).toBe(true);
+  });
+
+  it('agrees with what dispatch would accept', () => {
+    // The two paths must never diverge: a tile the ghost paints valid must
+    // dispatch, and one it paints invalid must reject.
+    const world = createWorld(1);
+    expect(world.commands.preview(place(OWNED, CORE_STORAGE_SHED)).ok).toBe(
+      world.commands.dispatch(place(OWNED, CORE_STORAGE_SHED), PLAYER).ok,
+    );
   });
 });
 

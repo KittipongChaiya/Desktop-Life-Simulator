@@ -11,6 +11,7 @@ import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
 import type { OverlayController } from './overlay-controller';
+import type { PlacementController } from './placement';
 import type { WorkerSelection } from './worker-selection';
 
 interface AppServices {
@@ -20,6 +21,8 @@ interface AppServices {
   readonly player: PlayerInputSource;
   /** The selected worker — shared with the renderer's selection box. */
   readonly selection: WorkerSelection;
+  /** The armed building — shared with the renderer's build ghost. */
+  readonly placement: PlacementController;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -29,6 +32,7 @@ export interface AppProvidersProps {
   readonly overlay: OverlayController;
   readonly player: PlayerInputSource;
   readonly selection: WorkerSelection;
+  readonly placement: PlacementController;
   readonly children: ReactNode;
 }
 
@@ -37,10 +41,11 @@ export function AppProviders({
   overlay,
   player,
   selection,
+  placement,
   children,
 }: AppProvidersProps): ReactNode {
   return (
-    <ServicesContext.Provider value={{ store, overlay, player, selection }}>
+    <ServicesContext.Provider value={{ store, overlay, player, selection, placement }}>
       {children}
     </ServicesContext.Provider>
   );
@@ -68,4 +73,8 @@ export function usePlayer(): PlayerInputSource {
 
 export function useWorkerSelection(): WorkerSelection {
   return useServices().selection;
+}
+
+export function usePlacement(): PlacementController {
+  return useServices().placement;
 }

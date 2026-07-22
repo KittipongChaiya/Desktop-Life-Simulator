@@ -15,8 +15,10 @@ import { createWorld } from '@sim/world/world';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import type { ContentId, TileIndex } from '../../shared/ids';
 import { App } from '../app/App';
 import { createOverlayController } from '../app/overlay-controller';
+import { createPlacementController } from '../app/placement';
 import { AppProviders } from '../app/store-context';
 import { createWorkerSelection } from '../app/worker-selection';
 import { workerAtTile } from '../render/worker-render';
@@ -24,6 +26,7 @@ import { workerAtTile } from '../render/worker-render';
 import { createPlayerInputSource } from './command-dispatch';
 import { mountDevTools } from './devtools-mount';
 import { createGameLoop } from './game-loop';
+import { ghostFor } from './placement-preview';
 import { createPlayerInput } from './player-input';
 import { attachPointerActions, toHighlight } from './pointer-actions';
 import { createSnapshotStore } from './snapshot-store';
@@ -68,6 +71,12 @@ export function startApplication(): void {
   // Worker selection is presentation state, shared by the renderer (which draws
   // the selection box) and React (which shows the selected worker's state/task).
   const selection = createWorkerSelection();
+  // Placement mode is the same kind of shared presentation state: React's build
+  // button arms a building, the renderer's ghost previews it. The hovered tile
+  // lives here in the wiring, not in the store, so React does not re-render on
+  // pointer movement.
+  const placement = createPlacementController();
+  let hoveredTile: TileIndex | null = null;
 
   const canvas = document.getElementById('world');
   if (!(canvas instanceof HTMLCanvasElement)) {
@@ -105,6 +114,31 @@ export function startApplication(): void {
     seed: CORE_WHEAT,
     onChange: (state) => worldMount.current()?.setHighlight(toHighlight(state)),
   });
+
+  // The build ghost. `syncGhost` resolves the armed building's sprite and asks
+  // the command validator whether it may go on the hovered tile, then pushes
+  // the result to the view. Legality is `preview` — the same rule the placement
+  // dispatch runs (ADR-010 §6) — so a green ghost is exactly a tile that places.
+  const spriteFor = (buildingId: ContentId): string => {
+    const definition = world.buildingRegistry.get(buildingId);
+    return definition.ok ? definition.value.sprite : '';
+  };
+  const syncGhost = (): void => {
+    const ghost = ghostFor(
+      placement.active(),
+      hoveredTile,
+      (command) => world.commands.preview(command),
+      spriteFor,
+    );
+    worldMount.current()?.setGhost(ghost);
+  };
+  // Arming a building drops any held tool — you place or you till, not both —
+  // and re-pushes the ghost (clearing it when disarming).
+  placement.subscribe(() => {
+    if (placement.active() !== null) playerInput.selectTool(null);
+    syncGhost();
+  });
+
   // Teardown is intentionally not held: these listeners live for the process,
   // exactly like the resize handler below. Pointer actions stay attached while
   // collapsed, where `tileAt` returns null and every click is a no-op.
@@ -121,6 +155,24 @@ export function startApplication(): void {
     },
     clearSelection: () => {
       selection.select(null);
+    },
+    placement: {
+      active: () => placement.active() !== null,
+      hover: (tile) => {
+        hoveredTile = tile;
+        syncGhost();
+      },
+      place: (tile) => {
+        const buildingId = placement.active();
+        if (buildingId === null) return;
+        // The same write path as every other action (ADR-010 §6): submit and
+        // let validation decide. An invalid tile — one the ghost paints amber —
+        // is simply rejected. Placement stays armed for the next tile.
+        playerSource.submit({ type: 'placeBuilding', tile, buildingId });
+      },
+      cancel: () => {
+        placement.deactivate();
+      },
     },
   });
 
@@ -158,7 +210,13 @@ export function startApplication(): void {
 
   createRoot(container).render(
     <StrictMode>
-      <AppProviders store={store} overlay={overlay} player={playerSource} selection={selection}>
+      <AppProviders
+        store={store}
+        overlay={overlay}
+        player={playerSource}
+        selection={selection}
+        placement={placement}
+      >
         <App />
       </AppProviders>
     </StrictMode>,
