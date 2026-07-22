@@ -15,6 +15,7 @@
 import type { TileIndex, WorkerId } from '../../shared/ids';
 import { commandForTask, selectTask } from '../ai/worker-tasks';
 import { type Command, CommandSource } from '../commands/types';
+import { findPath } from '../pathing/astar';
 import {
   advanceEnergy,
   ENERGY_DRAIN_PER_PERIOD,
@@ -67,20 +68,17 @@ function stepIdle(world: World, worker: Worker): void {
   const task = selectTask(world, worker.position, tilesClaimedByOthers(world, worker.id));
   if (task === null) return; // no work — stay Idle and wait (never jams)
 
-  worker.task = task;
-  worker.state = WorkerState.Moving;
-}
+  const path = findPath(world, worker.position, task.tile);
+  if (!path.ok) return; // target unreachable right now — stay Idle and retry
 
-function stepMoving(worker: Worker): void {
-  if (worker.task === null) {
-    worker.state = WorkerState.Idle;
-    return;
-  }
-  // Phase-04a: teleport. Phase-04b replaces this with path traversal at the
-  // §4.3 timings; the FSM shape is unchanged so the swap is local.
-  worker.position = worker.task.tile;
+  worker.task = task;
+  worker.path = path.value;
+  worker.pathCursor = 0;
   worker.actionProgress = 0;
-  worker.state = WorkerState.Working;
+  worker.state = WorkerState.Moving;
+  // `movementSystem`, registered next in this phase, takes the first step this
+  // same tick — and promotes a zero-length (already-on-target) move straight to
+  // Working, so deciding to work costs no wasted tick.
 }
 
 function stepWorking(worker: Worker, submit: (command: Command) => void): void {
@@ -133,7 +131,7 @@ export function workerSystem(world: World): void {
         stepIdle(world, worker);
         break;
       case WorkerState.Moving:
-        stepMoving(worker);
+        // Owned by `movementSystem`, which runs next in this phase.
         break;
       case WorkerState.Working:
         stepWorking(worker, submit);

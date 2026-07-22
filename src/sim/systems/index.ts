@@ -11,6 +11,7 @@
 
 import { commandSystem } from './command';
 import { eventFlushSystem, tickEventSystem } from './event-flush';
+import { movementSystem } from './movement';
 import type { SystemRegistration } from './scheduler';
 import { snapshotSystem } from './snapshot';
 import { workerSystem } from './worker';
@@ -26,10 +27,11 @@ export const TICK_SYSTEMS: readonly SystemRegistration[] = [
   // Crop growth needs no system: maturity is derived from `tick - plantedTick`
   // (ADR-009 §2), never stored, so there is nothing to advance each tick.
 
-  // Worker AI decides, claims, works, and rests. `movementSystem` joins it in
-  // the same phase in phase-04b, registered after it so a worker's decision
-  // this tick is acted on the same tick.
+  // Worker AI decides, claims, works, and rests; movement then advances any
+  // worker it set moving. Movement runs AFTER the decision so a worker acts on
+  // the same tick it decides (ADR-007 §4 — order is data).
   { name: 'worker', phase: 'workers', run: workerSystem },
+  { name: 'movement', phase: 'workers', run: movementSystem },
 
   // phase-06: economySystem (economy)
 

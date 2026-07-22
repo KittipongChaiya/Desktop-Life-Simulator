@@ -32,6 +32,7 @@ export interface TileKindDefinition {
 export const CORE_GRASS = asContentId('core:grass');
 export const CORE_WATER = asContentId('core:water');
 export const CORE_STONE = asContentId('core:stone');
+export const CORE_PATH = asContentId('core:path');
 
 export type TileKindRegistry = ContentRegistry<TileKindDefinition>;
 
@@ -51,6 +52,10 @@ export function registerCoreTileKinds(registry: TileKindRegistry): void {
     { id: CORE_GRASS, walkable: true, tillable: true, moveCost: 1, sprite: 'terrain:grass' },
     { id: CORE_WATER, walkable: false, tillable: false, moveCost: 0, sprite: 'terrain:water' },
     { id: CORE_STONE, walkable: false, tillable: false, moveCost: 0, sprite: 'terrain:stone' },
+    // Appended, so grass/water/stone keep their indices. A worker crosses a path
+    // in 7 ticks vs 10 on grass (§2.2). No path-laying mechanic ships in v0.1;
+    // the kind and its cost exist so movement honours paths when they arrive.
+    { id: CORE_PATH, walkable: true, tillable: false, moveCost: 0.7, sprite: 'terrain:path' },
   ];
 
   for (const kind of kinds) {

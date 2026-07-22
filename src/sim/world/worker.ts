@@ -109,6 +109,23 @@ export const TASK_DURATION_TICKS: Readonly<Record<WorkerTaskKind, number>> = {
   [WorkerTaskKind.Till]: 30,
 };
 
+/** Ticks to cross one tile at `moveCost` 1. §4.3 (10 ticks = 0.5 s). */
+export const MOVE_TICKS_BASE = 10;
+
+/**
+ * Ticks to enter a tile of the given movement cost.
+ *
+ * Ties the §4.3 timing to the tile-kind `moveCost` field so pathfinding and
+ * movement read the same number (ADR: "pathfinding reads this rather than
+ * special-casing kinds"). Grass (cost 1) → 10 ticks; `core:path` (cost 0.7) →
+ * 7 ticks, the 1.5× speed of §2.2. Rounded to an integer so movement stays on
+ * tick boundaries — no float drift in the simulation (ADR-007). Floored to 1 so
+ * no tile is free to cross.
+ */
+export function moveTicksForCost(moveCost: number): number {
+  return Math.max(1, Math.round(MOVE_TICKS_BASE * moveCost));
+}
+
 /**
  * Advances energy by one tick toward a per-period rate.
  *

@@ -12,7 +12,7 @@ This phase is built in three sequenced milestones, each independently verifiable
 | Milestone | Scope                                                                                    | Status        |
 | --------- | ---------------------------------------------------------------------------------------- | ------------- |
 | **04a**   | Worker entity, hiring, task selection, the never-jam FSM, energy — headless, teleporting | **Delivered** |
-| **04b**   | Deterministic A* pathfinding, real interpolated movement at §4.3 timings                 | Pending       |
+| **04b**   | Deterministic A* pathfinding, real movement at §4.3 timings                              | **Delivered** |
 | **04c**   | Snapshot slice, entity rendering + animation, worker selection, HUD hire button, art     | Pending       |
 
 **04a delivered** — the autonomous farm loop runs headlessly through the command dispatcher:
@@ -23,7 +23,15 @@ This phase is built in three sequenced milestones, each independently verifiable
 - `src/sim/commands/worker-commands.ts` — `hireWorker`; cost `floor(150 × 1.6^n)`
 - Actions submit through the same dispatcher and validators as the player (no privileged path)
 - Criteria met: **3, 4, 5, 6, 7, 8, 17, 18, 19, 23, 24** (never-jams, claiming, energy, hire cost, 8-hour unattended, 100k-tick determinism). Criteria 1–2 pass headlessly; their E2E verification lands in 04c.
-- Deferred with rationale: movement is a teleport placeholder until 04b; `workerHired` event waits for its HUD consumer in 04c; `carrying`/deposit is a reserved field until inventory exists (phase-05).
+- Deferred with rationale: `workerHired` event waits for its HUD consumer in 04c; `carrying`/deposit is a reserved field until inventory exists (phase-05).
+
+**04b delivered** — workers now walk their routes instead of teleporting:
+
+- `src/sim/pathing/astar.ts` — 4-directional A*, deterministic (lowest-index tie-break, fixed N/E/S/W order), explicit `PathUnreachable` failure
+- `src/sim/systems/movement.ts` — advances `Moving` workers at §4.3 timings; recomputes the route when the grid changes; abandons cleanly to Idle if the goal is sealed
+- `core:path` tile kind registered (0.7 move cost → 7 ticks vs grass's 10, the §2.2 1.5× speed); no path-laying mechanic ships in v0.1
+- Movement runs after the decision in the same `workers` phase, so deciding to work costs no wasted tick; energy drains while moving
+- Criteria met: **9, 10, 11, 12, 13, 14, 15**, and criterion 24 re-verified with real movement. Criterion 16 (60 FPS render) is manual, arriving with rendering in 04c.
 
 ---
 
