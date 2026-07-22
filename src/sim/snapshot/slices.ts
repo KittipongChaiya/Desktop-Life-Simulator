@@ -13,6 +13,8 @@
 
 import { ticksToWholeSeconds } from '../time/game-clock';
 
+import type { WorkerView } from './workers-slice';
+
 /**
  * Status readout for the collapsed status bar.
  *
@@ -30,11 +32,13 @@ export interface StatusSlice {
 /** Every slice, keyed by name. Extended as phases add systems. */
 export interface SliceMap {
   readonly status: StatusSlice;
+  /** Workers, projected for rendering and selection. Phase-04c. */
+  readonly workers: readonly WorkerView[];
 }
 
 export type SliceName = keyof SliceMap;
 
-export const SLICE_NAMES = ['status'] as const satisfies readonly SliceName[];
+export const SLICE_NAMES = ['status', 'workers'] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */
 export function projectStatus(tick: number): StatusSlice {

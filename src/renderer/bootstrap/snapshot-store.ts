@@ -22,7 +22,7 @@
  */
 
 import { UI_UPDATE_HZ } from '../../shared/constants';
-import type { SliceName } from '../../sim/snapshot/slices';
+import type { SliceMap, SliceName } from '../../sim/snapshot/slices';
 import type { SnapshotState } from '../../sim/snapshot/state';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
@@ -60,8 +60,13 @@ export function createSnapshotStore(state: SnapshotState): SnapshotStore {
       };
     },
 
-    get(slice) {
-      return state[slice].value;
+    get<K extends SliceName>(slice: K): SliceMap[K] {
+      // `state` is keyed by the same names as `SliceMap`, and each entry holds a
+      // `VersionedSlice<SliceMap[thatKey]>`, so the value is `SliceMap[K]` by
+      // construction. A generic indexed access cannot express that invariant
+      // through the union, exactly as the command dispatcher's registry cannot
+      // (CODE_STYLE.md §1.2). The cast is sound, not an assertion about data.
+      return state[slice].value as SliceMap[K];
     },
 
     pump(nowMs) {

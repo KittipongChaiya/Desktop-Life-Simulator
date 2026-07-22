@@ -13,7 +13,7 @@ This phase is built in three sequenced milestones, each independently verifiable
 | --------- | ---------------------------------------------------------------------------------------- | ------------- |
 | **04a**   | Worker entity, hiring, task selection, the never-jam FSM, energy — headless, teleporting | **Delivered** |
 | **04b**   | Deterministic A* pathfinding, real movement at §4.3 timings                              | **Delivered** |
-| **04c**   | Snapshot slice, entity rendering + animation, worker selection, HUD hire button, art     | Pending       |
+| **04c**   | Snapshot slice, entity rendering + animation, worker selection, HUD hire button, art     | In progress   |
 
 **04a delivered** — the autonomous farm loop runs headlessly through the command dispatcher:
 
@@ -32,6 +32,13 @@ This phase is built in three sequenced milestones, each independently verifiable
 - `core:path` tile kind registered (0.7 move cost → 7 ticks vs grass's 10, the §2.2 1.5× speed); no path-laying mechanic ships in v0.1
 - Movement runs after the decision in the same `workers` phase, so deciding to work costs no wasted tick; energy drains while moving
 - Criteria met: **9, 10, 11, 12, 13, 14, 15**, and criterion 24 re-verified with real movement. Criterion 16 (60 FPS render) is manual, arriving with rendering in 04c.
+
+**04c in progress** — the sim→view boundary is done; rendering, animation, and HUD follow:
+
+- `src/sim/snapshot/workers-slice.ts` — `projectWorkers` returns immutable, JSON-plain `WorkerView[]` (id, tile, toTile, moveFraction, facing, state, task, energy); `moveFraction`/`facing` are derived, keeping the `Worker` record free of presentation state
+- Wired into `snapshotSystem` (runs last) via the existing versioned-slice mechanism — republishes only when a worker's view actually changes, so a stationary worker costs nothing (render-on-demand)
+- Tests prove the guarantees the renderer will lean on: pure/deterministic projection, identical state → identical snapshot, no sim reference escapes (task copied, JSON round-trips), and mutating a snapshot cannot reach the world
+- Next: 16×16 placeholder worker sprites (4 directions, idle + 4-frame walk) driven entirely by `worker.anim.json`; entity-layer rendering with `alpha` interpolation; `animatingEntityCount` pairing; selection highlight; HUD count + hire button
 
 ---
 

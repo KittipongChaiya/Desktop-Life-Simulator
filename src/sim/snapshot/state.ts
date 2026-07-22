@@ -8,6 +8,7 @@
  */
 
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
+import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
 
 export interface VersionedSlice<T> {
   /** Bumped only when `value` actually changes. Never decreases. */
@@ -17,11 +18,14 @@ export interface VersionedSlice<T> {
 
 export interface SnapshotState {
   readonly status: VersionedSlice<StatusSlice>;
+  readonly workers: VersionedSlice<readonly WorkerView[]>;
 }
 
 export function createSnapshotState(): SnapshotState {
   return {
     status: { version: 0, value: projectStatus(0) },
+    // A world begins with no workers; the slice fills as they are hired.
+    workers: { version: 0, value: [] },
   };
 }
 
@@ -44,7 +48,7 @@ export function publishIfChanged<T>(
 
 /** Current version of every slice. Used by the renderer to detect changes. */
 export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, number> {
-  return { status: state.status.version };
+  return { status: state.status.version, workers: state.workers.version };
 }
 
-export { statusEquals, projectStatus };
+export { statusEquals, projectStatus, workersEqual, projectWorkers };
