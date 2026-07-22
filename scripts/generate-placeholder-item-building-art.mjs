@@ -105,6 +105,7 @@ function itemIcon(fill) {
   });
 }
 
+/** @type {[string, number[]][]} */
 const ITEMS = [
   ['item_turnip', [214, 196, 224, 255]],
   ['item_wheat', [224, 194, 96, 255]],
