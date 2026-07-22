@@ -89,6 +89,8 @@ This single invariant is what makes the game testable at 90% coverage, savable (
 | `events`              | Typed bus                                           | Flushed each tick by `eventFlushSystem`               |
 | `rng`                 | Seeded PRNG                                         | Deterministic; `Math.random()` is banned              |
 
+`inventory`, `wallet`, worker holds, and every future storage are **containers** under one model (ADR-011): a resource is a conserved integer quantity of a content-defined item, held in exactly one owner-tagged container, moved only by an explicit command-driven transfer between containers — never a free-standing world entity. That single model governs harvesting, carrying, storage, economy, and eventual loot alike.
+
 ### 3.2 The tick
 
 Fixed 20 Hz, accumulator-driven, decoupled from render (ADR-007). System order is declared once:

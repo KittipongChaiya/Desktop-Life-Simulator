@@ -12,7 +12,9 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Complete documentation foundation: vision, roadmap, architecture, game design, and development rules
-- Ten architecture decision records covering rendering, persistence, process architecture, entity model, UI framework, asset pipeline, simulation tick, event system, world model, and the command model
+- Eleven architecture decision records covering rendering, persistence, process architecture, entity model, UI framework, asset pipeline, simulation tick, event system, world model, the command model, and the resource lifecycle
+- Autonomous worker AI (phase-04): hire workers who pathfind, farm, carry, rest, and can be selected — the emotional core of v0.1
+- Resource lifecycle model (ADR-011): one architecture governs how every resource enters, moves through, and leaves the world — conserved quantities owned by containers, moved only by explicit transfer, ahead of inventory in phase-05
 - Eight phase specifications for v0.1 (foundation through save/load)
 - Project foundation (phase-00): build toolchain, architecture boundary enforcement, asset pipeline, seeded RNG, and the 20 Hz fixed-timestep loop
 - Docked overlay with click-through, tray, and collapse/expand (phase-01)

@@ -215,6 +215,8 @@ src/
 
 If it seems to belong in two places, it is two things. Split it.
 
+**Resources (ADR-011).** The one resource model places its parts by the same rules: the `ItemStack` + `Container` primitive and the `inventory`/`wallet` stores are game-state shape (`src/sim/world/`); item _kinds_ are content (`src/sim/content/items.ts`); every resource **move** is a transfer command (`src/sim/commands/`), never a direct store write. A resource is never a `src/sim/world/` entity with a position — there is no item-entity store.
+
 ### 2.2 Co-located tests
 
 Unit tests sit beside their subject:

@@ -213,6 +213,8 @@ Energy never causes failure. A worker with no reachable Rest Hut rests where it 
 
 A worker carries 20 items. At capacity it deposits to storage, or to the player inventory if no storage building exists.
 
+A worker's hold, the player inventory, and every storage are the same thing — **containers** under one resource model (ADR-011). "Carrying" is a stack in the worker's hold; "depositing" is an explicit transfer of that stack into another container. The resource never moves through the world on its own; the worker carries it and ownership transfers on arrival.
+
 ---
 
 ## 5. Buildings
@@ -295,6 +297,8 @@ Escalating sinks against linear sources is what keeps the progression loop from 
 | Behavior when full | Harvest is **blocked**, not discarded |
 
 Blocking rather than discarding is deliberate. Losing a harvest to a full inventory while away is exactly the punish-absence failure `VISION.md` §2.2 forbids; a blocked harvest simply waits, and the player loses time rather than goods.
+
+Architecturally, the inventory is a bounded **container** (ADR-011); a harvest that cannot fit is a transfer rejected for lack of space, leaving the crop unharvested rather than discarded. Stacks, capacity, and conservation are the same across worker holds, storage sheds, and the player inventory.
 
 ---
 
