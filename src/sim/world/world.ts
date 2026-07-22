@@ -18,6 +18,7 @@ import {
 } from '../commands/dispatcher';
 import { registerWorkerCommands } from '../commands/worker-commands';
 import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
+import { createItemRegistry, registerCoreItems, type ItemRegistry } from '../content/items';
 import {
   createTileKindRegistry,
   registerCoreTileKinds,
@@ -28,6 +29,7 @@ import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
 import { createSnapshotState, type SnapshotState } from '../snapshot/state';
 
+import { createContainer, type Container } from './container';
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
@@ -62,6 +64,15 @@ export interface World {
 
   /** Registered crop definitions. Instances reference these by id. */
   readonly cropRegistry: CropRegistry;
+
+  /** Registered item definitions. Stacks reference these by id (ADR-011). */
+  readonly itemRegistry: ItemRegistry;
+
+  /**
+   * The player's inventory — a container (ADR-011). The first owner of the one
+   * resource model; worker holds and storage sheds are the same type.
+   */
+  readonly inventory: Container;
 
   /**
    * Cumulative crop activity. Maintained by an event SUBSCRIBER, not derived —
@@ -100,6 +111,9 @@ export interface World {
 /** Starting owned plot, in tiles per side. GAME_DESIGN.md §2.1. */
 const STARTING_PLOT_SIZE = 8;
 
+/** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
+const BASE_INVENTORY_SLOTS = 40;
+
 /**
  * Optional dependencies supplied when the world is built.
  *
@@ -137,6 +151,9 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   const cropRegistry = createCropRegistry();
   registerCoreCrops(cropRegistry);
 
+  const itemRegistry = createItemRegistry();
+  registerCoreItems(itemRegistry);
+
   const tiles = createTileGrid();
   // Every tile defaults to kind index 0, which is core:grass by registration
   // order — so an all-zero grid is a valid grass world with no fill pass.
@@ -154,6 +171,8 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     crops: createCropStore(),
     workers: createWorkerStore(),
     cropRegistry,
+    itemRegistry,
+    inventory: createContainer(BASE_INVENTORY_SLOTS),
     cropStats,
     events,
     // Reads `world` lazily. The closure runs at dispatch time, never during

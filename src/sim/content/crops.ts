@@ -14,6 +14,7 @@
 
 import { asContentId, type ContentId } from '../../shared/ids';
 import { secondsToTicks } from '../time/game-clock';
+import type { ItemStack } from '../world/container';
 
 import { createContentRegistry, type ContentRegistry } from './registry';
 
@@ -35,11 +36,6 @@ export type CropStage = (typeof CropStage)[keyof typeof CropStage];
 
 /** Fraction of total growth at which each stage begins. */
 export const STAGE_THRESHOLDS: readonly number[] = [0, 0.25, 0.55, 1];
-
-export interface ItemStack {
-  readonly item: ContentId;
-  readonly quantity: number;
-}
 
 export interface CropDefinition {
   readonly id: ContentId;
