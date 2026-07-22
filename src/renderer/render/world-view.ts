@@ -16,6 +16,8 @@
 // with "Failed to fetch" — which is how a runtime `Assets.load('terrain.json')`
 // presented. Importing lets Vite inline the descriptor and emit the image as a
 // bundled asset that resolves in both dev and production.
+import buildingsData from '@assets/buildings.json';
+import buildingsImage from '@assets/buildings.png';
 import entitiesData from '@assets/entities.json';
 import entitiesImage from '@assets/entities.png';
 import terrainData from '@assets/terrain.json';
@@ -28,6 +30,7 @@ import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
 import { createRenderApp, type RenderApp, type RenderBackend } from './app';
+import { createBuildingRenderer, type BuildingRenderer } from './building-view';
 import {
   clampCameraX,
   clampCameraY,
@@ -134,6 +137,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   const sheets: Readonly<Record<string, Spritesheet>> = {
     terrain: await parseSheet(terrainImage, terrainData),
     entities: await parseSheet(entitiesImage, entitiesData),
+    buildings: await parseSheet(buildingsImage, buildingsData),
   };
 
   const textureFor = (spriteKey: string): Texture => {
@@ -212,6 +216,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     selectedId: options.selectedWorkerId,
   });
 
+  const buildings: BuildingRenderer = createBuildingRenderer({
+    layer: app.layers.objects,
+    textureFor,
+    gate,
+  });
+
   return {
     gate,
     backend: app.backend,
@@ -238,6 +248,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         firstColumn: range.first,
         lastColumn: range.last,
       });
+      buildings.update(options.world.snapshots.buildings.value);
 
       if (!gate.shouldRender()) return false;
 
@@ -351,6 +362,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     destroy() {
       // Before `app.destroy()`, which tears down the layer that parents them.
       workers.destroy();
+      buildings.destroy();
       highlight.destroy();
       terrain.destroy();
       app.destroy();
