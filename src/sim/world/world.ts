@@ -16,6 +16,7 @@ import {
   type CommandDispatcher,
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
+import { registerWorkerCommands } from '../commands/worker-commands';
 import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
 import {
   createTileKindRegistry,
@@ -30,6 +31,7 @@ import { createSnapshotState, type SnapshotState } from '../snapshot/state';
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
+import { createWorkerStore, type WorkerStore } from './worker';
 
 export interface World {
   /** The seed this world was created from. Never changes. */
@@ -54,6 +56,9 @@ export interface World {
 
   /** Planted crops, keyed by tile. Sparse — most tiles have none. */
   readonly crops: CropStore;
+
+  /** Hired workers, keyed by id. Sparse. Driven by `workerSystem` (phase-04). */
+  readonly workers: WorkerStore;
 
   /** Registered crop definitions. Instances reference these by id. */
   readonly cropRegistry: CropRegistry;
@@ -147,6 +152,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     tiles,
     tileKinds,
     crops: createCropStore(),
+    workers: createWorkerStore(),
     cropRegistry,
     cropStats,
     events,
@@ -164,6 +170,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   // Explicit registration, not discovery: the command set must not depend on
   // import order (ADR-010 §8).
   registerCropCommands(world.commands);
+  registerWorkerCommands(world.commands);
 
   return world;
 }

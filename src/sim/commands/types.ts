@@ -17,9 +17,11 @@
 
 import type { Result } from '../../shared/result';
 import type { CropRegistry } from '../content/crops';
+import type { IdAllocator } from '../entities/id-allocator';
 import type { EventBus } from '../events/bus';
 import type { CropStore } from '../world/crop';
 import type { TileGrid } from '../world/tile-grid';
+import type { WorkerStore } from '../world/worker';
 
 /**
  * Who issued a command.
@@ -54,12 +56,21 @@ export interface HarvestCropCommand {
 }
 
 /**
+ * Hire a worker. Carries no fields: the worker spawns at the plot centre and its
+ * cost is derived from the current headcount (§4.1), so the command stays a bare
+ * intent that serializes and replays identically.
+ */
+export interface HireWorkerCommand {
+  readonly type: 'hireWorker';
+}
+
+/**
  * Every command the simulation accepts.
  *
  * A new gameplay action is a new member here plus a registered handler — never
  * a new exported mutator (ADR-010 §Consequences).
  */
-export type Command = TillTileCommand | PlantCropCommand | HarvestCropCommand;
+export type Command = TillTileCommand | PlantCropCommand | HarvestCropCommand | HireWorkerCommand;
 
 export type CommandType = Command['type'];
 
@@ -83,6 +94,10 @@ export interface CommandWorld {
   readonly crops: CropStore;
   readonly cropRegistry: CropRegistry;
   readonly events: EventBus;
+  /** Hired workers. Written by `hireWorker` (phase-04). */
+  readonly workers: WorkerStore;
+  /** Deterministic id allocation for spawns (ADR-004). */
+  readonly ids: IdAllocator;
 }
 
 /**
