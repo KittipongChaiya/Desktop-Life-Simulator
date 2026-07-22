@@ -15,8 +15,12 @@
  */
 
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
+import { appError, ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
-import { ok } from '../../shared/result';
+import { asWorkerId } from '../../shared/ids';
+import { err, ok } from '../../shared/result';
+import { stackSizeOf } from '../content/items';
+import { transfer } from '../world/container';
 import { createWorker } from '../world/worker';
 
 import type { CommandDispatcher } from './dispatcher';
@@ -50,10 +54,40 @@ export function hireWorker(world: CommandWorld): ValidationResult {
   return ok();
 }
 
+/**
+ * Empties a worker's hold into the player inventory, transfer by transfer
+ * (ADR-011 §3). Whatever does not fit stays in the hold — a full inventory
+ * blocks the deposit, it never discards (§7). In phase-06 the destination
+ * becomes the nearest storage shed.
+ */
+export function depositWorker(world: CommandWorld, workerRaw: number): ValidationResult {
+  const worker = world.workers.get(asWorkerId(workerRaw));
+  if (worker === undefined) {
+    return err(appError(ErrorCode.InvalidIntent, 'no such worker', { worker: workerRaw }));
+  }
+
+  // Iterate a snapshot of the stacks: `transfer` mutates the hold as it drains.
+  for (const stack of [...worker.carrying.stacks]) {
+    transfer(
+      worker.carrying,
+      world.inventory,
+      stack.item,
+      stack.quantity,
+      stackSizeOf(world.itemRegistry, stack.item),
+    );
+  }
+  return ok();
+}
+
 /** Registers the worker commands into a dispatcher. */
 export function registerWorkerCommands(dispatcher: CommandDispatcher): void {
   dispatcher.register('hireWorker', {
     validate: () => ok(),
     execute: (context) => hireWorker(context.world),
+  });
+
+  dispatcher.register('depositWorker', {
+    validate: () => ok(),
+    execute: (context, command) => depositWorker(context.world, command.worker),
   });
 }

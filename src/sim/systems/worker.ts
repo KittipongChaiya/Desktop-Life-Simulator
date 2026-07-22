@@ -14,10 +14,12 @@
 
 import type { TileIndex, WorkerId } from '../../shared/ids';
 import { commandForTask, selectTask } from '../ai/worker-tasks';
-import { type Command, CommandSource } from '../commands/types';
+import { CommandSource } from '../commands/types';
 import { findPath } from '../pathing/astar';
+import { containerTotal } from '../world/container';
 import {
   advanceEnergy,
+  DEPOSIT_THRESHOLD,
   ENERGY_DRAIN_PER_PERIOD,
   ENERGY_RECOVER_PER_PERIOD,
   MAX_ENERGY,
@@ -65,6 +67,17 @@ function stepIdle(world: World, worker: Worker): void {
     return;
   }
 
+  // Deposit a full-enough hold before doing more work (§4.4). The deposit is a
+  // command like everything else (ADR-011); if the player inventory is full it
+  // simply moves less, and the worker idles rather than jams (crit 14).
+  if (containerTotal(worker.carrying) >= DEPOSIT_THRESHOLD) {
+    world.commands.dispatch(
+      { type: 'depositWorker', worker: worker.id },
+      { source: CommandSource.Worker },
+    );
+    return;
+  }
+
   const task = selectTask(world, worker.position, tilesClaimedByOthers(world, worker.id));
   if (task === null) return; // no work — stay Idle and wait (never jams)
 
@@ -81,7 +94,7 @@ function stepIdle(world: World, worker: Worker): void {
   // Working, so deciding to work costs no wasted tick.
 }
 
-function stepWorking(worker: Worker, submit: (command: Command) => void): void {
+function stepWorking(world: World, worker: Worker): void {
   if (worker.task === null) {
     worker.state = WorkerState.Idle;
     return;
@@ -99,7 +112,13 @@ function stepWorking(worker: Worker, submit: (command: Command) => void): void {
 
   worker.actionProgress += 1;
   if (worker.actionProgress >= TASK_DURATION_TICKS[worker.task.kind]) {
-    submit(commandForTask(worker.task));
+    // Same dispatcher and validators as the player (ADR-010 §6); `actor` routes
+    // a harvest's yield into THIS worker's hold (ADR-011 §5). A dispatch or
+    // execution rejection (a full hold, a vanished crop) is handled by re-plan.
+    world.commands.dispatch(commandForTask(worker.task), {
+      source: CommandSource.Worker,
+      actor: worker.id,
+    });
     worker.actionProgress = 0;
     // Retain `task` so the tile stays claimed until this worker re-plans next
     // tick, by which point the command has executed and the target changed.
@@ -118,13 +137,6 @@ function stepRest(worker: Worker): void {
 }
 
 export function workerSystem(world: World): void {
-  const submit = (command: Command): void => {
-    // Same dispatcher, same validators as the player. A rejection at dispatch
-    // (target already changed) simply means nothing queues; the worker re-plans
-    // next tick. Execution-time rejections surface via `onExecutionRejected`.
-    world.commands.dispatch(command, { source: CommandSource.Worker });
-  };
-
   for (const worker of workersInOrder(world)) {
     switch (worker.state) {
       case WorkerState.Idle:
@@ -134,7 +146,7 @@ export function workerSystem(world: World): void {
         // Owned by `movementSystem`, which runs next in this phase.
         break;
       case WorkerState.Working:
-        stepWorking(worker, submit);
+        stepWorking(world, worker);
         break;
       case WorkerState.SeekingRest:
         stepSeekingRest(worker);

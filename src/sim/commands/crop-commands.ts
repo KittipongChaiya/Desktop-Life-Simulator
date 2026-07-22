@@ -20,9 +20,17 @@
 
 import { appError, ErrorCode } from '../../shared/errors';
 import { isValidIndex } from '../../shared/geometry';
-import { asTileIndex, isContentId, type ContentId, type TileIndex } from '../../shared/ids';
+import {
+  asTileIndex,
+  asWorkerId,
+  isContentId,
+  type ContentId,
+  type TileIndex,
+} from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
 import { isMature } from '../content/crops';
+import { stackSizeOf } from '../content/items';
+import { acceptable, addItems, type Container } from '../world/container';
 import { elapsedTicks } from '../world/crop';
 import { isOwned } from '../world/tile-grid';
 import { isTilled } from '../world/tile-state';
@@ -107,7 +115,13 @@ export function plantCrop(world: CommandWorld, tile: TileIndex, cropId: ContentI
  * Yields are reported on the event; who receives them is inventory's problem in
  * phase-05, and harvest deliberately does not know.
  */
-export function harvestCrop(world: CommandWorld, tile: TileIndex): Result<void> {
+export function harvestCrop(
+  world: CommandWorld,
+  tile: TileIndex,
+  // A player harvest goes to the player inventory by default; a worker harvest
+  // passes its own hold (via the registration, from `metadata.actor`).
+  destination: Container = world.inventory,
+): Result<void> {
   const validation = validateHarvest(world, tile);
   if (!validation.ok) return validation;
 
@@ -120,16 +134,36 @@ export function harvestCrop(world: CommandWorld, tile: TileIndex): Result<void> 
     return err(appError(ErrorCode.UnknownContent, 'no crop on tile', { tile }));
   }
 
+  const yields = definition.value.harvestYield;
+  // Block if the destination cannot hold the WHOLE yield — never a partial
+  // harvest, never a discarded one (ADR-011 §7, crit 4). The crop stays put.
+  for (const stack of yields) {
+    const space = acceptable(destination, stack.item, stackSizeOf(world.itemRegistry, stack.item));
+    if (space < stack.quantity) {
+      return err(appError(ErrorCode.InventoryFull, 'no room to hold the harvest', { tile }));
+    }
+  }
+
   world.crops.delete(tile);
+  for (const stack of yields) {
+    // Harvest is a SOURCE (ADR-011 §4): quantity legitimately enters here.
+    addItems(destination, stack.item, stack.quantity, stackSizeOf(world.itemRegistry, stack.item));
+  }
   world.events.publish('cropHarvested', {
     tile,
     cropId: crop.cropId,
-    yields: definition.value.harvestYield.map((stack) => ({
-      item: stack.item,
-      quantity: stack.quantity,
-    })),
+    yields: yields.map((stack) => ({ item: stack.item, quantity: stack.quantity })),
   });
   return ok();
+}
+
+/**
+ * Where a harvest's yield goes: the harvesting worker's hold, or — for a player
+ * harvest, which carries no actor — the player inventory (ADR-011 §5).
+ */
+function harvestDestination(world: CommandWorld, actor: number | undefined): Container | undefined {
+  if (actor === undefined) return world.inventory;
+  return world.workers.get(asWorkerId(actor))?.carrying;
 }
 
 /** Tills an owned tile so it can be planted. */
@@ -208,7 +242,12 @@ export function registerCropCommands(dispatcher: CommandDispatcher): void {
     },
     execute: (context, command) => {
       const tile = toTile(command.tile);
-      return tile.ok ? harvestCrop(context.world, tile.value) : tile;
+      if (!tile.ok) return tile;
+      const destination = harvestDestination(context.world, context.metadata.actor);
+      if (destination === undefined) {
+        return err(appError(ErrorCode.InvalidIntent, 'harvesting worker no longer exists', {}));
+      }
+      return harvestCrop(context.world, tile.value, destination);
     },
   });
 }

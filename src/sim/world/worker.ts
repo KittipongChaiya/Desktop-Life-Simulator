@@ -14,6 +14,8 @@
 
 import type { TileIndex, WorkerId } from '../../shared/ids';
 
+import { createContainer, type Container } from './container';
+
 /**
  * The five worker states. `GAME_DESIGN.md` §4.2.
  *
@@ -76,11 +78,11 @@ export interface Worker {
    */
   energyTimer: number;
   /**
-   * Items in hand. Reserved for phase-05: with no inventory or storage yet, a
-   * worker has nowhere to deposit, so this stays a tally the inventory system
-   * will act on when it arrives (phase-04 Out-of-Scope).
+   * Items the worker is carrying — a container capped at 20 items (§4.6,
+   * ADR-011). A worker harvests into it and, at ≥ 10, deposits it to storage or
+   * the player inventory.
    */
-  carrying: number;
+  carrying: Container;
 }
 
 /** Sparse store keyed by branded id (ADR-004 §2). */
@@ -92,6 +94,12 @@ export function createWorkerStore(): WorkerStore {
 
 /** Maximum energy. `GAME_DESIGN.md` §4.5. */
 export const MAX_ENERGY = 100;
+
+/** Items a worker carries before it must deposit. `GAME_DESIGN.md` §4.6. */
+export const WORKER_CARRY_CAPACITY = 20;
+
+/** The worker deposits once its hold reaches this many items. `GAME_DESIGN.md` §4.4. */
+export const DEPOSIT_THRESHOLD = 10;
 
 /** The period over which energy rates are expressed. §4.5 ("per 20 ticks"). */
 export const ENERGY_PERIOD_TICKS = 20;
@@ -162,6 +170,6 @@ export function createWorker(id: WorkerId, position: TileIndex): Worker {
     actionProgress: 0,
     energy: MAX_ENERGY,
     energyTimer: 0,
-    carrying: 0,
+    carrying: createContainer(WORKER_CARRY_CAPACITY, WORKER_CARRY_CAPACITY),
   };
 }

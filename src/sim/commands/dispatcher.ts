@@ -46,6 +46,12 @@ export interface DispatchOptions {
    * collapsing them by default would be wrong.
    */
   readonly key?: string;
+  /**
+   * The entity issuing the command, when one applies (a worker's id). Recorded
+   * in metadata so a handler can route to that entity — a worker's harvest into
+   * its own hold (ADR-011). A player action omits it.
+   */
+  readonly actor?: number;
 }
 
 export interface CommandDispatcherOptions {
@@ -142,6 +148,7 @@ export function createCommandDispatcher(
         id: nextId,
         source: dispatchOptions.source,
         dispatchedTick: world.tick,
+        ...(dispatchOptions.actor === undefined ? {} : { actor: dispatchOptions.actor }),
       };
       // Incremented only on acceptance, so ids count real commands rather than
       // attempts — a rejected dispatch leaves no trace anywhere.

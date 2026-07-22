@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { OFFLINE_CAP_TICKS } from '../src/shared/constants';
 import { CommandSource } from '../src/sim/commands/types';
 import { stepSimulationBy } from '../src/sim/tick';
+import { containerTotal } from '../src/sim/world/container';
 import { createWorld, type World } from '../src/sim/world/world';
 import { MAX_ENERGY } from '../src/sim/world/worker';
 
@@ -45,20 +46,22 @@ function snapshotCrops(world: World): unknown {
 }
 
 describe('5 workers run unattended for 8 simulated hours (crit 23)', () => {
-  it('never jams — work is still flowing at the very end of the run', () => {
+  it('runs unattended without jamming; the bounded farm fills and workers idle', () => {
     const world = withWorkers(20260722, 5);
 
-    // Run almost the whole 8 hours, then measure progress across a final window.
-    // If any worker had deadlocked, cumulative harvests would plateau.
-    stepSimulationBy(world, OFFLINE_CAP_TICKS - 5000);
-    const harvestedBeforeTail = world.cropStats.harvested;
+    // The whole 8 hours must not throw. Without selling (phase-06) a bounded
+    // inventory fills and harvest blocks — the correct end state (§7): workers
+    // wait rather than deadlock, jam, or crash.
+    expect(() => stepSimulationBy(world, OFFLINE_CAP_TICKS)).not.toThrow();
 
-    stepSimulationBy(world, 5000);
-
+    // Work happened, and it flowed all the way to the inventory: harvest ->
+    // worker hold -> deposit -> player inventory (ADR-011).
     expect(world.cropStats.planted).toBeGreaterThan(0);
-    expect(world.cropStats.harvested).toBeGreaterThan(harvestedBeforeTail); // still progressing
-    expect(world.workers.size).toBe(5);
+    expect(world.cropStats.harvested).toBeGreaterThan(0);
+    expect(containerTotal(world.inventory)).toBeGreaterThan(0);
 
+    // No jam: five workers, each in a valid state with bounded energy.
+    expect(world.workers.size).toBe(5);
     for (const worker of world.workers.values()) {
       expect(worker.energy).toBeGreaterThanOrEqual(0);
       expect(worker.energy).toBeLessThanOrEqual(MAX_ENERGY);

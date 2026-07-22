@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { asTileIndex, asWorkerId } from '../../shared/ids';
 
+import { containerTotal } from './container';
 import {
   advanceEnergy,
   createWorker,
@@ -52,7 +53,7 @@ describe('createWorker', () => {
   });
 
   it('spawns carrying nothing', () => {
-    expect(worker.carrying).toBe(0);
+    expect(containerTotal(worker.carrying)).toBe(0);
   });
 });
 
