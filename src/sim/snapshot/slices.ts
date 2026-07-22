@@ -14,6 +14,7 @@
 import { ticksToWholeSeconds } from '../time/game-clock';
 
 import type { BuildingView } from './buildings-slice';
+import type { InventoryView } from './inventory-slice';
 import type { WorkerView } from './workers-slice';
 
 /**
@@ -37,6 +38,8 @@ export interface SliceMap {
   readonly workers: readonly WorkerView[];
   /** Placed buildings, projected for rendering. Phase-05c. */
   readonly buildings: readonly BuildingView[];
+  /** The player's aggregated holdings, for the inventory panel. Phase-05d. */
+  readonly inventory: InventoryView;
 }
 
 export type SliceName = keyof SliceMap;
@@ -45,6 +48,7 @@ export const SLICE_NAMES = [
   'status',
   'workers',
   'buildings',
+  'inventory',
 ] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */

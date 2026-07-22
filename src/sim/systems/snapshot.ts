@@ -7,7 +7,9 @@
 
 import {
   buildingsEqual,
+  inventoryEqual,
   projectBuildings,
+  projectInventory,
   projectStatus,
   projectWorkers,
   publishIfChanged,
@@ -23,4 +25,6 @@ export function snapshotSystem(world: World): void {
   publishIfChanged(world.snapshots.workers, projectWorkers(world), workersEqual);
   // Buildings change only on placement, so this republishes rarely.
   publishIfChanged(world.snapshots.buildings, projectBuildings(world), buildingsEqual);
+  // Inventory republishes only when the player's aggregated holdings change (crit 17).
+  publishIfChanged(world.snapshots.inventory, projectInventory(world), inventoryEqual);
 }

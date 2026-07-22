@@ -8,6 +8,7 @@
  */
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
+import { inventoryEqual, projectInventory, type InventoryView } from './inventory-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
 import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
 
@@ -21,6 +22,7 @@ export interface SnapshotState {
   readonly status: VersionedSlice<StatusSlice>;
   readonly workers: VersionedSlice<readonly WorkerView[]>;
   readonly buildings: VersionedSlice<readonly BuildingView[]>;
+  readonly inventory: VersionedSlice<InventoryView>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -29,6 +31,8 @@ export function createSnapshotState(): SnapshotState {
     // A world begins with no workers or buildings; the slices fill as they appear.
     workers: { version: 0, value: [] },
     buildings: { version: 0, value: [] },
+    // Corrected to the real capacity on the first tick's projection.
+    inventory: { version: 0, value: { stacks: [], capacity: 0, usedSlots: 0 } },
   };
 }
 
@@ -55,6 +59,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     status: state.status.version,
     workers: state.workers.version,
     buildings: state.buildings.version,
+    inventory: state.inventory.version,
   };
 }
 
@@ -65,4 +70,6 @@ export {
   projectWorkers,
   buildingsEqual,
   projectBuildings,
+  inventoryEqual,
+  projectInventory,
 };
