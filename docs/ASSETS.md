@@ -37,15 +37,15 @@ Runs automatically before `dev` and `build`; watches in development. Regeneratio
 
 ## 2. Art Direction
 
-| Property       | Value                                                                   |
-| -------------- | ----------------------------------------------------------------------- |
-| Style          | Pixel art                                                               |
-| Base tile      | 32 × 32 logical px                                                      |
-| Resolutions    | 1× authored, 2× provided for high-DPI                                   |
-| Palette        | Limited, shared across all sprites — defined in `assets/src/PALETTE.md` |
-| Perspective    | Top-down, slight 3/4 tilt for objects and entities                      |
-| Outlines       | 1 px dark outline on entities and objects; none on terrain              |
-| Authoring tool | Aseprite (`.aseprite` sources committed alongside PNGs)                 |
+| Property       | Value                                                                          |
+| -------------- | ------------------------------------------------------------------------------ |
+| Style          | Pixel art                                                                      |
+| Base tile      | 32 × 32 logical px                                                             |
+| Resolutions    | 1× authored, 2× provided for high-DPI                                          |
+| Palette        | Limited, shared across all sprites — defined in `docs/assets/COLOR_PALETTE.md` |
+| Perspective    | Top-down, slight 3/4 tilt for objects and entities                             |
+| Outlines       | 1 px dark outline on entities and objects; none on terrain                     |
+| Authoring tool | Aseprite (`.aseprite` sources committed alongside PNGs)                        |
 
 A shared palette is what makes plugin-contributed art blend with core art. It is far cheaper to establish now than to retrofit across a content library.
 

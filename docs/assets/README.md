@@ -1,0 +1,110 @@
+# docs/assets — The AI-Native Creative Canon
+
+> **Status:** Index and ownership authority for the creative documentation set.
+> **Owns:** What each creative document is, how they rank, and the contract that keeps them from duplicating the technical docs.
+> **Does not own:** The technical asset pipeline (`../ASSETS.md`, `../decisions/ADR-006-asset-pipeline.md`), product intent (`../VISION.md`), mechanics (`../GAME_DESIGN.md`).
+
+This folder is the **creative foundation** for Desktop Life Simulator: the canon every future AI session obeys when generating art, animation, audio, and — in the companion `docs/design/` folder — gameplay content. It exists so that hundreds of assets authored across a hundred phases, by sessions with no shared memory (`VISION.md §2.5`), read as **one world**.
+
+Built from the directive series `fix/0.1/5.5Assets A–H` during **phase-05.5** (`../phases/phase-05.5-asset-foundation.md`).
+
+---
+
+## 1. The prime directive: creative intent, not technical truth
+
+These documents define **artistic and design intent**. They are _not_ the source of truth for anything technical. The technical single-sources-of-truth already exist and stay authoritative:
+
+| Concern                                               | Authoritative owner                      |
+| ----------------------------------------------------- | ---------------------------------------- |
+| Pipeline, naming derivation, atlas groups, validation | `../ASSETS.md`                           |
+| Why the pipeline is build-time                        | `../decisions/ADR-006-asset-pipeline.md` |
+| Performance & memory budgets                          | `../PERFORMANCE.md`                      |
+| Render layer order                                    | `../ARCHITECTURE.md §5`                  |
+| UI framework                                          | `../decisions/ADR-005-ui-framework.md`   |
+| Mechanics, numbers, UI philosophy                     | `../GAME_DESIGN.md`                      |
+| Product intent, non-goals                             | `../VISION.md`                           |
+
+**The rule (the user's explicit instruction):** if a technical spec already exists in `ASSETS.md` or an ADR, creative docs **reference** it — they never rewrite it. Where two docs could overlap, ownership is **declared**, not duplicated. Every doc carries an `Owns / Does not own` header so the boundary is always explicit.
+
+---
+
+## 2. Document hierarchy
+
+When documents appear to conflict, the higher authority wins:
+
+```
+VISION.md  (product intent — outranks everything creative)
+      │
+      ▼
+STYLE_LOCK.md  (immutable creative rules, R-01..R-18)
+      │
+      ▼
+ART_DIRECTION.md  (visual philosophy)  ·  COLOR_PALETTE.md + PIXEL_GUIDE.md  (the hard values)
+      │
+      ▼
+the guides & bibles  (apply the above to a domain)
+      │
+      ▼
+PROMPT_LIBRARY.md  (encodes all of the above into generation prompts)
+```
+
+`STYLE_LOCK.md` is the keystone: any generation request that conflicts with a rule there is wrong, and the rule wins.
+
+---
+
+## 3. The documents
+
+### Delivered — phase-05.5a (creative foundation)
+
+| Document                | What it is                                                            |
+| ----------------------- | --------------------------------------------------------------------- |
+| `STYLE_LOCK.md`         | **Keystone.** The immutable "never do this" rules (R-01..R-18).       |
+| `ART_DIRECTION.md`      | Visual philosophy, identity, mood, camera/lighting intent.            |
+| `COLOR_PALETTE.md`      | The canonical palette — every colour, ramp, season/biome/UI set.      |
+| `PIXEL_GUIDE.md`        | Canvas sizes, footprints, pivots, outline application.                |
+| `QUALITY_GUIDELINES.md` | The creative rejection criteria — the review that enforces the rules. |
+| `NAMING_CONVENTION.md`  | Extended naming families atop `ASSETS.md §6`.                         |
+| `FOLDER_STRUCTURE.md`   | The content taxonomy mapped onto the atlas groups.                    |
+
+### Pending — later 05.5 sub-milestones
+
+| Document                         | Sub | What it will be                                       |
+| -------------------------------- | --- | ----------------------------------------------------- |
+| `CHARACTER_BIBLE.md`             | b   | Character visual canon & proportions                  |
+| `WORLD_BIBLE.md`                 | b   | World physical & visual canon                         |
+| `LORE_BIBLE.md`                  | b   | Narrative canon                                       |
+| `UI_STYLE_GUIDE.md`              | c   | UI appearance (defers philosophy to `GAME_DESIGN.md`) |
+| `ICON_GUIDE.md`                  | c   | Icon standards                                        |
+| `ANIMATION_GUIDE.md`             | c   | Per-action animation feel                             |
+| `ASSET_CATALOG.md`               | d   | Production backlog (renamed from ASSET_MANIFEST)      |
+| `PROMPT_LIBRARY.md`              | d   | Reusable AI generation prompts                        |
+| `AI_ASSET_PIPELINE.md`           | d   | Concept→approved-source workflow                      |
+| `AUDIO_DIRECTION.md`             | e   | Audio/music/ambience intent (v0.2+)                   |
+| `MUSIC_LIBRARY.md`               | e   | Music catalog (v0.2+)                                 |
+| `SFX_LIBRARY.md`                 | e   | SFX catalog (v0.2+)                                   |
+| `VISUAL_REFERENCE.md`            | f   | The detailed visual _language_                        |
+| `TECHNICAL_ASSET_SPEC.md`        | f   | Router into technical owners + metadata schema        |
+| `../design/DESIGN_PRINCIPLES.md` | g   | Distilled principles (cite `VISION.md`)               |
+| `../design/CONTENT_RULES.md`     | g   | Feature-gate design checklist                         |
+| `../design/GAME_LOOPS.md`        | g   | Loop taxonomy (defers v0.1 loop to `GAME_DESIGN.md`)  |
+
+The full per-document ownership map (CREATE / DEFER+DELTA / ROUTER, with each cross-reference target) lives in `../phases/phase-05.5-asset-foundation.md`.
+
+---
+
+## 4. Using this canon to generate an asset
+
+1. Read `STYLE_LOCK.md` — the binding rules.
+2. Read the domain doc (e.g. `CHARACTER_BIBLE.md` for a villager).
+3. Pull colours from `COLOR_PALETTE.md` and size/pivot from `PIXEL_GUIDE.md`.
+4. Use the matching entry in `PROMPT_LIBRARY.md` (phase-05.5d).
+5. Name and file per `NAMING_CONVENTION.md` + `FOLDER_STRUCTURE.md` (which defer to `ASSETS.md §4, §6`).
+6. Review against `QUALITY_GUIDELINES.md` before the build validation in `ASSETS.md §12, §13`.
+
+---
+
+## 5. Reconciliation report
+
+_To be completed in phase-05.5g, per directive `fix/0.1/5.5Assets H.md`._
+
+Will contain: a one-paragraph summary of each of the ~24 documents; every conflicting decision discovered during authoring; and recommended improvements to resolve before art/audio generation begins in phase-06 and v0.2. Until then, known reconciliations already applied are recorded in the phase doc (palette-file repoint; `ASSET_MANIFEST`→`ASSET_CATALOG` rename; `DESIGN_PRINCIPLES`/`GAME_LOOPS` distill-and-cite `VISION.md`/`GAME_DESIGN.md`).

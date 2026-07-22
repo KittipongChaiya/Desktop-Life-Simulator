@@ -28,21 +28,22 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 
 ### 2.1 Phases
 
-| #    | Phase                    | Delivers                                                                         | Independently runnable?             |
-| ---- | ------------------------ | -------------------------------------------------------------------------------- | ----------------------------------- |
-| 00   | Foundation               | Toolchain, three tsconfigs, boundary linter, asset pipeline, tick loop, CI       | Empty window, headless sim ticks    |
-| 01   | Overlay                  | Docked transparent window, click-through, tray, collapse/expand, snapshot bridge | A livable overlay with a status bar |
-| 01.5 | Developer Infrastructure | Debug overlay, console, profiler, inspector, logger, feature flags               | Tooling usable in a running app     |
-| 01.7 | Entry Boundary           | Renderer entry constrained; alias-resolution hole closed                         | No behavior change                  |
-| 02.5 | Engine Foundations       | Event bus, scheduler, ID allocator, time scaling                                 | No gameplay                         |
-| 02   | Tile World               | PixiJS, 7 layers, terrain chunks, camera, render-on-demand                       | A visible, pannable farm plot       |
-| 03   | Farming                  | Crops, growth, till/plant/water/harvest, content registries                      | The manual loop is playable         |
-| 03.5 | Command Model            | Command dispatcher, queue, tick-boundary execution, source interfaces            | No behavior change                  |
-| 03.6 | Player Interaction       | Tool selection, hover, tile selection, click → command, dispatch feedback        | **The manual loop is playable**     |
-| 04   | Worker AI                | Worker entities, FSM, pathing, task priority, energy                             | **Stage 2 — delegation**            |
-| 05   | Resources & Containers   | Container model (ADR-011): items, stacks, capacity, storage buildings            | Unattended runs become possible     |
-| 06   | Economy                  | Coins, dynamic pricing, shop, land expansion, buildings                          | **Stage 4 — full idle loop**        |
-| 07   | Save/Load                | Schema, atomic writes, migrations, autosave, offline progress                    | The game persists                   |
+| #    | Phase                          | Delivers                                                                                                             | Independently runnable?             |
+| ---- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 00   | Foundation                     | Toolchain, three tsconfigs, boundary linter, asset pipeline, tick loop, CI                                           | Empty window, headless sim ticks    |
+| 01   | Overlay                        | Docked transparent window, click-through, tray, collapse/expand, snapshot bridge                                     | A livable overlay with a status bar |
+| 01.5 | Developer Infrastructure       | Debug overlay, console, profiler, inspector, logger, feature flags                                                   | Tooling usable in a running app     |
+| 01.7 | Entry Boundary                 | Renderer entry constrained; alias-resolution hole closed                                                             | No behavior change                  |
+| 02.5 | Engine Foundations             | Event bus, scheduler, ID allocator, time scaling                                                                     | No gameplay                         |
+| 02   | Tile World                     | PixiJS, 7 layers, terrain chunks, camera, render-on-demand                                                           | A visible, pannable farm plot       |
+| 03   | Farming                        | Crops, growth, till/plant/water/harvest, content registries                                                          | The manual loop is playable         |
+| 03.5 | Command Model                  | Command dispatcher, queue, tick-boundary execution, source interfaces                                                | No behavior change                  |
+| 03.6 | Player Interaction             | Tool selection, hover, tile selection, click → command, dispatch feedback                                            | **The manual loop is playable**     |
+| 04   | Worker AI                      | Worker entities, FSM, pathing, task priority, energy                                                                 | **Stage 2 — delegation**            |
+| 05   | Resources & Containers         | Container model (ADR-011): items, stacks, capacity, storage buildings                                                | Unattended runs become possible     |
+| 05.5 | AI Asset Production Foundation | Creative canon: art direction, style lock, palette, world/character/lore bibles, prompt library, audio + design docs | Docs only — no runtime change       |
+| 06   | Economy                        | Coins, dynamic pricing, shop, land expansion, buildings                                                              | **Stage 4 — full idle loop**        |
+| 07   | Save/Load                      | Schema, atomic writes, migrations, autosave, offline progress                                                        | The game persists                   |
 
 Phase order is dictated by dependency, not preference. Two orderings are worth stating explicitly:
 

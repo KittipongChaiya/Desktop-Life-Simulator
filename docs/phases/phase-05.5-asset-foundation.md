@@ -1,0 +1,186 @@
+# Phase 05.5 — AI Asset Production Foundation
+
+> **Delivers:** The AI-native creative documentation system — the canon every future AI session obeys when generating art, animation, audio, and gameplay content, so the visual and design identity never drifts across the next 100 phases.
+> **Runnable at completion:** Documentation only. No code, no runtime change; every gate that passed at phase-05 still passes, untouched.
+> **Governing rule:** Creative documents define artistic and design **intent**. `ASSETS.md` and the ADRs remain the **single source of truth** for pipeline, naming, folders, atlases, import, and build. New docs cross-reference the technical owner; they never duplicate it. Where two docs could overlap, ownership is declared explicitly.
+
+Source directives: `fix/0.1/5.5Assets A–H`. This phase converts those eight directive files into a coherent, non-duplicating documentation set reconciled against the docs that already exist.
+
+---
+
+## Why this phase exists, and why here
+
+`PLAN.md §2.2` makes one documentation criterion binding for v0.1: _"A new AI session can implement a v0.2 feature using only `docs/` and the code."_ For **code** that criterion is largely met. For **art, audio, and content generation** it is not — there is no locked art direction, no style lock, no palette (the `PALETTE.md` that `ASSETS.md §2` points at was never created), no prompt library, no lore. An AI session asked to generate a shop building or a coin icon today would invent a look, and the identity would drift.
+
+Placed **before phase-06 (Economy)** deliberately: economy introduces the first large wave of new art — shop and market buildings, coins, land-expansion tiles, upgrade icons, building UI. Generating that art before the style is locked is precisely how a pixel-art project loses coherence. Locking the creative canon first makes phase-06's art a matter of _following_ the rules, not _inventing_ them.
+
+Recorded per `PLAN.md §9.1` (phases may be inserted/resequenced when a dependency proves real; record why in the phase document). This is an insertion, not a reordering, and it moves **no** feature scope earlier (`PLAN.md §9.2`) — it produces documentation only.
+
+---
+
+## Scope
+
+**In scope** — ~24 creative and design documents (enumerated in _Deliverables_), plus two small consistency edits to existing docs:
+
+- Repoint `ASSETS.md §2`'s palette reference from the never-created `assets/src/PALETTE.md` to the new canonical `docs/assets/COLOR_PALETTE.md`.
+- Add the `05.5` row to `PLAN.md §2.1`.
+
+**Explicitly not in scope** (the directives themselves forbid it — file A: _"Your task is NOT to generate artwork / music / sound effects"_):
+
+- No generated art, music, or SFX assets.
+- No code, no test, no change to the asset pipeline, atlas config, or manifest generation.
+- No new gameplay mechanics — the design docs (F/H) **describe and constrain** future features, they do not schedule or implement them.
+
+Because this phase writes only Markdown, the TDD / coverage / E2E gates do not apply. The rest of the working cadence does (see _Working method_).
+
+---
+
+## Delivery status
+
+| Milestone | Source | Scope                                                                      | Status        |
+| --------- | ------ | -------------------------------------------------------------------------- | ------------- |
+| **05.5a** | A      | `README` (index + ownership map) + 7 creative-foundation docs              | **Delivered** |
+| **05.5b** | B      | `CHARACTER_BIBLE`, `WORLD_BIBLE`, `LORE_BIBLE`                             | Pending       |
+| **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | Pending       |
+| **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | Pending       |
+| **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | Pending       |
+| **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | Pending       |
+| **05.5g** | F + H  | `DESIGN_PRINCIPLES`, `CONTENT_RULES`, `GAME_LOOPS` + reconciliation report | Pending       |
+
+Execution order is dependency-driven: **A first** (every later doc cites `STYLE_LOCK` and `COLOR_PALETTE`), the **reconciliation report last** (it can only summarise finished docs). B–G in between may proceed in file order.
+
+**05.5a delivered** — the creative foundation (`docs/assets/`), 8 documents establishing the canon everything later cites:
+
+- `README.md` — the index, the technical-authority table, the document hierarchy (`VISION → STYLE_LOCK → ART_DIRECTION / COLOR_PALETTE + PIXEL_GUIDE → guides → PROMPT_LIBRARY`), and the reconciliation stub (05.5g).
+- `STYLE_LOCK.md` — the keystone: 18 immutable rules (`R-01…R-18`), each a prohibition with a rationale, cited by every other doc.
+- `COLOR_PALETTE.md` — the canonical palette; locks the shared outline `#3A3640` (already load-bearing in `scripts/generate-placeholder-*.mjs`), with season/biome/UI sets and WCAG-AA contrast rules. **Fills the never-created `assets/src/PALETTE.md`; `ASSETS.md §2` repointed here.**
+- `ART_DIRECTION.md` — visual philosophy/mood/intent, anchored to the glance loop (`VISION.md §1`).
+- `PIXEL_GUIDE.md` — per-category canvas sizes, footprints, and pivots grounded in the renderer (entities bottom-center per `worker-view.ts`; tiles/shed top-left per `building-view.ts`).
+- `QUALITY_GUIDELINES.md` — creative-acceptance review; every rejection maps to a `STYLE_LOCK` rule and defers automated checks to `ASSETS.md §12, §13`.
+- `NAMING_CONVENTION.md` — extended families (audio/portrait/icon/fx); defers core naming to `ASSETS.md §6`; reconciles the directive's non-canonical examples; keeps the shipped `item_<name>.png` form.
+- `FOLDER_STRUCTURE.md` — content taxonomy mapped onto the existing atlas groups; states the "group by co-draw, not by type" rule (`ASSETS.md §4`, `ADR-006 §3`).
+
+Ownership discipline held: every doc carries an `Owns / Does not own` header; technical rules are cross-referenced, never duplicated. Docs-only — no code, no runtime change.
+
+---
+
+## Document homes
+
+| Directory               | Holds                                                                | Why here                                                                                     |
+| ----------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `docs/assets/`          | All art, production, and audio docs (A, B, C, D, E, G)               | File A instructs `docs/assets/`; these govern asset generation.                              |
+| `docs/design/` (new)    | The game-design docs (F) and the loop spec (H)                       | These are gameplay-design canon, not asset canon; a session seeking "game loops" looks here. |
+| `docs/assets/README.md` | Index + ownership map + cross-reference table; reconciliation report | Anchor created first so cross-references resolve as docs land; report finalised in 05.5g.    |
+
+---
+
+## Ownership map
+
+Each document is **CREATE** (new creative authority), **DEFER+DELTA** (owns only its creative slice; cites the technical owner for everything else), or **ROUTER** (chiefly a cross-reference index into existing docs).
+
+| Document               | Mode        | Owns / defers to                                                                                                                                                                        |
+| ---------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ART_DIRECTION`        | CREATE      | Visual philosophy, mood, emotion, lighting/shadow **intent**; cites `ASSETS.md §2` for camera/tile facts.                                                                               |
+| `STYLE_LOCK`           | CREATE      | The immutable creative DO-NOTs. Keystone doc; every other doc references it.                                                                                                            |
+| `PIXEL_GUIDE`          | DEFER+DELTA | Owns per-category sprite sizes (character/building/tree/crop/object); defers base tile, 1×/2×, rendering to `ASSETS.md §2, §8`.                                                         |
+| `COLOR_PALETTE`        | CREATE      | **Canonical palette** (primary/secondary/season/biome/UI + accessibility/contrast). Fills the missing `PALETTE.md`; `ASSETS.md §2` repointed here.                                      |
+| `QUALITY_GUIDELINES`   | DEFER+DELTA | Human creative-acceptance review; defers automated/build validation to `ASSETS.md §12, §13`.                                                                                            |
+| `NAMING_CONVENTION`    | DEFER+DELTA | Extended families (audio `bgm_`/`sfx_`, portraits, music, icons); defers core sprite/tile/entity naming to `ASSETS.md §6`.                                                              |
+| `FOLDER_STRUCTURE`     | DEFER+DELTA | Future **content taxonomy** (characters/animals/monsters/bosses/portraits…); defers build tree + atlas grouping to `ASSETS.md §4`, `ADR-006 §2, §3`.                                    |
+| `CHARACTER_BIBLE`      | CREATE      | Character visual canon (proportions, silhouette, readability, customization rules).                                                                                                     |
+| `WORLD_BIBLE`          | CREATE      | World visual/physical canon (biomes, architecture, regions).                                                                                                                            |
+| `LORE_BIBLE`           | CREATE      | Narrative canon; cites `VISION.md` for tone/product intent.                                                                                                                             |
+| `UI_STYLE_GUIDE`       | DEFER+DELTA | Visual UI look (buttons/panels/HUD aesthetics); defers UI **philosophy** to `GAME_DESIGN.md`, framework to `ADR-005`.                                                                   |
+| `ICON_GUIDE`           | CREATE      | Icon design standards; cites `ASSETS.md §3` for sizes/atlas.                                                                                                                            |
+| `ANIMATION_GUIDE`      | DEFER+DELTA | Creative frame-counts / FPS feel / loop **intent** per action; defers format, tick semantics, manifest to `ASSETS.md §7`.                                                               |
+| `ASSET_CATALOG`        | CREATE      | Production backlog (estimate/priority/phase/dependencies). Renamed from `ASSET_MANIFEST` to avoid colliding with the generated `manifest.ts` (`ASSETS.md §5`).                          |
+| `PROMPT_LIBRARY`       | CREATE      | Reusable AI generation prompts; embeds `STYLE_LOCK` + `COLOR_PALETTE` + `ASSETS.md §2` so every prompt is self-consistent.                                                              |
+| `AI_ASSET_PIPELINE`    | DEFER+DELTA | The **concept → approved source PNG** authorial workflow; defers **source → runtime** (naming/atlas/import/versioning/release) to `ASSETS.md §1` + `ADR-006`.                           |
+| `AUDIO_DIRECTION`      | CREATE      | Audio/music/ambience **intent** (v0.2+); cites `ADR-006 §8`, `VISION.md §5.2`.                                                                                                          |
+| `MUSIC_LIBRARY`        | CREATE      | Forward-looking music catalog.                                                                                                                                                          |
+| `SFX_LIBRARY`          | CREATE      | Forward-looking SFX catalog.                                                                                                                                                            |
+| `VISUAL_REFERENCE`     | CREATE      | Detailed visual **language** (shape/material/composition/lighting/color-emotion). Boundary: `ART_DIRECTION` = philosophy, `STYLE_LOCK` = rules, this = language.                        |
+| `TECHNICAL_ASSET_SPEC` | ROUTER      | Cross-reference index into `ASSETS.md` / `ADR-006` / `PERFORMANCE.md` / `ARCHITECTURE.md §5`; owns **only** the new asset-metadata schema (AI model, prompt version, palette version…). |
+| `DESIGN_PRINCIPLES`    | DEFER+DELTA | A short, memorable principle list that **distills and cites** `VISION.md`; does not restate it.                                                                                         |
+| `CONTENT_RULES`        | CREATE      | The feature-gate design checklist; cites `VISION.md` / `GAME_DESIGN.md`.                                                                                                                |
+| `GAME_LOOPS`           | DEFER+DELTA | Multi-tier loop taxonomy (primary/secondary/meta/long/endgame) + future loops + resource-flow diagrams; defers the canonical v0.1 loop and its numbers to `GAME_DESIGN.md §1`.          |
+
+---
+
+## Deliverables by sub-milestone
+
+Every doc: states its `Owns / Does not own` header in the house style, cross-references rather than duplicates, and justifies non-obvious decisions (per file H: _"every decision must include justification"_).
+
+### 05.5a — Creative foundation (file A) → `docs/assets/`
+
+- [ ] `README.md` — index, the ownership map above, and the cross-reference contract; reconciliation section stubbed for 05.5g.
+- [ ] `ART_DIRECTION.md` — visual philosophy, identity, audience, mood/emotion, pixel density, camera/perspective (citing `ASSETS.md §2`), lighting & shadow intent, atmosphere, environmental storytelling, season feeling, animation philosophy, long-term scalability.
+- [ ] `STYLE_LOCK.md` — the comprehensive immutable DO-NOT list; declared the highest creative authority for asset generation.
+- [ ] `PIXEL_GUIDE.md` — per-category size table + outline/transparency/layer/frame recommendations; defers base-tile & rendering rules to `ASSETS.md §2, §8`.
+- [ ] `COLOR_PALETTE.md` — canonical palette families with hex, emotional rationale, season/biome/UI palettes, accessibility + contrast rules. **Also: repoint `ASSETS.md §2` here.**
+- [ ] `QUALITY_GUIDELINES.md` — creative rejection criteria; cites `ASSETS.md §12, §13` for the automated gate.
+- [ ] `NAMING_CONVENTION.md` — extended naming families; defers core naming to `ASSETS.md §6`.
+- [ ] `FOLDER_STRUCTURE.md` — future content taxonomy; defers build/atlas structure to `ASSETS.md §4`, `ADR-006`.
+
+### 05.5b — Bibles (file B) → `docs/assets/`
+
+- [ ] `CHARACTER_BIBLE.md` · [ ] `WORLD_BIBLE.md` · [ ] `LORE_BIBLE.md` — with explicit consistency rules and a boundary note against `VISION.md`/`GAME_DESIGN.md`.
+
+### 05.5c — UI, icon & animation guides (file C) → `docs/assets/`
+
+- [ ] `UI_STYLE_GUIDE.md` (defers UI philosophy to `GAME_DESIGN.md`, framework to `ADR-005`) · [ ] `ICON_GUIDE.md` (cites `ASSETS.md §3`) · [ ] `ANIMATION_GUIDE.md` (defers format to `ASSETS.md §7`).
+
+### 05.5d — AI production system (file D) → `docs/assets/`
+
+- [ ] `ASSET_CATALOG.md` — full catalog with estimate/priority/production-phase/dependencies; header note distinguishing it from the generated `manifest.ts`.
+- [ ] `PROMPT_LIBRARY.md` — reusable prompts per asset class incl. style/perspective/palette/resolution/lighting/negative prompts + consistency rules.
+- [ ] `AI_ASSET_PIPELINE.md` — the concept→approved-source workflow; defers the build half to `ASSETS.md §1` + `ADR-006`.
+
+### 05.5e — Audio (file E) → `docs/assets/`
+
+- [ ] `AUDIO_DIRECTION.md` · [ ] `MUSIC_LIBRARY.md` · [ ] `SFX_LIBRARY.md` — all marked v0.2+ forward-looking; cite `ADR-006 §8`, `VISION.md §5.2`.
+
+### 05.5f — Visual & technical reference (file G) → `docs/assets/`
+
+- [ ] `VISUAL_REFERENCE.md` — the full visual-language bible per file G's section list.
+- [ ] `TECHNICAL_ASSET_SPEC.md` — a router: each technical concern maps to its owning doc; owns only the new asset-metadata schema and its rationale.
+
+### 05.5g — Design & loops (files F + H) → `docs/design/`
+
+- [ ] `DESIGN_PRINCIPLES.md` — distilled principles, each citing its `VISION.md` source.
+- [ ] `CONTENT_RULES.md` — feature design rules + the pre-implementation review checklist.
+- [ ] `GAME_LOOPS.md` — the full loop taxonomy and resource-flow diagrams from file H; defers v0.1 loop specifics to `GAME_DESIGN.md §1`.
+- [ ] **Reconciliation report** in `docs/assets/README.md` — per file H: summarise every document, list any conflicting decisions found, and recommend improvements. Flip this phase's status and close the milestone.
+
+---
+
+## Working method (docs-only cadence)
+
+Adapted from the standing working cadence; the code-specific gates are N/A because no code changes.
+
+1. **One sub-milestone at a time**, each landing as a single clean conventional commit, then pause for "continue".
+2. **No TDD, no test/coverage/E2E gates** — Markdown only. The one applicable automated check is that nothing else changed: `git status` clean apart from the intended docs; if any tooling touches these paths, `npm run typecheck`/`lint` must still pass (they should be unaffected).
+3. **Every commit updates this doc** — flip the Delivery-status row(s) to Delivered with a one-line summary — and adds a `CHANGELOG.md [Unreleased]` entry.
+4. **Ownership discipline is the acceptance bar**: before writing any technical statement, check whether `ASSETS.md`/an ADR already owns it; if so, link instead of restating. A reviewer should find zero duplicated technical rules across the new docs and the existing ones.
+5. **Consistency edits are minimal and in the same commit** as the doc that motivates them (the `ASSETS.md §2` repoint ships with `COLOR_PALETTE.md` in 05.5a; the `PLAN.md` row ships with 05.5a or the spec commit).
+
+---
+
+## Cross-reference contract
+
+- Technical single-source-of-truth stays with: `ASSETS.md` (pipeline, naming, atlas groups, animation format, validation), `ADR-006` (why build-time pipeline), `PERFORMANCE.md` (budgets), `ARCHITECTURE.md §5` (render layers), `ADR-005` (UI framework), `GAME_DESIGN.md` (mechanics, numbers, UI philosophy), `VISION.md` (product intent).
+- New creative docs **link** to those with section anchors; they never copy their contents.
+- Every new doc carries the `Owns / Does not own` header so future overlaps are resolved by declaration, not duplication.
+
+---
+
+## Reconciliation report
+
+_Filled in 05.5g._ Will contain: a one-paragraph summary of each of the ~24 documents; a list of any conflicting decisions discovered during authoring; and recommended improvements to make before art/audio generation begins in phase-06 and v0.2.
+
+---
+
+## References
+
+- Source directives: `fix/0.1/5.5Assets A.md` … `H.md`
+- Existing owners: `docs/ASSETS.md`, `docs/decisions/ADR-006-asset-pipeline.md`, `docs/decisions/ADR-005-ui-framework.md`, `docs/PERFORMANCE.md`, `docs/ARCHITECTURE.md`, `docs/GAME_DESIGN.md`, `docs/VISION.md`, `docs/PLAN.md`
