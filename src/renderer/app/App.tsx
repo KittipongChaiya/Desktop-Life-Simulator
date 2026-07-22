@@ -13,6 +13,7 @@
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
+import { FarmControls } from './hud/FarmControls';
 import { StatusBar } from './hud/StatusBar';
 import { useOverlay } from './store-context';
 
@@ -83,10 +84,8 @@ export function App(): ReactNode {
         <StatusBar />
       </div>
 
-      {/*
-        Expanded content (world view, panels) arrives in phase-02 and phase-05.
-        Deliberately absent rather than stubbed — AI_RULES.md §1.6.
-      */}
+      {/* Farm controls (worker count, hire) show over the world when expanded. */}
+      {!collapsed && <FarmControls />}
     </div>
   );
 }

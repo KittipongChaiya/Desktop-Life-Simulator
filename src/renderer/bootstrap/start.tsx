@@ -91,9 +91,11 @@ export function startApplication(): void {
   });
 
   // The player's write path into the simulation. The same dispatcher worker AI
-  // and automation will use — no privileged variant exists (ADR-010 §6).
+  // and automation will use — no privileged variant exists (ADR-010 §6). Shared
+  // between tile interaction and the HUD (the hire button dispatches through it).
+  const playerSource = createPlayerInputSource(world.commands);
   const playerInput = createPlayerInput({
-    source: createPlayerInputSource(world.commands),
+    source: playerSource,
     seed: CORE_WHEAT,
     onChange: (state) => worldMount.current()?.setHighlight(toHighlight(state)),
   });
@@ -111,7 +113,7 @@ export function startApplication(): void {
     store,
     // Returning false when nothing was drawn keeps the FPS metric honest: a
     // static world reads 0 fps, which is the intended behaviour, not a stall.
-    onFrame: () => worldMount.current()?.renderFrame() ?? false,
+    onFrame: (alpha, tick) => worldMount.current()?.renderFrame(alpha, tick) ?? false,
   });
   loop.start();
 
@@ -136,7 +138,7 @@ export function startApplication(): void {
 
   createRoot(container).render(
     <StrictMode>
-      <AppProviders store={store} overlay={overlay}>
+      <AppProviders store={store} overlay={overlay} player={playerSource}>
         <App />
       </AppProviders>
     </StrictMode>,

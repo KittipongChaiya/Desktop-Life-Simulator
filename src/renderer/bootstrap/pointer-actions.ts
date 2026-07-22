@@ -76,6 +76,11 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
 
   const onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return;
+    // A press that starts over interactive UI (the HUD) is not a tile action;
+    // arming it would fire a tool command on the tile behind the control.
+    if (event.target instanceof Element && event.target.closest('[data-interactive]') !== null) {
+      return;
+    }
     pressed = true;
     dragged = false;
     downX = event.clientX;

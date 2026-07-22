@@ -1,0 +1,44 @@
+/* Expanded-mode farm controls. Phase-04c. */
+
+.panel {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(20, 22, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e8e8ec;
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+.count {
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.hire {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(84, 128, 84, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.hire:hover {
+  background: rgba(104, 152, 104, 0.96);
+}
+
+.hire:active {
+  transform: translateY(1px);
+}

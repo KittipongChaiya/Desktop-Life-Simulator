@@ -38,7 +38,15 @@ This phase is built in three sequenced milestones, each independently verifiable
 - `src/sim/snapshot/workers-slice.ts` — `projectWorkers` returns immutable, JSON-plain `WorkerView[]` (id, tile, toTile, moveFraction, facing, state, task, energy); `moveFraction`/`facing` are derived, keeping the `Worker` record free of presentation state
 - Wired into `snapshotSystem` (runs last) via the existing versioned-slice mechanism — republishes only when a worker's view actually changes, so a stationary worker costs nothing (render-on-demand)
 - Tests prove the guarantees the renderer will lean on: pure/deterministic projection, identical state → identical snapshot, no sim reference escapes (task copied, JSON round-trips), and mutating a snapshot cannot reach the world
-- Next: 16×16 placeholder worker sprites (4 directions, idle + 4-frame walk) driven entirely by `worker.anim.json`; entity-layer rendering with `alpha` interpolation; `animatingEntityCount` pairing; selection highlight; HUD count + hire button
+
+Then delivered on top of the snapshot boundary:
+
+- **Placeholder art + pipeline** — 16×16 frames (4 directions, idle + 4-frame walk) generated into `assets/src/entities{tps}/`; the manifest generator now emits a typed, frame-validated `Animations` const; documented in ASSETS.md §7.2/§7.3 (swap art, no code change)
+- **Rendering** — `src/renderer/render/worker-view.ts` pools sprites in the y-sorted `entities` layer, interpolating position by `alpha` (pure maths in `worker-render.ts`, unit-tested); a walking sprite holds one `animatingEntityCount` lease and releases it on stop/cull/removal (crit 20); off-screen columns are culled
+- **Atlas loading** — `world-view.ts` now loads the `entities` atlas alongside `terrain` and routes `textureFor` by prefix
+- **HUD** — `FarmControls` (hire button with the §4.1 cost) + worker count in the status bar, driven off the `workers` slice; the hire path is verified end to end by `tests/e2e/worker.spec.ts` (button → dispatcher → sim → snapshot → HUD)
+- **Interaction fix** — the drag-pan and tile-click handlers now ignore pointerdowns over `[data-interactive]` UI, which the hire button exposed (pointer capture was swallowing HUD clicks once the world mounted)
+- **Remaining in 04c**: worker selection (click → highlight + state/task panel). Criterion 16 (60 FPS) and 21/22 (CPU) need a GPU (this env is Canvas-fallback, like the render-budget suite). **Blocker surfaced**: the owned plot sits at world-centre but the camera has horizontal pan only (phase-02), so the farm renders off-screen vertically — workers draw but are not yet in view. Needs vertical camera centring on the plot.
 
 ---
 

@@ -7,6 +7,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 
+import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
 import type { OverlayController } from './overlay-controller';
@@ -14,6 +15,8 @@ import type { OverlayController } from './overlay-controller';
 interface AppServices {
   readonly store: SnapshotStore;
   readonly overlay: OverlayController;
+  /** The player's write path into the simulation — the HUD's hire button, etc. */
+  readonly player: PlayerInputSource;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -21,11 +24,16 @@ const ServicesContext = createContext<AppServices | null>(null);
 export interface AppProvidersProps {
   readonly store: SnapshotStore;
   readonly overlay: OverlayController;
+  readonly player: PlayerInputSource;
   readonly children: ReactNode;
 }
 
-export function AppProviders({ store, overlay, children }: AppProvidersProps): ReactNode {
-  return <ServicesContext.Provider value={{ store, overlay }}>{children}</ServicesContext.Provider>;
+export function AppProviders({ store, overlay, player, children }: AppProvidersProps): ReactNode {
+  return (
+    <ServicesContext.Provider value={{ store, overlay, player }}>
+      {children}
+    </ServicesContext.Provider>
+  );
 }
 
 function useServices(): AppServices {
@@ -42,4 +50,8 @@ export function useSnapshotStore(): SnapshotStore {
 
 export function useOverlay(): OverlayController {
   return useServices().overlay;
+}
+
+export function usePlayer(): PlayerInputSource {
+  return useServices().player;
 }

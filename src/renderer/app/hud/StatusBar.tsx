@@ -30,6 +30,7 @@ function formatUptime(totalSeconds: number): string {
 
 export function StatusBar(): ReactNode {
   const status = useSlice('status');
+  const workers = useSlice('workers');
   const overlay = useOverlay();
   const collapsed = overlay.isCollapsed();
 
@@ -41,6 +42,10 @@ export function StatusBar(): ReactNode {
 
       <span className={styles['muted']} title="Simulation ticks elapsed">
         {status.tick.toLocaleString()} ticks
+      </span>
+
+      <span className={styles['muted']} title="Workers hired">
+        {workers.length} {workers.length === 1 ? 'worker' : 'workers'}
       </span>
 
       <button

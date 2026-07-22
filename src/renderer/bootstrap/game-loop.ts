@@ -49,8 +49,11 @@ export interface GameLoopOptions {
    * Returns true if the frame actually DREW. The loop counts drawn frames
    * rather than scheduled ones, so the reported FPS reflects real work — a
    * static world correctly reads 0 rather than 60 (ADR-001 §1).
+   *
+   * `alpha` is the tick fraction for interpolation (ADR-007 §5); `tick` is the
+   * current simulation tick, which drives frame-based animation (ASSETS.md §7).
    */
-  readonly onFrame?: (alpha: number) => boolean | void;
+  readonly onFrame?: (alpha: number, tick: number) => boolean | void;
   /** Injected for tests; defaults to requestAnimationFrame. */
   readonly schedule?: (callback: (now: number) => void) => number;
   readonly cancel?: (handle: number) => void;
@@ -98,7 +101,7 @@ export function createGameLoop(options: GameLoopOptions): GameLoop {
 
     store.pump(timestamp);
 
-    const drew = onFrame?.(accumulator.alpha());
+    const drew = onFrame?.(accumulator.alpha(), world.tick);
     if (drew !== false) framesInWindow += 1;
 
     const windowElapsed = timestamp - windowStart;

@@ -16,8 +16,10 @@
 // with "Failed to fetch" — which is how a runtime `Assets.load('terrain.json')`
 // presented. Importing lets Vite inline the descriptor and emit the image as a
 // bundled asset that resolves in both dev and production.
-import atlasData from '@assets/terrain.json';
-import atlasImage from '@assets/terrain.png';
+import entitiesData from '@assets/entities.json';
+import entitiesImage from '@assets/entities.png';
+import terrainData from '@assets/terrain.json';
+import terrainImage from '@assets/terrain.png';
 import { Spritesheet, Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
@@ -39,12 +41,18 @@ import { createDirtyGate, type DirtyGate } from './dirty-gate';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
+import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
 
 export interface WorldView {
   readonly gate: DirtyGate;
   readonly backend: RenderBackend;
-  /** Draws if the gate allows. Returns true when a frame was actually drawn. */
-  renderFrame(): boolean;
+  /**
+   * Draws if the gate allows. Returns true when a frame was actually drawn.
+   *
+   * `alpha` is the fraction of a tick elapsed (ADR-007 §5) for interpolating
+   * worker positions; `tick` drives frame-based animation (ASSETS.md §7).
+   */
+  renderFrame(alpha?: number, tick?: number): boolean;
   pan(deltaX: number): void;
   zoom(next: number): void;
   camera(): CameraState;
@@ -111,15 +119,23 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     resolution: options.resolution,
   });
 
-  // Textures come from the generated atlas, never a runtime path (ADR-006 §4).
-  const atlasTexture = await loadAtlasTexture(atlasImage);
-  const sheet = new Spritesheet(atlasTexture, atlasData as never);
-  await sheet.parse();
+  // Textures come from the generated atlases, never a runtime path (ADR-006 §4).
+  // Each atlas is a separate imported sheet; more (crops, buildings) are added
+  // here as their phases land. Static imports so Vite bundles them under the CSP.
+  const parseSheet = async (image: string, data: unknown): Promise<Spritesheet> => {
+    const sheet = new Spritesheet(await loadAtlasTexture(image), data as never);
+    await sheet.parse();
+    return sheet;
+  };
+  const sheets: Readonly<Record<string, Spritesheet>> = {
+    terrain: await parseSheet(terrainImage, terrainData),
+    entities: await parseSheet(entitiesImage, entitiesData),
+  };
 
   const textureFor = (spriteKey: string): Texture => {
-    // Manifest keys are `atlas:frame`; the sheet is keyed by frame filename.
-    const frame = spriteKey.includes(':') ? spriteKey.split(':')[1] : spriteKey;
-    return sheet.textures[`${frame ?? ''}.png`] ?? Texture.EMPTY;
+    // Manifest keys are `atlas:frame`; each sheet is keyed by frame filename.
+    const [atlas, frame] = spriteKey.includes(':') ? spriteKey.split(':') : ['terrain', spriteKey];
+    return sheets[atlas ?? '']?.textures[`${frame ?? ''}.png`] ?? Texture.EMPTY;
   };
 
   const gate: DirtyGate = createDirtyGate();
@@ -170,6 +186,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   const highlight: Highlight = createHighlight(app.layers.worldUi);
 
+  const workers: WorkerRenderer = createWorkerRenderer({
+    layer: app.layers.entities,
+    textureFor,
+    gate,
+  });
+
   return {
     gate,
     backend: app.backend,
@@ -179,12 +201,23 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       gate.markDirty();
     },
 
-    renderFrame() {
+    renderFrame(alpha = 0, tick = 0) {
       const range = visibleTileRange(camera, limits);
       // Chunk re-renders are themselves a scene change, so they must happen
       // before the gate is consulted.
       chunkRedraws = terrain.update(range.first, range.last);
       if (chunkRedraws > 0) gate.markDirty();
+
+      // Workers are consumed from the snapshot slice, never the live store
+      // (ADR-005 §2). The update marks the gate dirty when they change and
+      // holds an animation lease while any is walking.
+      workers.update({
+        workers: options.world.snapshots.workers.value,
+        alpha,
+        tick,
+        firstColumn: range.first,
+        lastColumn: range.last,
+      });
 
       if (!gate.shouldRender()) return false;
 
@@ -226,6 +259,15 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
       const onPointerDown = (event: PointerEvent): void => {
         if (event.button !== 0) return;
+        // Ignore drags that begin over interactive UI (the HUD). Capturing the
+        // pointer here would redirect the button's pointerup to `target` and
+        // swallow its click — the bug the hire button first exposed.
+        if (
+          event.target instanceof Element &&
+          event.target.closest('[data-interactive]') !== null
+        ) {
+          return;
+        }
         dragging = true;
         lastX = event.clientX;
         target.setPointerCapture(event.pointerId);
@@ -283,7 +325,8 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     },
 
     destroy() {
-      // Before `app.destroy()`, which tears down the layer that parents it.
+      // Before `app.destroy()`, which tears down the layer that parents them.
+      workers.destroy();
       highlight.destroy();
       terrain.destroy();
       app.destroy();
