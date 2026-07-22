@@ -14,6 +14,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
 import { FarmControls } from './hud/FarmControls';
+import { InventoryPanel } from './hud/InventoryPanel';
 import { StatusBar } from './hud/StatusBar';
 import { WorkerInfo } from './hud/WorkerInfo';
 import { useOverlay } from './store-context';
@@ -91,6 +92,7 @@ export function App(): ReactNode {
         <>
           <FarmControls />
           <WorkerInfo />
+          <InventoryPanel />
         </>
       )}
     </div>

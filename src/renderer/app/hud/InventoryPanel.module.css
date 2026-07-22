@@ -1,0 +1,94 @@
+/* Inventory panel. Phase-05d. */
+
+.container {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  color: #e8e8ec;
+}
+
+.toggle {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 22, 28, 0.82);
+  color: #e8e8ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle:hover {
+  background: rgba(32, 35, 44, 0.9);
+}
+
+.panel {
+  width: 240px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(20, 22, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.sort {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font: inherit;
+  text-transform: capitalize;
+}
+
+.empty {
+  opacity: 0.5;
+  padding: 12px 4px;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.count {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
