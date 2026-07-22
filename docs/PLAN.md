@@ -40,7 +40,7 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 03.5 | Command Model            | Command dispatcher, queue, tick-boundary execution, source interfaces            | No behavior change                  |
 | 03.6 | Player Interaction       | Tool selection, hover, tile selection, click → command, dispatch feedback        | **The manual loop is playable**     |
 | 04   | Worker AI                | Worker entities, FSM, pathing, task priority, energy                             | **Stage 2 — delegation**            |
-| 05   | Inventory                | Items, stacks, capacity, storage buildings                                       | Unattended runs become possible     |
+| 05   | Resources & Containers   | Container model (ADR-011): items, stacks, capacity, storage buildings            | Unattended runs become possible     |
 | 06   | Economy                  | Coins, dynamic pricing, shop, land expansion, buildings                          | **Stage 4 — full idle loop**        |
 | 07   | Save/Load                | Schema, atomic writes, migrations, autosave, offline progress                    | The game persists                   |
 
