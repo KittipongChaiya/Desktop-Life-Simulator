@@ -1,26 +1,38 @@
 /**
- * Camera tests. Phase-02 acceptance criteria 3 and 4.
+ * Camera tests. Phase-02 acceptance criteria 3 and 4; phase-04c vertical
+ * centring correction.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
+import { TILE_SIZE, WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
 
 import {
   clampCameraX,
+  clampCameraY,
   clampZoom,
   createCamera,
   MAX_ZOOM,
   MIN_ZOOM,
   panCamera,
   screenToTile,
+  tileToScreen,
   visibleTileRange,
   worldToScreen,
   zoomCamera,
 } from './camera';
 
-const limits = { viewportWidth: 1920, worldWidthTiles: WORLD_WIDTH, resolution: 1 };
+const limits = {
+  viewportWidth: 1920,
+  viewportHeight: 220,
+  worldWidthTiles: WORLD_WIDTH,
+  worldHeightTiles: WORLD_HEIGHT,
+  resolution: 1,
+};
 const hiDpi = { ...limits, resolution: 2 };
+
+/** Centre of the 8×8 starting plot (world-centre), in world pixels. */
+const PLOT_CENTRE = { x: 32 * TILE_SIZE, y: 32 * TILE_SIZE };
 
 describe('clamping (criterion 3)', () => {
   it('never pans left of the world', () => {
@@ -50,6 +62,27 @@ describe('clamping (criterion 3)', () => {
   });
 });
 
+describe('vertical clamping (phase-04c)', () => {
+  it('never scrolls above the world', () => {
+    expect(clampCameraY(-500, limits, 1)).toBe(0);
+  });
+
+  it('never scrolls past the bottom edge', () => {
+    const worldHeight = WORLD_HEIGHT * TILE_SIZE;
+    expect(clampCameraY(99_999, limits, 1)).toBe(worldHeight - limits.viewportHeight);
+  });
+
+  it('pins to zero when the world is shorter than the viewport', () => {
+    const short = { ...limits, worldHeightTiles: 4 };
+    expect(clampCameraY(50, short, 1)).toBe(0);
+  });
+
+  it('snaps to whole device pixels', () => {
+    expect(clampCameraY(10.6, limits, 1)).toBe(11);
+    expect(clampCameraY(10.26, hiDpi, 1)).toBe(10.5);
+  });
+});
+
 describe('pixel snapping (criterion 4)', () => {
   it('snaps to whole pixels at 1x', () => {
     expect(clampCameraX(10.4, limits, 1)).toBe(10);
@@ -73,6 +106,32 @@ describe('pixel snapping (criterion 4)', () => {
   });
 });
 
+describe('initial focus on the owned plot (phase-04c)', () => {
+  it('with no focus, starts at the top-left (unchanged default)', () => {
+    const camera = createCamera(limits);
+    expect(camera.x).toBe(0);
+    expect(camera.y).toBe(0);
+  });
+
+  it('centres the viewport on the focus point', () => {
+    const camera = createCamera(limits, PLOT_CENTRE);
+    const screen = worldToScreen(camera, PLOT_CENTRE.x, PLOT_CENTRE.y);
+    // The plot centre lands at the centre of the viewport.
+    expect(screen.x).toBeCloseTo(limits.viewportWidth / 2, 0);
+    expect(screen.y).toBeCloseTo(limits.viewportHeight / 2, 0);
+  });
+
+  it('brings the plot and a worker standing on it into view', () => {
+    const camera = createCamera(limits, PLOT_CENTRE);
+    // A worker spawns at the plot centre (worker-commands.ts). It must be on-screen.
+    const worker = worldToScreen(camera, PLOT_CENTRE.x, PLOT_CENTRE.y);
+    expect(worker.y).toBeGreaterThanOrEqual(0);
+    expect(worker.y).toBeLessThanOrEqual(limits.viewportHeight);
+    expect(worker.x).toBeGreaterThanOrEqual(0);
+    expect(worker.x).toBeLessThanOrEqual(limits.viewportWidth);
+  });
+});
+
 describe('zoom', () => {
   it('clamps to the integer range', () => {
     expect(clampZoom(0)).toBe(MIN_ZOOM);
@@ -87,14 +146,21 @@ describe('zoom', () => {
     }
   });
 
-  it('keeps the viewport centre fixed across a zoom change', () => {
-    const camera = panCamera(createCamera(limits), 400, limits);
-    const centreBefore = (camera.x + limits.viewportWidth / 2) / camera.zoom;
+  it('keeps the viewport centre fixed across a zoom change (both axes)', () => {
+    const camera = panCamera(createCamera(limits, PLOT_CENTRE), 200, limits);
+    const centreBefore = {
+      x: (camera.x + limits.viewportWidth / 2) / camera.zoom,
+      y: (camera.y + limits.viewportHeight / 2) / camera.zoom,
+    };
 
     const zoomed = zoomCamera(camera, 2, limits);
-    const centreAfter = (zoomed.x + limits.viewportWidth / 2) / zoomed.zoom;
+    const centreAfter = {
+      x: (zoomed.x + limits.viewportWidth / 2) / zoomed.zoom,
+      y: (zoomed.y + limits.viewportHeight / 2) / zoomed.zoom,
+    };
 
-    expect(Math.abs(centreAfter - centreBefore)).toBeLessThan(1);
+    expect(Math.abs(centreAfter.x - centreBefore.x)).toBeLessThan(1);
+    expect(Math.abs(centreAfter.y - centreBefore.y)).toBeLessThan(1);
   });
 
   it('returns the same object when zoom does not change', () => {
@@ -104,12 +170,30 @@ describe('zoom', () => {
 });
 
 describe('coordinate conversion', () => {
-  it('round-trips screen and tile coordinates', () => {
-    const camera = panCamera(createCamera(limits), 320, limits);
+  it('round-trips screen and tile coordinates on both axes', () => {
+    const camera = panCamera(createCamera(limits, PLOT_CENTRE), 96, limits);
 
     for (const tileX of [0, 5, 31, 63]) {
-      const screen = worldToScreen(camera, tileX * TILE_SIZE, 0);
-      expect(Math.floor(screenToTile(camera, screen.x, 0).x)).toBe(tileX);
+      for (const tileY of [0, 28, 32, 35, 63]) {
+        const screen = worldToScreen(camera, tileX * TILE_SIZE, tileY * TILE_SIZE);
+        const tile = screenToTile(camera, screen.x, screen.y);
+        expect(Math.floor(tile.x)).toBe(tileX);
+        expect(Math.floor(tile.y)).toBe(tileY);
+      }
+    }
+  });
+
+  it('tileToScreen is the inverse of screenToTile', () => {
+    const camera = createCamera(limits, PLOT_CENTRE);
+    for (const [tx, ty] of [
+      [10, 30],
+      [32, 32],
+      [40, 35],
+    ] as const) {
+      const screen = tileToScreen(camera, tx, ty);
+      const back = screenToTile(camera, screen.x, screen.y);
+      expect(Math.floor(back.x)).toBe(tx);
+      expect(Math.floor(back.y)).toBe(ty);
     }
   });
 
@@ -117,6 +201,22 @@ describe('coordinate conversion', () => {
     const camera = zoomCamera(createCamera(limits), 2, limits);
     const screen = worldToScreen(camera, TILE_SIZE, 0);
     expect(Math.floor(screenToTile(camera, screen.x, 0).x)).toBe(1);
+  });
+
+  it('maps a click at the plot centre back to the plot centre tile', () => {
+    const camera = createCamera(limits, PLOT_CENTRE);
+    const centre = screenToTile(camera, limits.viewportWidth / 2, limits.viewportHeight / 2);
+    expect(Math.floor(centre.x)).toBe(32);
+    expect(Math.floor(centre.y)).toBe(32);
+  });
+});
+
+describe('pan does not move vertically (phase-04c)', () => {
+  it('leaves y unchanged when panning horizontally', () => {
+    const camera = createCamera(limits, PLOT_CENTRE);
+    const panned = panCamera(camera, 128, limits);
+    expect(panned.y).toBe(camera.y);
+    expect(panned.x).not.toBe(camera.x);
   });
 });
 

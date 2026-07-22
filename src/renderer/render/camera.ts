@@ -1,5 +1,5 @@
 /**
- * Camera. Phase-02.
+ * Camera. Phase-02; vertical centring added in phase-04c.
  *
  * Pure maths, no Pixi — so clamping, pixel snapping, and coordinate conversion
  * are testable without a GPU.
@@ -10,8 +10,11 @@
  * snaps to whole DEVICE pixels — dividing by resolution before snapping would
  * still leave a fractional device offset on a high-DPI display.
  *
- * Horizontal panning only. The overlay is 220 logical px tall and the world
- * fits vertically (phase-02 Out of Scope).
+ * The camera has a vertical position but NO vertical pan: the overlay is short
+ * and the world is tall, so the view is CENTRED on a focus point (the owned
+ * plot) at construction and thereafter pans horizontally only. Centring is a
+ * pure geometric operation — the camera is handed a world-pixel focus and knows
+ * nothing about plots or gameplay (kept independent per ADR-003 §4).
  */
 
 import { TILE_SIZE } from '../../shared/constants';
@@ -19,6 +22,8 @@ import { TILE_SIZE } from '../../shared/constants';
 export interface CameraState {
   /** Left edge of the view, in world pixels. Always whole device pixels. */
   readonly x: number;
+  /** Top edge of the view, in world pixels. Always whole device pixels. */
+  readonly y: number;
   /** Integer zoom. Non-integer zoom resamples pixel art (ASSETS.md §8). */
   readonly zoom: number;
 }
@@ -26,10 +31,20 @@ export interface CameraState {
 export interface CameraLimits {
   /** Viewport width in logical (CSS) pixels. */
   readonly viewportWidth: number;
+  /** Viewport height in logical (CSS) pixels. */
+  readonly viewportHeight: number;
   /** World width in tiles. */
   readonly worldWidthTiles: number;
+  /** World height in tiles. */
+  readonly worldHeightTiles: number;
   /** Device pixel ratio. */
   readonly resolution: number;
+}
+
+/** A world-pixel point to centre the view on. */
+export interface Focus {
+  readonly x: number;
+  readonly y: number;
 }
 
 export const MIN_ZOOM = 1;
@@ -44,6 +59,16 @@ export function worldPixelWidth(worldWidthTiles: number, zoom: number): number {
   return worldWidthTiles * TILE_SIZE * zoom;
 }
 
+/** Total world height in world pixels at a given zoom. */
+export function worldPixelHeight(worldHeightTiles: number, zoom: number): number {
+  return worldHeightTiles * TILE_SIZE * zoom;
+}
+
+/** Snaps a value to a whole DEVICE pixel, not a logical one. */
+function snapToDevicePixel(value: number, resolution: number): number {
+  return Math.round(value * resolution) / resolution;
+}
+
 /**
  * Clamps and snaps a camera x.
  *
@@ -53,16 +78,41 @@ export function worldPixelWidth(worldWidthTiles: number, zoom: number): number {
 export function clampCameraX(x: number, limits: CameraLimits, zoom: number): number {
   const worldWidth = worldPixelWidth(limits.worldWidthTiles, zoom);
   const maxX = Math.max(0, worldWidth - limits.viewportWidth);
-  const clamped = Math.min(maxX, Math.max(0, x));
-
-  // Snap to whole DEVICE pixels, not logical pixels.
-  return Math.round(clamped * limits.resolution) / limits.resolution;
+  return snapToDevicePixel(Math.min(maxX, Math.max(0, x)), limits.resolution);
 }
 
-export function createCamera(limits: CameraLimits): CameraState {
-  return { x: clampCameraX(0, limits, MIN_ZOOM), zoom: MIN_ZOOM };
+/**
+ * Clamps and snaps a camera y.
+ *
+ * Symmetric with `clampCameraX`: pins to 0 when the world is shorter than the
+ * viewport, and snaps to whole device pixels so vertical offset never shimmers.
+ */
+export function clampCameraY(y: number, limits: CameraLimits, zoom: number): number {
+  const worldHeight = worldPixelHeight(limits.worldHeightTiles, zoom);
+  const maxY = Math.max(0, worldHeight - limits.viewportHeight);
+  return snapToDevicePixel(Math.min(maxY, Math.max(0, y)), limits.resolution);
 }
 
+/**
+ * Creates the camera.
+ *
+ * With no `focus` it starts at the top-left, the phase-02 default. With a focus
+ * (world pixels) it centres the viewport on that point — how the app frames the
+ * owned plot at startup so workers and crops are visible.
+ */
+export function createCamera(limits: CameraLimits, focus?: Focus): CameraState {
+  const zoom = MIN_ZOOM;
+  if (focus === undefined) {
+    return { x: clampCameraX(0, limits, zoom), y: clampCameraY(0, limits, zoom), zoom };
+  }
+  return {
+    x: clampCameraX(focus.x * zoom - limits.viewportWidth / 2, limits, zoom),
+    y: clampCameraY(focus.y * zoom - limits.viewportHeight / 2, limits, zoom),
+    zoom,
+  };
+}
+
+/** Pans horizontally only; the vertical position is fixed (§module note). */
 export function panCamera(state: CameraState, deltaX: number, limits: CameraLimits): CameraState {
   const x = clampCameraX(state.x + deltaX, limits, state.zoom);
   return x === state.x ? state : { ...state, x };
@@ -76,11 +126,15 @@ export function zoomCamera(
   const zoom = clampZoom(nextZoom);
   if (zoom === state.zoom) return state;
 
-  // Keep the viewport centre fixed across a zoom change; otherwise zooming
-  // appears to fling the world sideways.
-  const centreWorld = (state.x + limits.viewportWidth / 2) / state.zoom;
-  const x = clampCameraX(centreWorld * zoom - limits.viewportWidth / 2, limits, zoom);
-  return { x, zoom };
+  // Keep the viewport centre fixed on BOTH axes across a zoom change; otherwise
+  // zooming appears to fling the world sideways or vertically.
+  const centreWorldX = (state.x + limits.viewportWidth / 2) / state.zoom;
+  const centreWorldY = (state.y + limits.viewportHeight / 2) / state.zoom;
+  return {
+    x: clampCameraX(centreWorldX * zoom - limits.viewportWidth / 2, limits, zoom),
+    y: clampCameraY(centreWorldY * zoom - limits.viewportHeight / 2, limits, zoom),
+    zoom,
+  };
 }
 
 /** World pixel position -> screen pixel position. */
@@ -92,7 +146,19 @@ export function worldToScreen(
   x: number;
   y: number;
 } {
-  return { x: worldX * state.zoom - state.x, y: worldY * state.zoom };
+  return { x: worldX * state.zoom - state.x, y: worldY * state.zoom - state.y };
+}
+
+/** Tile coordinate -> screen pixel position of the tile's top-left corner. */
+export function tileToScreen(
+  state: CameraState,
+  tileX: number,
+  tileY: number,
+): {
+  x: number;
+  y: number;
+} {
+  return worldToScreen(state, tileX * TILE_SIZE, tileY * TILE_SIZE);
 }
 
 /** Screen pixel position -> tile coordinate. Returns fractional tiles. */
@@ -106,7 +172,7 @@ export function screenToTile(
 } {
   return {
     x: (screenX + state.x) / (TILE_SIZE * state.zoom),
-    y: screenY / (TILE_SIZE * state.zoom),
+    y: (screenY + state.y) / (TILE_SIZE * state.zoom),
   };
 }
 

@@ -61,6 +61,8 @@ test('hiring a worker through the HUD raises the worker count', async () => {
   await hire.click();
   await expect(count).toHaveText('2 workers');
 
-  // A visual record of the running overlay with the farm controls.
+  // Let the workers spawn on the (now centred) plot and start farming, then
+  // capture a visual record of the running overlay.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
   await window.screenshot({ path: 'test-results/worker-hire.png' });
 });

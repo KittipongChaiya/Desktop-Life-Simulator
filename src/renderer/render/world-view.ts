@@ -24,11 +24,13 @@ import { Spritesheet, Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
 import type { TileIndex } from '../../shared/ids';
+import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
 import { createRenderApp, type RenderApp, type RenderBackend } from './app';
 import {
   clampCameraX,
+  clampCameraY,
   createCamera,
   panCamera,
   screenToTile,
@@ -143,10 +145,23 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   let limits: CameraLimits = {
     viewportWidth: options.width,
+    viewportHeight: options.height,
     worldWidthTiles: options.world.tiles.width,
+    worldHeightTiles: options.world.tiles.height,
     resolution: options.resolution,
   };
-  let camera = createCamera(limits);
+  // Frame the owned plot at startup so workers and crops are on-screen: the
+  // world is far taller than the short overlay, and the plot sits at its centre.
+  // The camera stays gameplay-agnostic — it is handed a world-pixel focus only.
+  const bounds = ownedBounds(options.world.tiles);
+  const focus =
+    bounds === null
+      ? undefined
+      : {
+          x: ((bounds.min.x + bounds.max.x + 1) / 2) * TILE_SIZE,
+          y: ((bounds.min.y + bounds.max.y + 1) / 2) * TILE_SIZE,
+        };
+  let camera = createCamera(limits, focus);
   let chunkRedraws = 0;
 
   const terrain: TerrainRenderer = createTerrainRenderer({
@@ -180,6 +195,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     // The whole stage shifts; individual layers never track the camera
     // separately, which would let them drift out of alignment.
     app.app.stage.x = -camera.x;
+    app.app.stage.y = -camera.y;
     app.app.stage.scale.set(camera.zoom);
   };
   applyCamera();
@@ -246,8 +262,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     },
 
     resize(width, height) {
-      limits = { ...limits, viewportWidth: width };
-      camera = { ...camera, x: clampCameraX(camera.x, limits, camera.zoom) };
+      limits = { ...limits, viewportWidth: width, viewportHeight: height };
+      camera = {
+        ...camera,
+        x: clampCameraX(camera.x, limits, camera.zoom),
+        y: clampCameraY(camera.y, limits, camera.zoom),
+      };
       app.resize(width, height);
       applyCamera();
       gate.markDirty();

@@ -46,7 +46,8 @@ Then delivered on top of the snapshot boundary:
 - **Atlas loading** — `world-view.ts` now loads the `entities` atlas alongside `terrain` and routes `textureFor` by prefix
 - **HUD** — `FarmControls` (hire button with the §4.1 cost) + worker count in the status bar, driven off the `workers` slice; the hire path is verified end to end by `tests/e2e/worker.spec.ts` (button → dispatcher → sim → snapshot → HUD)
 - **Interaction fix** — the drag-pan and tile-click handlers now ignore pointerdowns over `[data-interactive]` UI, which the hire button exposed (pointer capture was swallowing HUD clicks once the world mounted)
-- **Remaining in 04c**: worker selection (click → highlight + state/task panel). Criterion 16 (60 FPS) and 21/22 (CPU) need a GPU (this env is Canvas-fallback, like the render-budget suite). **Blocker surfaced**: the owned plot sits at world-centre but the camera has horizontal pan only (phase-02), so the farm renders off-screen vertically — workers draw but are not yet in view. Needs vertical camera centring on the plot.
+- **Camera correction** — `camera.ts` gained a vertical axis: `createCamera(limits, focus)` centres the viewport on a world-pixel focus, and `world-view.ts` frames the owned plot at startup so workers and crops are on-screen. `screenToTile`/`tileToScreen` round-trip on both axes; pan stays horizontal-only and zoom keeps both axes centred (27 camera tests). **Verified live**: the E2E screenshot shows the bright owned plot centred with worker sprites on it. The camera stays gameplay-agnostic — it is handed a focus point, nothing about plots.
+- **Remaining in 04c**: worker selection (click → highlight + state/task panel), to be built on this rendering baseline. Criterion 16 (60 FPS) and 21/22 (CPU) need a GPU (this env is Canvas-fallback, like the render-budget suite).
 
 ---
 
