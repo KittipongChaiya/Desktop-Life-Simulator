@@ -76,24 +76,29 @@ PROMPT_LIBRARY.md  (encodes all of the above into generation prompts)
 
 Shipped with a consistency edit to `COLOR_PALETTE.md §3.5` (the inclusive skin sub-ramp + hair/cloth mapping), because character colour _values_ belong in the palette, not in the bible.
 
+### Delivered — phase-05.5c (UI, icon & animation guides)
+
+| Document             | What it is                                                                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UI_STYLE_GUIDE.md`  | UI _appearance_ only — cozy parchment panels, chunky controls, HUD look; defers behaviour/layout to `GAME_DESIGN.md §10`, framework to `ADR-005`, values to `COLOR_PALETTE.md §6`. |
+| `ICON_GUIDE.md`      | Icon design standards across every category (item→boss), built for the 16 px read; defers sizes/atlas to `ASSETS.md §3`, names to `NAMING_CONVENTION.md`.                          |
+| `ANIMATION_GUIDE.md` | Per-action frame counts, cadence, and loop intent; the cadence math and the "fit the sim duration" rule; defers format to `ASSETS.md §7`, durations to `GAME_DESIGN.md §4.3`.      |
+
 ### Pending — later 05.5 sub-milestones
 
-| Document                         | Sub | What it will be                                       |
-| -------------------------------- | --- | ----------------------------------------------------- |
-| `UI_STYLE_GUIDE.md`              | c   | UI appearance (defers philosophy to `GAME_DESIGN.md`) |
-| `ICON_GUIDE.md`                  | c   | Icon standards                                        |
-| `ANIMATION_GUIDE.md`             | c   | Per-action animation feel                             |
-| `ASSET_CATALOG.md`               | d   | Production backlog (renamed from ASSET_MANIFEST)      |
-| `PROMPT_LIBRARY.md`              | d   | Reusable AI generation prompts                        |
-| `AI_ASSET_PIPELINE.md`           | d   | Concept→approved-source workflow                      |
-| `AUDIO_DIRECTION.md`             | e   | Audio/music/ambience intent (v0.2+)                   |
-| `MUSIC_LIBRARY.md`               | e   | Music catalog (v0.2+)                                 |
-| `SFX_LIBRARY.md`                 | e   | SFX catalog (v0.2+)                                   |
-| `VISUAL_REFERENCE.md`            | f   | The detailed visual _language_                        |
-| `TECHNICAL_ASSET_SPEC.md`        | f   | Router into technical owners + metadata schema        |
-| `../design/DESIGN_PRINCIPLES.md` | g   | Distilled principles (cite `VISION.md`)               |
-| `../design/CONTENT_RULES.md`     | g   | Feature-gate design checklist                         |
-| `../design/GAME_LOOPS.md`        | g   | Loop taxonomy (defers v0.1 loop to `GAME_DESIGN.md`)  |
+| Document                         | Sub | What it will be                                      |
+| -------------------------------- | --- | ---------------------------------------------------- |
+| `ASSET_CATALOG.md`               | d   | Production backlog (renamed from ASSET_MANIFEST)     |
+| `PROMPT_LIBRARY.md`              | d   | Reusable AI generation prompts                       |
+| `AI_ASSET_PIPELINE.md`           | d   | Concept→approved-source workflow                     |
+| `AUDIO_DIRECTION.md`             | e   | Audio/music/ambience intent (v0.2+)                  |
+| `MUSIC_LIBRARY.md`               | e   | Music catalog (v0.2+)                                |
+| `SFX_LIBRARY.md`                 | e   | SFX catalog (v0.2+)                                  |
+| `VISUAL_REFERENCE.md`            | f   | The detailed visual _language_                       |
+| `TECHNICAL_ASSET_SPEC.md`        | f   | Router into technical owners + metadata schema       |
+| `../design/DESIGN_PRINCIPLES.md` | g   | Distilled principles (cite `VISION.md`)              |
+| `../design/CONTENT_RULES.md`     | g   | Feature-gate design checklist                        |
+| `../design/GAME_LOOPS.md`        | g   | Loop taxonomy (defers v0.1 loop to `GAME_DESIGN.md`) |
 
 The full per-document ownership map (CREATE / DEFER+DELTA / ROUTER, with each cross-reference target) lives in `../phases/phase-05.5-asset-foundation.md`.
 

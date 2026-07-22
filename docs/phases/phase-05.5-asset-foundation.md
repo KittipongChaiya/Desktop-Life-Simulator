@@ -41,7 +41,7 @@ Because this phase writes only Markdown, the TDD / coverage / E2E gates do not a
 | --------- | ------ | -------------------------------------------------------------------------- | ------------- |
 | **05.5a** | A      | `README` (index + ownership map) + 7 creative-foundation docs              | **Delivered** |
 | **05.5b** | B      | `CHARACTER_BIBLE`, `WORLD_BIBLE`, `LORE_BIBLE`                             | **Delivered** |
-| **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | Pending       |
+| **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | **Delivered** |
 | **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | Pending       |
 | **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | Pending       |
 | **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | Pending       |
@@ -69,6 +69,12 @@ Ownership discipline held: every doc carries an `Owns / Does not own` header; te
 - `LORE_BIBLE.md` — a **deliberately light, open** fiction (the giving land, the faded First Tenders, the dormant Old Works) with strong consistency rules: unstated lore is open until a session establishes it, then binds; danger and mystery stay at the frontier and the reserved v1.0 future, never at home. Serves and cites `VISION.md §2.2`.
 
 Consistency edit shipped in the same commit: **`COLOR_PALETTE.md §3.5`** adds the inclusive skin sub-ramp and the hair/cloth mapping, because character colour _values_ are owned by the palette — the bible owns only their _usage_. Reconciliation reason: the directive asked `CHARACTER_BIBLE` to "define skin tones," but hex values live in `COLOR_PALETTE.md` (`STYLE_LOCK.md R-08`); split ownership rather than duplicate.
+
+**05.5c delivered** — the UI, icon, and animation guides (`docs/assets/`), all tightly scoped so no owner is duplicated:
+
+- `UI_STYLE_GUIDE.md` (DEFER+DELTA) — owns only the UI's _look_ (cozy parchment panels, a single warm dark edge, chunky controls, HUD styling). Defers behaviour and layout to `GAME_DESIGN.md §10`, the React/DOM framework and snapshot bridge to `ADR-005`, and colour values to `COLOR_PALETTE.md §6`. The UI is styled to belong to the pixel world, not rendered in it (`ADR-005 §1`).
+- `ICON_GUIDE.md` (CREATE) — icon design standards across every category (item, resource, tool, building, food, skill, weapon, armor, quest, status, notification), all governed by the 16 px read: one centred subject, silhouette-first, the shared 1 px `#3A3640` outline, reserved accents kept meaningful. Defers sizes/atlas to `ASSETS.md §3`, names to `NAMING_CONVENTION.md`, placement to `UI_STYLE_GUIDE.md`.
+- `ANIMATION_GUIDE.md` (DEFER+DELTA) — owns per-action frame counts, cadence, and loop-vs-one-shot intent; expands `PIXEL_GUIDE.md §8` to the full action list. Two grounding rules: the cadence math (`fps = 20 / frameTicks`, calm at 2–5 fps) and **fit the sim duration** — a one-shot fills the action's tick cost (`GAME_DESIGN.md §4.3`). Defers format, tick semantics, and the manifest to `ASSETS.md §7`.
 
 ---
 
@@ -136,7 +142,7 @@ Every doc: states its `Owns / Does not own` header in the house style, cross-ref
 
 ### 05.5c — UI, icon & animation guides (file C) → `docs/assets/`
 
-- [ ] `UI_STYLE_GUIDE.md` (defers UI philosophy to `GAME_DESIGN.md`, framework to `ADR-005`) · [ ] `ICON_GUIDE.md` (cites `ASSETS.md §3`) · [ ] `ANIMATION_GUIDE.md` (defers format to `ASSETS.md §7`).
+- [x] `UI_STYLE_GUIDE.md` (defers UI philosophy to `GAME_DESIGN.md`, framework to `ADR-005`) · [x] `ICON_GUIDE.md` (cites `ASSETS.md §3`) · [x] `ANIMATION_GUIDE.md` (defers format to `ASSETS.md §7`).
 
 ### 05.5d — AI production system (file D) → `docs/assets/`
 
