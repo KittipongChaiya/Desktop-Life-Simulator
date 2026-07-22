@@ -113,6 +113,16 @@ describe('acceptable', () => {
   });
 });
 
+describe('maxTotal cap (worker hold, §4.6)', () => {
+  it('caps acceptable and adds by the total-quantity limit, not slots', () => {
+    const hold = createContainer(20, 20); // 20 slots but at most 20 items
+    expect(acceptable(hold, WHEAT, STACK)).toBe(20);
+    expect(addItems(hold, WHEAT, 25, STACK)).toEqual({ added: 20, remainder: 5 });
+    expect(containerTotal(hold)).toBe(20);
+    expect(acceptable(hold, TURNIP, STACK)).toBe(0); // full by total, though slots remain
+  });
+});
+
 describe('transfer', () => {
   it('moves the whole amount and conserves it', () => {
     const from = createContainer(40);

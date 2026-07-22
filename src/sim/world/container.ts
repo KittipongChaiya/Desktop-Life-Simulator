@@ -28,12 +28,18 @@ export interface ItemStack {
 export interface Container {
   /** Non-empty stacks, each quantity in `[1, stackSize]`. One slot per stack. */
   stacks: ItemStack[];
-  /** Maximum number of slots. */
+  /** Maximum number of slots (the player inventory's constraint, §7). */
   readonly capacity: number;
+  /**
+   * Optional cap on total quantity across all stacks — the worker hold's
+   * constraint ("carries 20 items", §4.6). When set, it bounds `acceptable`
+   * independently of slots.
+   */
+  readonly maxTotal?: number;
 }
 
-export function createContainer(capacity: number): Container {
-  return { stacks: [], capacity };
+export function createContainer(capacity: number, maxTotal?: number): Container {
+  return maxTotal === undefined ? { stacks: [], capacity } : { stacks: [], capacity, maxTotal };
 }
 
 /** Total quantity of one item across all its stacks. */
@@ -64,7 +70,11 @@ export function acceptable(container: Container, item: ContentId, stackSize: num
   for (const stack of container.stacks) {
     if (stack.item === item) space += stackSize - stack.quantity;
   }
-  return space;
+  // A total-quantity cap (worker hold) can bind before the slots do.
+  if (container.maxTotal !== undefined) {
+    space = Math.min(space, container.maxTotal - containerTotal(container));
+  }
+  return Math.max(0, space);
 }
 
 /**
@@ -80,7 +90,12 @@ export function addItems(
   quantity: number,
   stackSize: number,
 ): { readonly added: number; readonly remainder: number } {
-  let remaining = quantity;
+  // A total-quantity cap (worker hold) limits how much may be added at all.
+  const room =
+    container.maxTotal === undefined
+      ? quantity
+      : Math.max(0, Math.min(quantity, container.maxTotal - containerTotal(container)));
+  let remaining = room;
 
   // Top up existing partial stacks of this item first.
   container.stacks = container.stacks.map((stack) => {
@@ -97,7 +112,8 @@ export function addItems(
     remaining -= take;
   }
 
-  return { added: quantity - remaining, remainder: remaining };
+  const added = room - remaining;
+  return { added, remainder: quantity - added };
 }
 
 /**
