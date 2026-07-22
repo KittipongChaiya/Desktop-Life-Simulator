@@ -77,6 +77,33 @@ The colours the player sees most. Each ramp is shadow → base → light; author
 | Stone Light | `#A6A2B0` | Sunlit stone, polished metal           |
 | Parchment   | `#E8E0D4` | Lightest neutral; UI panel base (§6)   |
 
+### 3.5 Character colours — skin, hair, cloth
+
+Characters are drawn from the world's own ramps so a person reads as belonging to the same hand as the fence behind them (`CHARACTER_BIBLE.md` owns _how_ these are used; this table owns the values). The one genuinely new family is **skin**, added here so no session mints a skin tone inside a sprite (`STYLE_LOCK.md R-08`).
+
+**Skin — a small, inclusive, warm set.** Author picks one tone per character and shades base → shadow; never interpolate an intermediate tone. A sunlit rim may tip the topmost pixels toward Parchment `#E8E0D4`; there is no separate highlight hex.
+
+| Name           | Base      | Shadow    |
+| -------------- | --------- | --------- |
+| Skin I (fair)  | `#F0D0A8` | `#D0A778` |
+| Skin II (warm) | `#D8A878` | `#B07E50` |
+| Skin III (tan) | `#B07E50` | `#8A5E38` |
+| Skin IV (deep) | `#7A5232` | `#5A3A22` |
+
+**Hair and cloth introduce _no new hue_** — they reuse the ramps above. Hair may borrow one accent (Carrot Orange) for red hair only; clothing may carry a single reserved accent as a role signal, never across a whole outfit (`CHARACTER_BIBLE.md`, `STYLE_LOCK.md R-08`).
+
+| Feature                       | Colours (existing ramps)                                 |
+| ----------------------------- | -------------------------------------------------------- |
+| Hair — dark                   | Ink Shadow `#2A2733`, Soft Ink `#4A4557`                 |
+| Hair — brown                  | Soil Dark `#5A3A28`, Wood Base `#96704A`                 |
+| Hair — blonde / straw         | Straw `#E0C260`, Wood Light `#B58A5E`                    |
+| Hair — red (sparingly)        | Carrot Orange `#E68436` — hair only, never as decoration |
+| Hair — grey / white           | Stone Base `#7D7A88`, Stone Light `#A6A2B0`, Parchment   |
+| Cloth — earth (workers)       | Wood & Soil ramps, Straw                                 |
+| Cloth — cool                  | Water ramp, Sky Tint `#A9D8E8`                           |
+| Cloth — leaf                  | Grass ramp                                               |
+| Role accent (player/merchant) | one reserved accent (§4), a single garment only          |
+
 ---
 
 ## 4. Accent colours (reserved — spend them deliberately)

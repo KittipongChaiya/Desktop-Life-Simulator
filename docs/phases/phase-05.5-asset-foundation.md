@@ -40,7 +40,7 @@ Because this phase writes only Markdown, the TDD / coverage / E2E gates do not a
 | Milestone | Source | Scope                                                                      | Status        |
 | --------- | ------ | -------------------------------------------------------------------------- | ------------- |
 | **05.5a** | A      | `README` (index + ownership map) + 7 creative-foundation docs              | **Delivered** |
-| **05.5b** | B      | `CHARACTER_BIBLE`, `WORLD_BIBLE`, `LORE_BIBLE`                             | Pending       |
+| **05.5b** | B      | `CHARACTER_BIBLE`, `WORLD_BIBLE`, `LORE_BIBLE`                             | **Delivered** |
 | **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | Pending       |
 | **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | Pending       |
 | **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | Pending       |
@@ -61,6 +61,14 @@ Execution order is dependency-driven: **A first** (every later doc cites `STYLE_
 - `FOLDER_STRUCTURE.md` — content taxonomy mapped onto the existing atlas groups; states the "group by co-draw, not by type" rule (`ASSETS.md §4`, `ADR-006 §3`).
 
 Ownership discipline held: every doc carries an `Owns / Does not own` header; technical rules are cross-referenced, never duplicated. Docs-only — no code, no runtime change.
+
+**05.5b delivered** — the three bibles (`docs/assets/`), the world's people, place, and story:
+
+- `CHARACTER_BIBLE.md` — the shared human rig and, per `STYLE_LOCK.md R-07`, the fixed **1 : 4 head-to-body** proportion and height classes every future character must match; silhouette/readability/recognition rules, role-by-clothing, equipment attachment points, emotion (no-alarm), and customization rules. Grounded in `PIXEL_GUIDE.md §2` (32 × 48, bottom-center) and `GAME_DESIGN.md §4` (workers).
+- `WORLD_BIBLE.md` — the valley's visual/physical canon: cozy vernacular architecture, the biome/region ladder (farm → village → forest/lake/mountain/mine → dungeon) as **tints over the shared ramps**, pre-industrial tech level, and the "home is safe, unease lives at the far edge" rule. Aligned to `COLOR_PALETTE.md §8` biomes and `GAME_DESIGN.md §2, §11`.
+- `LORE_BIBLE.md` — a **deliberately light, open** fiction (the giving land, the faded First Tenders, the dormant Old Works) with strong consistency rules: unstated lore is open until a session establishes it, then binds; danger and mystery stay at the frontier and the reserved v1.0 future, never at home. Serves and cites `VISION.md §2.2`.
+
+Consistency edit shipped in the same commit: **`COLOR_PALETTE.md §3.5`** adds the inclusive skin sub-ramp and the hair/cloth mapping, because character colour _values_ are owned by the palette — the bible owns only their _usage_. Reconciliation reason: the directive asked `CHARACTER_BIBLE` to "define skin tones," but hex values live in `COLOR_PALETTE.md` (`STYLE_LOCK.md R-08`); split ownership rather than duplicate.
 
 ---
 
@@ -124,7 +132,7 @@ Every doc: states its `Owns / Does not own` header in the house style, cross-ref
 
 ### 05.5b — Bibles (file B) → `docs/assets/`
 
-- [ ] `CHARACTER_BIBLE.md` · [ ] `WORLD_BIBLE.md` · [ ] `LORE_BIBLE.md` — with explicit consistency rules and a boundary note against `VISION.md`/`GAME_DESIGN.md`.
+- [x] `CHARACTER_BIBLE.md` · [x] `WORLD_BIBLE.md` · [x] `LORE_BIBLE.md` — with explicit consistency rules and a boundary note against `VISION.md`/`GAME_DESIGN.md`. Also: `COLOR_PALETTE.md §3.5` skin/hair/cloth added (character colour values belong in the palette).
 
 ### 05.5c — UI, icon & animation guides (file C) → `docs/assets/`
 

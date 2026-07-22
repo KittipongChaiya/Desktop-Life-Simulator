@@ -66,13 +66,20 @@ PROMPT_LIBRARY.md  (encodes all of the above into generation prompts)
 | `NAMING_CONVENTION.md`  | Extended naming families atop `ASSETS.md §6`.                         |
 | `FOLDER_STRUCTURE.md`   | The content taxonomy mapped onto the atlas groups.                    |
 
+### Delivered — phase-05.5b (bibles)
+
+| Document             | What it is                                                                                                                                         |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CHARACTER_BIBLE.md` | Character visual canon — the shared human rig, the `1 : 4` proportion `STYLE_LOCK.md R-07` fixes, silhouette/readability, and customization rules. |
+| `WORLD_BIBLE.md`     | World visual/physical canon — architecture, biomes, regions, and the "does it belong in the valley?" test.                                         |
+| `LORE_BIBLE.md`      | Narrative canon — a deliberately light, open fiction (cozy present, faded past, dormant frontier) with binding consistency rules.                  |
+
+Shipped with a consistency edit to `COLOR_PALETTE.md §3.5` (the inclusive skin sub-ramp + hair/cloth mapping), because character colour _values_ belong in the palette, not in the bible.
+
 ### Pending — later 05.5 sub-milestones
 
 | Document                         | Sub | What it will be                                       |
 | -------------------------------- | --- | ----------------------------------------------------- |
-| `CHARACTER_BIBLE.md`             | b   | Character visual canon & proportions                  |
-| `WORLD_BIBLE.md`                 | b   | World physical & visual canon                         |
-| `LORE_BIBLE.md`                  | b   | Narrative canon                                       |
 | `UI_STYLE_GUIDE.md`              | c   | UI appearance (defers philosophy to `GAME_DESIGN.md`) |
 | `ICON_GUIDE.md`                  | c   | Icon standards                                        |
 | `ANIMATION_GUIDE.md`             | c   | Per-action animation feel                             |
