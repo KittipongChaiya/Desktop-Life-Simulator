@@ -23,7 +23,7 @@ import { manhattanDistance, neighbours, toPosition } from '../../shared/geometry
 import type { TileIndex } from '../../shared/ids';
 import { err, ok, unwrap, type Result } from '../../shared/result';
 import type { TileKindRegistry } from '../content/tile-kinds';
-import { getKind, type TileGrid } from '../world/tile-grid';
+import { getKind, isBlocked, type TileGrid } from '../world/tile-grid';
 import { moveTicksForCost } from '../world/worker';
 
 /** The grid data A* reads. `World` satisfies this structurally. */
@@ -32,10 +32,16 @@ export interface PathContext {
   readonly tileKinds: TileKindRegistry;
 }
 
-/** True if an entity may stand on the tile. Shared with the movement system. */
+/**
+ * True if an entity may stand on the tile. Shared with the movement system.
+ *
+ * Reads the tile's OWN walkability — its kind and its `blocked` bit. A building
+ * makes its tile impassable by setting that bit at placement, so pathfinding
+ * never inspects the buildings store or a building's type (ADR-011).
+ */
 export function isWalkable(ctx: PathContext, tile: TileIndex): boolean {
   const kind = ctx.tileKinds.byIndex(getKind(ctx.tiles, tile));
-  return kind !== undefined && kind.walkable;
+  return kind !== undefined && kind.walkable && !isBlocked(ctx.tiles, tile);
 }
 
 /** Ticks to enter a tile — the A* edge weight, identical to the movement cost. */

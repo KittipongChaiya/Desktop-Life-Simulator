@@ -7,6 +7,7 @@
  * polls versions per frame (ADR-005 §2).
  */
 
+import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
 import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
 
@@ -19,13 +20,15 @@ export interface VersionedSlice<T> {
 export interface SnapshotState {
   readonly status: VersionedSlice<StatusSlice>;
   readonly workers: VersionedSlice<readonly WorkerView[]>;
+  readonly buildings: VersionedSlice<readonly BuildingView[]>;
 }
 
 export function createSnapshotState(): SnapshotState {
   return {
     status: { version: 0, value: projectStatus(0) },
-    // A world begins with no workers; the slice fills as they are hired.
+    // A world begins with no workers or buildings; the slices fill as they appear.
     workers: { version: 0, value: [] },
+    buildings: { version: 0, value: [] },
   };
 }
 
@@ -48,7 +51,18 @@ export function publishIfChanged<T>(
 
 /** Current version of every slice. Used by the renderer to detect changes. */
 export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, number> {
-  return { status: state.status.version, workers: state.workers.version };
+  return {
+    status: state.status.version,
+    workers: state.workers.version,
+    buildings: state.buildings.version,
+  };
 }
 
-export { statusEquals, projectStatus, workersEqual, projectWorkers };
+export {
+  statusEquals,
+  projectStatus,
+  workersEqual,
+  projectWorkers,
+  buildingsEqual,
+  projectBuildings,
+};

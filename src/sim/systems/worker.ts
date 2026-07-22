@@ -13,6 +13,7 @@
  */
 
 import type { TileIndex, WorkerId } from '../../shared/ids';
+import { selectStorageTarget } from '../ai/storage-target';
 import { commandForTask, selectTask } from '../ai/worker-tasks';
 import { CommandSource } from '../commands/types';
 import { findPath } from '../pathing/astar';
@@ -71,8 +72,12 @@ function stepIdle(world: World, worker: Worker): void {
   // command like everything else (ADR-011); if the player inventory is full it
   // simply moves less, and the worker idles rather than jams (crit 14).
   if (containerTotal(worker.carrying) >= DEPOSIT_THRESHOLD) {
+    // Ask the target-selection service where to deposit — a building id or null
+    // for the player inventory. The worker never inspects a building's type
+    // (ADR-011); the strategy behind this is replaceable.
+    const storage = selectStorageTarget(world, worker.position);
     world.commands.dispatch(
-      { type: 'depositWorker', worker: worker.id },
+      { type: 'depositWorker', worker: worker.id, storage },
       { source: CommandSource.Worker },
     );
     return;

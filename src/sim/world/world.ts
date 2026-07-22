@@ -10,6 +10,8 @@
  * (AI_RULES.md §3.2).
  */
 
+import type { BuildingId } from '../../shared/ids';
+import { registerBuildingCommands } from '../commands/building-commands';
 import { registerCropCommands } from '../commands/crop-commands';
 import {
   createCommandDispatcher,
@@ -17,6 +19,11 @@ import {
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
 import { registerWorkerCommands } from '../commands/worker-commands';
+import {
+  createBuildingRegistry,
+  registerCoreBuildings,
+  type BuildingRegistry,
+} from '../content/buildings';
 import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
 import { createItemRegistry, registerCoreItems, type ItemRegistry } from '../content/items';
 import {
@@ -29,6 +36,7 @@ import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
 import { createSnapshotState, type SnapshotState } from '../snapshot/state';
 
+import { createBuildingStore, type BuildingStore } from './building';
 import { createContainer, type Container } from './container';
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
@@ -73,6 +81,18 @@ export interface World {
    * resource model; worker holds and storage sheds are the same type.
    */
   readonly inventory: Container;
+
+  /** Registered building definitions. Instances reference these by id. */
+  readonly buildingRegistry: BuildingRegistry;
+
+  /** Placed buildings, keyed by id. Sparse. Each blocks its tile's walkability. */
+  readonly buildings: BuildingStore;
+
+  /**
+   * Containers owned by storing buildings — a side-table keyed by building id
+   * (ADR-004 §4, ADR-011). Only buildings that store have an entry.
+   */
+  readonly buildingStorage: Map<BuildingId, Container>;
 
   /**
    * Cumulative crop activity. Maintained by an event SUBSCRIBER, not derived —
@@ -154,6 +174,9 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   const itemRegistry = createItemRegistry();
   registerCoreItems(itemRegistry);
 
+  const buildingRegistry = createBuildingRegistry();
+  registerCoreBuildings(buildingRegistry);
+
   const tiles = createTileGrid();
   // Every tile defaults to kind index 0, which is core:grass by registration
   // order — so an all-zero grid is a valid grass world with no fill pass.
@@ -173,6 +196,9 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     cropRegistry,
     itemRegistry,
     inventory: createContainer(BASE_INVENTORY_SLOTS),
+    buildingRegistry,
+    buildings: createBuildingStore(),
+    buildingStorage: new Map(),
     cropStats,
     events,
     // Reads `world` lazily. The closure runs at dispatch time, never during
@@ -190,6 +216,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   // import order (ADR-010 §8).
   registerCropCommands(world.commands);
   registerWorkerCommands(world.commands);
+  registerBuildingCommands(world.commands);
 
   return world;
 }

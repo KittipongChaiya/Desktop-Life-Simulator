@@ -234,6 +234,8 @@ The market stall sells at 90%, so full automation is _slightly_ worse per-item t
 
 Buildings occupy one tile, must be on owned walkable land, and block pathing. They can be sold for 50% of cost. No rotation, no multi-tile footprints in v0.1.
 
+Architecturally (ADR-011): a storage building **owns a container** — it is not a special inventory. A placed building marks its tile impassable in the tile-grid walkability model, so pathfinding routes around it without ever inspecting buildings. Workers choose where to deposit through a **storage-target service** (nearest shed with room in v0.1), so worker logic never depends on a building type and future strategies — priority, capacity balancing, filters, logistics — replace the service alone.
+
 ---
 
 ## 6. Economy

@@ -6,6 +6,26 @@
 
 ---
 
+## Delivery status
+
+| Milestone | Scope                                                                             | Status        |
+| --------- | --------------------------------------------------------------------------------- | ------------- |
+| **05a**   | `Container` / `ItemStack` primitive, item registry, player inventory              | **Delivered** |
+| **05b**   | Worker holds, harvest into containers, deposit, block-when-full, no-jam           | **Delivered** |
+| **05c**   | Storage buildings (container-owning), placement, walkability, deposit-to-shed     | **Delivered** |
+| **05d**   | Inventory snapshot slice, `InventoryPanel`, shed rendering + placement ghost, art | Pending       |
+
+**05c delivered** — storage buildings as container-owning buildings (ADR-011):
+
+- `content/buildings.ts` — `BuildingDefinition` + registry; `core:storage_shed` (50-slot container). `world/building.ts` — the `Building` record + store; storage is a **side-table** (`buildingStorage`), so only storing buildings own a container (ADR-004 §4).
+- `commands/building-commands.ts` — `placeBuilding` with validation (owned, walkable, empty); on success it marks the tile `blocked`.
+- **Walkability** — buildings contribute to walkability in the tile model (`tile-grid` `blocked` bit); A\* reads tile walkability and never inspects buildings. A shed on a route triggers repathing (crit 11).
+- `ai/storage-target.ts` — the deposit-target service. Workers ask it for an opaque target (a building id or null); they never depend on a building type or the nearest-with-space strategy, which future work replaces alone.
+- `snapshot/buildings-slice.ts` — the building snapshot for rendering (05d).
+- Deterministic, conservation-preserving, and no-jam preserved. 533 tests pass.
+
+---
+
 ## Objectives
 
 1. Build the `Container` / `ItemStack` primitive as **the** resource unit (ADR-011), not a one-off inventory — so phase-06 (storage, market) and v0.4 (logistics) reuse it unchanged.

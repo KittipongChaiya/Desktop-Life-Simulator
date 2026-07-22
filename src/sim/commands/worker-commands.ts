@@ -17,10 +17,10 @@
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
 import { appError, ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
-import { asWorkerId } from '../../shared/ids';
+import { asBuildingId, asWorkerId } from '../../shared/ids';
 import { err, ok } from '../../shared/result';
 import { stackSizeOf } from '../content/items';
-import { transfer } from '../world/container';
+import { transfer, type Container } from '../world/container';
 import { createWorker } from '../world/worker';
 
 import type { CommandDispatcher } from './dispatcher';
@@ -60,17 +60,33 @@ export function hireWorker(world: CommandWorld): ValidationResult {
  * blocks the deposit, it never discards (§7). In phase-06 the destination
  * becomes the nearest storage shed.
  */
-export function depositWorker(world: CommandWorld, workerRaw: number): ValidationResult {
+/**
+ * The container a deposit targets: a storage building's, or — for `null`, or a
+ * building that has since vanished — the player inventory (ADR-011). Workers ask
+ * a target-selection service for the id; this resolves it to a live container.
+ */
+function resolveStorage(world: CommandWorld, storage: number | null): Container {
+  if (storage === null) return world.inventory;
+  return world.buildingStorage.get(asBuildingId(storage)) ?? world.inventory;
+}
+
+export function depositWorker(
+  world: CommandWorld,
+  workerRaw: number,
+  storage: number | null,
+): ValidationResult {
   const worker = world.workers.get(asWorkerId(workerRaw));
   if (worker === undefined) {
     return err(appError(ErrorCode.InvalidIntent, 'no such worker', { worker: workerRaw }));
   }
 
+  const destination = resolveStorage(world, storage);
   // Iterate a snapshot of the stacks: `transfer` mutates the hold as it drains.
+  // Whatever does not fit stays in the hold (conserved; a full target blocks).
   for (const stack of [...worker.carrying.stacks]) {
     transfer(
       worker.carrying,
-      world.inventory,
+      destination,
       stack.item,
       stack.quantity,
       stackSizeOf(world.itemRegistry, stack.item),
@@ -88,6 +104,6 @@ export function registerWorkerCommands(dispatcher: CommandDispatcher): void {
 
   dispatcher.register('depositWorker', {
     validate: () => ok(),
-    execute: (context, command) => depositWorker(context.world, command.worker),
+    execute: (context, command) => depositWorker(context.world, command.worker, command.storage),
   });
 }

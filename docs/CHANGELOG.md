@@ -15,6 +15,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Eleven architecture decision records covering rendering, persistence, process architecture, entity model, UI framework, asset pipeline, simulation tick, event system, world model, the command model, and the resource lifecycle
 - Autonomous worker AI (phase-04): hire workers who pathfind, farm, carry, rest, and can be selected — the emotional core of v0.1
 - Resource lifecycle model (ADR-011): one architecture governs how every resource enters, moves through, and leaves the world — conserved quantities owned by containers, moved only by explicit transfer, ahead of inventory in phase-05
+- Resources & containers (phase-05a/b): harvested crops become stacked items in containers with real capacity; workers carry a hold and deposit it; a full container blocks a harvest rather than discarding it
+- Storage buildings (phase-05c): place storage sheds on owned land; workers deposit their harvest into the nearest shed with room, falling back to the player inventory. Buildings block pathing, and workers pick a deposit target through a strategy that stays replaceable
 - Eight phase specifications for v0.1 (foundation through save/load)
 - Project foundation (phase-00): build toolchain, architecture boundary enforcement, asset pipeline, seeded RNG, and the 20 Hz fixed-timestep loop
 - Docked overlay with click-through, tray, and collapse/expand (phase-01)

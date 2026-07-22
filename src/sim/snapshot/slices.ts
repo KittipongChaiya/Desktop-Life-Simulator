@@ -13,6 +13,7 @@
 
 import { ticksToWholeSeconds } from '../time/game-clock';
 
+import type { BuildingView } from './buildings-slice';
 import type { WorkerView } from './workers-slice';
 
 /**
@@ -34,11 +35,17 @@ export interface SliceMap {
   readonly status: StatusSlice;
   /** Workers, projected for rendering and selection. Phase-04c. */
   readonly workers: readonly WorkerView[];
+  /** Placed buildings, projected for rendering. Phase-05c. */
+  readonly buildings: readonly BuildingView[];
 }
 
 export type SliceName = keyof SliceMap;
 
-export const SLICE_NAMES = ['status', 'workers'] as const satisfies readonly SliceName[];
+export const SLICE_NAMES = [
+  'status',
+  'workers',
+  'buildings',
+] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */
 export function projectStatus(tick: number): StatusSlice {

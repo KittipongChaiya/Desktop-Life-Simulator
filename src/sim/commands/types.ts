@@ -15,11 +15,15 @@
  * (`CODE_STYLE.md` §1.2, `AI_RULES.md` §2.4).
  */
 
+import type { BuildingId } from '../../shared/ids';
 import type { Result } from '../../shared/result';
+import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
 import type { ItemRegistry } from '../content/items';
+import type { TileKindRegistry } from '../content/tile-kinds';
 import type { IdAllocator } from '../entities/id-allocator';
 import type { EventBus } from '../events/bus';
+import type { BuildingStore } from '../world/building';
 import type { Container } from '../world/container';
 import type { CropStore } from '../world/crop';
 import type { TileGrid } from '../world/tile-grid';
@@ -68,12 +72,22 @@ export interface HireWorkerCommand {
 
 /**
  * Empty a worker's hold into storage. Worker-only, so it names the worker
- * explicitly (a player never deposits a worker's hold). In v0.1 the destination
- * is the player inventory; a storage shed becomes the target in phase-06.
+ * explicitly (a player never deposits a worker's hold). The destination is a
+ * storage building — chosen by the target-selection service (ADR-011) — or the
+ * player inventory when no shed has room.
  */
 export interface DepositWorkerCommand {
   readonly type: 'depositWorker';
   readonly worker: number;
+  /** Storage building to deposit into, or null for the player inventory. */
+  readonly storage: number | null;
+}
+
+/** Place a building on a tile. `GAME_DESIGN.md` §5.2. */
+export interface PlaceBuildingCommand {
+  readonly type: 'placeBuilding';
+  readonly tile: number;
+  readonly buildingId: string;
 }
 
 /**
@@ -87,7 +101,8 @@ export type Command =
   | PlantCropCommand
   | HarvestCropCommand
   | HireWorkerCommand
-  | DepositWorkerCommand;
+  | DepositWorkerCommand
+  | PlaceBuildingCommand;
 
 export type CommandType = Command['type'];
 
@@ -108,6 +123,8 @@ export type CommandOf<T extends CommandType> = Extract<Command, { readonly type:
 export interface CommandWorld {
   readonly tick: number;
   readonly tiles: TileGrid;
+  /** Tile-kind definitions, for the walkability check when placing a building. */
+  readonly tileKinds: TileKindRegistry;
   readonly crops: CropStore;
   readonly cropRegistry: CropRegistry;
   readonly events: EventBus;
@@ -119,6 +136,12 @@ export interface CommandWorld {
   readonly inventory: Container;
   /** Item definitions, for stack sizes when depositing yields (ADR-011). */
   readonly itemRegistry: ItemRegistry;
+  /** Placed buildings. Written by `placeBuilding` (phase-05). */
+  readonly buildings: BuildingStore;
+  /** Containers owned by storing buildings (ADR-011). */
+  readonly buildingStorage: Map<BuildingId, Container>;
+  /** Building definitions, for placement validation and storage size. */
+  readonly buildingRegistry: BuildingRegistry;
 }
 
 /**

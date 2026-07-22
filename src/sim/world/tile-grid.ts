@@ -30,6 +30,13 @@ export interface TileGrid {
   readonly tilledAt: Uint32Array;
   /** 0–100. Phase-03. */
   readonly moisture: Uint8Array;
+  /**
+   * One bit per tile: a building occupies it and it cannot be walked. Phase-05.
+   * Buildings contribute to walkability HERE, in the tile model — pathfinding
+   * reads tile walkability and never inspects the buildings store (ADR-011).
+   * Use `isBlocked` / `setBlocked`.
+   */
+  readonly blocked: Uint8Array;
 }
 
 export function createTileGrid(): TileGrid {
@@ -40,6 +47,7 @@ export function createTileGrid(): TileGrid {
     owned: new Uint8Array(Math.ceil(WORLD_TILE_COUNT / 8)),
     tilledAt: new Uint32Array(WORLD_TILE_COUNT),
     moisture: new Uint8Array(WORLD_TILE_COUNT),
+    blocked: new Uint8Array(Math.ceil(WORLD_TILE_COUNT / 8)),
   };
 }
 
@@ -56,6 +64,22 @@ export function setOwned(grid: TileGrid, tile: TileIndex, owned: boolean): void 
 
   const mask = 1 << (tile & 7);
   grid.owned[byteIndex] = owned ? current | mask : current & ~mask;
+}
+
+/** True if a building occupies the tile, making it impassable. */
+export function isBlocked(grid: TileGrid, tile: TileIndex): boolean {
+  const byte = grid.blocked[tile >> 3];
+  if (byte === undefined) return false;
+  return (byte & (1 << (tile & 7))) !== 0;
+}
+
+export function setBlocked(grid: TileGrid, tile: TileIndex, blocked: boolean): void {
+  const byteIndex = tile >> 3;
+  const current = grid.blocked[byteIndex];
+  if (current === undefined) return;
+
+  const mask = 1 << (tile & 7);
+  grid.blocked[byteIndex] = blocked ? current | mask : current & ~mask;
 }
 
 export function getKind(grid: TileGrid, tile: TileIndex): number {

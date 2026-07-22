@@ -6,6 +6,8 @@
  */
 
 import {
+  buildingsEqual,
+  projectBuildings,
   projectStatus,
   projectWorkers,
   publishIfChanged,
@@ -19,4 +21,6 @@ export function snapshotSystem(world: World): void {
   // Republishes whenever a worker visibly changes — every tick while one is
   // moving (its position genuinely changes), and never when all are idle.
   publishIfChanged(world.snapshots.workers, projectWorkers(world), workersEqual);
+  // Buildings change only on placement, so this republishes rarely.
+  publishIfChanged(world.snapshots.buildings, projectBuildings(world), buildingsEqual);
 }
