@@ -42,7 +42,7 @@ Because this phase writes only Markdown, the TDD / coverage / E2E gates do not a
 | **05.5a** | A      | `README` (index + ownership map) + 7 creative-foundation docs              | **Delivered** |
 | **05.5b** | B      | `CHARACTER_BIBLE`, `WORLD_BIBLE`, `LORE_BIBLE`                             | **Delivered** |
 | **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | **Delivered** |
-| **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | Pending       |
+| **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | **Delivered** |
 | **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | Pending       |
 | **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | Pending       |
 | **05.5g** | F + H  | `DESIGN_PRINCIPLES`, `CONTENT_RULES`, `GAME_LOOPS` + reconciliation report | Pending       |
@@ -75,6 +75,14 @@ Consistency edit shipped in the same commit: **`COLOR_PALETTE.md §3.5`** adds t
 - `UI_STYLE_GUIDE.md` (DEFER+DELTA) — owns only the UI's _look_ (cozy parchment panels, a single warm dark edge, chunky controls, HUD styling). Defers behaviour and layout to `GAME_DESIGN.md §10`, the React/DOM framework and snapshot bridge to `ADR-005`, and colour values to `COLOR_PALETTE.md §6`. The UI is styled to belong to the pixel world, not rendered in it (`ADR-005 §1`).
 - `ICON_GUIDE.md` (CREATE) — icon design standards across every category (item, resource, tool, building, food, skill, weapon, armor, quest, status, notification), all governed by the 16 px read: one centred subject, silhouette-first, the shared 1 px `#3A3640` outline, reserved accents kept meaningful. Defers sizes/atlas to `ASSETS.md §3`, names to `NAMING_CONVENTION.md`, placement to `UI_STYLE_GUIDE.md`.
 - `ANIMATION_GUIDE.md` (DEFER+DELTA) — owns per-action frame counts, cadence, and loop-vs-one-shot intent; expands `PIXEL_GUIDE.md §8` to the full action list. Two grounding rules: the cadence math (`fps = 20 / frameTicks`, calm at 2–5 fps) and **fit the sim duration** — a one-shot fills the action's tick cost (`GAME_DESIGN.md §4.3`). Defers format, tick semantics, and the manifest to `ASSETS.md §7`.
+
+**05.5d delivered** — the AI production system (`docs/assets/`), turning the canon into a repeatable workflow:
+
+- `AI_ASSET_PIPELINE.md` (DEFER+DELTA) — owns the **authoring** half (concept → prompt → generation → review → approved source PNG) and **routes** the source→runtime half (naming, optimization, atlas packing, import, versioning, release) to `ASSETS.md §1, §4, §5, §6, §11, §12, §13` + `ADR-006`. The seam is a single artifact: an approved source PNG in `assets/src/`. Adds the creative review gate (`QUALITY_GUIDELINES.md`) that precedes the automated build gate.
+- `PROMPT_LIBRARY.md` (CREATE) — reusable prompts per class, each prepending a shared **style preamble + palette block + universal negative prompt** so every request starts inside the canon; every `STYLE_LOCK.md` prohibition appears as a negative. Enumerates palette hexes by `COLOR_PALETTE.md §10`'s own instruction, with a sync obligation. Frames the model as a concept generator, not the gate.
+- `ASSET_CATALOG.md` (CREATE) — the production backlog (priority/phase/estimate/deps/status), grounded in real v0.1 content and flagging phase-06's economy art as the next P0 wave (the reason 05.5 precedes 06). Renamed from the directive's `ASSET_MANIFEST` and given a header contrasting it with the generated `manifest.ts` (`ASSETS.md §5`), which it must never be confused with.
+
+Reconciliation: `ASSET_MANIFEST` → `ASSET_CATALOG` rename (collision with the generated `manifest.ts`); the directive's single Concept→Release pipeline is split at the source-PNG seam so `AI_ASSET_PIPELINE` never duplicates the build owned by `ASSETS.md`/`ADR-006`.
 
 ---
 
@@ -146,9 +154,9 @@ Every doc: states its `Owns / Does not own` header in the house style, cross-ref
 
 ### 05.5d — AI production system (file D) → `docs/assets/`
 
-- [ ] `ASSET_CATALOG.md` — full catalog with estimate/priority/production-phase/dependencies; header note distinguishing it from the generated `manifest.ts`.
-- [ ] `PROMPT_LIBRARY.md` — reusable prompts per asset class incl. style/perspective/palette/resolution/lighting/negative prompts + consistency rules.
-- [ ] `AI_ASSET_PIPELINE.md` — the concept→approved-source workflow; defers the build half to `ASSETS.md §1` + `ADR-006`.
+- [x] `ASSET_CATALOG.md` — full catalog with estimate/priority/production-phase/dependencies; header note distinguishing it from the generated `manifest.ts`. Renamed from `ASSET_MANIFEST`.
+- [x] `PROMPT_LIBRARY.md` — reusable prompts per asset class incl. style/perspective/palette/resolution/lighting/negative prompts + consistency rules.
+- [x] `AI_ASSET_PIPELINE.md` — the concept→approved-source workflow; defers the build half to `ASSETS.md §1` + `ADR-006`.
 
 ### 05.5e — Audio (file E) → `docs/assets/`
 

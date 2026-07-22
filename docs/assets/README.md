@@ -84,13 +84,18 @@ Shipped with a consistency edit to `COLOR_PALETTE.md §3.5` (the inclusive skin 
 | `ICON_GUIDE.md`      | Icon design standards across every category (item→boss), built for the 16 px read; defers sizes/atlas to `ASSETS.md §3`, names to `NAMING_CONVENTION.md`.                          |
 | `ANIMATION_GUIDE.md` | Per-action frame counts, cadence, and loop intent; the cadence math and the "fit the sim duration" rule; defers format to `ASSETS.md §7`, durations to `GAME_DESIGN.md §4.3`.      |
 
+### Delivered — phase-05.5d (AI production system)
+
+| Document               | What it is                                                                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ASSET_CATALOG.md`     | The production _backlog_ (priority/phase/estimate/deps) — explicitly **not** the generated `manifest.ts`; renamed from ASSET_MANIFEST to avoid that collision. |
+| `PROMPT_LIBRARY.md`    | Reusable prompts per class, each prepending a shared style preamble + palette block + negative prompt so a request starts inside the canon.                    |
+| `AI_ASSET_PIPELINE.md` | The concept→approved-source workflow; owns authoring (concept→prompt→generation→review) and routes source→runtime to `ASSETS.md §1` + `ADR-006`.               |
+
 ### Pending — later 05.5 sub-milestones
 
 | Document                         | Sub | What it will be                                      |
 | -------------------------------- | --- | ---------------------------------------------------- |
-| `ASSET_CATALOG.md`               | d   | Production backlog (renamed from ASSET_MANIFEST)     |
-| `PROMPT_LIBRARY.md`              | d   | Reusable AI generation prompts                       |
-| `AI_ASSET_PIPELINE.md`           | d   | Concept→approved-source workflow                     |
 | `AUDIO_DIRECTION.md`             | e   | Audio/music/ambience intent (v0.2+)                  |
 | `MUSIC_LIBRARY.md`               | e   | Music catalog (v0.2+)                                |
 | `SFX_LIBRARY.md`                 | e   | SFX catalog (v0.2+)                                  |
