@@ -11,12 +11,15 @@ import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
 import type { OverlayController } from './overlay-controller';
+import type { WorkerSelection } from './worker-selection';
 
 interface AppServices {
   readonly store: SnapshotStore;
   readonly overlay: OverlayController;
   /** The player's write path into the simulation — the HUD's hire button, etc. */
   readonly player: PlayerInputSource;
+  /** The selected worker — shared with the renderer's selection box. */
+  readonly selection: WorkerSelection;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -25,12 +28,19 @@ export interface AppProvidersProps {
   readonly store: SnapshotStore;
   readonly overlay: OverlayController;
   readonly player: PlayerInputSource;
+  readonly selection: WorkerSelection;
   readonly children: ReactNode;
 }
 
-export function AppProviders({ store, overlay, player, children }: AppProvidersProps): ReactNode {
+export function AppProviders({
+  store,
+  overlay,
+  player,
+  selection,
+  children,
+}: AppProvidersProps): ReactNode {
   return (
-    <ServicesContext.Provider value={{ store, overlay, player }}>
+    <ServicesContext.Provider value={{ store, overlay, player, selection }}>
       {children}
     </ServicesContext.Provider>
   );
@@ -54,4 +64,8 @@ export function useOverlay(): OverlayController {
 
 export function usePlayer(): PlayerInputSource {
   return useServices().player;
+}
+
+export function useWorkerSelection(): WorkerSelection {
+  return useServices().selection;
 }

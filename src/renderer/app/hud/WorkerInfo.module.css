@@ -1,0 +1,33 @@
+/* Selected-worker panel. Phase-04c. */
+
+.panel {
+  position: absolute;
+  top: 44px;
+  left: 8px;
+  pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(20, 22, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e8e8ec;
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.field {
+  opacity: 0.9;
+}
+
+.muted {
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}

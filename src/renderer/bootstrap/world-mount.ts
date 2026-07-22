@@ -33,6 +33,8 @@ export interface WorldMountOptions {
   readonly viewport: () => { width: number; height: number; resolution: number };
   /** Element that receives drag-to-pan and wheel-to-zoom. */
   readonly inputTarget: HTMLElement;
+  /** The selected worker id, forwarded to the view's selection box. */
+  readonly selectedWorkerId: () => number | null;
   readonly onError?: (error: unknown) => void;
 }
 
@@ -53,6 +55,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         height: size.height,
         resolution: size.resolution,
         atlas: options.atlas,
+        selectedWorkerId: options.selectedWorkerId,
       });
       detachInput = view.attachInput(options.inputTarget);
     } catch (error) {

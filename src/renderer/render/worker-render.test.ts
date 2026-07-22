@@ -16,6 +16,7 @@ import {
   interpolatedPosition,
   isColumnCulled,
   selectAnimation,
+  workerAtTile,
 } from './worker-render';
 
 const tile = (x: number, y: number): number => y * WORLD_WIDTH + x;
@@ -100,5 +101,24 @@ describe('isColumnCulled', () => {
 
   it('keeps a worker inside the visible range', () => {
     expect(isColumnCulled(tile(10, 10), 8, 20)).toBe(false);
+  });
+});
+
+describe('workerAtTile', () => {
+  const workers = [
+    view({ id: 1, tile: tile(30, 30), toTile: tile(31, 30) }),
+    view({ id: 2, tile: tile(34, 34), toTile: tile(34, 34) }),
+  ];
+
+  it('finds a worker standing on the tile', () => {
+    expect(workerAtTile(workers, tile(34, 34))).toBe(2);
+  });
+
+  it('finds a moving worker by the tile it is stepping onto', () => {
+    expect(workerAtTile(workers, tile(31, 30))).toBe(1);
+  });
+
+  it('returns null when no worker is on the tile', () => {
+    expect(workerAtTile(workers, tile(10, 10))).toBeNull();
   });
 });

@@ -18,6 +18,7 @@
  */
 
 import { toIndex } from '../../shared/geometry';
+import type { TileIndex } from '../../shared/ids';
 import type { HighlightState } from '../render/highlight';
 import type { WorldView } from '../render/world-view';
 
@@ -56,6 +57,14 @@ export interface PointerActionsOptions {
   readonly input: PlayerInput;
   /** The live view, or null while the overlay is collapsed and torn down. */
   readonly view: () => WorldView | null;
+  /**
+   * Selects a worker on a clicked tile. Returns true if one was selected, in
+   * which case the click does NOT act on the tile — selecting a worker and
+   * tilling under it are different intents.
+   */
+  readonly selectWorkerAt?: (tile: TileIndex) => boolean;
+  /** Clears the worker selection. Bound to `Esc` alongside deselecting the tool. */
+  readonly clearSelection?: () => void;
 }
 
 /** Attaches click, hover, and tool-key handling. Returns teardown. */
@@ -109,6 +118,9 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
     // Outside the world is not an action, and not an error.
     if (tile === null) return;
 
+    // A worker under the click is selected instead of acting on the tile.
+    if (options.selectWorkerAt?.(tile) === true) return;
+
     options.input.click(tile);
   };
 
@@ -123,6 +135,7 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       options.input.selectTool(null);
+      options.clearSelection?.();
       return;
     }
 

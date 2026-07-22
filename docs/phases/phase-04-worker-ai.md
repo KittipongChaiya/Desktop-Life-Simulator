@@ -13,7 +13,7 @@ This phase is built in three sequenced milestones, each independently verifiable
 | --------- | ---------------------------------------------------------------------------------------- | ------------- |
 | **04a**   | Worker entity, hiring, task selection, the never-jam FSM, energy — headless, teleporting | **Delivered** |
 | **04b**   | Deterministic A* pathfinding, real movement at §4.3 timings                              | **Delivered** |
-| **04c**   | Snapshot slice, entity rendering + animation, worker selection, HUD hire button, art     | In progress   |
+| **04c**   | Snapshot slice, entity rendering + animation, worker selection, HUD hire button, art     | **Delivered** |
 
 **04a delivered** — the autonomous farm loop runs headlessly through the command dispatcher:
 
@@ -47,7 +47,8 @@ Then delivered on top of the snapshot boundary:
 - **HUD** — `FarmControls` (hire button with the §4.1 cost) + worker count in the status bar, driven off the `workers` slice; the hire path is verified end to end by `tests/e2e/worker.spec.ts` (button → dispatcher → sim → snapshot → HUD)
 - **Interaction fix** — the drag-pan and tile-click handlers now ignore pointerdowns over `[data-interactive]` UI, which the hire button exposed (pointer capture was swallowing HUD clicks once the world mounted)
 - **Camera correction** — `camera.ts` gained a vertical axis: `createCamera(limits, focus)` centres the viewport on a world-pixel focus, and `world-view.ts` frames the owned plot at startup so workers and crops are on-screen. `screenToTile`/`tileToScreen` round-trip on both axes; pan stays horizontal-only and zoom keeps both axes centred (27 camera tests). **Verified live**: the E2E screenshot shows the bright owned plot centred with worker sprites on it. The camera stays gameplay-agnostic — it is handed a focus point, nothing about plots.
-- **Remaining in 04c**: worker selection (click → highlight + state/task panel), to be built on this rendering baseline. Criterion 16 (60 FPS) and 21/22 (CPU) need a GPU (this env is Canvas-fallback, like the render-budget suite).
+- **Selection** — `worker-selection.ts` holds the selected worker as presentation state, shared by the renderer (a white box in `worldUi` that follows the worker) and React. Clicking a worker selects it (via `workerAtTile`, taking precedence over a tile action); `Esc` clears. `WorkerInfo` shows the selected worker's state, task, and energy. **Verified live**: the E2E clicks the worker and asserts the panel; the screenshot shows the selection box and "Worker 1 · Working · Tilling · energy 100".
+- **Environment-blocked only**: criterion 16 (60 FPS) and 21/22 (CPU budgets) need a real GPU — this env falls back to Canvas, exactly as the render-budget suite documents and skips. All other 04c criteria are met. `carrying`/deposit remains a reserved field until inventory exists (phase-05).
 
 ---
 

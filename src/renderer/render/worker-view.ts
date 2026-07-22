@@ -18,7 +18,7 @@
  */
 
 import { Animations } from '@assets/manifest';
-import { Sprite, type Container, type Texture } from 'pixi.js';
+import { Graphics, Sprite, type Container, type Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
 import type { WorkerView } from '../../sim/snapshot/workers-slice';
@@ -62,13 +62,24 @@ export interface WorkerRenderer {
 
 export interface WorkerRendererOptions {
   readonly layer: Container;
+  /** Overlay layer for the selection box (above terrain, like tile highlights). */
+  readonly worldUi: Container;
   readonly textureFor: (spriteKey: string) => Texture;
   readonly gate: DirtyGate;
+  /** The selected worker id, or null. Read each frame so the box follows it. */
+  readonly selectedId: () => number | null;
 }
 
+/** Selection box outline — white, thin, drawn over the selected worker's tile. */
+const SELECTION_COLOR = 0xffffff;
+const SELECTION_WIDTH = 2;
+const SELECTION_ALPHA = 0.9;
+
 export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRenderer {
-  const { layer, textureFor, gate } = options;
+  const { layer, worldUi, textureFor, gate, selectedId } = options;
   const tracked = new Map<number, Tracked>();
+  const selectionBox = new Graphics();
+  worldUi.addChild(selectionBox);
   let lastWorkers: readonly WorkerView[] | null = null;
 
   const releaseHold = (entry: Tracked): void => {
@@ -132,6 +143,18 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
         gate.markDirty();
       }
 
+      // The selection box tracks the selected worker's interpolated tile. Redrawn
+      // each frame so it follows a moving worker; markDirty on a selection change
+      // (wired at the composition root) makes a static selection redraw once.
+      selectionBox.clear();
+      const selected = selectedId();
+      const chosen = selected === null ? undefined : tracked.get(selected);
+      if (chosen !== undefined && chosen.sprite.visible) {
+        selectionBox
+          .rect(chosen.sprite.x - TILE_SIZE / 2, chosen.sprite.y - TILE_SIZE, TILE_SIZE, TILE_SIZE)
+          .stroke({ width: SELECTION_WIDTH, color: SELECTION_COLOR, alpha: SELECTION_ALPHA });
+      }
+
       lastWorkers = params.workers;
     },
 
@@ -143,6 +166,7 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
         entry.sprite.destroy();
       }
       tracked.clear();
+      selectionBox.destroy();
       lastWorkers = null;
     },
   };

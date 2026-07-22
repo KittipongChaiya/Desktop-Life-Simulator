@@ -84,3 +84,15 @@ export function isColumnCulled(tile: number, firstColumn: number, lastColumn: nu
   const column = tile % WORLD_WIDTH;
   return column < firstColumn || column > lastColumn;
 }
+
+/**
+ * The id of a worker on `tile`, or null. Matches the worker's current tile or
+ * the one it is stepping onto, so a click just ahead of a moving worker still
+ * selects it. First match wins (workers never share a tile — §4.4 claiming).
+ */
+export function workerAtTile(workers: readonly WorkerView[], tile: number): number | null {
+  for (const worker of workers) {
+    if (worker.tile === tile || worker.toTile === tile) return worker.id;
+  }
+  return null;
+}

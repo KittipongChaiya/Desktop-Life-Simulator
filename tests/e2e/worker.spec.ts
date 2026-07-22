@@ -66,3 +66,31 @@ test('hiring a worker through the HUD raises the worker count', async () => {
   await new Promise((resolve) => setTimeout(resolve, 1500));
   await window.screenshot({ path: 'test-results/worker-hire.png' });
 });
+
+test('clicking a worker selects it and shows its info panel', async () => {
+  const window = await app.firstWindow();
+  const count = window.locator('[title="Workers hired"]');
+
+  await setCollapsed(false);
+  const hire = window.getByRole('button', { name: /^Hire/ });
+  await expect(hire).toBeVisible();
+  await hire.click();
+  await expect(count).toHaveText('1 worker');
+
+  // The worker spawns at the plot centre, which the camera frames at the
+  // viewport centre; it tills that tile for ~1.5s, so it is there to be clicked.
+  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  // Let the world view finish mounting before clicking into it.
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await window.mouse.click(size.w / 2, size.h / 2);
+
+  const info = window.locator('[data-testid="worker-info"]');
+  await expect(info).toBeVisible();
+  await expect(info).toContainText('Worker 1');
+
+  await window.screenshot({ path: 'test-results/worker-selected.png' });
+
+  // Esc clears the selection and hides the panel.
+  await window.keyboard.press('Escape');
+  await expect(info).toBeHidden();
+});

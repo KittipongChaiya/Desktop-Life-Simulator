@@ -18,6 +18,8 @@ import { createRoot } from 'react-dom/client';
 import { App } from '../app/App';
 import { createOverlayController } from '../app/overlay-controller';
 import { AppProviders } from '../app/store-context';
+import { createWorkerSelection } from '../app/worker-selection';
+import { workerAtTile } from '../render/worker-render';
 
 import { createPlayerInputSource } from './command-dispatch';
 import { mountDevTools } from './devtools-mount';
@@ -63,6 +65,9 @@ export function startApplication(): void {
   });
   const store = createSnapshotStore(world.snapshots);
   const overlay = createOverlayController(window.desktopLife.overlay);
+  // Worker selection is presentation state, shared by the renderer (which draws
+  // the selection box) and React (which shows the selected worker's state/task).
+  const selection = createWorkerSelection();
 
   const canvas = document.getElementById('world');
   if (!(canvas instanceof HTMLCanvasElement)) {
@@ -77,6 +82,7 @@ export function startApplication(): void {
     // (App.module.css); pan/zoom therefore listen on the window and the UI
     // layer stops events over real controls.
     inputTarget: document.body,
+    selectedWorkerId: () => selection.selected(),
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,
@@ -106,7 +112,21 @@ export function startApplication(): void {
     target: document.body,
     input: playerInput,
     view: () => worldMount.current(),
+    // A click on a worker selects it (and does not act on the tile); Esc clears.
+    selectWorkerAt: (tile) => {
+      const id = workerAtTile(world.snapshots.workers.value, tile);
+      if (id === null) return false;
+      selection.select(id);
+      return true;
+    },
+    clearSelection: () => {
+      selection.select(null);
+    },
   });
+
+  // A selection change is a scene change even when the worker is standing still,
+  // so wake the render-on-demand gate to draw (or clear) the selection box.
+  selection.subscribe(() => worldMount.current()?.gate.markDirty());
 
   const loop = createGameLoop({
     world,
@@ -138,7 +158,7 @@ export function startApplication(): void {
 
   createRoot(container).render(
     <StrictMode>
-      <AppProviders store={store} overlay={overlay} player={playerSource}>
+      <AppProviders store={store} overlay={overlay} player={playerSource} selection={selection}>
         <App />
       </AppProviders>
     </StrictMode>,

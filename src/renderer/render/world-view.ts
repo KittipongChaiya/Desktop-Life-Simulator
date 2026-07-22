@@ -91,6 +91,8 @@ export interface WorldViewOptions {
   readonly resolution: number;
   /** Atlas name to load, from the generated manifest (ASSETS.md §5). */
   readonly atlas: string;
+  /** The selected worker id, read each frame to draw its selection box. */
+  readonly selectedWorkerId: () => number | null;
 }
 
 /**
@@ -204,8 +206,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   const workers: WorkerRenderer = createWorkerRenderer({
     layer: app.layers.entities,
+    worldUi: app.layers.worldUi,
     textureFor,
     gate,
+    selectedId: options.selectedWorkerId,
   });
 
   return {
