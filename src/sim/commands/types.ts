@@ -26,7 +26,9 @@ import type { EventBus } from '../events/bus';
 import type { BuildingStore } from '../world/building';
 import type { Container } from '../world/container';
 import type { CropStore } from '../world/crop';
+import type { EconomyState } from '../world/economy';
 import type { TileGrid } from '../world/tile-grid';
+import type { Wallet } from '../world/wallet';
 import type { WorkerStore } from '../world/worker';
 
 /**
@@ -91,6 +93,27 @@ export interface PlaceBuildingCommand {
 }
 
 /**
+ * Sell items from the player inventory at the market boundary (§6.2, ADR-013).
+ * All-or-nothing: the whole quantity sells at the pre-sale multiplier's price,
+ * then the multiplier decays once.
+ */
+export interface SellItemsCommand {
+  readonly type: 'sellItems';
+  readonly itemId: string;
+  readonly quantity: number;
+}
+
+/**
+ * Buy seeds for a crop at the fixed §3.1 price — the recurring sink that funds
+ * the loop's entry edge (§6.4).
+ */
+export interface BuySeedsCommand {
+  readonly type: 'buySeeds';
+  readonly cropId: string;
+  readonly quantity: number;
+}
+
+/**
  * Every command the simulation accepts.
  *
  * A new gameplay action is a new member here plus a registered handler — never
@@ -102,7 +125,9 @@ export type Command =
   | HarvestCropCommand
   | HireWorkerCommand
   | DepositWorkerCommand
-  | PlaceBuildingCommand;
+  | PlaceBuildingCommand
+  | SellItemsCommand
+  | BuySeedsCommand;
 
 export type CommandType = Command['type'];
 
@@ -142,6 +167,10 @@ export interface CommandWorld {
   readonly buildingStorage: Map<BuildingId, Container>;
   /** Building definitions, for placement validation and storage size. */
   readonly buildingRegistry: BuildingRegistry;
+  /** The player's coins. Written by commerce commands only (phase-06). */
+  readonly wallet: Wallet;
+  /** Pricing state — multipliers and the expansion counter (phase-06). */
+  readonly economy: EconomyState;
 }
 
 /**

@@ -14,7 +14,9 @@ import { ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { CORE_STORAGE_SHED } from '../content/buildings';
 import { CORE_TURNIP, CORE_WHEAT } from '../content/crops';
+import { CORE_TURNIP_SEED, CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, stepSimulationBy } from '../tick';
+import { addItems } from '../world/container';
 import { createWorld, type World } from '../world/world';
 
 import { registerCropCommands } from './crop-commands';
@@ -41,9 +43,16 @@ function send(world: World, command: Command) {
   return world.commands.dispatch(command, PLAYER);
 }
 
-/** A world with `OWNED` already tilled, via the command path. */
+/** Stocks the farm — planting consumes seeds (06b), so plant commands need them. */
+function stockSeeds(world: World): void {
+  addItems(world.inventory, CORE_TURNIP_SEED, 20, DEFAULT_STACK_SIZE);
+  addItems(world.inventory, CORE_WHEAT_SEED, 20, DEFAULT_STACK_SIZE);
+}
+
+/** A world with `OWNED` already tilled, via the command path, and seeds in stock. */
 function tilledWorld(seed = 1): World {
   const world = createWorld(seed);
+  stockSeeds(world);
   send(world, till(OWNED));
   stepSimulation(world);
   return world;
@@ -207,6 +216,7 @@ describe('queued execution on the tick boundary', () => {
     // bus delivers in publish order (ADR-008). Dispatching OTHER first and
     // asserting it is published first is a direct read of FIFO execution.
     const world = createWorld(1);
+    stockSeeds(world);
     send(world, till(OWNED));
     send(world, till(OTHER));
     stepSimulation(world);
@@ -390,6 +400,7 @@ describe('world wiring (phase-03.6)', () => {
     const world = createWorld(1, {
       onExecutionRejected: (_command, error) => reasons.push(error.code),
     });
+    stockSeeds(world);
 
     send(world, till(OWNED));
     stepSimulation(world);
@@ -485,6 +496,7 @@ describe('deterministic replay (ADR-010 §5)', () => {
     // differ from the original run. Ids come from a counter, never a clock.
     const ids = (seed: number): number[] => {
       const world = createWorld(seed);
+      stockSeeds(world);
       const collected: number[] = [];
       for (const command of STREAM) {
         const result = world.commands.dispatch(command, { source: CommandSource.Replay });

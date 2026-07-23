@@ -36,6 +36,7 @@ clarified to mean one file per group directory, split this along its sections.
 | File                                   | Source                                     | Author  | License       |
 | -------------------------------------- | ------------------------------------------ | ------- | ------------- |
 | item_{wheat,turnip,carrot,pumpkin}.png | Original — `scripts/generate-crop-art.mjs` | project | Original work |
+| `item_*_seed.png`                      | Original — `scripts/generate-crop-art.mjs` | project | Original work |
 | item_{wood,stone}.png                  | Original — `scripts/generate-icon-art.mjs` | project | Original work |
 | `icon_tool_*.png`                      | Original — `scripts/generate-icon-art.mjs` | project | Original work |
 | `icon_status_*.png`, `icon_ui_*.png`   | Original — `scripts/generate-icon-art.mjs` | project | Original work |

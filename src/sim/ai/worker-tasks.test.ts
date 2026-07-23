@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asTileIndex, type TileIndex } from '../../shared/ids';
 import { CORE_TURNIP } from '../content/crops';
+import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../content/items';
+import { addItems } from '../world/container';
 import { WorkerTaskKind } from '../world/worker';
 import { createWorld, type World } from '../world/world';
 
@@ -20,6 +22,11 @@ const NO_CLAIMS: ReadonlySet<TileIndex> = new Set();
 
 function till(world: World, tile: TileIndex): void {
   world.tiles.tilledAt[tile] = 1;
+}
+
+/** Stocks the farm so the plant band is live (planting consumes seeds, 06b). */
+function grantSeeds(world: World, quantity = 20): void {
+  addItems(world.inventory, CORE_TURNIP_SEED, quantity, DEFAULT_STACK_SIZE);
 }
 
 function plantMature(world: World, tile: TileIndex): void {
@@ -38,7 +45,27 @@ describe('selectTask priority', () => {
 
   it('prefers planting a tilled tile over tilling', () => {
     const world = createWorld(1);
+    grantSeeds(world);
     till(world, CENTER);
+    expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
+      kind: WorkerTaskKind.Plant,
+      tile: CENTER,
+    });
+  });
+
+  it('skips the plant band when the farm holds no seeds — never blocks (06b)', () => {
+    const world = createWorld(1);
+    till(world, CENTER);
+    // With no seeds, the tilled tile is not a plant candidate; the worker
+    // moves on to tilling other ground rather than jamming (§4.2).
+    expect(selectTask(world, CENTER, NO_CLAIMS)?.kind).toBe(WorkerTaskKind.Till);
+  });
+
+  it('the plant band reopens the moment seeds arrive', () => {
+    const world = createWorld(1);
+    till(world, CENTER);
+    expect(selectTask(world, CENTER, NO_CLAIMS)?.kind).toBe(WorkerTaskKind.Till);
+    grantSeeds(world, 1);
     expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
       kind: WorkerTaskKind.Plant,
       tile: CENTER,

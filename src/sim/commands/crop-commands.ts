@@ -30,7 +30,13 @@ import {
 import { err, ok, type Result } from '../../shared/result';
 import { isMature } from '../content/crops';
 import { stackSizeOf } from '../content/items';
-import { acceptable, addItems, type Container } from '../world/container';
+import {
+  acceptable,
+  addItems,
+  containerCount,
+  removeItems,
+  type Container,
+} from '../world/container';
 import { elapsedTicks } from '../world/crop';
 import { isOwned } from '../world/tile-grid';
 import { isTilled } from '../world/tile-state';
@@ -44,7 +50,8 @@ import type { CommandWorld, ValidationResult } from './types';
  * Checks a plant is legal.
  *
  * Rejects: unknown crop, tile outside the owned plot, untilled tile, occupied
- * tile. Checked in that order so the most specific cause is reported.
+ * tile, no seed held. Checked in that order so the most specific cause is
+ * reported.
  */
 export function validatePlant(
   world: CommandWorld,
@@ -64,6 +71,17 @@ export function validatePlant(
 
   if (world.crops.has(tile)) {
     return err(appError(ErrorCode.TileWrongKind, 'tile already has a crop', { tile }));
+  }
+
+  // Planting costs 1 seed (§8.1) drawn from the farm stock — the player
+  // inventory, for player and worker plants alike (06b interpretation 2).
+  if (containerCount(world.inventory, definition.value.seedItem) < 1) {
+    return err(
+      appError(ErrorCode.MissingItem, 'no seed for this crop', {
+        cropId,
+        seedItem: definition.value.seedItem,
+      }),
+    );
   }
 
   return ok();
@@ -103,6 +121,13 @@ export function validateTill(world: CommandWorld, tile: TileIndex): ValidationRe
 export function plantCrop(world: CommandWorld, tile: TileIndex, cropId: ContentId): Result<void> {
   const validation = validatePlant(world, tile, cropId);
   if (!validation.ok) return validation;
+
+  const definition = world.cropRegistry.get(cropId);
+  if (!definition.ok) return err(definition.error); // unreachable — validated above
+
+  // The seed leaves the inventory as the crop enters the ground — a CONVERSION
+  // boundary (ADR-013): the item's quantity ends here, the planted crop begins.
+  removeItems(world.inventory, definition.value.seedItem, 1); // validated — removes exactly
 
   world.crops.set(tile, { cropId, tile, plantedTick: world.tick });
   world.events.publish('cropPlanted', { tile, cropId, plantedTick: world.tick });

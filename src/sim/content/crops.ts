@@ -46,6 +46,13 @@ export interface CropDefinition {
   readonly stageSprites: readonly string[];
   /** What harvesting produces. */
   readonly harvestYield: readonly ItemStack[];
+  /** The item one plant consumes (`GAME_DESIGN.md` §8.1 — "1 seed"). Phase-06b. */
+  readonly seedItem: ContentId;
+  /**
+   * Fixed purchase price per seed (§3.1). Fixed, not dynamic — seeds are
+   * bought from the market at list; only SELLING passes the multiplier.
+   */
+  readonly seedCost: number;
   /**
    * Seasons this crop may grow in. Empty means "any".
    *
@@ -91,6 +98,8 @@ export function registerCoreCrops(registry: CropRegistry): void {
       growthTicks: secondsToTicks(45),
       stageSprites: ['crops:turnip_0', 'crops:turnip_1', 'crops:turnip_2', 'crops:turnip_3'],
       harvestYield: [{ item: asContentId('core:turnip'), quantity: 1 }],
+      seedItem: asContentId('core:turnip_seed'),
+      seedCost: 5,
       seasons: [],
       tags: ['root'],
     },
@@ -100,6 +109,8 @@ export function registerCoreCrops(registry: CropRegistry): void {
       growthTicks: secondsToTicks(120),
       stageSprites: ['crops:wheat_0', 'crops:wheat_1', 'crops:wheat_2', 'crops:wheat_3'],
       harvestYield: [{ item: asContentId('core:wheat'), quantity: 1 }],
+      seedItem: asContentId('core:wheat_seed'),
+      seedCost: 12,
       seasons: [],
       tags: ['grain'],
     },
@@ -109,6 +120,8 @@ export function registerCoreCrops(registry: CropRegistry): void {
       growthTicks: secondsToTicks(240),
       stageSprites: ['crops:carrot_0', 'crops:carrot_1', 'crops:carrot_2', 'crops:carrot_3'],
       harvestYield: [{ item: asContentId('core:carrot'), quantity: 1 }],
+      seedItem: asContentId('core:carrot_seed'),
+      seedCost: 25,
       seasons: [],
       tags: ['root'],
     },
@@ -118,6 +131,8 @@ export function registerCoreCrops(registry: CropRegistry): void {
       growthTicks: secondsToTicks(600),
       stageSprites: ['crops:pumpkin_0', 'crops:pumpkin_1', 'crops:pumpkin_2', 'crops:pumpkin_3'],
       harvestYield: [{ item: asContentId('core:pumpkin'), quantity: 1 }],
+      seedItem: asContentId('core:pumpkin_seed'),
+      seedCost: 60,
       seasons: [],
       tags: ['gourd'],
     },

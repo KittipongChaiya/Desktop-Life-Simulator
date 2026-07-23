@@ -10,7 +10,7 @@
 | Milestone | Scope                                                                                     | Status        |
 | --------- | ----------------------------------------------------------------------------------------- | ------------- |
 | **06a**   | Wallet, economy state, pricing engine, `economySystem`, base prices finalised             | **Delivered** |
-| **06b**   | Seed items, seed consumption on plant, `sellItems` / `buySeeds`, `itemSold`, seed icons   | Pending       |
+| **06b**   | Seed items, seed consumption on plant, `sellItems` / `buySeeds`, `itemSold`, seed icons   | **Delivered** |
 | **06c**   | Three new buildings, costs charged (buildings + hire), `sellBuilding`, building effects   | Pending       |
 | **06d**   | `expandLand`, progression state, `wallet` + `economy` snapshot slices                     | Pending       |
 | **06e**   | `ShopPanel`, sell interface, seed selector, coin counter, price indicators, full-loop E2E | Pending       |
@@ -67,6 +67,34 @@ one later is a spec edit, not a refactor surprise.
   `economy`. Item base prices finalised to §3.1: 12 / 34 / 80 / 230, pinned by
   test. 599 unit/integration + 12 E2E pass.
 
+**06b delivered** — commerce: money starts moving:
+
+- Seeds are items (`core:<crop>_seed`, §3.1 costs 5/12/25/60 on
+  `CropDefinition.seedItem`/`seedCost`), and **planting consumes one** from the
+  farm stock — the ADR-013 conversion boundary, enforced in `validatePlant`
+  (typed `MissingItem`) for player and worker alike.
+- `commands/commerce-commands.ts` — `sellItems` (batch priced at the pre-sale
+  multiplier, then one decay; publishes `itemSold`) and `buySeeds` (fixed
+  §3.1 price; all-or-nothing against funds AND space). Both registered through
+  the ordinary dispatcher; `CommandWorld` gains `wallet` + `economy`.
+- Worker task selection gates the plant band on seed availability — no seeds,
+  no plant claims; the band reopens the moment seeds arrive (never jams,
+  §4.2). "The selected seed" is realised as the worker default crop
+  (interpretation 4).
+- `itemSold` event carries `{item, quantity, coins, automatic}` — the stall
+  sweep (06c) and phase-07's return summary publish/consume the same shape.
+- Art: four seed-pouch icons (`item_*_seed`) from the crop-art script — one
+  drawstring-pouch silhouette, crop named by seed-accent colour; atlas packs
+  87 sprites. The phase-04 long-run test now stocks seeds in setup: seed
+  exhaustion is a valid wind-down, workers idle rather than jam.
+- **Idle re-plan cadence** (`Worker.replanTick`, 20 ticks): a null work scan
+  schedules the next one instead of repeating every tick. Sustained no-work
+  became a normal regime with consumable seeds, and per-tick full-farm scans
+  from every idle worker drove the 8-hour long-run from ~14 s to 255 s —
+  an idle-CPU violation, not just a slow test. One second of bounded
+  staleness; derived from `world.tick` only, so determinism and offline
+  derivation hold (the field joins the byte-identical comparison).
+
 ---
 
 ## Objectives
@@ -101,10 +129,10 @@ After this, the game is complete except for persistence. Everything the player n
 
 ### Selling and buying
 
-- [ ] `sellItems` intent — validates quantity, credits coins, adjusts the multiplier
-- [ ] `buySeeds` intent — validates funds and inventory space
-- [ ] Seed prices per `GAME_DESIGN.md` §3.1 (fixed, not dynamic)
-- [ ] `itemSold` event emitted
+- [x] `sellItems` intent — validates quantity, credits coins, adjusts the multiplier
+- [x] `buySeeds` intent — validates funds and inventory space
+- [x] Seed prices per `GAME_DESIGN.md` §3.1 (fixed, not dynamic)
+- [x] `itemSold` event emitted
 
 ### Buildings
 

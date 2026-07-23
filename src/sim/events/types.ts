@@ -38,6 +38,19 @@ export interface CropHarvested {
 }
 
 /**
+ * Fired when items are sold at the market boundary — manually (`sellItems`) or,
+ * from 06c, by the market stall's auto-sell. `automatic` distinguishes the two
+ * so phase-07's return summary can report what the farm earned unattended.
+ */
+export interface ItemSold {
+  readonly item: string;
+  readonly quantity: number;
+  /** Coins credited for the whole batch. Integer, always. */
+  readonly coins: number;
+  readonly automatic: boolean;
+}
+
+/**
  * The event map. Adding a member here is all a new event needs — the bus,
  * subscription, and dispatch are generic over it.
  *
@@ -49,6 +62,7 @@ export interface SimEventMap {
   readonly simulationTick: SimulationTick;
   readonly cropPlanted: CropPlanted;
   readonly cropHarvested: CropHarvested;
+  readonly itemSold: ItemSold;
 }
 
 export type SimEventName = keyof SimEventMap;

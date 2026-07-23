@@ -8,10 +8,13 @@
  * plugin can add an item and why rebalancing a price is a data edit, not a save
  * migration.
  *
- * The v0.1 items are the four crops' harvest goods; their ids match the crop
- * ids (`core:wheat` the crop yields `core:wheat` the item). `basePrice` values
- * are the `GAME_DESIGN.md` §3.1 crop table's "Sell (base)" column, finalised in
- * phase-06 — rebalancing them is a data edit here, never a save migration.
+ * The v0.1 items are the four crops' harvest goods plus their seeds (06b).
+ * Produce ids match the crop ids (`core:wheat` the crop yields `core:wheat`
+ * the item); seeds are `core:<crop>_seed`. `basePrice` values follow the
+ * `GAME_DESIGN.md` §3.1 crop table — "Sell (base)" for produce, "Seed cost"
+ * for seeds, so a seed sold back at `multiplier ≤ 1.0` can never beat its
+ * purchase price (phase doc, resolved interpretation 3). Rebalancing is a
+ * data edit here, never a save migration.
  */
 
 import { asContentId, type ContentId } from '../../shared/ids';
@@ -36,6 +39,11 @@ export const CORE_TURNIP = asContentId('core:turnip');
 export const CORE_WHEAT = asContentId('core:wheat');
 export const CORE_CARROT = asContentId('core:carrot');
 export const CORE_PUMPKIN = asContentId('core:pumpkin');
+
+export const CORE_TURNIP_SEED = asContentId('core:turnip_seed');
+export const CORE_WHEAT_SEED = asContentId('core:wheat_seed');
+export const CORE_CARROT_SEED = asContentId('core:carrot_seed');
+export const CORE_PUMPKIN_SEED = asContentId('core:pumpkin_seed');
 
 export type ItemRegistry = ContentRegistry<ItemDefinition>;
 
@@ -77,6 +85,34 @@ export function registerCoreItems(registry: ItemRegistry): void {
       displayName: 'Pumpkin',
       sprite: 'ui-world:item_pumpkin',
       basePrice: 230,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_TURNIP_SEED,
+      displayName: 'Turnip Seeds',
+      sprite: 'ui-world:item_turnip_seed',
+      basePrice: 5,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_WHEAT_SEED,
+      displayName: 'Wheat Seeds',
+      sprite: 'ui-world:item_wheat_seed',
+      basePrice: 12,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_CARROT_SEED,
+      displayName: 'Carrot Seeds',
+      sprite: 'ui-world:item_carrot_seed',
+      basePrice: 25,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_PUMPKIN_SEED,
+      displayName: 'Pumpkin Seeds',
+      sprite: 'ui-world:item_pumpkin_seed',
+      basePrice: 60,
       stackSize: DEFAULT_STACK_SIZE,
     },
   ];

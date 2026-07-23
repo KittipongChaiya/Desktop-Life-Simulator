@@ -83,6 +83,17 @@ export interface Worker {
    * the player inventory.
    */
   carrying: Container;
+  /**
+   * The earliest tick this worker scans for work again after finding none.
+   *
+   * "Return to Idle and wait" (§4.2) means WAIT: a null scan schedules the
+   * next one `IDLE_REPLAN_TICKS` ahead rather than repeating every tick.
+   * Sustained no-work became a normal regime in 06b (the seed stock runs
+   * dry), and per-tick full-farm scans from every idle worker would burn the
+   * idle-CPU budget (PERFORMANCE.md). Derived from `world.tick` only —
+   * deterministic and exactly reproducible offline (ADR-007, ADR-009).
+   */
+  replanTick: number;
 }
 
 /** Sparse store keyed by branded id (ADR-004 §2). */
@@ -100,6 +111,13 @@ export const WORKER_CARRY_CAPACITY = 20;
 
 /** The worker deposits once its hold reaches this many items. `GAME_DESIGN.md` §4.4. */
 export const DEPOSIT_THRESHOLD = 10;
+
+/**
+ * Ticks an idle worker waits after a null work scan before scanning again —
+ * one second of bounded staleness in exchange for an idle farm costing almost
+ * nothing (see `Worker.replanTick`).
+ */
+export const IDLE_REPLAN_TICKS = 20;
 
 /** The period over which energy rates are expressed. §4.5 ("per 20 ticks"). */
 export const ENERGY_PERIOD_TICKS = 20;
@@ -171,5 +189,6 @@ export function createWorker(id: WorkerId, position: TileIndex): Worker {
     energy: MAX_ENERGY,
     energyTimer: 0,
     carrying: createContainer(WORKER_CARRY_CAPACITY, WORKER_CARRY_CAPACITY),
+    replanTick: 0,
   };
 }

@@ -12,6 +12,7 @@
 
 import type { BuildingId } from '../../shared/ids';
 import { registerBuildingCommands } from '../commands/building-commands';
+import { registerCommerceCommands } from '../commands/commerce-commands';
 import { registerCropCommands } from '../commands/crop-commands';
 import {
   createCommandDispatcher,
@@ -236,6 +237,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   registerCropCommands(world.commands);
   registerWorkerCommands(world.commands);
   registerBuildingCommands(world.commands);
+  registerCommerceCommands(world.commands);
 
   return world;
 }

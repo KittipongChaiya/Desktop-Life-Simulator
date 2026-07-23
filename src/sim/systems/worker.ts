@@ -23,6 +23,7 @@ import {
   DEPOSIT_THRESHOLD,
   ENERGY_DRAIN_PER_PERIOD,
   ENERGY_RECOVER_PER_PERIOD,
+  IDLE_REPLAN_TICKS,
   MAX_ENERGY,
   TASK_DURATION_TICKS,
   WorkerState,
@@ -83,8 +84,19 @@ function stepIdle(world: World, worker: Worker): void {
     return;
   }
 
+  // Waiting out a scheduled wait after a null scan (§4.2 — "wait"). Without
+  // this cadence, sustained no-work (a dry seed stock, 06b) would have every
+  // idle worker rescanning the whole farm each tick, burning the idle-CPU
+  // budget the product stands on (PERFORMANCE.md).
+  if (world.tick < worker.replanTick) return;
+
   const task = selectTask(world, worker.position, tilesClaimedByOthers(world, worker.id));
-  if (task === null) return; // no work — stay Idle and wait (never jams)
+  if (task === null) {
+    // No work — stay Idle and schedule the next scan (never jams, bounded
+    // staleness of one second).
+    worker.replanTick = world.tick + IDLE_REPLAN_TICKS;
+    return;
+  }
 
   const path = findPath(world, worker.position, task.tile);
   if (!path.ok) return; // target unreachable right now — stay Idle and retry

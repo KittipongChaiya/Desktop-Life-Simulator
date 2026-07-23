@@ -13,9 +13,12 @@ import { describe, expect, it } from 'vitest';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asWorkerId, type TileIndex } from '../../shared/ids';
 import { CORE_TURNIP } from '../content/crops';
+import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, stepSimulationBy, tickOrder } from '../tick';
+import { addItems } from '../world/container';
 import {
   createWorker,
+  IDLE_REPLAN_TICKS,
   MAX_ENERGY,
   WorkerState,
   WorkerTaskKind,
@@ -61,9 +64,37 @@ describe('autonomous farming', () => {
 
   it('plants a crop after preparing soil', () => {
     const world = createWorld(1);
+    // Workers draw seeds from the farm stock; planting consumes them (06b).
+    addItems(world.inventory, CORE_TURNIP_SEED, 20, DEFAULT_STACK_SIZE);
     addWorker(world, 1);
     stepSimulationBy(world, 150);
     expect(world.cropStats.planted).toBeGreaterThanOrEqual(1);
+  });
+
+  it('waits out a re-plan cadence when no work exists, instead of rescanning every tick', () => {
+    // Sustained no-work is now a normal regime (06b: the seed stock can run
+    // dry), and five workers scanning the whole farm every tick would burn the
+    // idle-CPU budget the product is built on (PERFORMANCE.md). "Return to
+    // Idle and wait" (§4.2) means WAIT: a null scan schedules the next one.
+    const world = createWorld(1);
+    occupyPlot(world); // immature crops everywhere — nothing to do
+    const worker = addWorker(world, 1);
+
+    stepSimulationBy(world, 1);
+    expect(worker.state).toBe(WorkerState.Idle);
+    expect(worker.replanTick).toBeGreaterThan(world.tick); // the wait is scheduled
+
+    // Work appears mid-cooldown: the sleeping worker must NOT see it early…
+    const freed = CENTER;
+    world.crops.delete(freed);
+    world.tiles.tilledAt[freed] = 1;
+    addItems(world.inventory, CORE_TURNIP_SEED, 1, DEFAULT_STACK_SIZE);
+    stepSimulationBy(world, 2);
+    expect(worker.task).toBeNull();
+
+    // …but picks it up promptly once the cadence expires (bounded staleness).
+    stepSimulationBy(world, IDLE_REPLAN_TICKS + 40);
+    expect(world.cropStats.planted).toBe(1);
   });
 
   it('harvests a mature crop autonomously', () => {

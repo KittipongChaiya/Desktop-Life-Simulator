@@ -8,10 +8,13 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asContentId, type TileIndex } from '../../shared/ids';
-import { CORE_PUMPKIN, CORE_TURNIP, CORE_WHEAT, stageFor } from '../content/crops';
+import { CORE_CARROT, CORE_PUMPKIN, CORE_TURNIP, CORE_WHEAT, stageFor } from '../content/crops';
+import { DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulationBy } from '../tick';
+import { addItems, containerCount } from '../world/container';
 import { elapsedTicks } from '../world/crop';
 import { TileState, tileStateAt } from '../world/tile-state';
 import { createWorld, type World } from '../world/world';
@@ -22,8 +25,22 @@ import { harvestCrop, plantCrop, tillTile } from './crop-commands';
 const OWNED: TileIndex = toIndexUnchecked(30, 30);
 const OUTSIDE: TileIndex = toIndexUnchecked(2, 2);
 
+/**
+ * Stocks the farm with seeds of every crop. Planting consumes a seed from the
+ * player inventory (phase-06b), so tests about OTHER rules provision freely —
+ * the declared test source, like a harvest is in play.
+ */
+function grantAllSeeds(world: World, quantity = 20): void {
+  for (const crop of [CORE_TURNIP, CORE_WHEAT, CORE_CARROT, CORE_PUMPKIN]) {
+    const definition = world.cropRegistry.get(crop);
+    if (!definition.ok) throw new Error('setup failed');
+    addItems(world.inventory, definition.value.seedItem, quantity, DEFAULT_STACK_SIZE);
+  }
+}
+
 function readyWorld(): World {
   const world = createWorld(1);
+  grantAllSeeds(world);
   tillTile(world, OWNED);
   return world;
 }
@@ -52,6 +69,7 @@ describe('plant validation', () => {
 
   it('rejects a tile outside the owned plot', () => {
     const world = createWorld(1);
+    grantAllSeeds(world);
     world.tiles.tilledAt[OUTSIDE] = 1;
 
     expect(plantCrop(world, OUTSIDE, CORE_WHEAT).ok).toBe(false);
@@ -76,6 +94,53 @@ describe('plant validation', () => {
 
     expect(world.crops.size).toBe(0);
     expect(world.events.pending()).toBe(0);
+  });
+});
+
+describe('planting consumes a seed (phase-06b, §8.1)', () => {
+  it('consumes exactly one seed of the planted crop', () => {
+    const world = readyWorld(); // 20 of each seed
+    const wheat = world.cropRegistry.get(CORE_WHEAT);
+    if (!wheat.ok) throw new Error('setup failed');
+
+    expect(plantCrop(world, OWNED, CORE_WHEAT).ok).toBe(true);
+    expect(containerCount(world.inventory, wheat.value.seedItem)).toBe(19);
+  });
+
+  it('rejects planting with no matching seed and mutates nothing', () => {
+    const world = createWorld(1);
+    tillTile(world, OWNED); // tilled, owned, empty — but the farm holds no seeds
+    const result = plantCrop(world, OWNED, CORE_WHEAT);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe(ErrorCode.MissingItem);
+    expect(world.crops.size).toBe(0);
+    expect(world.events.pending()).toBe(0);
+  });
+
+  it('a seed of another crop does not substitute', () => {
+    const world = createWorld(1);
+    tillTile(world, OWNED);
+    const turnip = world.cropRegistry.get(CORE_TURNIP);
+    if (!turnip.ok) throw new Error('setup failed');
+    addItems(world.inventory, turnip.value.seedItem, 5, DEFAULT_STACK_SIZE);
+
+    expect(plantCrop(world, OWNED, CORE_WHEAT).ok).toBe(false);
+    expect(plantCrop(world, OWNED, CORE_TURNIP).ok).toBe(true);
+  });
+
+  it('the last seed plants; the next plant is refused', () => {
+    const world = createWorld(1);
+    const wheat = world.cropRegistry.get(CORE_WHEAT);
+    if (!wheat.ok) throw new Error('setup failed');
+    addItems(world.inventory, wheat.value.seedItem, 1, DEFAULT_STACK_SIZE);
+    const second = toIndexUnchecked(31, 30);
+    tillTile(world, OWNED);
+    tillTile(world, second);
+
+    expect(plantCrop(world, OWNED, CORE_WHEAT).ok).toBe(true);
+    expect(plantCrop(world, second, CORE_WHEAT).ok).toBe(false);
+    expect(world.crops.size).toBe(1);
   });
 });
 
@@ -143,6 +208,7 @@ describe('growth progression', () => {
 
   it('grows multiple crops independently', () => {
     const world = createWorld(1);
+    grantAllSeeds(world);
     const early = toIndexUnchecked(29, 29);
     const late = toIndexUnchecked(31, 31);
     tillTile(world, early);
@@ -162,6 +228,7 @@ describe('growth progression', () => {
 describe('derived tile state (ADR-009 §1)', () => {
   it('reports every state without storing any of them', () => {
     const world = createWorld(1);
+    grantAllSeeds(world);
     expect(tileStateAt(query(world), OWNED)).toBe(TileState.Empty);
 
     tillTile(world, OWNED);
@@ -221,6 +288,7 @@ describe('events: producer, delivery, consumer, ordering', () => {
 
   it('delivers events in publish order', () => {
     const world = createWorld(1);
+    grantAllSeeds(world);
     const order: string[] = [];
     world.events.subscribe('cropPlanted', () => order.push('planted'));
     world.events.subscribe('cropHarvested', () => order.push('harvested'));
@@ -258,6 +326,7 @@ describe('determinism and offline progression', () => {
   it('produces identical state from identical command sequences', () => {
     const run = (): World => {
       const world = createWorld(42);
+      grantAllSeeds(world);
       tillTile(world, OWNED);
       plantCrop(world, OWNED, CORE_WHEAT);
       stepSimulationBy(world, 2400);
@@ -333,6 +402,7 @@ describe('serialization stability', () => {
 
     const build = (): World => {
       const world = createWorld(7);
+      grantAllSeeds(world);
       for (const tile of [toIndexUnchecked(29, 29), toIndexUnchecked(30, 30)]) {
         tillTile(world, tile);
         plantCrop(world, tile, CORE_TURNIP);

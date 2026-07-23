@@ -341,6 +341,40 @@ function itemCarrot() {
   return canvas;
 }
 
+/**
+ * A drawstring seed pouch — one silhouette for the family, the crop named by
+ * the accent colour of the seeds spilling on its shaded face (phase-06b: seeds
+ * become purchasable, consumable items). Burlap in the wood ramp; the accent
+ * dots sit on the Wood Base side so every crop's colour reads against it.
+ * @param {number[]} accent the crop's signature colour
+ * @returns {Canvas}
+ */
+function itemSeedPouch(accent) {
+  const canvas = createCanvas(16, 16);
+  // Gathered cloth above the tie, splayed like a cut sheaf.
+  set(canvas, 6, 2, WOOD_LIGHT);
+  set(canvas, 8, 1, WOOD_LIGHT);
+  set(canvas, 8, 2, WOOD_BASE);
+  set(canvas, 10, 2, WOOD_BASE);
+  set(canvas, 7, 3, WOOD_BASE);
+  set(canvas, 8, 3, WOOD_BASE);
+  set(canvas, 9, 3, WOOD_BASE);
+  // The drawstring cinch.
+  for (let x = 6; x <= 10; x += 1) set(canvas, x, 4, SOIL_DARK);
+  // Body: base sack, then the lit face toward the upper-left light (R-06).
+  ellipse(canvas, 8, 9.5, 4.8, 4.4, WOOD_BASE, 0.15);
+  ellipse(canvas, 7, 8.6, 3, 2.8, WOOD_LIGHT, 0.15);
+  // Seeds on the shaded face — three dots, paired pixels so they read at 1x.
+  set(canvas, 10, 8, accent);
+  set(canvas, 11, 8, accent);
+  set(canvas, 9, 10, accent);
+  set(canvas, 10, 11, accent);
+  set(canvas, 11, 11, accent);
+  set(canvas, 7, 12, accent);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
 /** Squat, ribbed, stemmed — nothing else shares this silhouette. @returns {Canvas} */
 function itemPumpkin() {
   const canvas = createCanvas(16, 16);
@@ -379,7 +413,13 @@ function main() {
   writePng(join(uiDir, 'item_carrot.png'), itemCarrot());
   writePng(join(uiDir, 'item_pumpkin.png'), itemPumpkin());
 
-  globalThis.console.log('generated wheat_0..3 + 4 item icons');
+  // Seed pouches (06b): one family silhouette, crop named by seed accent.
+  writePng(join(uiDir, 'item_turnip_seed.png'), itemSeedPouch(PARCHMENT));
+  writePng(join(uiDir, 'item_wheat_seed.png'), itemSeedPouch(STRAW));
+  writePng(join(uiDir, 'item_carrot_seed.png'), itemSeedPouch(CARROT_ORANGE));
+  writePng(join(uiDir, 'item_pumpkin_seed.png'), itemSeedPouch(PUMPKIN));
+
+  globalThis.console.log('generated wheat_0..3 + 4 item icons + 4 seed pouches');
 }
 
 main();

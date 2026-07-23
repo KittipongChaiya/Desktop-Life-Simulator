@@ -21,8 +21,8 @@ describe('core items', () => {
   const registry = createItemRegistry();
   registerCoreItems(registry);
 
-  it('registers one item per crop', () => {
-    expect(registry.size).toBe(4);
+  it('registers produce and seeds — two items per crop (06b)', () => {
+    expect(registry.size).toBe(8);
   });
 
   it('carries a definition with a name, sprite, price, and stack size', () => {

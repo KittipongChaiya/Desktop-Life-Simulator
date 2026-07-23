@@ -19,7 +19,9 @@ import { describe, expect, it } from 'vitest';
 
 import { toIndexUnchecked } from '../../shared/geometry';
 import { CORE_WHEAT } from '../content/crops';
+import { CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation } from '../tick';
+import { addItems } from '../world/container';
 import { createWorld, type World } from '../world/world';
 
 import type {
@@ -130,6 +132,7 @@ describe('command sources', () => {
 
   it('accepts the same command from any source, interchangeably', () => {
     const world = createWorld(1);
+    addItems(world.inventory, CORE_WHEAT_SEED, 1, DEFAULT_STACK_SIZE); // planting consumes a seed (06b)
     const player: PlayerInputSource = producerFor(world, CommandSource.Player);
     const automation: AutomationSource = producerFor(world, CommandSource.Automation);
 

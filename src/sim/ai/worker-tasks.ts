@@ -18,16 +18,19 @@ import { type Command } from '../commands/types';
 import { isMature, type CropRegistry } from '../content/crops';
 import { CORE_TURNIP } from '../content/crops';
 import { type TileKindRegistry } from '../content/tile-kinds';
+import { containerCount, type Container } from '../world/container';
 import { elapsedTicks, type CropStore } from '../world/crop';
 import { getKind, isOwned, ownedBounds, tilesInRect, type TileGrid } from '../world/tile-grid';
 import { isTilled } from '../world/tile-state';
 import { WorkerTaskKind, type WorkerTask } from '../world/worker';
 
 /**
- * The crop a worker replants. `GAME_DESIGN.md` §4.4 says "if seeds are
- * available"; with no seed inventory in v0.1 the worker sows the fastest starter
- * crop so the autonomous harvest→replant loop closes. Seed selection and the
- * seed bin are phase-06 (`AI_RULES.md` §1.5).
+ * The crop a worker replants — the fastest starter crop, so the autonomous
+ * harvest→replant loop closes. "The selected seed" cannot mean the HUD's tool
+ * selection: that is presentation state and may not enter the deterministic
+ * sim (phase-03.6, ADR-007 §1), so the worker default stands in for it. The
+ * seed bin's per-tile memory (06c) refines WHICH crop; seed availability
+ * (`GAME_DESIGN.md` §4.4 — "if seeds are available") gates WHETHER.
  */
 export const WORKER_DEFAULT_CROP: ContentId = CORE_TURNIP;
 
@@ -37,6 +40,8 @@ export interface TaskContext {
   readonly tileKinds: TileKindRegistry;
   readonly crops: CropStore;
   readonly cropRegistry: CropRegistry;
+  /** The farm stock worker plants draw seeds from (06b interpretation 2). */
+  readonly inventory: Container;
   readonly tick: number;
 }
 
@@ -101,6 +106,16 @@ function harvestCandidates(
   return tiles.sort((a, b) => a - b);
 }
 
+/**
+ * True when the farm stock holds a seed for the crop a worker would plant.
+ * Without one the plant band is empty — the worker moves to the next band
+ * rather than claiming a tile it cannot sow (never jams, §4.2).
+ */
+function hasSeedFor(ctx: TaskContext, cropId: ContentId): boolean {
+  const definition = ctx.cropRegistry.get(cropId);
+  return definition.ok && containerCount(ctx.inventory, definition.value.seedItem) >= 1;
+}
+
 export function selectTask(
   ctx: TaskContext,
   from: TileIndex,
@@ -108,12 +123,13 @@ export function selectTask(
 ): WorkerTask | null {
   const owned = ownedTiles(ctx.tiles); // already ascending
 
+  const canPlant = hasSeedFor(ctx, WORKER_DEFAULT_CROP);
   const bands: readonly { readonly kind: WorkerTaskKind; readonly tiles: readonly TileIndex[] }[] =
     [
       { kind: WorkerTaskKind.Harvest, tiles: harvestCandidates(ctx, claimed) },
       {
         kind: WorkerTaskKind.Plant,
-        tiles: owned.filter((tile) => !claimed.has(tile) && isPlantable(ctx, tile)),
+        tiles: canPlant ? owned.filter((tile) => !claimed.has(tile) && isPlantable(ctx, tile)) : [],
       },
       {
         kind: WorkerTaskKind.Till,

@@ -11,7 +11,9 @@ import { describe, expect, it } from 'vitest';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { CommandSource } from '../commands/types';
 import { CORE_WHEAT } from '../content/crops';
+import { CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, tickOrder } from '../tick';
+import { addItems } from '../world/container';
 import { createWorld } from '../world/world';
 
 const OWNED = toIndexUnchecked(30, 30) as number;
@@ -35,6 +37,7 @@ describe('commandSystem placement', () => {
 describe('commandSystem execution', () => {
   it('applies a queued command and flushes its event in the same tick', () => {
     const world = createWorld(1);
+    addItems(world.inventory, CORE_WHEAT_SEED, 1, DEFAULT_STACK_SIZE); // planting consumes a seed (06b)
     world.commands.dispatch({ type: 'tillTile', tile: OWNED }, { source: CommandSource.Player });
     stepSimulation(world);
 

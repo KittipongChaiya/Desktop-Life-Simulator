@@ -17,7 +17,9 @@ import { toIndexUnchecked } from '../../shared/geometry';
 import { asContentId } from '../../shared/ids';
 import { CommandSource } from '../../sim/commands/types';
 import { CORE_WHEAT } from '../../sim/content/crops';
+import { DEFAULT_STACK_SIZE } from '../../sim/content/items';
 import { stepSimulation } from '../../sim/tick';
+import { addItems } from '../../sim/world/container';
 import { createWorld, type World } from '../../sim/world/world';
 
 import { createPlayerInputSource } from './command-dispatch';
@@ -141,6 +143,10 @@ describe('clicking', () => {
 
   it('completes the manual loop through the command path alone', () => {
     const world = createWorld(1);
+    // Planting consumes a seed (phase-06b); stock one so the loop can close.
+    const wheat = world.cropRegistry.get(CORE_WHEAT);
+    if (!wheat.ok) throw new Error('setup failed');
+    addItems(world.inventory, wheat.value.seedItem, 1, DEFAULT_STACK_SIZE);
     const input = inputFor(world);
 
     input.selectTool(Tool.Hoe);
