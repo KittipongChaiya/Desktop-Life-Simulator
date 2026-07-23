@@ -20,6 +20,8 @@ declare global {
       readonly companion: {
         setOpacity(percent: number): Promise<CompanionState>;
         getState(): Promise<CompanionState>;
+        toggleHidden(): Promise<CompanionState>;
+        toggleClickThrough(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
       };
       readonly app: {

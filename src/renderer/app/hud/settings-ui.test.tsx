@@ -27,12 +27,19 @@ interface Harness {
   readonly setOpacityCalls: number[];
 }
 
-function mount(initial = { opacityPercent: 100, workMode: false }): Harness {
+function mount(
+  initial = { opacityPercent: 100, workMode: false, clickThrough: false, hidden: false },
+): Harness {
   const setOpacityCalls: number[] = [];
   const bridge: CompanionBridge = {
     setOpacity(percent) {
       setOpacityCalls.push(percent);
-      return Promise.resolve({ opacityPercent: percent, workMode: false });
+      return Promise.resolve({
+        opacityPercent: percent,
+        workMode: false,
+        clickThrough: false,
+        hidden: false,
+      });
     },
     getState: () => Promise.resolve(initial),
     onStateChanged: () => () => undefined,
@@ -76,7 +83,7 @@ describe('SettingsPanel', () => {
   });
 
   it('hydrates the slider from the companion state in main', async () => {
-    mount({ opacityPercent: 60, workMode: false });
+    mount({ opacityPercent: 60, workMode: false, clickThrough: false, hidden: false });
     openPanel();
 
     expect(await screen.findByText('60%')).toBeDefined();

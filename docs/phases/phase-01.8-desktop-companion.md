@@ -77,7 +77,7 @@ Recorded before implementation; changing one is a spec edit, not a coding choice
 5. **Persistence set:** opacity, work-mode last state, and the existing collapsed flag. **Hidden and click-through have no persisted representation at all** — they reset by not existing (ADR-014 §4).
 6. **Toast triggers are exactly three:** work-mode toggle, click-through toggle, quick-hide restore. In work mode, the work-mode toast itself still shows (the player must see the mode change land); all other notifications are hidden.
 7. **"Non-essential animations"** = presentation effects: hover/selection highlights and the coin-counter tween. Worker walk animation stays — workers are on the keep list, and a frozen walker reads as a jam.
-8. **Global hotkeys are OS-global** per the directive. Registration failure is logged and non-fatal (tray remains the fallback); the `F12`-shadows-devtools cost is accepted for v0.1 and rebinding is ADR-014 §6's first future item.
+8. **Global hotkeys are OS-global** per the directive. Registration failure is logged and non-fatal (tray remains the fallback); the `F12`-shadows-devtools cost is accepted for v0.1 and rebinding is ADR-014 §6's first future item. _(01.8b superseded the premise: Windows refuses to register F12 at all — see the 01.8b delivered note. The shadowing concern never arises; the availability concern replaced it, and the default-binding decision sits with the project owner.)_
 
 ---
 
@@ -87,7 +87,7 @@ Recorded before implementation; changing one is a spec edit, not a coding choice
 | ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 01.8a  | The platform service & the presence dial       | `src/main/desktop-companion.ts`; `settings.json` schema extension (opacity, work mode); IPC contract extension; opacity applied instantly + persisted; Settings panel with the Desktop Companion section (slider, %, shortcut reference)                              | **Delivered** |
 | 01.8a2 | The architecture extension (`fix/0.1/1.8a.md`) | `ShortcutAction` stable identifiers + the one-place default bindings table (`shared/shortcuts.ts`); the centralized pure `ShortcutManager`; the categorized application settings model (`overlay`/`desktop`, legacy files migrate in place); ADR-014 §4/§5 amendments | **Delivered** |
-| 01.8b  | The instant handles                            | Global `F12` quick hide/restore and `Ctrl+Shift+C` click-through mode; the toast surface (auto-dismiss, in-overlay); reset-on-launch semantics; hidden-tick proof                                                                                                     | Planned       |
+| 01.8b  | The instant handles                            | Global `F12` quick hide/restore and `Ctrl+Shift+C` click-through mode; the toast surface (auto-dismiss, in-overlay); reset-on-launch semantics; hidden-tick proof                                                                                                     | **Delivered** |
 | 01.8c  | Work mode & the z-order inversion              | Global `F11` work mode (25%, HUD stripped, world kept, last state persisted); always-on-bottom replacing always-on-top; E2E suite; phase close-out                                                                                                                    | Planned       |
 
 ### Delivered (01.8a) — the platform service & the presence dial
@@ -109,6 +109,18 @@ Infrastructure only, landed deliberately **before 01.8b registers the first hotk
 - **The categorized application settings model** — `AppSettings { overlay: { collapsed }, desktop: { opacityPercent, workMode } }`; future categories (input, audio, graphics, language, accessibility) parse-tolerantly ignored until owned. Legacy files migrate in place: phase-01's `{collapsed}` and 01.8a's flat trio read through a per-category flat fallback and re-write categorized; a present category wins over stray flat fields. Save-separation criteria (survive save deletion / new world; saves hold only gameplay state) hold **by construction** — settings.json and `saves/` never meet — and phase-07 will re-assert them against a real save system.
 - **ADR-014 amended** (§4 the settings model and the save-may-never-touch rule; §5 the four explicit statements: defaults only, stable identifiers, replaceable configuration, future rebinding UI without architectural change); `ARCHITECTURE.md` §7, `PLAN.md`, `PROJECT_STRUCTURE.md` updated per the directive.
 - Gates: typecheck, lint, **708** unit/integration, **19 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched.
+
+### Delivered (01.8b) — the instant handles
+
+- **Quick hide and click-through mode are ACTIONS with three inputs each** — the global hotkey (resolved through the ShortcutManager), the tray, and an IPC toggle — exactly the action/input split `fix/0.1/1.8a.md` demanded for keys, applied to whole features. The tray gains **Show/Hide overlay**, honoring ADR-014 §5.2's "the tray remains the universal fallback" _and_ closing a phase-01 tray-spec gap in the same stroke. The IPC toggles are the E2E's drivable path per the honesty note.
+- **`CompanionState` carries `clickThrough`/`hidden` as runtime state**: it crosses IPC so the UI can toast the toggles, and is never persisted — both reset by not existing anywhere at launch. E2E leaves _both_ engaged, relaunches, and finds both off (and the window visible).
+- **The override composition bug that never shipped**: main records every per-region hit-testing request even while the mode overrides it, and lifting the mode replays the newest — without this, the renderer's dedupe cache goes stale and the overlay stays mouse-inert until the pointer happens to cross a UI boundary. Two mechanisms, one owner (ADR-014 §2), held in six lines of `index.ts`.
+- **`CompanionToast`** — one slot (a new toast replaces the current; nothing queues), auto-dismissing, pointer-transparent _by construction_ (a confirmation must never intercept a click nor flip the hit-testing it is confirming). The click-through toast names the way back out **from the bindings table, never hardcoded**. Hiding never toasts — the window is invisible, there is nobody to tell; the restore does.
+- **The hidden-tick proof (crit 7)**: hide → 1.5 s → restore, and the tick advanced ≥ 30 at rate — **ADR-014 assumption 1 discharged**: rAF keeps firing under `window.hide()` with `backgroundThrottling: false`; the injectable-`schedule` fallback stays unused. Restore exactness (checkpoint 5) asserted on a non-default opacity.
+- **F11 is not swallowed**: the manager's partial registration leaves the work-mode action unbound until 01.8c — E2E asserts `isRegistered('Ctrl+Shift+C')` true and `isRegistered('F11')` **false**. `will-quit` disposes every key back to the OS.
+- **⚠ Platform finding — Windows refuses the `F12` binding.** `RegisterHotKey` reserves F12 for the debugger at all times; `globalShortcut.register('F12', …)` returns false on the target OS (confirmed by direct probe: F7 registers, F12 does not). The ADR-014 §5.2 degradation path fired in production the first time it existed — warning logged, the quick-hide _action_ fully reachable through the tray and IPC inputs (E2E-proven). The E2E deliberately does not assert F12's registration outcome. **Decision escalated to the project owner**: keep F12 as the shipped default (the hotkey path stays dead on Windows; tray/future-rebinding carry the feature) or amend the default binding — a one-line change in `shared/shortcuts.ts` now that bindings are replaceable configuration (ADR-014 §5, amended), but a spec edit against `fix/0.1/1.8.md`'s letter.
+- **Watch item**: render-budget criterion 5 (static world draws no frames) flaked once during a full E2E run on this GPU-constrained machine (which already GPU-skips three render tests, and logs `GPU state invalid` on app close); it passes in isolation and passed the final full run. Nothing in 01.8b touches the render loop; watching for recurrence.
+- Gates: typecheck, lint, **716** unit/integration, **22 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched.
 
 ---
 
@@ -147,12 +159,12 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 ### Automated
 
 - [x] Unit: settings round-trip with the extended schema; missing fields → defaults (first-run and upgrade-in-place) _(01.8a)_
-- [ ] Unit: companion state model — precedence (work-mode opacity over slider), orthogonality (hidden/click-through over any base state), restore exactness
-- [ ] Unit: toast lifecycle (appears, auto-dismisses, never queues unbounded)
+- [x] Unit: companion state model — precedence (work-mode opacity over slider) _(01.8a2)_; orthogonality and restore exactness _(01.8b — runtime states compose as independent booleans; restore exactness asserted E2E on a non-default opacity)_
+- [x] Unit: toast lifecycle (appears, auto-dismisses, never queues unbounded) _(01.8b — plus: hide never toasts, restore does)_
 - [ ] Unit: work-mode store hides exactly the listed surfaces; world view untouched
 - [x] E2E: opacity set → `getOpacity` reflects it; relaunch → persisted _(01.8a — against an isolated userData profile)_
-- [ ] E2E: hide → wait → restore → tick advanced continuously (crit 7; ADR-014 assumption 1 made testable)
-- [ ] E2E: click-through ON → clicks pass; OFF → hit-testing behavior identical to pre-phase
+- [x] E2E: hide → wait → restore → tick advanced continuously (crit 7; ADR-014 assumption 1 made testable) _(01.8b — ≥30 ticks over 1.5 s hidden; the rAF fallback stays unused)_
+- [x] E2E: click-through ON → clicks pass; OFF → hit-testing behavior identical to pre-phase _(01.8b — state, toast, override composition, and reset E2E'd; the physical click pass-through is OS-level and stays on the manual pass)_
 - [ ] E2E: work mode ON → HUD absent, world present, sim advancing; OFF → prior state
 - [ ] E2E: all three hotkeys registered; loading a save (once phase-07 exists) leaves opacity untouched
 - [ ] Idle-cost E2E still passes in work mode (ADR-014 checkpoint 3)

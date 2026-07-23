@@ -28,6 +28,10 @@ export interface DesktopLifeApi {
   readonly companion: {
     setOpacity(percent: number): Promise<CompanionState>;
     getState(): Promise<CompanionState>;
+    /** Quick hide/restore — the same action `F12` and the tray drive. */
+    toggleHidden(): Promise<CompanionState>;
+    /** Click-through mode — the same action `Ctrl+Shift+C` drives. */
+    toggleClickThrough(): Promise<CompanionState>;
     /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
     onStateChanged(listener: (state: CompanionState) => void): () => void;
   };
@@ -68,6 +72,11 @@ const api: DesktopLifeApi = {
       ipcRenderer.invoke(InvokeChannel.SetOpacity, percent) as Promise<CompanionState>,
 
     getState: () => ipcRenderer.invoke(InvokeChannel.GetCompanionState) as Promise<CompanionState>,
+
+    toggleHidden: () => ipcRenderer.invoke(InvokeChannel.ToggleHidden) as Promise<CompanionState>,
+
+    toggleClickThrough: () =>
+      ipcRenderer.invoke(InvokeChannel.ToggleClickThrough) as Promise<CompanionState>,
 
     onStateChanged: (listener) => {
       const handler = (_event: unknown, state: CompanionState): void => {

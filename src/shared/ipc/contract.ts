@@ -20,6 +20,13 @@ export const InvokeChannel = {
   SetOpacity: 'companion:set-opacity',
   /** Current companion state, for hydrating the settings UI on load. */
   GetCompanionState: 'companion:get-state',
+  /**
+   * Quick hide / restore (phase-01.8b). One INPUT to the same action the
+   * `F12` global hotkey and the tray drive — never a separate path.
+   */
+  ToggleHidden: 'companion:toggle-hidden',
+  /** Click-through mode toggle (phase-01.8b) — the `Ctrl+Shift+C` action's IPC input. */
+  ToggleClickThrough: 'companion:toggle-click-through',
   /** Quit the application. */
   Quit: 'app:quit',
 } as const;
@@ -61,15 +68,19 @@ export interface OverlayState {
 /**
  * Desktop-companion state (phase-01.8, ADR-014).
  *
- * Deliberately excludes hidden and click-through: those states have no
- * persisted or UI representation — they live between a hotkey toggle and its
- * counter-toggle in main (ADR-014 §4).
+ * `clickThrough` and `hidden` are RUNTIME state: they cross IPC so the UI can
+ * confirm toggles with toasts, but they are never persisted — both reset by
+ * not existing anywhere at launch (ADR-014 §4).
  */
 export interface CompanionState {
   /** The opacity dial's position, 30–100. Work mode does not move it. */
   readonly opacityPercent: number;
   /** Whether work mode is active (the toggle itself arrives in 01.8c). */
   readonly workMode: boolean;
+  /** Whether click-through MODE forces mouse transparency (01.8b). */
+  readonly clickThrough: boolean;
+  /** Whether the overlay is quick-hidden (01.8b). */
+  readonly hidden: boolean;
 }
 
 export interface IpcContract {
@@ -77,6 +88,8 @@ export interface IpcContract {
   [InvokeChannel.GetOverlayState]: { request: void; response: OverlayState };
   [InvokeChannel.SetOpacity]: { request: number; response: CompanionState };
   [InvokeChannel.GetCompanionState]: { request: void; response: CompanionState };
+  [InvokeChannel.ToggleHidden]: { request: void; response: CompanionState };
+  [InvokeChannel.ToggleClickThrough]: { request: void; response: CompanionState };
   [InvokeChannel.Quit]: { request: void; response: void };
   [SendChannel.SetClickThrough]: { request: boolean };
   [EventChannel.OverlayStateChanged]: { payload: OverlayState };

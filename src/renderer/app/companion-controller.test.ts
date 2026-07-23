@@ -12,23 +12,38 @@ import { OPACITY_DEFAULT_PERCENT } from '../../shared/constants';
 
 import { createCompanionController, type CompanionBridge } from './companion-controller';
 
-interface StubBridge extends CompanionBridge {
-  readonly setOpacityCalls: number[];
-  emit(state: { opacityPercent: number; workMode: boolean }): void;
+interface BridgeState {
+  readonly opacityPercent: number;
+  readonly workMode: boolean;
+  readonly clickThrough: boolean;
+  readonly hidden: boolean;
 }
 
-function stubBridge(initial = { opacityPercent: 60, workMode: false }): StubBridge {
+interface StubBridge extends CompanionBridge {
+  readonly setOpacityCalls: number[];
+  emit(state: BridgeState): void;
+}
+
+const state = (overrides: Partial<BridgeState> = {}): BridgeState => ({
+  opacityPercent: 60,
+  workMode: false,
+  clickThrough: false,
+  hidden: false,
+  ...overrides,
+});
+
+function stubBridge(initial = state()): StubBridge {
   const setOpacityCalls: number[] = [];
-  let listener: ((state: { opacityPercent: number; workMode: boolean }) => void) | null = null;
+  let listener: ((next: BridgeState) => void) | null = null;
 
   return {
     setOpacityCalls,
-    emit(state) {
-      listener?.(state);
+    emit(next) {
+      listener?.(next);
     },
     setOpacity(percent) {
       setOpacityCalls.push(percent);
-      return Promise.resolve({ opacityPercent: percent, workMode: false });
+      return Promise.resolve(state({ opacityPercent: percent }));
     },
     getState() {
       return Promise.resolve(initial);
@@ -48,9 +63,11 @@ const settle = (): Promise<void> => Promise.resolve().then(() => undefined);
 describe('createCompanionController', () => {
   it('starts on the default and hydrates from main', async () => {
     const controller = createCompanionController(
-      stubBridge({ opacityPercent: 45, workMode: true }),
+      stubBridge(state({ opacityPercent: 45, workMode: true })),
     );
     expect(controller.opacityPercent()).toBe(OPACITY_DEFAULT_PERCENT);
+    expect(controller.clickThrough()).toBe(false);
+    expect(controller.hidden()).toBe(false);
 
     await settle();
     expect(controller.opacityPercent()).toBe(45);
@@ -59,13 +76,26 @@ describe('createCompanionController', () => {
 
   it('notifies subscribers on hydration', async () => {
     const listener = vi.fn();
-    const controller = createCompanionController(
-      stubBridge({ opacityPercent: 45, workMode: false }),
-    );
+    const controller = createCompanionController(stubBridge(state({ opacityPercent: 45 })));
     controller.subscribe(listener);
 
     await settle();
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('follows the runtime toggle states (quick hide, click-through)', async () => {
+    const bridge = stubBridge();
+    const listener = vi.fn();
+    const controller = createCompanionController(bridge);
+    await settle();
+    controller.subscribe(listener);
+
+    bridge.emit(state({ clickThrough: true }));
+    expect(controller.clickThrough()).toBe(true);
+
+    bridge.emit(state({ clickThrough: true, hidden: true }));
+    expect(controller.hidden()).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it('applies opacity optimistically and forwards it to main', async () => {
@@ -85,7 +115,7 @@ describe('createCompanionController', () => {
     await settle();
     controller.subscribe(listener);
 
-    bridge.emit({ opacityPercent: 60, workMode: true });
+    bridge.emit(state({ workMode: true }));
     expect(controller.workMode()).toBe(true);
     expect(listener).toHaveBeenCalledTimes(1);
   });
@@ -97,7 +127,7 @@ describe('createCompanionController', () => {
     await settle();
     controller.subscribe(listener);
 
-    bridge.emit({ opacityPercent: 60, workMode: false }); // identical to hydrated state
+    bridge.emit(state()); // identical to hydrated state
     expect(listener).not.toHaveBeenCalled();
   });
 

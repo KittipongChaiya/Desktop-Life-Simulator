@@ -13,6 +13,7 @@
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
+import { CompanionToast } from './hud/CompanionToast';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { SettingsPanel } from './hud/SettingsPanel';
 import { ShopPanel } from './hud/ShopPanel';
@@ -87,6 +88,10 @@ export function App(): ReactNode {
       <div className={styles['statusBar']} data-interactive>
         <StatusBar />
       </div>
+
+      {/* Companion toasts show in BOTH presence modes — a mode confirmation
+          must reach the player whether the world is up or collapsed. */}
+      <CompanionToast />
 
       {/* The worker panel (count, hire, list), the shop, the selected-worker
           panel, the inventory, and settings show over the world when expanded. */}

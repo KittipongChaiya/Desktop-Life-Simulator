@@ -12,6 +12,8 @@ import { OPACITY_DEFAULT_PERCENT } from '../../shared/constants';
 interface CompanionState {
   readonly opacityPercent: number;
   readonly workMode: boolean;
+  readonly clickThrough: boolean;
+  readonly hidden: boolean;
 }
 
 export interface CompanionController {
@@ -19,6 +21,9 @@ export interface CompanionController {
   opacityPercent(): number;
   setOpacityPercent(value: number): void;
   workMode(): boolean;
+  /** Click-through MODE (the `Ctrl+Shift+C` override), not per-region hit-testing. */
+  clickThrough(): boolean;
+  hidden(): boolean;
   /** Subscribes to companion state. Returns teardown. */
   subscribe(listener: () => void): () => void;
 }
@@ -31,14 +36,26 @@ export interface CompanionBridge {
 
 export function createCompanionController(bridge: CompanionBridge): CompanionController {
   const listeners = new Set<() => void>();
-  let state: CompanionState = { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false };
+  let state: CompanionState = {
+    opacityPercent: OPACITY_DEFAULT_PERCENT,
+    workMode: false,
+    clickThrough: false,
+    hidden: false,
+  };
 
   const notify = (): void => {
     for (const listener of listeners) listener();
   };
 
   const setLocal = (next: CompanionState): void => {
-    if (state.opacityPercent === next.opacityPercent && state.workMode === next.workMode) return;
+    if (
+      state.opacityPercent === next.opacityPercent &&
+      state.workMode === next.workMode &&
+      state.clickThrough === next.clickThrough &&
+      state.hidden === next.hidden
+    ) {
+      return;
+    }
     state = next;
     notify();
   };
@@ -51,6 +68,8 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
   return {
     opacityPercent: () => state.opacityPercent,
     workMode: () => state.workMode,
+    clickThrough: () => state.clickThrough,
+    hidden: () => state.hidden,
 
     setOpacityPercent(value) {
       // Optimistic: the readout answers immediately; main sanitizes and

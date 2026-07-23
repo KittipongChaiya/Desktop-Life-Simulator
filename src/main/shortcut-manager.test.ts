@@ -104,6 +104,18 @@ describe('createShortcutManager', () => {
     expect(bound[ShortcutAction.QuickHide]).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves unbound actions unregistered — their keys are never swallowed', () => {
+    // 01.8b binds quick hide and click-through; work mode arrives in 01.8c.
+    // An action without a handler must not claim its key system-wide.
+    const registrar = stubRegistrar();
+    createShortcutManager(DEFAULT_BINDINGS, registrar).registerAll({
+      [ShortcutAction.QuickHide]: vi.fn(),
+      [ShortcutAction.ClickThrough]: vi.fn(),
+    });
+
+    expect(registrar.registered).toEqual(['F12', 'Ctrl+Shift+C']);
+  });
+
   it('dispose unregisters everything', () => {
     const registrar = stubRegistrar();
     const manager = createShortcutManager(DEFAULT_BINDINGS, registrar);

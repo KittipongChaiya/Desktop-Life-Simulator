@@ -22,11 +22,15 @@ export interface ShortcutRegistrar {
 
 export interface ShortcutManager {
   /**
-   * Binds a handler to every action. Returns the actions whose registration
-   * failed — a claimed key degrades that one feature, never the app
-   * (ADR-014 §5.2); the caller decides how to surface it.
+   * Binds a handler per action. An action WITHOUT a handler is skipped
+   * entirely — its key is never claimed system-wide (01.8b binds two; work
+   * mode joins in 01.8c). Returns the actions whose registration failed — a
+   * claimed key degrades that one feature, never the app (ADR-014 §5.2); the
+   * caller decides how to surface it.
    */
-  registerAll(handlers: Readonly<Record<ShortcutAction, () => void>>): readonly ShortcutAction[];
+  registerAll(
+    handlers: Readonly<Partial<Record<ShortcutAction, () => void>>>,
+  ): readonly ShortcutAction[];
   dispose(): void;
 }
 
@@ -38,8 +42,11 @@ export function createShortcutManager(
     registerAll(handlers) {
       const failed: ShortcutAction[] = [];
       for (const action of SHORTCUT_ACTIONS) {
+        const handler = handlers[action];
+        if (handler === undefined) continue; // unbound — the key stays free
+
         // The ONE point where an action meets its physical key.
-        if (!registrar.register(bindings[action], handlers[action])) failed.push(action);
+        if (!registrar.register(bindings[action], handler)) failed.push(action);
       }
       return failed;
     },

@@ -15,12 +15,14 @@ import {
   type OverlayState,
 } from '../shared/ipc/contract';
 import { validateBoolean, validateNumber, validateVoid } from '../shared/ipc/schemas';
+import { DEFAULT_BINDINGS, ShortcutAction } from '../shared/shortcuts';
 
-import { applyOpacity } from './desktop-companion';
+import { applyHidden, applyOpacity, globalShortcutRegistrar } from './desktop-companion';
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
 import { loadSettings, saveSettings } from './settings';
 import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type AppSettings } from './settings-schema';
+import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
 
 let overlay: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -28,6 +30,18 @@ let tray: Tray | null = null;
 // so no field can be dropped by a partial write (found designing 01.8a: the
 // old `saveSettings({ collapsed })` calls would have erased the opacity).
 let settings: AppSettings = DEFAULT_SETTINGS;
+// Companion RUNTIME state — deliberately not part of the settings record.
+// Both reset by not existing anywhere at launch: a player must never start
+// the app invisible or untouchable (ADR-014 §4).
+let hidden = false;
+let clickThroughMode = false;
+// The last per-region hit-testing request from the renderer, recorded even
+// while the click-through MODE overrides it — so lifting the mode restores
+// exactly the state hit-testing believes is applied (its dedupe cache stays
+// truthful; without this, the window stays mouse-inert until the pointer
+// happens to cross a UI boundary).
+let hitTestClickThrough = true;
+let shortcuts: ShortcutManager | null = null;
 let stopWatchingDisplays: (() => void) | null = null;
 
 function overlayState(): OverlayState {
@@ -39,7 +53,44 @@ function companionState(): CompanionState {
   return {
     opacityPercent: settings.desktop.opacityPercent,
     workMode: settings.desktop.workMode,
+    clickThrough: clickThroughMode,
+    hidden,
   };
+}
+
+function broadcastCompanionState(): void {
+  if (overlay !== null && !overlay.isDestroyed()) {
+    overlay.webContents.send(EventChannel.CompanionStateChanged, companionState());
+  }
+}
+
+/**
+ * Quick hide / restore. ONE action with three inputs — the `F12` global
+ * hotkey, the tray item, and the IPC toggle — exactly the action/input split
+ * fix/0.1/1.8a.md demands. Nothing is persisted: relaunch always shows.
+ */
+function toggleHidden(): CompanionState {
+  hidden = !hidden;
+  if (overlay !== null) applyHidden(overlay, hidden);
+  // The renderer keeps running while hidden (backgroundThrottling: false), so
+  // it receives this and can toast the restore when the window returns.
+  broadcastCompanionState();
+  refreshTrayMenu();
+  return companionState();
+}
+
+/**
+ * Click-through mode: the main-process override above per-region hit-testing
+ * (ADR-014 §2). Mode ON forces mouse transparency; mode OFF restores the last
+ * hit-testing request, which kept being recorded underneath.
+ */
+function toggleClickThroughMode(): CompanionState {
+  clickThroughMode = !clickThroughMode;
+  if (overlay !== null) {
+    setClickThrough(overlay, clickThroughMode ? true : hitTestClickThrough);
+  }
+  broadcastCompanionState();
+  return companionState();
 }
 
 function applyCollapsed(next: boolean): OverlayState {
@@ -77,6 +128,12 @@ function refreshTrayMenu(): void {
 
   tray.setContextMenu(
     Menu.buildFromTemplate([
+      {
+        // The no-hotkey fallback ADR-014 §5.2 promises — and the Show/Hide
+        // item the phase-01 tray spec always wanted.
+        label: hidden ? 'Show overlay' : 'Hide overlay',
+        click: () => void toggleHidden(),
+      },
       {
         label: settings.overlay.collapsed ? 'Expand' : 'Collapse',
         click: () => void applyCollapsed(!settings.overlay.collapsed),
@@ -122,6 +179,16 @@ function registerIpc(): void {
     return companionState();
   });
 
+  ipcMain.handle(InvokeChannel.ToggleHidden, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.ToggleHidden);
+    return toggleHidden();
+  });
+
+  ipcMain.handle(InvokeChannel.ToggleClickThrough, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.ToggleClickThrough);
+    return toggleClickThroughMode();
+  });
+
   ipcMain.handle(InvokeChannel.Quit, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.Quit);
     app.quit();
@@ -130,6 +197,11 @@ function registerIpc(): void {
   ipcMain.on(SendChannel.SetClickThrough, (_event, payload: unknown) => {
     const parsed = validateBoolean(payload, SendChannel.SetClickThrough);
     if (!parsed.ok || overlay === null) return;
+    // Always RECORD the hit-testing request; only APPLY it when the
+    // click-through mode is not overriding (ADR-014 §2 — two mechanisms, one
+    // owner). Lifting the mode replays the newest recorded value.
+    hitTestClickThrough = parsed.value;
+    if (clickThroughMode) return;
     setClickThrough(overlay, parsed.value);
   });
 }
@@ -151,6 +223,23 @@ function bootstrap(): void {
 
   createTray();
   registerIpc();
+
+  // Global hotkeys, resolved through the one manager (fix/0.1/1.8a.md).
+  // Work mode's action stays UNBOUND until 01.8c wires it — its key must not
+  // be swallowed doing nothing. Failures are non-fatal by policy: the feature
+  // degrades and the tray remains the fallback (ADR-014 §5.2).
+  shortcuts = createShortcutManager(DEFAULT_BINDINGS, globalShortcutRegistrar);
+  const failed = shortcuts.registerAll({
+    [ShortcutAction.QuickHide]: () => void toggleHidden(),
+    [ShortcutAction.ClickThrough]: () => void toggleClickThroughMode(),
+  });
+  if (failed.length > 0) {
+    // Operational warning, not a debug statement: another app owns the key,
+    // the feature degrades, and silence here would be undiagnosable
+    // (ADR-014 §5.2 — "logged and skipped"). Main has no logger; stderr is it.
+    // eslint-disable-next-line no-console
+    console.warn(`shortcut registration failed (key in use): ${failed.join(', ')}`);
+  }
 }
 
 // E2E and portable installs may isolate the profile — preferences AND the
@@ -182,4 +271,10 @@ app.on('before-quit', () => {
   saveSettings(settings);
   tray?.destroy();
   tray = null;
+});
+
+app.on('will-quit', () => {
+  // Release the global keys back to the OS the moment we stop being an app.
+  shortcuts?.dispose();
+  shortcuts = null;
 });
