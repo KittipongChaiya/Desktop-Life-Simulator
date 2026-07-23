@@ -15,15 +15,15 @@ import { dirname, join } from 'node:path';
 
 import { app } from 'electron';
 
-import { DEFAULT_SETTINGS, parseSettings, type UiSettings } from './settings-schema';
+import { DEFAULT_SETTINGS, parseSettings, type AppSettings } from './settings-schema';
 
-export type { UiSettings } from './settings-schema';
+export type { AppSettings } from './settings-schema';
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
 }
 
-export function loadSettings(): UiSettings {
+export function loadSettings(): AppSettings {
   try {
     // Parsing and per-field sanitation live in the schema (settings-schema.ts,
     // pure and unit-tested); this module owns only the disk around it.
@@ -34,7 +34,7 @@ export function loadSettings(): UiSettings {
   }
 }
 
-export function saveSettings(settings: UiSettings): void {
+export function saveSettings(settings: AppSettings): void {
   try {
     const path = settingsPath();
     mkdirSync(dirname(path), { recursive: true });

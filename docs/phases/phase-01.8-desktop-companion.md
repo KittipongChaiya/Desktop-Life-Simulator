@@ -2,7 +2,7 @@
 
 > **Delivers:** The platform features that define the project's identity — an opacity dial, quick hide, click-through mode, work mode, and always-on-bottom — implemented as a main-process platform service the simulation never learns exists (ADR-014).
 > **Runnable at completion:** The game coexists with real desktop work: fade it, banish it, make it untouchable, or strip it to its living world — the farm runs through all of it.
-> **Source directive:** `fix/0.1/1.8.md`. **Architecture:** ADR-014.
+> **Source directives:** `fix/0.1/1.8.md` (the features), `fix/0.1/1.8a.md` (the architecture extension). **Architecture:** ADR-014 (as amended).
 
 ---
 
@@ -83,11 +83,12 @@ Recorded before implementation; changing one is a spec edit, not a coding choice
 
 ## Milestones
 
-| #     | Milestone                                | Delivers                                                                                                                                                                                                                                 | Status        |
-| ----- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| 01.8a | The platform service & the presence dial | `src/main/desktop-companion.ts`; `settings.json` schema extension (opacity, work mode); IPC contract extension; opacity applied instantly + persisted; Settings panel with the Desktop Companion section (slider, %, shortcut reference) | **Delivered** |
-| 01.8b | The instant handles                      | Global `F12` quick hide/restore and `Ctrl+Shift+C` click-through mode; the toast surface (auto-dismiss, in-overlay); reset-on-launch semantics; hidden-tick proof                                                                        | Planned       |
-| 01.8c | Work mode & the z-order inversion        | Global `F11` work mode (25%, HUD stripped, world kept, last state persisted); always-on-bottom replacing always-on-top; E2E suite; phase close-out                                                                                       | Planned       |
+| #      | Milestone                                      | Delivers                                                                                                                                                                                                                                                              | Status        |
+| ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 01.8a  | The platform service & the presence dial       | `src/main/desktop-companion.ts`; `settings.json` schema extension (opacity, work mode); IPC contract extension; opacity applied instantly + persisted; Settings panel with the Desktop Companion section (slider, %, shortcut reference)                              | **Delivered** |
+| 01.8a2 | The architecture extension (`fix/0.1/1.8a.md`) | `ShortcutAction` stable identifiers + the one-place default bindings table (`shared/shortcuts.ts`); the centralized pure `ShortcutManager`; the categorized application settings model (`overlay`/`desktop`, legacy files migrate in place); ADR-014 §4/§5 amendments | **Delivered** |
+| 01.8b  | The instant handles                            | Global `F12` quick hide/restore and `Ctrl+Shift+C` click-through mode; the toast surface (auto-dismiss, in-overlay); reset-on-launch semantics; hidden-tick proof                                                                                                     | Planned       |
+| 01.8c  | Work mode & the z-order inversion              | Global `F11` work mode (25%, HUD stripped, world kept, last state persisted); always-on-bottom replacing always-on-top; E2E suite; phase close-out                                                                                                                    | Planned       |
 
 ### Delivered (01.8a) — the platform service & the presence dial
 
@@ -98,6 +99,16 @@ Recorded before implementation; changing one is a spec edit, not a coding choice
 - **The `DESKTOP_LIFE_USER_DATA` seam**: an env override for `userData`, set before the single-instance lock (which lives there too). The companion E2E runs against an isolated temp profile — never the developer's real `settings.json` — and test instances cannot quit against a running dev instance. Latent E2E hazard closed.
 - **E2E** (`tests/e2e/companion.spec.ts`, 3 tests): default 100% and instant apply via a real slider keypress (crit 1); cross-launch persistence — slider → `settings.json` in the isolated profile → relaunch opens at 70% before any UI runs (crit 2); the shortcut reference visible.
 - Gates: typecheck, lint, **700** unit/integration (was 674), **19 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched (crit 10 holding by construction).
+
+### Delivered (01.8a2) — the architecture extension (`fix/0.1/1.8a.md`)
+
+Infrastructure only, landed deliberately **before 01.8b registers the first hotkey**:
+
+- **`src/shared/shortcuts.ts`** — `ShortcutAction` stable identifiers (`workMode`/`quickHide`/`clickThrough`) and the default bindings table: **the only place physical keys exist**. Main registers from it; the settings panel's shortcut reference now renders from it (its hardcoded key list from 01.8a is gone — the directive's "no duplicated key constants" caught a one-milestone-old duplication). `Ctrl` rather than `CommandOrControl` deliberately: Windows-first (`VISION.md` §5.1).
+- **`src/main/shortcut-manager.ts`** — the centralized manager, **pure** (the electron `globalShortcut` adapter lives in `desktop-companion.ts` and is injected), so every acceptance criterion is a unit test: registers each action against its configured binding exactly once; a keypress resolves to its action's handler through the manager alone; failed registrations are reported and degrade only their own feature (ADR-014 §5.2); **a replaced bindings config re-keys actions with no other change** — the future rebinding path, executed in a test. Consumer note: 01.8b's wiring injects the real handlers; the manager ships one milestone ahead by explicit directive.
+- **The categorized application settings model** — `AppSettings { overlay: { collapsed }, desktop: { opacityPercent, workMode } }`; future categories (input, audio, graphics, language, accessibility) parse-tolerantly ignored until owned. Legacy files migrate in place: phase-01's `{collapsed}` and 01.8a's flat trio read through a per-category flat fallback and re-write categorized; a present category wins over stray flat fields. Save-separation criteria (survive save deletion / new world; saves hold only gameplay state) hold **by construction** — settings.json and `saves/` never meet — and phase-07 will re-assert them against a real save system.
+- **ADR-014 amended** (§4 the settings model and the save-may-never-touch rule; §5 the four explicit statements: defaults only, stable identifiers, replaceable configuration, future rebinding UI without architectural change); `ARCHITECTURE.md` §7, `PLAN.md`, `PROJECT_STRUCTURE.md` updated per the directive.
+- Gates: typecheck, lint, **708** unit/integration, **19 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched.
 
 ---
 

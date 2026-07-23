@@ -8,9 +8,10 @@
  * broadcast and the z-order push.
  */
 
-import type { BrowserWindow } from 'electron';
+import { globalShortcut, type BrowserWindow } from 'electron';
 
-import { effectiveOpacityPercent, type UiSettings } from './settings-schema';
+import { effectiveOpacityPercent, type DesktopSettings } from './settings-schema';
+import type { ShortcutRegistrar } from './shortcut-manager';
 
 /**
  * Applies the preference-derived opacity to the window. Instant — no
@@ -18,7 +19,19 @@ import { effectiveOpacityPercent, type UiSettings } from './settings-schema';
  * 1.8.md` acceptance 1). Precedence (work mode over slider) is the schema's
  * rule, not this module's.
  */
-export function applyOpacity(window: BrowserWindow, settings: UiSettings): void {
+export function applyOpacity(window: BrowserWindow, desktop: DesktopSettings): void {
   if (window.isDestroyed()) return;
-  window.setOpacity(effectiveOpacityPercent(settings) / 100);
+  window.setOpacity(effectiveOpacityPercent(desktop) / 100);
 }
+
+/**
+ * The electron half of the shortcut manager (fix/0.1/1.8a.md): the manager
+ * itself is pure and holds the resolution rules; this is the one adapter that
+ * touches `globalShortcut`. 01.8b's wiring injects it with the real handlers.
+ */
+export const globalShortcutRegistrar: ShortcutRegistrar = {
+  register: (accelerator, callback) => globalShortcut.register(accelerator, callback),
+  unregisterAll: () => {
+    globalShortcut.unregisterAll();
+  },
+};

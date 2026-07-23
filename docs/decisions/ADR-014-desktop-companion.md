@@ -1,14 +1,16 @@
 # ADR-014: The Desktop Companion
 
-|                   |                                                       |
-| ----------------- | ----------------------------------------------------- |
-| **Status**        | Accepted                                              |
-| **Date**          | 2026-07-23                                            |
-| **Deciders**      | Project owner (directive `fix/0.1/1.8.md`)            |
-| **Supersedes**    | ADR-003 — the window **z-order clause only** (see §2) |
-| **Superseded by** | —                                                     |
+|                   |                                                                |
+| ----------------- | -------------------------------------------------------------- |
+| **Status**        | Accepted                                                       |
+| **Date**          | 2026-07-23                                                     |
+| **Deciders**      | Project owner (directives `fix/0.1/1.8.md`, `fix/0.1/1.8a.md`) |
+| **Supersedes**    | ADR-003 — the window **z-order clause only** (see §2)          |
+| **Superseded by** | —                                                              |
 
 > The canonical authority for every desktop-companion feature — window presence, global hotkeys, platform persistence — from phase-01.8 through v1.0+. Authored under the foundation freeze (ADR-012) as its second sanctioned new decision. This ADR defines **platform architecture only**; concrete numbers (the opacity range, the work-mode constant) live in the phase-01.8 specification and the settings schema, not here.
+>
+> **Amended 2026-07-23** by directive `fix/0.1/1.8a.md`: §4 gains the categorized application settings model; §5 gains the rebindable-shortcut architecture (stable actions, one bindings table, the centralized `ShortcutManager`).
 
 ---
 
@@ -66,6 +68,8 @@ The renderer's work-mode state is a presentation store in the placement/seed-sel
 ### 4. Persistence rules
 
 - **Desktop settings are application preferences** in `settings.json` — the phase-01 store, extended. Persisted: opacity, work-mode last state, and the existing collapsed flag. They are **not** save data: loading a save never touches them, and no save field may mirror them.
+- **The settings file is a categorized application settings model** _(amended per `fix/0.1/1.8a.md`)_: preferences group into categories — `overlay` (window arrangement) and `desktop` (the companion dials) today; input bindings, audio, graphics, language, and accessibility arrive as new categories. The parse is tolerant per category and per field, so a future category never breaks an old build and an old file upgrades in place on its next write. The schema lives pure and unit-tested in `src/main/settings-schema.ts`.
+- **The save system may never touch this file**: loading a save never overwrites desktop settings, deleting a save never deletes them, and creating a new world preserves them. Phase-07 is built against this rule, not merely reminded of it.
 - **Hidden state and click-through mode have no persisted representation at all** — the strongest form of "reset on launch." A player must never start the app invisible or untouchable; those states exist only between a toggle and its counter-toggle.
 - Preferences keep their existing regime: cheap to lose, re-derivable from defaults, plain writes — never the atomic machinery saves require (ADR-002 §2, `src/main/settings.ts`'s recorded stance).
 
@@ -86,17 +90,24 @@ The policy:
 3. **The cost is named honestly:** a global `F12` shadows other applications' `F12` (browser devtools among them) while the game runs. v0.1 accepts the directive's bindings; rebindable shortcuts are the first item in §6.
 4. **Three is the number.** Adding a fourth global hotkey requires amending this ADR — the directive's restriction list ("no additional hotkeys") is adopted as an architectural bound.
 
+**The rebindable architecture** _(amended per `fix/0.1/1.8a.md`)_. Four statements, explicit and binding:
+
+- **The table above lists defaults only.** The keys are v0.1's fixed bindings, not the features' identity.
+- **Shortcut actions are stable identifiers** (`ShortcutAction.WorkMode` / `QuickHide` / `ClickThrough`, `src/shared/shortcuts.ts`) — the names any future rebinding configuration keys on; they never change once shipped.
+- **Key bindings are replaceable configuration.** Physical keys exist in exactly one place — the bindings table beside the actions — and every registration passes through the centralized `ShortcutManager` (`src/main/shortcut-manager.ts`); no `if key == F11` exists anywhere. v0.1's configuration source is the default table itself.
+- **A future rebinding UI requires no architectural change**: it replaces the configuration source (an `input` settings category feeding the manager and the settings panel's reference, which already render from the table) and touches nothing else.
+
 ### 6. Future extensibility
 
 Every restricted feature in the directive arrives, if it ever arrives, as a new capability of the same platform service — behind the same IPC contract, the same persistence rules, and the same sim-invisibility guarantee. None requires new architecture:
 
-| Future feature                                                | Arrives as                                                                                                       |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Rebindable shortcuts                                          | A settings-schema addition; the service already maps key → action                                                |
-| Multi-monitor selection                                       | A docking-service parameter (phase-01's `docking.ts` owns geometry)                                              |
-| Always-on-top opt-in, streaming/screenshot/presentation modes | New presence states in the same state model (§Trade-offs table)                                                  |
-| Auto-hide, focus/idle detection                               | New _inputs_ to the same state model — never new state kinds                                                     |
-| A second work-mode-like profile                               | Work mode generalizes to named presentation profiles (visibility set + opacity); the first profile ships in 01.8 |
+| Future feature                                                | Arrives as                                                                                                                                    |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rebindable shortcuts                                          | An `input` settings category replacing the default bindings table as the `ShortcutManager`'s configuration source — built, see §5's amendment |
+| Multi-monitor selection                                       | A docking-service parameter (phase-01's `docking.ts` owns geometry)                                                                           |
+| Always-on-top opt-in, streaming/screenshot/presentation modes | New presence states in the same state model (§Trade-offs table)                                                                               |
+| Auto-hide, focus/idle detection                               | New _inputs_ to the same state model — never new state kinds                                                                                  |
+| A second work-mode-like profile                               | Work mode generalizes to named presentation profiles (visibility set + opacity); the first profile ships in 01.8                              |
 
 ---
 

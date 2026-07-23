@@ -20,30 +20,33 @@ import { applyOpacity } from './desktop-companion';
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
 import { loadSettings, saveSettings } from './settings';
-import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type UiSettings } from './settings-schema';
+import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type AppSettings } from './settings-schema';
 
 let overlay: BrowserWindow | null = null;
 let tray: Tray | null = null;
 // The one settings record. Updated immutably; every mutation persists it whole
 // so no field can be dropped by a partial write (found designing 01.8a: the
 // old `saveSettings({ collapsed })` calls would have erased the opacity).
-let settings: UiSettings = DEFAULT_SETTINGS;
+let settings: AppSettings = DEFAULT_SETTINGS;
 let stopWatchingDisplays: (() => void) | null = null;
 
 function overlayState(): OverlayState {
-  const bounds = dockedBounds(settings.collapsed);
-  return { collapsed: settings.collapsed, width: bounds.width, height: bounds.height };
+  const bounds = dockedBounds(settings.overlay.collapsed);
+  return { collapsed: settings.overlay.collapsed, width: bounds.width, height: bounds.height };
 }
 
 function companionState(): CompanionState {
-  return { opacityPercent: settings.opacityPercent, workMode: settings.workMode };
+  return {
+    opacityPercent: settings.desktop.opacityPercent,
+    workMode: settings.desktop.workMode,
+  };
 }
 
 function applyCollapsed(next: boolean): OverlayState {
-  settings = { ...settings, collapsed: next };
+  settings = { ...settings, overlay: { ...settings.overlay, collapsed: next } };
 
   if (overlay !== null && !overlay.isDestroyed()) {
-    setCollapsed(overlay, settings.collapsed);
+    setCollapsed(overlay, settings.overlay.collapsed);
     overlay.webContents.send(EventChannel.OverlayStateChanged, overlayState());
   }
 
@@ -53,10 +56,13 @@ function applyCollapsed(next: boolean): OverlayState {
 }
 
 function applyOpacityPercent(next: number): CompanionState {
-  settings = { ...settings, opacityPercent: sanitizeOpacityPercent(next) };
+  settings = {
+    ...settings,
+    desktop: { ...settings.desktop, opacityPercent: sanitizeOpacityPercent(next) },
+  };
 
   if (overlay !== null && !overlay.isDestroyed()) {
-    applyOpacity(overlay, settings);
+    applyOpacity(overlay, settings.desktop);
     // Confirms the sanitized value to the settings UI, and keeps it in sync
     // when 01.8b/c change companion state from a global hotkey.
     overlay.webContents.send(EventChannel.CompanionStateChanged, companionState());
@@ -72,8 +78,8 @@ function refreshTrayMenu(): void {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: settings.collapsed ? 'Expand' : 'Collapse',
-        click: () => void applyCollapsed(!settings.collapsed),
+        label: settings.overlay.collapsed ? 'Expand' : 'Collapse',
+        click: () => void applyCollapsed(!settings.overlay.collapsed),
       },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
@@ -90,7 +96,7 @@ function createTray(): void {
   refreshTrayMenu();
 
   // Double-click toggles, matching the tray convention users expect.
-  tray.on('double-click', () => void applyCollapsed(!settings.collapsed));
+  tray.on('double-click', () => void applyCollapsed(!settings.overlay.collapsed));
 }
 
 function registerIpc(): void {
@@ -131,11 +137,11 @@ function registerIpc(): void {
 function bootstrap(): void {
   settings = loadSettings();
 
-  overlay = createOverlayWindow(settings.collapsed);
+  overlay = createOverlayWindow(settings.overlay.collapsed);
   // Opacity applies before first show — the window never flashes at 100% on
   // its way to the player's preference (fix/0.1/1.8.md acceptance 2).
-  applyOpacity(overlay, settings);
-  stopWatchingDisplays = watchDisplayChanges(() => settings.collapsed, overlay);
+  applyOpacity(overlay, settings.desktop);
+  stopWatchingDisplays = watchDisplayChanges(() => settings.overlay.collapsed, overlay);
 
   overlay.on('closed', () => {
     stopWatchingDisplays?.();

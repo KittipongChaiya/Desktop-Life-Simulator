@@ -18,16 +18,22 @@ import {
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
+import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
 import { useCompanion } from '../store-context';
 
 import styles from './SettingsPanel.module.css';
 
-/** The ADR-014 §5 shortcut table, verbatim — three, and only three. */
-const SHORTCUTS = [
-  { keys: 'F11', action: 'Work mode' },
-  { keys: 'F12', action: 'Quick hide' },
-  { keys: 'Ctrl+Shift+C', action: 'Click-through' },
-] as const;
+/**
+ * Display names for the stable action identifiers. The KEYS come from the
+ * one bindings table (`shared/shortcuts.ts`, fix/0.1/1.8a.md) — this panel
+ * never states a physical key itself, so a future rebind shows up here for
+ * free once the configuration source changes.
+ */
+const ACTION_LABELS: Readonly<Record<ShortcutAction, string>> = {
+  [ShortcutAction.WorkMode]: 'Work mode',
+  [ShortcutAction.QuickHide]: 'Quick hide',
+  [ShortcutAction.ClickThrough]: 'Click-through',
+};
 
 export function SettingsPanel(): ReactNode {
   const companion = useCompanion();
@@ -73,10 +79,10 @@ export function SettingsPanel(): ReactNode {
           </div>
 
           <div className={styles['section']}>Shortcuts</div>
-          {SHORTCUTS.map(({ keys, action }) => (
-            <div key={keys} className={styles['row']}>
-              <span className={styles['name']}>{action}</span>
-              <kbd className={styles['keys']}>{keys}</kbd>
+          {SHORTCUT_ACTIONS.map((action) => (
+            <div key={action} className={styles['row']}>
+              <span className={styles['name']}>{ACTION_LABELS[action]}</span>
+              <kbd className={styles['keys']}>{DEFAULT_BINDINGS[action]}</kbd>
             </div>
           ))}
         </div>

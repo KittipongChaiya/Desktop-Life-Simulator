@@ -1,5 +1,5 @@
 /**
- * App-preference schema. Phase-01.8a (ADR-014 §4).
+ * App-preference schema. Phase-01.8a, categorized per fix/0.1/1.8a.md.
  *
  * The schema is pure and electron-free precisely so these tests exist — the
  * disk I/O around it (`settings.ts`) stays thin and is exercised by E2E.
@@ -49,9 +49,12 @@ describe('sanitizeOpacityPercent', () => {
   });
 });
 
-describe('parseSettings', () => {
-  it('round-trips a valid settings object', () => {
-    const settings = { collapsed: true, opacityPercent: 60, workMode: true };
+describe('parseSettings — the categorized application settings model', () => {
+  it('round-trips a categorized settings object', () => {
+    const settings = {
+      overlay: { collapsed: true },
+      desktop: { opacityPercent: 60, workMode: true },
+    };
     expect(parseSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
   });
 
@@ -62,26 +65,53 @@ describe('parseSettings', () => {
     expect(parseSettings(42)).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('fills missing fields independently — a phase-01 settings file upgrades in place', () => {
-    // The pre-01.8 file has only `collapsed`. Its value must survive while the
-    // companion fields arrive as defaults.
+  it('migrates a pre-categorization flat file in place (01.8a wrote these)', () => {
+    expect(parseSettings({ collapsed: true, opacityPercent: 60, workMode: true })).toEqual({
+      overlay: { collapsed: true },
+      desktop: { opacityPercent: 60, workMode: true },
+    });
+  });
+
+  it('migrates a phase-01 file holding only `collapsed`', () => {
     expect(parseSettings({ collapsed: true })).toEqual({
-      collapsed: true,
-      opacityPercent: OPACITY_DEFAULT_PERCENT,
-      workMode: false,
+      overlay: { collapsed: true },
+      desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
     });
   });
 
-  it('sanitizes each field without discarding its neighbours', () => {
-    expect(parseSettings({ collapsed: 'yes', opacityPercent: 62, workMode: 1 })).toEqual({
-      collapsed: false,
-      opacityPercent: 60,
-      workMode: false,
+  it('a present category wins over stray flat fields', () => {
+    expect(
+      parseSettings({
+        desktop: { opacityPercent: 40, workMode: false },
+        opacityPercent: 90,
+        collapsed: true,
+      }),
+    ).toEqual({
+      overlay: { collapsed: true }, // no overlay category — flat fallback applies
+      desktop: { opacityPercent: 40, workMode: false },
     });
   });
 
-  it('ignores unknown fields', () => {
-    expect(parseSettings({ collapsed: false, legacy: true })).toEqual(DEFAULT_SETTINGS);
+  it('sanitizes each field inside its category without discarding neighbours', () => {
+    expect(
+      parseSettings({
+        overlay: { collapsed: 'yes' },
+        desktop: { opacityPercent: 62, workMode: 1 },
+      }),
+    ).toEqual({
+      overlay: { collapsed: false },
+      desktop: { opacityPercent: 60, workMode: false },
+    });
+  });
+
+  it('ignores unknown categories and fields — future categories stay compatible', () => {
+    expect(
+      parseSettings({
+        overlay: { collapsed: false },
+        desktop: { opacityPercent: 100, workMode: false },
+        audio: { volume: 0.5 }, // a future category must never break parsing
+      }),
+    ).toEqual(DEFAULT_SETTINGS);
   });
 });
 

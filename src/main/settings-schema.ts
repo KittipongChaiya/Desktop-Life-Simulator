@@ -1,10 +1,17 @@
 /**
- * App-preference schema and derivations. Phase-01.8a (ADR-014 §4).
+ * The application settings model. Phase-01.8a; categorized per
+ * fix/0.1/1.8a.md (ADR-014 §4, amended).
  *
  * Pure and electron-free so vitest can cover parsing and the opacity rules;
  * `settings.ts` owns the disk I/O around it. These are application
- * preferences, NOT game state — no field here may ever mirror the save, and
- * loading a save never touches them.
+ * preferences, NOT game state — the save system (phase-07) may never touch
+ * them: loading a save never overwrites them, deleting a save never deletes
+ * them, and no field here may ever affect the deterministic simulation.
+ *
+ * Settings are grouped in CATEGORIES so future versions add whole families
+ * (input bindings, audio, graphics, language, accessibility) without breaking
+ * compatibility — the tolerant per-category parse ignores what it does not
+ * know and defaults what is missing.
  *
  * Deliberately absent: the hidden and click-through states (01.8b). They have
  * no persisted representation at all — a player must never start the app
@@ -18,18 +25,27 @@ import {
   OPACITY_STEP_PERCENT,
 } from '../shared/constants';
 
-export interface UiSettings {
+/** How the overlay window is arranged. */
+export interface OverlaySettings {
   readonly collapsed: boolean;
+}
+
+/** The desktop-companion presence dials (ADR-014). */
+export interface DesktopSettings {
   /** The presence dial's position, 30–100 in steps of 5 (`fix/0.1/1.8.md`). */
   readonly opacityPercent: number;
   /** Work mode's last state — relaunch resumes it (ADR-014 §4). */
   readonly workMode: boolean;
 }
 
-export const DEFAULT_SETTINGS: UiSettings = {
-  collapsed: false,
-  opacityPercent: OPACITY_DEFAULT_PERCENT,
-  workMode: false,
+export interface AppSettings {
+  readonly overlay: OverlaySettings;
+  readonly desktop: DesktopSettings;
+}
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  overlay: { collapsed: false },
+  desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
 };
 
 /**
@@ -48,26 +64,41 @@ export function sanitizeOpacityPercent(value: unknown): number {
   return Math.round(clamped / OPACITY_STEP_PERCENT) * OPACITY_STEP_PERCENT;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function readBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 /**
- * Tolerant parse: each field falls back independently, so a pre-01.8 settings
- * file upgrades in place and one corrupt field never discards its neighbours.
+ * Tolerant parse: each category and each field falls back independently, so
+ * files upgrade in place and one corrupt field never discards its neighbours.
+ *
+ * Pre-categorization files (phase-01's `{collapsed}`, 01.8a's flat trio) are
+ * read through a flat fallback per category — a present category wins; the
+ * next write migrates the file to the categorized shape.
  */
-export function parseSettings(value: unknown): UiSettings {
-  if (typeof value !== 'object' || value === null) return DEFAULT_SETTINGS;
-  const record = value as Record<string, unknown>;
+export function parseSettings(value: unknown): AppSettings {
+  const record = asRecord(value);
+  if (record === null) return DEFAULT_SETTINGS;
+
+  const overlay = asRecord(record['overlay']) ?? record;
+  const desktop = asRecord(record['desktop']) ?? record;
 
   return {
-    collapsed:
-      typeof record['collapsed'] === 'boolean' ? record['collapsed'] : DEFAULT_SETTINGS.collapsed,
-    opacityPercent: sanitizeOpacityPercent(record['opacityPercent']),
-    workMode:
-      typeof record['workMode'] === 'boolean' ? record['workMode'] : DEFAULT_SETTINGS.workMode,
+    overlay: {
+      collapsed: readBoolean(overlay['collapsed'], DEFAULT_SETTINGS.overlay.collapsed),
+    },
+    desktop: {
+      opacityPercent: sanitizeOpacityPercent(desktop['opacityPercent']),
+      workMode: readBoolean(desktop['workMode'], DEFAULT_SETTINGS.desktop.workMode),
+    },
   };
 }
 
 /** The window's opacity under mode precedence: work mode overrides the slider. */
-export function effectiveOpacityPercent(
-  settings: Pick<UiSettings, 'opacityPercent' | 'workMode'>,
-): number {
-  return settings.workMode ? WORK_MODE_OPACITY_PERCENT : settings.opacityPercent;
+export function effectiveOpacityPercent(desktop: DesktopSettings): number {
+  return desktop.workMode ? WORK_MODE_OPACITY_PERCENT : desktop.opacityPercent;
 }

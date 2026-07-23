@@ -64,15 +64,16 @@ test('persists between launches and lands in settings.json, not a save (crit 2)'
   await expect(window.getByText('70%')).toBeVisible();
   await expect.poll(windowOpacity).toBeCloseTo(0.7, 5);
 
-  // The preference lives in settings.json — app preferences, never game state
+  // The preference lives in settings.json under the categorized application
+  // settings model (fix/0.1/1.8a.md) — app preferences, never game state
   // (ADR-014 §4). Poll: the write follows the IPC reply asynchronously.
   await expect
     .poll(() => {
       try {
         const parsed = JSON.parse(readFileSync(join(userData, 'settings.json'), 'utf8')) as {
-          opacityPercent?: number;
+          desktop?: { opacityPercent?: number };
         };
-        return parsed.opacityPercent;
+        return parsed.desktop?.opacityPercent;
       } catch {
         return undefined;
       }

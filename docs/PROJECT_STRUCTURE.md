@@ -55,6 +55,8 @@ src/
 │   ├── geometry.ts             TilePosition, Rect, index↔coord helpers
 │   ├── simulation-control.ts   Loop control contract (bootstrap implements,
 │   │                           devtools consumes; neither depends on the other)
+│   ├── shortcuts.ts            ShortcutActions + default bindings — THE one
+│   │                           place physical keys exist (fix/0.1/1.8a.md)
 │   └── ipc/
 │       ├── contract.ts         Typed channel definitions
 │       └── schemas.ts          Runtime validators for IPC payloads
@@ -192,8 +194,11 @@ src/
 │   ├── overlay-window.ts       Frameless, transparent, docked, always-on-bottom (ADR-014)
 │   ├── docking.ts              workArea geometry, multi-monitor, DPI
 │   ├── settings.ts             App preferences (settings.json) — NOT game state
-│   ├── settings-schema.ts      Preference schema + derivations. Pure and
-│   │                           electron-free so vitest covers it (ADR-014 §4)
+│   ├── settings-schema.ts      The categorized application settings model
+│   │                           (overlay/desktop; future input/audio/graphics).
+│   │                           Pure and electron-free (ADR-014 §4, fix/0.1/1.8a)
+│   ├── shortcut-manager.ts     Centralized shortcut resolution: ShortcutAction →
+│   │                           binding. Pure; the electron registrar is injected
 │   ├── desktop-companion.ts    Global hotkeys, opacity, quick hide, click-through
 │   │                           mode, work mode, z-order (ADR-014). Sim-invisible.
 │   ├── click-through.ts        setIgnoreMouseEvents management
