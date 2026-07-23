@@ -52,9 +52,10 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
       "width": 64,
       "height": 64,
       "kind": "<base64 Uint8Array,  4096 bytes>",
-      "owned": "<base64 Uint8Array,   512 bytes>", // bitfield
-      "tilledAt": "<base64 Uint32Array, 16384 bytes>",
+      "owned": "<base64 bitfield,    512 bytes>",
+      "tilledAt": "<base64 Uint32Array LE, 16384 bytes>",
       "moisture": "<base64 Uint8Array,  4096 bytes>",
+      // `blocked` is deliberately absent — derived from buildings (§2.2)
     },
 
     "crops": [{ "tile": 4172, "cropId": "core:wheat", "plantedTick": 1438800 }],
@@ -62,56 +63,61 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     "workers": [
       {
         "id": 1,
-        "x": 32,
-        "y": 30,
+        "position": 1952, // a TileIndex — every spatial reference is one
         "state": "moving",
-        "task": { "kind": "harvest", "tile": 4172 },
+        "task": { "kind": "harvest", "tile": 4172 }, // + "cropId" on a seed-bin Plant
         "path": [4108, 4140, 4172],
         "pathCursor": 1,
         "actionProgress": 0,
         "energy": 74,
+        "energyTimer": 12, // sub-period accumulator — determinism state
         "carrying": [{ "item": "core:wheat", "qty": 6 }],
+        "replanTick": 1439980, // idle re-plan cadence — determinism state
       },
     ],
 
     "buildings": [{ "id": 1, "tile": 2050, "buildingId": "core:storage_shed" }],
 
-    "inventory": {
-      "slots": 90,
-      "items": [{ "item": "core:wheat", "qty": 43 }],
-    },
+    "buildingStorage": [{ "building": 1, "stacks": [{ "item": "core:wheat", "qty": 43 }] }],
+
+    "inventory": [{ "item": "core:wheat", "qty": 43 }],
 
     "wallet": { "coins": 1240 },
 
     "economy": {
-      "priceMultipliers": [{ "item": "core:wheat", "multiplier": 0.84 }],
+      "multipliers": [{ "item": "core:wheat", "multiplier": 0.84 }],
+      "expansionsPurchased": 2,
     },
 
-    "progression": {
-      "expansionsPurchased": 2,
-      "workersHired": 3,
-    },
+    "cropStats": { "planted": 3180, "harvested": 3122, "lastActivityTick": 1439990 },
+
+    "lastPlanted": [{ "tile": 4172, "cropId": "core:wheat" }],
+
+    "ids": { "worker": 4, "building": 2 },
   },
 
   "plugins": {},
 }
 ```
 
-The `world` body above is the phase-03–06 sketch. Phase-07 finalizes it field-by-field against the shipped `World` — which has since gained `cropStats` (event-maintained cumulative counters), `buildingStorage` (the per-building container side-table), `lastPlanted` (the seed bin's memory), the economy's expansion counter, and the ID allocator's counters (not derivable once any ID has ever been freed — ADR-015 §6) — under §9's checklist. The authoritative-state set is enumerated in ADR-015 §6.
+Finalized in phase-07a against the shipped `World`, exactly as `src/persistence/schema.ts` types it — the two are the same shape by definition, and §9's checklist keeps them that way. The authoritative-state set behind every field is enumerated in ADR-015 §6.
 
 ### 2.1 Field rules
 
-| Rule                                                | Reason                                                                                     |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `schemaVersion` is first                            | Identifiable in a corrupt file                                                             |
-| `magic` is second, and constant forever             | The format's identity (ADR-015 §1); a file without it is not a save                        |
-| `meta.gameVersion` never drives logic               | Only `schemaVersion` controls migration; version strings drift and get reused (ADR-015 §2) |
-| `meta.createdAtUnixMs` is written once              | World creation time — preserved verbatim by every save and every migration                 |
-| `rngState` is saved, not just `seed`                | Determinism must resume mid-stream, not restart (ADR-007)                                  |
-| Grid arrays are base64 typed arrays                 | A 4,096-element JSON number array is ~8× larger and slower to parse                        |
-| Sparse stores serialize as arrays of records        | Maps are not JSON-native; arrays preserve order deterministically                          |
-| Entity IDs are plain numbers in the save            | Branded types (`CODE_STYLE.md` §1.4) are compile-time only                                 |
-| Content is referenced by `ContentId`, never inlined | ADR-004 §5 — rebalancing must not require a migration                                      |
+| Rule                                                | Reason                                                                                                       |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `schemaVersion` is first                            | Identifiable in a corrupt file                                                                               |
+| `magic` is second, and constant forever             | The format's identity (ADR-015 §1); a file without it is not a save                                          |
+| `meta.gameVersion` never drives logic               | Only `schemaVersion` controls migration; version strings drift and get reused (ADR-015 §2)                   |
+| `meta.createdAtUnixMs` is written once              | World creation time — preserved verbatim by every save and every migration                                   |
+| `rngState` is saved, not just `seed`                | Determinism must resume mid-stream, not restart (ADR-007)                                                    |
+| Grid arrays are base64 typed arrays                 | A 4,096-element JSON number array is ~8× larger and slower to parse; 32-bit words are explicit little-endian |
+| Sparse stores serialize as arrays of records        | Maps are not JSON-native; arrays preserve order deterministically                                            |
+| Entity IDs are plain numbers in the save            | Branded types (`CODE_STYLE.md` §1.4) are compile-time only                                                   |
+| Container capacities are **not** persisted          | Constants and definitions own them — a rebalance reaches old saves without a migration (ADR-004 §5)          |
+| Container stack **order** is preserved verbatim     | Partial-stack top-up order is behavior — order is state, not presentation                                    |
+| `ids` — the allocator counters, persisted verbatim  | `max + 1` reconstruction reissues freed IDs and breaks continue-identically (ADR-015 §6)                     |
+| Content is referenced by `ContentId`, never inlined | ADR-004 §5 — rebalancing must not require a migration                                                        |
 
 ### 2.2 Never persisted
 

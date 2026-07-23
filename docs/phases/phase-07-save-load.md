@@ -21,27 +21,47 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ---
 
+## Milestones
+
+| #   | Milestone                              | Delivers                                                                                                                                                                                                                                      | Status        |
+| --- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 07a | The document & the round trip          | `schema.ts` (`SAVE_MAGIC`, `CURRENT_SCHEMA_VERSION`, `SaveDocument`), the pure base64 codec, explicit hand-written serialize/hydrate per store, blocked-bits recomputation; round-trip + byte-stability + continue-identically property tests | **Delivered** |
+| 07b | Migration chain & validation           | `Migration` interface + ordered runner with startup chain validation, synthetic two-step chain proof, golden fixtures (`v1-empty`, `v1-mature-farm`), structural + semantic validation with logged repairs, unknown-content quarantine        | —             |
+| 07c | Disk & the load pipeline               | Main-process atomic six-step write, `.bak` fallback, `backups/` pruning, forward-version refusal, typed IPC save/load channels, crash-safety + corruption tests, E2E quit → relaunch exact                                                    | —             |
+| 07d | Offline progress                       | `catch-up.ts` orchestration; economy exact recovery, workers statistical (rounded down at every step), auto-sell, capacity bounds + blocker reporting, 8-hour cap, negative-time clamp, < 50 ms at cap; never-over-credit property            | —             |
+| 07e | Autosave, return summary & phase close | Autosave triggers + coalescing, failure notifications, manual save, the return summary (defers in work mode, ADR-014), kill-mid-save E2E, size guard, the full v0.1 release-gate run                                                          | —             |
+
+### Delivered (07a) — the document & the round trip
+
+- **The version-1 document is real and final in shape**: `schema.ts` carries `SAVE_MAGIC`, `CURRENT_SCHEMA_VERSION = 1`, and a `SaveDocument` typed field-for-field against the shipped `World` — including the state the phase-0 sketch never anticipated (`cropStats`, `buildingStorage`, `lastPlanted`, the expansion counter, the allocator counters, and the workers' `energyTimer`/`replanTick` sub-period accumulators). `SAVE_FORMAT.md` §2 was finalized against it in the same commit.
+- **Serialization is explicit, pure, and byte-stable**: every field written by name in canonical key order, collections sorted by stable keys (for workers/buildings, sorted-by-id _equals_ live Map insertion order — the monotonic allocator guarantees it — so hydration reproduces the iteration order the economy's stall sweep depends on), container stack order preserved verbatim because partial-stack top-up order is behavior. The base64 codec is hand-rolled (pure ES2022 has no `Buffer`/`btoa`) with 32-bit words explicitly little-endian.
+- **Hydration reuses `createWorld`** for registries, commands, events, and the crop-stats subscription, then overwrites every authoritative field; derived state is recomputed (`blocked` bits from the building store, capacities from constants and definitions).
+- **The three properties hold over arbitrary worlds** (fast-check): round trip, byte-stability through a full disk trip, and **continue-identically** — hydrated vs never-saved worlds stepped up to 300 ticks with workers acting and the economy sweeping, compared byte-for-byte, plus the freed-building-ID case that motivated persisting the allocator counters (ADR-015 §6). A deliberate mutation control (dropping `energyTimer` restoration) failed 3 of 7 tests — the suite has teeth.
+- Gates: typecheck, lint, full unit/integration suite, full Playwright E2E on a fresh debug build.
+
+---
+
 ## Deliverables
 
 ### Schema
 
-- [ ] `src/persistence/schema.ts` — `SaveDocument` matching `SAVE_FORMAT.md` §2 exactly
-- [ ] `CURRENT_SCHEMA_VERSION = 1`
-- [ ] `schemaVersion` written **first** in the document; `SAVE_MAGIC` identity constant second (ADR-015 §1)
-- [ ] `meta.createdAtUnixMs` stamped at world creation, preserved by every save (ADR-015 §1)
-- [ ] The ID allocator's counters persisted — **not** reconstructed as `max + 1`, which breaks continue-identically determinism once any ID has been freed (ADR-015 §6)
-- [ ] `SAVE_FORMAT.md` §2's `world` body finalized against the shipped `World` — `cropStats`, `buildingStorage`, `lastPlanted`, the expansion counter (ADR-015 §Implementation Notes)
-- [ ] `plugins: {}` present from version 1 — so v0.2's loader needs no migration
+- [x] `src/persistence/schema.ts` — `SaveDocument` matching `SAVE_FORMAT.md` §2 exactly _(07a — §2 finalized against this type in the same commit)_
+- [x] `CURRENT_SCHEMA_VERSION = 1`
+- [x] `schemaVersion` written **first** in the document; `SAVE_MAGIC` identity constant second (ADR-015 §1) _(07a — asserted on the serialized text itself)_
+- [x] `meta.createdAtUnixMs` stamped at world creation, preserved by every save (ADR-015 §1) _(07a — the field; the stamping call site arrives with the save orchestration, 07c/e)_
+- [x] The ID allocator's counters persisted — **not** reconstructed as `max + 1`, which breaks continue-identically determinism once any ID has been freed (ADR-015 §6) _(07a — the freed-ID case is a dedicated test)_
+- [x] `SAVE_FORMAT.md` §2's `world` body finalized against the shipped `World` — `cropStats`, `buildingStorage`, `lastPlanted`, the expansion counter (ADR-015 §Implementation Notes) _(07a — plus `energyTimer`/`replanTick`, the sub-period accumulators determinism demanded)_
+- [x] `plugins: {}` present from version 1 — so v0.2's loader needs no migration
 
 ### Serialization
 
-- [ ] `serialize.ts` / `deserialize.ts` — **explicit, hand-written `toSave`/`fromSave` per store**
-- [ ] **Reflective or automatic serialization is banned** (`SAVE_FORMAT.md` §3.1)
-- [ ] Grid typed arrays encoded as base64
-- [ ] Sparse stores as arrays sorted by a stable key
-- [ ] RNG state serialized so determinism resumes mid-stream
-- [ ] **Byte-stable**: the same world always produces identical JSON
-- [ ] Derived state never persisted — `stage`, caches, snapshots (`SAVE_FORMAT.md` §2.2)
+- [x] `serialize.ts` / `deserialize.ts` — **explicit, hand-written `toSave`/`fromSave` per store** _(07a — hydration reuses `createWorld` for wiring, then overwrites every authoritative field by name)_
+- [x] **Reflective or automatic serialization is banned** (`SAVE_FORMAT.md` §3.1)
+- [x] Grid typed arrays encoded as base64 _(07a — hand-rolled codec; pure ES2022 has no `Buffer`/`btoa`; 32-bit words explicitly little-endian)_
+- [x] Sparse stores as arrays sorted by a stable key _(07a — for workers/buildings sorted-by-id **equals** live Map insertion order, so hydration reproduces live iteration order, which the stall sweep depends on)_
+- [x] RNG state serialized so determinism resumes mid-stream
+- [x] **Byte-stable**: the same world always produces identical JSON _(07a — property-tested, including through a full round trip)_
+- [x] Derived state never persisted — `stage`, caches, snapshots (`SAVE_FORMAT.md` §2.2) _(07a — `blocked` bits recomputed from the building store on hydrate; container capacities from constants/definitions)_
 
 ### Atomic writes (main process)
 
@@ -163,11 +183,11 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ### Automated
 
-- [ ] Round-trip property across arbitrary worlds (1)
-- [ ] Byte-stability across repeated serialization (2)
-- [ ] Every store: serialize and deserialize independently
-- [ ] Grid: base64 typed-array round-trip
-- [ ] Sparse stores: stable ordering
+- [x] Round-trip property across arbitrary worlds (1) _(07a — invariant-preserving arbitrary worlds: crops, workers mid-task, all four buildings with storage, multipliers, freed IDs)_
+- [x] Byte-stability across repeated serialization (2) _(07a — twice, and through a full serialize → parse → hydrate → serialize trip)_
+- [x] Every store: serialize and deserialize independently _(07a — collectively, via the round-trip property; the per-store pairs are named blocks inside `toSaveDocument`/`hydrateWorld`, and a mutation control confirmed a single dropped field fails the suite)_
+- [x] Grid: base64 typed-array round-trip _(07a — RFC 4648 vectors + arbitrary-bytes property + explicit little-endian pin)_
+- [x] Sparse stores: stable ordering _(07a — byte-stability is the assertion)_
 - [ ] Crash safety at each of the six write steps (4)
 - [ ] Corruption: truncated, empty, malformed, wrong-type, missing-version
 - [ ] `.bak` fallback in each corruption case
@@ -177,7 +197,7 @@ The cost of going last is that this phase touches every system built so far. Tha
 - [ ] Migration runner with a synthetic two-step chain — proves the mechanism works before it is needed
 - [ ] Every semantic repair rule in `SAVE_FORMAT.md` §5.2
 - [ ] Unknown content quarantine and restoration (12)
-- [ ] Determinism continues across save/load (13)
+- [x] Determinism continues across save/load (13) _(07a — hydrated vs never-saved worlds stepped up to 300 ticks with workers, economy, and RNG live, compared byte-for-byte; the E2E half joins 07c)_
 - [ ] Catch-up: per-system accuracy against real ticks
 - [ ] Catch-up: never over-credits (14) — the critical property
 - [ ] Catch-up: capacity bounds and blocker reporting
