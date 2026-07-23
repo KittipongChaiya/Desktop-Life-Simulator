@@ -43,7 +43,7 @@ Because this phase writes only Markdown, the TDD / coverage / E2E gates do not a
 | **05.5b** | B      | `CHARACTER_BIBLE`, `WORLD_BIBLE`, `LORE_BIBLE`                             | **Delivered** |
 | **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | **Delivered** |
 | **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | **Delivered** |
-| **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | Pending       |
+| **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | **Delivered** |
 | **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | Pending       |
 | **05.5g** | F + H  | `DESIGN_PRINCIPLES`, `CONTENT_RULES`, `GAME_LOOPS` + reconciliation report | Pending       |
 
@@ -83,6 +83,14 @@ Consistency edit shipped in the same commit: **`COLOR_PALETTE.md §3.5`** adds t
 - `ASSET_CATALOG.md` (CREATE) — the production backlog (priority/phase/estimate/deps/status), grounded in real v0.1 content and flagging phase-06's economy art as the next P0 wave (the reason 05.5 precedes 06). Renamed from the directive's `ASSET_MANIFEST` and given a header contrasting it with the generated `manifest.ts` (`ASSETS.md §5`), which it must never be confused with.
 
 Reconciliation: `ASSET_MANIFEST` → `ASSET_CATALOG` rename (collision with the generated `manifest.ts`); the directive's single Concept→Release pipeline is split at the source-PNG seam so `AI_ASSET_PIPELINE` never duplicates the build owned by `ASSETS.md`/`ADR-006`.
+
+**05.5e delivered** — the audio canon (`docs/assets/`), written before a single note exists so v0.2's sound lands inside a locked direction, exactly as the art did:
+
+- `AUDIO_DIRECTION.md` (CREATE) — audio _intent_ governed by one principle: **sound you can leave running all day**. Music is sparse/ambient/optional, ambience is the world's quiet breath, nothing ever alarms (`VISION.md §2.1, §2.2` are audio's binding constraints — `STYLE_LOCK.md` binds only the visual canon), mixing keeps the game the guest, and loops are long/seamless/hook-free. Defers pipeline/format to `ADR-006 §8` + `ASSETS.md §3`, names to `NAMING_CONVENTION.md`.
+- `MUSIC_LIBRARY.md` (CREATE) — the track catalog by context (time-of-day, weather, season, place, event), each entry carrying mood intent, loop behaviour, and its earliest ship tier per the roadmap (`VISION.md §4`); places match `WORLD_BIBLE.md §3`, and the only uneasy score is the v1.0 dungeon/boss.
+- `SFX_LIBRARY.md` (CREATE) — the effect catalog whose `Event` column supplies the `<event>` token `NAMING_CONVENTION.md §4.2` builds `sfx_` file names from; action one-shots sync to the animation and fill the sim duration (`GAME_DESIGN.md §4.3`); tiers follow the feature roadmap (weather/animals v0.2, contracts v0.3, mining/factory v0.4, combat/magic/boss v1.0).
+
+All three marked forward-looking — **no audio ships in v0.1** (`VISION.md §5.2`); docs-only, no code, no runtime change.
 
 ---
 
@@ -160,7 +168,7 @@ Every doc: states its `Owns / Does not own` header in the house style, cross-ref
 
 ### 05.5e — Audio (file E) → `docs/assets/`
 
-- [ ] `AUDIO_DIRECTION.md` · [ ] `MUSIC_LIBRARY.md` · [ ] `SFX_LIBRARY.md` — all marked v0.2+ forward-looking; cite `ADR-006 §8`, `VISION.md §5.2`.
+- [x] `AUDIO_DIRECTION.md` · [x] `MUSIC_LIBRARY.md` · [x] `SFX_LIBRARY.md` — all marked v0.2+ forward-looking; cite `ADR-006 §8`, `VISION.md §5.2`.
 
 ### 05.5f — Visual & technical reference (file G) → `docs/assets/`
 

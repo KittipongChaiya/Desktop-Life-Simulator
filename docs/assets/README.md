@@ -92,13 +92,18 @@ Shipped with a consistency edit to `COLOR_PALETTE.md §3.5` (the inclusive skin 
 | `PROMPT_LIBRARY.md`    | Reusable prompts per class, each prepending a shared style preamble + palette block + negative prompt so a request starts inside the canon.                    |
 | `AI_ASSET_PIPELINE.md` | The concept→approved-source workflow; owns authoring (concept→prompt→generation→review) and routes source→runtime to `ASSETS.md §1` + `ADR-006`.               |
 
+### Delivered — phase-05.5e (audio)
+
+| Document             | What it is                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AUDIO_DIRECTION.md` | Audio _intent_ (v0.2+) — the "leave it running all day" principle, music/ambient/mixing/loop philosophies; defers pipeline/format to `ADR-006 §8`, `ASSETS.md §3`. |
+| `MUSIC_LIBRARY.md`   | The forward-looking music catalog — every intended track with context, mood intent, roadmap tier, and loop behaviour.                                              |
+| `SFX_LIBRARY.md`     | The forward-looking SFX catalog — every intended effect with its `sfx_` event name, intent, tier, and trigger/sync behaviour.                                      |
+
 ### Pending — later 05.5 sub-milestones
 
 | Document                         | Sub | What it will be                                      |
 | -------------------------------- | --- | ---------------------------------------------------- |
-| `AUDIO_DIRECTION.md`             | e   | Audio/music/ambience intent (v0.2+)                  |
-| `MUSIC_LIBRARY.md`               | e   | Music catalog (v0.2+)                                |
-| `SFX_LIBRARY.md`                 | e   | SFX catalog (v0.2+)                                  |
 | `VISUAL_REFERENCE.md`            | f   | The detailed visual _language_                       |
 | `TECHNICAL_ASSET_SPEC.md`        | f   | Router into technical owners + metadata schema       |
 | `../design/DESIGN_PRINCIPLES.md` | g   | Distilled principles (cite `VISION.md`)              |
