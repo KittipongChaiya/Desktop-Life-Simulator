@@ -28,8 +28,17 @@ The cost of going last is that this phase touches every system built so far. Tha
 | 07a | The document & the round trip          | `schema.ts` (`SAVE_MAGIC`, `CURRENT_SCHEMA_VERSION`, `SaveDocument`), the pure base64 codec, explicit hand-written serialize/hydrate per store, blocked-bits recomputation; round-trip + byte-stability + continue-identically property tests | **Delivered** |
 | 07b | Migration chain & validation           | `Migration` interface + ordered runner with startup chain validation, synthetic two-step chain proof, golden fixtures (`v1-empty`, `v1-mature-farm`), structural + semantic validation with logged repairs, unknown-content quarantine        | **Delivered** |
 | 07c | Disk & the load pipeline               | Main-process atomic six-step write, `.bak` fallback, `backups/` pruning, forward-version refusal, typed IPC save/load channels, crash-safety + corruption tests, E2E quit → relaunch exact                                                    | **Delivered** |
-| 07d | Offline progress                       | `catch-up.ts` orchestration; economy exact recovery, workers statistical (rounded down at every step), auto-sell, capacity bounds + blocker reporting, 8-hour cap, negative-time clamp, < 50 ms at cap; never-over-credit property            | —             |
+| 07d | Offline progress                       | `catch-up.ts` orchestration; economy exact recovery, workers statistical (rounded down at every step), auto-sell, capacity bounds + blocker reporting, 8-hour cap, negative-time clamp, < 50 ms at cap; never-over-credit property            | **Delivered** |
 | 07e | Autosave, return summary & phase close | Autosave triggers + coalescing, failure notifications, manual save, the return summary (defers in work mode, ADR-014), kill-mid-save E2E, size guard, the full v0.1 release-gate run                                                          | —             |
+
+### Delivered (07d) — offline progress
+
+- **The closed forms** (`src/persistence/catch-up.ts`, pure — wall clock enters exactly once, in `computeElapsedTicks`, which caps at 8 hours and clamps negative time to zero): growth is _free_ — advancing the tick is the catch-up, exact by ADR-009's derivation; economy recovery is _exact_ — the batch multiplier form applied over the **period crossings** the real scheduler would have fired (not `floor(elapsed/period)`, which drifts by one at unaligned starts); worker production is _statistical and provably conservative_.
+- **Every approximation points down** (crit 14, the critical property): the per-cycle handling constant (150 ticks) sits above the real simulation's per-cycle worker cost, so the k-th modeled harvest is always later than a real worker could manage; untilled ground is never newly planted; overflow fills worker carry-holds before anything sells (real workers would still be carrying those items — selling them would over-credit coins); sold units are priced at the **worst multiplier the real path could have reached** (`decayed(saveValue, totalUnits)` — every real sale happened at or above it, since recovery only raises). The fast-check property compares catch-up against the real simulation on a byte-identical clone at n ∈ {100, 1,000, 50,000} across arbitrary farms: harvests, plants, and coins earned all ≤ real, always.
+- **The property test drew blood before passing**: the first model replanted same-crop unconditionally and the shrinker produced the minimal counterexample — one worker, one wheat crop, one wheat seed, no bin — where real workers replant only the _default_ crop without a seed bin. The delivered rule mirrors reality: replanting is credited **only through the seed bin's per-tile memory** (`hasSeedBin && lastPlanted[tile] === crop`); anything less is harvest-only. The bin is the automation building whose whole purpose is reliable unattended replanting — now the catch-up model says so too.
+- **Accuracy at saturation** (crit 15): on the representative mature farm — all four buildings, three workers, six crops across three species, seeds stocked — the model lands **within the documented ±10% band, under**, at n = 50,000. Where workers are the bottleneck the model deliberately under-credits further; the 8-hour product case is growth/seed-bound, where it converges.
+- **Bounds and blockers** (crit 17): storage genuinely full (inventory, sheds, _and_ carry-holds) with no stall → production stops with `{reason: 'storage-full', atTick}` for the §9.4 summary; with a stall the overflow sells and coins arrive; replants consume seeds and stop at the stock. **< 50 ms at the 576,000-tick cap** (crit 16) — measured, it is arithmetic over standing crops.
+- **Wired at the load boundary**: boot computes elapsed from `savedAtUnixMs`, applies catch-up before the loop's first tick, and folds the result into the load note (the `CatchUpReport` is held for 07e's return summary). E2E: the app closed for 4 seconds relaunches with at least that time credited as ticks — offline progress proven against the real app. `GAME_DESIGN.md` §9.2 reconciled to ADR-009 in the same commit (the moisture-era growth rows were pre-ADR-009 drift).
 
 ### Delivered (07c) — disk & the load pipeline
 
@@ -110,15 +119,15 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ### Offline progress
 
-- [ ] `catch-up.ts` orchestration
-- [ ] `catchUp(state, ticks)` per accruing system, with the §6.3 contracts
-- [ ] Growth: **no catch-up implementation** — derived from `plantedTick`, exact by construction (ADR-009 §2); a test asserts the derivation holds across an 8-hour gap
-- [ ] Economy: exact multiplier recovery
-- [ ] Workers: statistical, ±10%, **rounded down at every step**
-- [ ] Auto-sell applied to catch-up output
-- [ ] Bounded by tiles, seeds, and capacity — so blockers are reported honestly
-- [ ] 8-hour cap; negative elapsed time clamped to zero
-- [ ] **Completes in under 50 ms at the maximum cap**
+- [x] `catch-up.ts` orchestration _(07d — one pure function at the load boundary; wall clock enters exactly once)_
+- [x] `catchUp(state, ticks)` per accruing system, with the §6.3 contracts _(07d — growth free, economy exact over period crossings, workers statistical)_
+- [x] Growth: **no catch-up implementation** — derived from `plantedTick`, exact by construction (ADR-009 §2); a test asserts the derivation holds across an 8-hour gap _(07d — the no-worker exactness property)_
+- [x] Economy: exact multiplier recovery _(07d — period **crossings**, not `floor(elapsed/period)`, matching the real scheduler at unaligned starts)_
+- [x] Workers: statistical, ±10%, **rounded down at every step** _(07d — the handling constant sits above real per-cycle cost; replants only via the seed bin's memory; the never-over property found and killed the unconditional-replant over-credit)_
+- [x] Auto-sell applied to catch-up output _(07d — overflow only, after storage and carry-holds, priced at the worst multiplier the real path could reach)_
+- [x] Bounded by tiles, seeds, and capacity — so blockers are reported honestly _(07d — `{reason, atTick}` mid-stream, not after the fact)_
+- [x] 8-hour cap; negative elapsed time clamped to zero
+- [x] **Completes in under 50 ms at the maximum cap** _(07d — measured at 576,000 ticks)_
 
 ### Autosave
 
@@ -214,11 +223,11 @@ The cost of going last is that this phase touches every system built so far. Tha
 - [x] Every semantic repair rule in `SAVE_FORMAT.md` §5.2 _(07b — one named rule per row, each with a dedicated test)_
 - [x] Unknown content quarantine and restoration (12) _(07b — crops, buildings with storage, owner-tagged stacks, seed-bin memory; restore defers rather than destroys when the home is occupied)_
 - [x] Determinism continues across save/load (13) _(07a — hydrated vs never-saved worlds stepped up to 300 ticks with workers, economy, and RNG live, compared byte-for-byte; the E2E half joins 07c)_
-- [ ] Catch-up: per-system accuracy against real ticks
-- [ ] Catch-up: never over-credits (14) — the critical property
-- [ ] Catch-up: capacity bounds and blocker reporting
-- [ ] Catch-up: clock moved backwards
-- [ ] Catch-up: at exactly the 8-hour cap and beyond
+- [x] Catch-up: per-system accuracy against real ticks _(07d — exactness with no workers; the ±10%-under band on the representative mature farm at n = 50,000)_
+- [x] Catch-up: never over-credits (14) — the critical property _(07d — fast-check vs the real simulation on byte-identical clones, n ∈ {100, 1,000, 50,000}, arbitrary farms; harvests, plants, and coins all ≤ real)_
+- [x] Catch-up: capacity bounds and blocker reporting _(07d)_
+- [x] Catch-up: clock moved backwards _(07d — clamped to zero, never a rewind)_
+- [x] Catch-up: at exactly the 8-hour cap and beyond _(07d — capped, and < 50 ms there)_
 - [ ] Autosave: every trigger; coalescing under load
 - [ ] Save failure: disk full, permission denied, serialization throw
 - [x] E2E: quit and relaunch preserves state (25) _(07c — save → relaunch → same seed, same `createdAtUnixMs`, tick advanced, `.bak` rotated. The automatic quit-save trigger joins in 07e)_

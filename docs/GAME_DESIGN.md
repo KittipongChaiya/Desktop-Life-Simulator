@@ -363,13 +363,14 @@ The simulation runs continuously (ADR-003 §2). Nothing about the game changes w
 
 On load, elapsed real time converts to a tick delta, computed closed-form rather than simulated (ADR-002 §6, ADR-007 §6). Per-system contracts:
 
-| System    | Catch-up                                                                                      | Accuracy                                                                                            |
-| --------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Growth    | Advance `growth` by elapsed ticks × moisture rate at save time                                | Exact, unless moisture would have decayed below the watered threshold — bounded to ≤ 5% over-credit |
-| Moisture  | Linear decay, clamped at 0                                                                    | Exact                                                                                               |
-| Workers   | Statistical: estimated completed task cycles × average yield, using the task mix at save time | ±10%, deliberately rounded **down**                                                                 |
-| Economy   | Price multipliers recover toward 1.0                                                          | Exact                                                                                               |
-| Auto-sell | Applies to catch-up harvest output at recovered prices                                        | Inherits worker accuracy                                                                            |
+| System    | Catch-up                                                                                           | Accuracy                            |
+| --------- | -------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Growth    | None needed — maturity derives from `tick − plantedTick` (ADR-009 §2); advancing the tick is exact | **Exact by construction**           |
+| Workers   | Statistical: harvest-and-replant cycles per standing crop, conservatively costed (phase-07d)       | ±10%, deliberately rounded **down** |
+| Economy   | Price multipliers recover toward 1.0 in closed form, over the exact period crossings               | Exact                               |
+| Auto-sell | Applies to catch-up overflow at prices floored to the worst multiplier the real path could reach   | Inherits worker accuracy            |
+
+_(Amended in phase-07d to match frozen ADR-009: the original moisture-modulated growth rows described the pre-ADR-009 accumulator design; growth is now exact and moisture-modulation is deferred with the §3.4 amendment. Delivered model notes: replanting is credited only through the seed bin's per-tile memory — the bin is what makes unattended replanting reliable, and crediting more would over-credit against the real worker rule; untilled ground is never newly planted; overflow fills worker carry-holds before anything auto-sells.)_
 
 Worker catch-up is approximate because exactly simulating pathing over eight hours is the thing §9 exists to avoid. It rounds down so the player is never _over_-credited — returning to find slightly more than expected is fine; finding less than the game implied is not.
 

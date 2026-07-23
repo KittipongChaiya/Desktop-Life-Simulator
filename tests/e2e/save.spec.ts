@@ -96,6 +96,39 @@ test('saves atomically, and a relaunch resumes the same world (crit 25)', async 
   expect(existsSync(bakPath())).toBe(true);
 });
 
+test('time away is credited as ticks on the next launch (offline catch-up, 07d)', async () => {
+  app = await launch();
+  await requestSave(app);
+  await expect.poll(() => existsSync(savePath()), { timeout: 10_000 }).toBe(true);
+  const first = readSave();
+  await app.close();
+
+  // The app is CLOSED for this gap; catch-up must convert it to ticks.
+  const closedMs = 4_000;
+  await new Promise((resolve) => setTimeout(resolve, closedMs));
+
+  app = await launch();
+  await requestSave(app);
+  await expect
+    .poll(
+      () => {
+        try {
+          return readSave().meta.saveCount;
+        } catch {
+          return 0;
+        }
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(2);
+
+  const second = readSave();
+  // At least the closed time arrived as ticks (50 ms per tick); the live
+  // session between launch and save only adds more. Without catch-up the
+  // delta would be the short session alone (~20–60 ticks).
+  expect(second.world.tick - first.world.tick).toBeGreaterThanOrEqual(closedMs / 50);
+});
+
 test('a corrupt slot file recovers from .bak with the world intact (crit 5)', async () => {
   app = await launch();
   await requestSave(app);

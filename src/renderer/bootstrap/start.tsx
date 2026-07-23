@@ -10,6 +10,7 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
+import { catchUpWorld, computeElapsedTicks, type CatchUpReport } from '@persistence/catch-up';
 import { loadWorld } from '@persistence/load';
 import { EMPTY_QUARANTINE, type SaveMeta, type SaveQuarantine } from '@persistence/schema';
 import { toSaveDocument } from '@persistence/serialize';
@@ -73,6 +74,9 @@ interface SaveSession {
 /** Load log, held for the devtools/return-summary surfaces (07e). */
 let lastLoadNote: string | null = null;
 
+/** The offline catch-up result, held for 07e's return summary. */
+let lastCatchUp: CatchUpReport | null = null;
+
 export function startApplication(): void {
   // Loading is async (an IPC round trip), so the composition happens inside.
   // A boot failure must be VISIBLE, not a blank overlay.
@@ -128,8 +132,24 @@ async function bootApplication(): Promise<void> {
       saveCount: loaded.value.meta.saveCount,
       quarantine: loaded.value.quarantine,
     };
+
+    // OFFLINE PROGRESS (07d): the one place wall clock meets the world —
+    // computed closed-form, capped at 8 hours, never rewinding
+    // (`SAVE_FORMAT.md` §6). Runs before the loop's first tick so the
+    // player's first frame already shows the caught-up farm.
+    const elapsed = computeElapsedTicks(loaded.value.meta.savedAtUnixMs, Date.now());
+    if (elapsed > 0) lastCatchUp = catchUpWorld(world, elapsed);
+
     lastLoadNote = [
       loaded.value.usedBackup ? 'loaded from backup' : 'loaded',
+      ...(lastCatchUp !== null
+        ? [
+            `offline +${String(lastCatchUp.elapsedTicks)}t: ` +
+              `${String(lastCatchUp.harvests)} harvested, ` +
+              `${String(lastCatchUp.coinsEarned)}g earned` +
+              (lastCatchUp.blocked !== null ? ` (blocked: ${lastCatchUp.blocked.reason})` : ''),
+          ]
+        : []),
       ...loaded.value.migrationsApplied,
       ...loaded.value.repairs.map((repair) => `repair ${repair.rule}: ${repair.detail}`),
     ].join('; ');
