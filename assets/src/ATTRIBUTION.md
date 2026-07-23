@@ -19,10 +19,10 @@ clarified to mean one file per group directory, split this along its sections.
 
 ## entities{tps}/
 
-| File             | Source                                                                            | Author  | License       |
-| ---------------- | --------------------------------------------------------------------------------- | ------- | ------------- |
-| worker_*.png     | Original — `scripts/generate-placeholder-worker-art.mjs` (placeholder, phase-04c) | project | Original work |
-| worker.anim.json | Original (hand-authored sidecar, `ASSETS.md §7`)                                  | project | Original work |
+| File                               | Source                                            | Author  | License       |
+| ---------------------------------- | ------------------------------------------------- | ------- | ------------- |
+| worker__.png, player__.png         | Original — `scripts/generate-character-art.mjs`   | project | Original work |
+| worker.anim.json, player.anim.json | Original (hand-authored sidecars, `ASSETS.md §7`) | project | Original work |
 
 ## buildings{tps}/
 

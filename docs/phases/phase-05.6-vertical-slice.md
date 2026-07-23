@@ -65,7 +65,7 @@ Two standing reconciliations for script-authored art, recorded here once:
 | **05.6a** | Tooling lib + terrain set (grass, tilled, water, stone, path) + props (tree, rock, bush, flower) + buildings (storage shed, rest hut) + attribution/provenance + contact sheet | SCRIPT        | **Delivered** |
 | **05.6b** | The golden crop: `wheat_0..3` (new `crops` atlas) + production `item_*` icons                                                                                                  | SCRIPT        | **Delivered** |
 | **05.6c** | Icon set + UI set (panel, buttons, hotbar, tooltip, cursor, notification) per `UI_STYLE_GUIDE`                                                                                 | SCRIPT + SPEC | **Delivered** |
-| **05.6d** | Characters: worker + player rigs (idle/walk/harvest), animation metadata; portraits                                                                                            | SCRIPT + SPEC | Pending       |
+| **05.6d** | Characters: worker + player rigs (idle/walk/harvest), animation metadata; portraits                                                                                            | SCRIPT + SPEC | **Delivered** |
 | **05.6e** | Audio production specs + `ASSET_VALIDATION_REPORT.md` + final review; close the phase                                                                                          | SPEC + report | Pending       |
 
 Execution order: tooling first (everything else uses it), characters late (hardest SCRIPT call), the report last (it can only validate finished work).
@@ -145,9 +145,29 @@ Execution order: tooling first (everything else uses it), characters late (harde
 
 ### 05.6d — Characters
 
-- [ ] Production worker rig at 32×48 (`PIXEL_GUIDE.md §2`, `CHARACTER_BIBLE.md`): idle + 4-frame walk × 4 directions (replacing the 16×16 placeholders, same filenames — `ASSETS.md §7.3`), **new harvest one-shot** (4–6 frames fitting 30 t, `ANIMATION_GUIDE.md §2–3`), `worker.anim.json` updated.
-- [ ] Player avatar: the worker rig + the one accent garment (`CHARACTER_BIBLE.md §7`), same animation set, pre-wired for the future player entity.
-- [ ] SCRIPT/SPEC decision recorded per asset against the one-line test; portraits (64×64, `PIXEL_GUIDE.md §2`) are **SPEC** — fully resolved prompts.
+- [x] Production worker rig at 32×48 (`PIXEL_GUIDE.md §2`, `CHARACTER_BIBLE.md`): idle + 4-frame walk × 4 directions (replacing the 16×16 placeholders, same filenames — `ASSETS.md §7.3`), **new harvest one-shot** (4–6 frames fitting 30 t, `ANIMATION_GUIDE.md §2–3`), `worker.anim.json` updated.
+- [x] Player avatar: the worker rig + the one accent garment (`CHARACTER_BIBLE.md §7`), same animation set, pre-wired for the future player entity.
+- [x] SCRIPT/SPEC decision recorded per asset against the one-line test; portraits (64×64, `PIXEL_GUIDE.md §2`) are **SPEC** — fully resolved prompts.
+
+**05.6d delivered** — 52 character frames (SCRIPT) from one shared rig painter, two portrait prompts (SPEC): 83 sprites, 5 atlases, 18 animations; typecheck/lint/556 tests green; zero `src/` changes.
+
+- **One rig, two costumes** (`scripts/generate-character-art.mjs`): the standard human rig exactly per the `R-07` anchor — 32×48 canvas, ≈40 px standing height, **1:4 head** (≈10 px), 16 px figure, mittened limbs, dark-dot eyes. The **worker** wears the §6/§11 tells (straw work-hat + apron over earth cloth, warm skin, brown hair — matching the `icon_status_worker` bust); the **player** is the same body with bare dark hair and the **one accent garment**: a Water-ramp scarf (`CHARACTER_BIBLE.md §6` — the accent is the player's identity, never reused on workers). Both replace/land at production 32×48; the worker's 16×16 placeholders were replaced **file-for-file with zero code changes** — live validation of the `ASSETS.md §7.3` / `PIXEL_GUIDE.md §2` canvas-swap claim.
+- **Animation sets:** idle (static ×4 dirs) + the calm 5 fps walk (4 frames ×4 dirs) + the **new harvest one-shot** — 6 frames × 5 `frameTicks` = exactly the 30 t sim cost (`ANIMATION_GUIDE.md §2`): dip, reach, pluck at the ground, lift the sheaf, carry at the chest, settle. Harvest is directionless per `ANIMATION_GUIDE.md §3` (directions animate only where the action has facing). `worker.anim.json` gains `harvest`; new `player.anim.json` carries the full player set.
+- **The light never mirrors:** west views mirror the east geometry, then a **world-fixed shading pass** applies the upper-left light after mirroring — every facing shares one sky (`STYLE_LOCK.md R-06`).
+- **SCRIPT/SPEC decisions:** worker rig SCRIPT (passes — a cozy person of the same hand as the world); player rig SCRIPT; **portraits SPEC** — a 64×64 bust with "a little more facial detail" (`CHARACTER_BIBLE.md §4`) is exactly the organic detail deterministic painters cannot honestly reach; demoted per the governing rule, never shipped weak.
+- **Review iteration applied once:** the first paint's hair fringe touched the eye row and read as a monobrow; the fringe was raised so a forehead row separates them.
+- **Canon frictions recorded for the validation report:** (a) the worker sidecar's animation names are unprefixed (`idle_s`) and baked into `worker-render.ts`; a second entity therefore **must** prefix (`player_idle_s`) because the manifest rejects duplicate names — asymmetric naming born of the placeholder; recommend entity-prefixed names whenever a code change is next scheduled for `worker-render.ts`. (b) `ASSETS.md §6.1`'s pattern has no directionless-action form — `worker_harvest_0.png` omits the direction token per `ANIMATION_GUIDE.md §3`; recommend §6.1 document the omission rule.
+
+**Portrait SPECs (fully resolved, paste-ready — `PROMPT_LIBRARY.md` §1 preamble + §1.1 palette block + body + §1.2 negative):**
+
+> **`portrait_worker.png`** (64×64, v0.3, `NAMING_CONVENTION.md §4.5`):
+> _Cozy hand-crafted pixel art, flat shading, single warm dark outline. One soft light from the upper-left. Hard-edged pixels — no anti-aliasing, no blur, no gradients. Limited warm palette only. 1-pixel outline in #3A3640, never black. Warm, calm, optimistic mood._
+> _A warm character portrait bust of the farm worker: an adult with warm skin #D8A878 (shadow #B07E50), brown hair #5A3A28 under a straw work-hat #E0C260 (shade #B58A5E), practical earth-toned work clothes — #96704A tunic with a #B58A5E apron strap. A little more facial detail than the world sprite but still simple: two dark #2A2733 eyes, soft content smile, no nose realism. 64×64, centred bust, plain transparent background._
+> _NEGATIVE: anti-aliasing, blur, soft edges, gradients, drop shadow, glow, black outline (#000000), variable line weight, realistic or 3D rendering, photorealism, high detail, colours outside the palette, neon, muddy tones, text, watermark._
+
+> **`portrait_player.png`** (64×64, v0.3):
+> _Same preamble and negative as above._
+> _A warm character portrait bust of the player avatar: an adult with tan skin #B07E50 (shadow #8A5E38), dark hair #4A4557, and the water-blue scarf #3E7FA8 (light #6BB0D0) as the single accent garment over a #96704A earth tunic. A little more facial detail than the world sprite but still simple: two dark #2A2733 eyes, calm friendly expression. 64×64, centred bust, plain transparent background._
 
 ### 05.6e — Audio specs, validation report, close
 

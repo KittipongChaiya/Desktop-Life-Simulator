@@ -1,0 +1,54 @@
+{
+  "player_idle_n": {
+    "frames": ["player_idle_n"],
+    "frameTicks": 0,
+    "loop": false
+  },
+  "player_walk_n": {
+    "frames": ["player_walk_n_0", "player_walk_n_1", "player_walk_n_2", "player_walk_n_3"],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "player_idle_s": {
+    "frames": ["player_idle_s"],
+    "frameTicks": 0,
+    "loop": false
+  },
+  "player_walk_s": {
+    "frames": ["player_walk_s_0", "player_walk_s_1", "player_walk_s_2", "player_walk_s_3"],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "player_idle_e": {
+    "frames": ["player_idle_e"],
+    "frameTicks": 0,
+    "loop": false
+  },
+  "player_walk_e": {
+    "frames": ["player_walk_e_0", "player_walk_e_1", "player_walk_e_2", "player_walk_e_3"],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "player_idle_w": {
+    "frames": ["player_idle_w"],
+    "frameTicks": 0,
+    "loop": false
+  },
+  "player_walk_w": {
+    "frames": ["player_walk_w_0", "player_walk_w_1", "player_walk_w_2", "player_walk_w_3"],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "player_harvest": {
+    "frames": [
+      "player_harvest_0",
+      "player_harvest_1",
+      "player_harvest_2",
+      "player_harvest_3",
+      "player_harvest_4",
+      "player_harvest_5"
+    ],
+    "frameTicks": 5,
+    "loop": false
+  }
+}

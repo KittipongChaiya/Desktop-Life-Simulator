@@ -38,5 +38,17 @@
     "frames": ["worker_walk_w_0", "worker_walk_w_1", "worker_walk_w_2", "worker_walk_w_3"],
     "frameTicks": 4,
     "loop": true
+  },
+  "harvest": {
+    "frames": [
+      "worker_harvest_0",
+      "worker_harvest_1",
+      "worker_harvest_2",
+      "worker_harvest_3",
+      "worker_harvest_4",
+      "worker_harvest_5"
+    ],
+    "frameTicks": 5,
+    "loop": false
   }
 }
