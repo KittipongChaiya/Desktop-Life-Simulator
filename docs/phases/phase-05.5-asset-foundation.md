@@ -44,7 +44,7 @@ Because this phase writes only Markdown, the TDD / coverage / E2E gates do not a
 | **05.5c** | C      | `UI_STYLE_GUIDE`, `ICON_GUIDE`, `ANIMATION_GUIDE`                          | **Delivered** |
 | **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | **Delivered** |
 | **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | **Delivered** |
-| **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | Pending       |
+| **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | **Delivered** |
 | **05.5g** | F + H  | `DESIGN_PRINCIPLES`, `CONTENT_RULES`, `GAME_LOOPS` + reconciliation report | Pending       |
 
 Execution order is dependency-driven: **A first** (every later doc cites `STYLE_LOCK` and `COLOR_PALETTE`), the **reconciliation report last** (it can only summarise finished docs). B–G in between may proceed in file order.
@@ -91,6 +91,13 @@ Reconciliation: `ASSET_MANIFEST` → `ASSET_CATALOG` rename (collision with the 
 - `SFX_LIBRARY.md` (CREATE) — the effect catalog whose `Event` column supplies the `<event>` token `NAMING_CONVENTION.md §4.2` builds `sfx_` file names from; action one-shots sync to the animation and fill the sim duration (`GAME_DESIGN.md §4.3`); tiers follow the feature roadmap (weather/animals v0.2, contracts v0.3, mining/factory v0.4, combat/magic/boss v1.0).
 
 All three marked forward-looking — **no audio ships in v0.1** (`VISION.md §5.2`); docs-only, no code, no runtime change.
+
+**05.5f delivered** — the visual language and the technical router (`docs/assets/`):
+
+- `VISUAL_REFERENCE.md` (CREATE) — the visual **language**, completing the three-way split the docs pre-declared (`ART_DIRECTION` = philosophy, `STYLE_LOCK` = rules, this = language): nine visual keywords, inspiration as abstract qualities with learn/never-copy pairs, the attention hierarchy (distinct from the render order, `ARCHITECTURE.md §5`), shape and material grammar per category ("rounded = safe and present; angular = old, wild, or far away"; one signature cue per material at small size), composition rules, the lighting/colour/animation-feel language deltas, and the environmental-storytelling grammar `ART_DIRECTION.md §9` explicitly promised to this file. No values — hexes, sizes, and frame counts stay with their owners.
+- `TECHNICAL_ASSET_SPEC.md` (ROUTER) — the one-hop index mapping every technical concern the directive listed to its existing owner (`ASSETS.md`, `ADR-006`, `PERFORMANCE.md`, `ARCHITECTURE.md §5`, `PIXEL_GUIDE.md`…), with unowned future concerns (auto-tiles, hit frames, combat layers) marked **"no owner yet"** as a binding statement rather than invented ad hoc. Owns exactly one thing: the **`GENERATION.md` asset-metadata schema** `AI_ASSET_PIPELINE.md §7` assigned here — per-directory generation provenance (AI model, prompt §+hash, palette/anim canon hashes, date, dependencies) using git hashes as version numbers (`ADR-006 §2`'s "git is the version store" rule reused). Unique ID/category/author/license are deliberately absent — each already has an owner.
+
+Consistency edit in the same commit: `QUALITY_GUIDELINES.md §6` gains the checklist line requiring the `GENERATION.md` row for AI-generated assets, because the reviewer is the gate that enforces it.
 
 ---
 
@@ -172,8 +179,8 @@ Every doc: states its `Owns / Does not own` header in the house style, cross-ref
 
 ### 05.5f — Visual & technical reference (file G) → `docs/assets/`
 
-- [ ] `VISUAL_REFERENCE.md` — the full visual-language bible per file G's section list.
-- [ ] `TECHNICAL_ASSET_SPEC.md` — a router: each technical concern maps to its owning doc; owns only the new asset-metadata schema and its rationale.
+- [x] `VISUAL_REFERENCE.md` — the full visual-language bible per file G's section list.
+- [x] `TECHNICAL_ASSET_SPEC.md` — a router: each technical concern maps to its owning doc; owns only the new asset-metadata schema and its rationale.
 
 ### 05.5g — Design & loops (files F + H) → `docs/design/`
 

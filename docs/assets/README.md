@@ -100,12 +100,17 @@ Shipped with a consistency edit to `COLOR_PALETTE.md §3.5` (the inclusive skin 
 | `MUSIC_LIBRARY.md`   | The forward-looking music catalog — every intended track with context, mood intent, roadmap tier, and loop behaviour.                                              |
 | `SFX_LIBRARY.md`     | The forward-looking SFX catalog — every intended effect with its `sfx_` event name, intent, tier, and trigger/sync behaviour.                                      |
 
+### Delivered — phase-05.5f (visual & technical reference)
+
+| Document                  | What it is                                                                                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VISUAL_REFERENCE.md`     | The detailed visual _language_ — keywords, inspiration qualities, attention hierarchy, shape/material grammar, composition, and the storytelling grammar `ART_DIRECTION.md §9` promised it. |
+| `TECHNICAL_ASSET_SPEC.md` | ROUTER — the one-hop index from any technical concern to its owner; owns only the `GENERATION.md` asset-metadata schema (AI model, prompt/palette versions via git hashes).                 |
+
 ### Pending — later 05.5 sub-milestones
 
 | Document                         | Sub | What it will be                                      |
 | -------------------------------- | --- | ---------------------------------------------------- |
-| `VISUAL_REFERENCE.md`            | f   | The detailed visual _language_                       |
-| `TECHNICAL_ASSET_SPEC.md`        | f   | Router into technical owners + metadata schema       |
 | `../design/DESIGN_PRINCIPLES.md` | g   | Distilled principles (cite `VISION.md`)              |
 | `../design/CONTENT_RULES.md`     | g   | Feature-gate design checklist                        |
 | `../design/GAME_LOOPS.md`        | g   | Loop taxonomy (defers v0.1 loop to `GAME_DESIGN.md`) |

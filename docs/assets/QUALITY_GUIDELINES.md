@@ -77,6 +77,7 @@ Complements the build-side checklist in `ASSETS.md §12` (naming, atlas dir, `.a
 - [ ] Proportions match `CHARACTER_BIBLE.md`; silhouette reads in one glance.
 - [ ] Animation timing is tick-based and legible; releases `animatingEntityCount` when idle (`ASSETS.md §7.1`).
 - [ ] No state communicated by hue alone (`§4`).
+- [ ] AI-generated assets carry their `GENERATION.md` row (`TECHNICAL_ASSET_SPEC.md §3`), in the same commit.
 - [ ] Passes the "same hand made the storage shed" test (`§1`).
 
 ---
