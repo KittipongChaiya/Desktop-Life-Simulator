@@ -93,8 +93,12 @@ export interface PlayerInput {
 
 export interface PlayerInputOptions {
   readonly source: PlayerInputSource;
-  /** Crop the seed tool plants. Chosen from the registry; inventory is phase-05. */
-  readonly seed: ContentId;
+  /**
+   * Crop the seed tool plants, read AT CLICK TIME — a getter, because the
+   * selection lives in the shop panel's `SeedSelection` store (06e) and may
+   * change between clicks. Presentation state end to end (ADR-007 §1).
+   */
+  readonly seed: () => ContentId;
   /** Notified whenever presentation state changes, so the view can redraw. */
   readonly onChange?: (state: InteractionState) => void;
 }
@@ -137,7 +141,7 @@ export function createPlayerInput(options: PlayerInputOptions): PlayerInput {
       const { tool } = state;
       if (tool === null) return null;
 
-      const result = options.source.submit(commandFor(tool, tile, options.seed));
+      const result = options.source.submit(commandFor(tool, tile, options.seed()));
       update({ selected: tile, rejected: result.ok ? null : tile });
       return result;
     },

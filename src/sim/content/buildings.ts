@@ -49,38 +49,43 @@ export function createBuildingRegistry(): BuildingRegistry {
   return createContentRegistry<BuildingDefinition>('building');
 }
 
+/**
+ * The `GAME_DESIGN.md` §5 table as data. Exported so the shop panel can show
+ * costs without a world reference — static content, the same way the HUD
+ * imports `hireCost` (06e).
+ */
+export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
+  {
+    id: CORE_STORAGE_SHED,
+    displayName: 'Storage Shed',
+    sprite: 'buildings:storage_shed',
+    cost: 200,
+    storageSlots: STORAGE_SHED_SLOTS,
+  },
+  {
+    id: CORE_REST_HUT,
+    displayName: 'Rest Hut',
+    sprite: 'buildings:rest_hut',
+    cost: 300,
+  },
+  {
+    id: CORE_SEED_BIN,
+    displayName: 'Seed Bin',
+    sprite: 'buildings:seed_bin',
+    cost: 500,
+  },
+  {
+    id: CORE_MARKET_STALL,
+    displayName: 'Market Stall',
+    sprite: 'buildings:market_stall',
+    cost: 1200,
+    storageSlots: MARKET_STALL_SLOTS,
+  },
+];
+
 /** Registers the v0.1 buildings — the `GAME_DESIGN.md` §5 table, exactly. */
 export function registerCoreBuildings(registry: BuildingRegistry): void {
-  const buildings: readonly BuildingDefinition[] = [
-    {
-      id: CORE_STORAGE_SHED,
-      displayName: 'Storage Shed',
-      sprite: 'buildings:storage_shed',
-      cost: 200,
-      storageSlots: STORAGE_SHED_SLOTS,
-    },
-    {
-      id: CORE_REST_HUT,
-      displayName: 'Rest Hut',
-      sprite: 'buildings:rest_hut',
-      cost: 300,
-    },
-    {
-      id: CORE_SEED_BIN,
-      displayName: 'Seed Bin',
-      sprite: 'buildings:seed_bin',
-      cost: 500,
-    },
-    {
-      id: CORE_MARKET_STALL,
-      displayName: 'Market Stall',
-      sprite: 'buildings:market_stall',
-      cost: 1200,
-      storageSlots: MARKET_STALL_SLOTS,
-    },
-  ];
-
-  for (const building of buildings) {
+  for (const building of CORE_BUILDINGS) {
     const result = registry.register(building);
     if (!result.ok) {
       // Core content failing to register is a programming error, not a runtime

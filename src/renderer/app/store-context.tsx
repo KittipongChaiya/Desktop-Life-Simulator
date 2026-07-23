@@ -12,6 +12,7 @@ import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
 import type { OverlayController } from './overlay-controller';
 import type { PlacementController } from './placement';
+import type { SeedSelection } from './seed-selection';
 import type { WorkerSelection } from './worker-selection';
 
 interface AppServices {
@@ -23,6 +24,8 @@ interface AppServices {
   readonly selection: WorkerSelection;
   /** The armed building — shared with the renderer's build ghost. */
   readonly placement: PlacementController;
+  /** The crop the seed tool plants — shared with the click mapping (06e). */
+  readonly seeds: SeedSelection;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -33,6 +36,7 @@ export interface AppProvidersProps {
   readonly player: PlayerInputSource;
   readonly selection: WorkerSelection;
   readonly placement: PlacementController;
+  readonly seeds: SeedSelection;
   readonly children: ReactNode;
 }
 
@@ -42,10 +46,11 @@ export function AppProviders({
   player,
   selection,
   placement,
+  seeds,
   children,
 }: AppProvidersProps): ReactNode {
   return (
-    <ServicesContext.Provider value={{ store, overlay, player, selection, placement }}>
+    <ServicesContext.Provider value={{ store, overlay, player, selection, placement, seeds }}>
       {children}
     </ServicesContext.Provider>
   );
@@ -77,4 +82,8 @@ export function useWorkerSelection(): WorkerSelection {
 
 export function usePlacement(): PlacementController {
   return useServices().placement;
+}
+
+export function useSeeds(): SeedSelection {
+  return useServices().seeds;
 }

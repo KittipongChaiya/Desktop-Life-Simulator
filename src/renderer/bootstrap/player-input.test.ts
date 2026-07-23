@@ -29,7 +29,10 @@ const OWNED = toIndexUnchecked(30, 30);
 const OUTSIDE = toIndexUnchecked(2, 2);
 
 function inputFor(world: World): PlayerInput {
-  return createPlayerInput({ source: createPlayerInputSource(world.commands), seed: CORE_WHEAT });
+  return createPlayerInput({
+    source: createPlayerInputSource(world.commands),
+    seed: () => CORE_WHEAT,
+  });
 }
 
 describe('tool selection (GAME_DESIGN §8.3)', () => {

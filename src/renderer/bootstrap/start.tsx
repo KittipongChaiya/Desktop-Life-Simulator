@@ -10,7 +10,6 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
-import { CORE_WHEAT } from '@sim/content/crops';
 import { createWorld } from '@sim/world/world';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -19,6 +18,7 @@ import type { ContentId, TileIndex } from '../../shared/ids';
 import { App } from '../app/App';
 import { createOverlayController } from '../app/overlay-controller';
 import { createPlacementController } from '../app/placement';
+import { createSeedSelection } from '../app/seed-selection';
 import { AppProviders } from '../app/store-context';
 import { createWorkerSelection } from '../app/worker-selection';
 import { workerAtTile } from '../render/worker-render';
@@ -109,9 +109,12 @@ export function startApplication(): void {
   // and automation will use — no privileged variant exists (ADR-010 §6). Shared
   // between tile interaction and the HUD (the hire button dispatches through it).
   const playerSource = createPlayerInputSource(world.commands);
+  // Which crop the seed tool plants — presentation state shared between the
+  // shop panel's selector and the click mapping (06e).
+  const seeds = createSeedSelection();
   const playerInput = createPlayerInput({
     source: playerSource,
-    seed: CORE_WHEAT,
+    seed: () => seeds.selected(),
     onChange: (state) => worldMount.current()?.setHighlight(toHighlight(state)),
   });
 
@@ -214,6 +217,7 @@ export function startApplication(): void {
         store={store}
         overlay={overlay}
         player={playerSource}
+        seeds={seeds}
         selection={selection}
         placement={placement}
       >

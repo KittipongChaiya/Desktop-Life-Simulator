@@ -23,6 +23,8 @@ export default defineConfig({
       '@sim': resolve(import.meta.dirname, 'src/sim'),
       '@persistence': resolve(import.meta.dirname, 'src/persistence'),
       '@devtools': resolve(import.meta.dirname, 'src/devtools'),
+      // Component tests mount panels that CSS-slice the packed atlas (06e).
+      '@assets': resolve(import.meta.dirname, 'assets/dist'),
     },
   },
   test: {

@@ -109,6 +109,10 @@ describe('idle cost (criterion 17)', () => {
 
   it('does not commit for ticks that change nothing observable', () => {
     const world = createWorld(1);
+    // Settle the first tick before mounting: every slice documents a one-time
+    // first-tick correction (inventory capacity, the 06d wallet balance), and
+    // this test is about STEADY-STATE ticks, not the world coming up.
+    stepSimulationBy(world, 1);
     const store = createSnapshotStore(world.snapshots);
 
     let commits = 0;
@@ -119,7 +123,7 @@ describe('idle cost (criterion 17)', () => {
 
     // Under one second of ticks: uptimeSeconds never changes.
     void act(() => {
-      stepSimulationBy(world, TICKS_PER_SECOND - 1);
+      stepSimulationBy(world, TICKS_PER_SECOND - 2);
       store.pump(1000);
     });
 

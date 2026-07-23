@@ -67,11 +67,12 @@ test('placing a shed arms the ghost and opens storage', async () => {
   const inventory = window.getByRole('button', { name: /^Inventory/ });
   await expect(inventory).toContainText('0/40');
 
-  // Arm placement. The button flips to its active label.
-  const build = window.getByRole('button', { name: /shed/i });
-  await expect(build).toHaveText('Build shed');
+  // Arm placement from the shop (06e — buildings buy from the ShopPanel).
+  // The accessible name is stable across states; the visible text flips.
+  await window.getByRole('button', { name: 'Shop' }).click();
+  const build = window.getByRole('button', { name: 'Build Storage Shed' });
   await build.click();
-  await expect(build).toHaveText('Placing shed…');
+  await expect(build).toHaveText('Placing…');
   await expect(build).toHaveAttribute('aria-pressed', 'true');
 
   // The plot centre is framed at the viewport centre; hover it so the ghost
@@ -90,6 +91,6 @@ test('placing a shed arms the ghost and opens storage', async () => {
 
   // Esc disarms; the button returns to its resting label.
   await window.keyboard.press('Escape');
-  await expect(build).toHaveText('Build shed');
+  await expect(build).toHaveText('Build');
   await expect(build).toHaveAttribute('aria-pressed', 'false');
 });

@@ -32,16 +32,26 @@ const atlas = atlasData as Atlas;
 /** Rendered pixel size; a 2× integer scale of the 16px source (ASSETS §8). */
 const ICON_SIZE = 32;
 
-export function ItemIcon({ item }: { item: string }): ReactNode {
-  const name = item.includes(':') ? item.slice(item.indexOf(':') + 1) : item;
-  const frame = atlas.frames[`item_${name}.png`]?.frame;
+/**
+ * Any `ui-world` atlas frame, CSS-sliced. `ItemIcon` is the item-id
+ * convenience over it; the coin readout and other chrome use frames directly
+ * (06e).
+ */
+export function AtlasSprite({
+  frameName,
+  size = ICON_SIZE,
+}: {
+  frameName: string;
+  size?: number;
+}): ReactNode {
+  const frame = atlas.frames[frameName]?.frame;
   if (frame === undefined) {
-    // Unknown item → a neutral box rather than a broken image.
+    // Unknown frame → a neutral box rather than a broken image.
     return (
       <span
         style={{
-          width: ICON_SIZE,
-          height: ICON_SIZE,
+          width: size,
+          height: size,
           background: 'rgba(255,255,255,0.08)',
           display: 'inline-block',
         }}
@@ -49,11 +59,11 @@ export function ItemIcon({ item }: { item: string }): ReactNode {
     );
   }
 
-  const scale = ICON_SIZE / frame.w;
+  const scale = size / frame.w;
   const style: CSSProperties = {
     display: 'inline-block',
-    width: ICON_SIZE,
-    height: ICON_SIZE,
+    width: size,
+    height: size,
     backgroundImage: `url(${atlasImage})`,
     backgroundPosition: `-${frame.x * scale}px -${frame.y * scale}px`,
     backgroundSize: `${atlas.meta.size.w * scale}px ${atlas.meta.size.h * scale}px`,
@@ -61,4 +71,9 @@ export function ItemIcon({ item }: { item: string }): ReactNode {
     imageRendering: 'pixelated',
   };
   return <span style={style} aria-hidden />;
+}
+
+export function ItemIcon({ item, size }: { item: string; size?: number }): ReactNode {
+  const name = item.includes(':') ? item.slice(item.indexOf(':') + 1) : item;
+  return <AtlasSprite frameName={`item_${name}.png`} size={size ?? ICON_SIZE} />;
 }

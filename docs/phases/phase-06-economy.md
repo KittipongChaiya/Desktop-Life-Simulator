@@ -13,7 +13,7 @@
 | **06b**   | Seed items, seed consumption on plant, `sellItems` / `buySeeds`, `itemSold`, seed icons   | **Delivered** |
 | **06c**   | Three new buildings, costs charged (buildings + hire), `sellBuilding`, building effects   | **Delivered** |
 | **06d**   | `expandLand`, progression state, `wallet` + `economy` snapshot slices                     | **Delivered** |
-| **06e**   | `ShopPanel`, sell interface, seed selector, coin counter, price indicators, full-loop E2E | Pending       |
+| **06e**   | `ShopPanel`, sell interface, seed selector, coin counter, price indicators, full-loop E2E | **Delivered** |
 | **06f**   | The idle proof: 8-hour long-run, balance ordering, 100k-tick determinism, pacing          | Pending       |
 
 ## Resolved interpretations
@@ -141,6 +141,36 @@ phase-06 is complete:
   integer price's distinct values), not 40 (periods), not 800 (ticks);
   pinned by test, plus a 400-tick static-economy zero-republish test.
 
+**06e delivered** — the UI wave; the player can drive the whole economy:
+
+- `ShopPanel` — the §6.4 sinks in §6.4's order: seeds (fixed §3.1 prices
+  from the slice; the icon doubles as the SEED SELECTOR feeding the seed
+  tool via the new `SeedSelection` presentation store), buildings (the §5
+  table from static content data, arming the existing placement flow), and
+  land (the §6.3 next cost from the slice). Affordability disables exactly
+  what validation would reject — muted, never red.
+- The sell interface lives in the inventory panel: each stack row shows its
+  live price with a quiet amber ↓ while depressed, and Sell 1 / Sell all
+  submit ordinary `sellItems` (the preview is exact — batch pricing means
+  quantity × unit is precisely the credit).
+- `WorkerPanel` replaces FarmControls: count, hire at its real §4.1 cost
+  (disabled when unaffordable — the stage-2 gate made visible), and an
+  expandable list of workers with state labels. The build button moved to
+  the shop.
+- `CoinCounter` in the status bar: React renders it only when the wallet
+  slice changes; the count-up is ONE rAF tween writing `textContent` (crit
+  18 — never a 20 Hz re-render). The Reward Gold text is the bar's one warm
+  accent (R-09).
+- All panels verified inside the 220-px expanded overlay (ADR-013
+  assumption 4 — no modal; long lists scroll internally). 9 component
+  tests; the StatusBar zero-commit test now settles the first-tick slice
+  corrections before its baseline. Vitest gains the `@assets` alias so
+  component tests can mount atlas-slicing panels.
+- `tests/e2e/economy.spec.ts` — the full loop as one continuous session:
+  buy seeds → till → plant → console-accelerated growth → harvest → sell
+  (coin readout settles on the exact credit) → hire → build (capacity
+  0/40 → 0/90) → expand ((0 bought) → (1 bought)).
+
 ---
 
 ## Objectives
@@ -216,16 +246,16 @@ After this, the game is complete except for persistence. Everything the player n
 
 ### UI
 
-- [ ] `ShopPanel` — buy seeds, buy buildings, expand land, with prices and affordability
-- [ ] Sell interface with quantity selection and a live price preview
-- [ ] `WorkerPanel` — list, states, hire button with cost
-- [ ] HUD coin counter with a smooth animated transition (**CSS or one rAF component — never a 20 Hz re-render**)
-- [ ] Price indicators showing depressed prices
+- [x] `ShopPanel` — buy seeds, buy buildings, expand land, with prices and affordability
+- [x] Sell interface with quantity selection and a live price preview
+- [x] `WorkerPanel` — list, states, hire button with cost
+- [x] HUD coin counter with a smooth animated transition (**CSS or one rAF component — never a 20 Hz re-render**)
+- [x] Price indicators showing depressed prices
 
 ### Art
 
-- [ ] `rest_hut`, `seed_bin`, `market_stall` sprites in the `buildings` atlas
-- [ ] Coin icon; shop UI icons
+- [x] `rest_hut`, `seed_bin`, `market_stall` sprites in the `buildings` atlas
+- [x] Coin icon; shop UI icons
 
 ---
 

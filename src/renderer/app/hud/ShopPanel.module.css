@@ -1,0 +1,141 @@
+/* Shop panel. Phase-06e. */
+
+.container {
+  position: absolute;
+  top: 44px;
+  left: 8px;
+  pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  color: #e8e8ec;
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+.toggle {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 22, 28, 0.82);
+  color: #e8e8ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.toggle:hover {
+  background: rgba(32, 35, 44, 0.9);
+}
+
+.panel {
+  width: 250px;
+  /* The expanded overlay is 220px tall (ADR-013 assumption 4 — the shop fits
+     it, no modal). Container top 44 + toggle ≈28 + gap 6 leaves ~140px of
+     window; stay safely inside it — a click on a row that renders past the
+     window edge lands on the desktop, not the button (found by the 06e
+     placement E2E). The list scrolls internally rather than growing. */
+  max-height: 126px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(20, 22, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.section {
+  margin-top: 4px;
+  opacity: 0.6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section:first-child {
+  margin-top: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.name {
+  flex: 1;
+}
+
+.muted {
+  opacity: 0.55;
+}
+
+.price {
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.buy {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(84, 128, 84, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.buy:hover {
+  background: rgba(104, 152, 104, 0.96);
+}
+
+/* Unaffordable: quiet, never alarming — muted, not red (§10.1). */
+.buyDisabled {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(40, 44, 54, 0.6);
+  color: rgba(232, 232, 236, 0.45);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: not-allowed;
+}
+
+/* Armed: matches the build ghost's amber, never red. */
+.buildActive {
+  cursor: pointer;
+  border: 1px solid rgba(255, 179, 71, 0.9);
+  background: rgba(255, 179, 71, 0.22);
+  color: #ffd9a0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+}
+
+.seedSelect {
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  padding: 1px;
+  line-height: 0;
+}
+
+.seedSelect:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* The crop the seed tool plants — a steady green ring, the "equipped" read. */
+.seedSelected {
+  cursor: pointer;
+  border: 1px solid rgba(120, 180, 120, 0.95);
+  background: rgba(84, 128, 84, 0.25);
+  border-radius: 6px;
+  padding: 1px;
+  line-height: 0;
+}

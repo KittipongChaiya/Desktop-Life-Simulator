@@ -40,6 +40,22 @@
   font-weight: 500;
 }
 
+/* The coin readout: icon + tweened count (CoinCounter.tsx). Gold-adjacent
+   text on the dark bar — the one warm accent the bar carries (R-09: the coin
+   is the deliberate Reward Gold spend). */
+.coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  color: #f2c24c;
+}
+
+.coinValue {
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+}
+
 .toggle {
   margin-left: auto;
   width: 28px;

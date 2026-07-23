@@ -13,10 +13,11 @@
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
-import { FarmControls } from './hud/FarmControls';
 import { InventoryPanel } from './hud/InventoryPanel';
+import { ShopPanel } from './hud/ShopPanel';
 import { StatusBar } from './hud/StatusBar';
 import { WorkerInfo } from './hud/WorkerInfo';
+import { WorkerPanel } from './hud/WorkerPanel';
 import { useOverlay } from './store-context';
 
 export function App(): ReactNode {
@@ -86,11 +87,12 @@ export function App(): ReactNode {
         <StatusBar />
       </div>
 
-      {/* Farm controls (worker count, hire) and the selected-worker panel show
-          over the world when expanded. */}
+      {/* The worker panel (count, hire, list), the shop, the selected-worker
+          panel, and the inventory show over the world when expanded. */}
       {!collapsed && (
         <>
-          <FarmControls />
+          <WorkerPanel />
+          <ShopPanel />
           <WorkerInfo />
           <InventoryPanel />
         </>

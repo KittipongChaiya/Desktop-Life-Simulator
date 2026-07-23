@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import { useSlice } from '../hooks/use-slice';
 import { useOverlay } from '../store-context';
 
+import { CoinCounter } from './CoinCounter';
 import styles from './StatusBar.module.css';
 
 function formatUptime(totalSeconds: number): string {
@@ -43,6 +44,8 @@ export function StatusBar(): ReactNode {
       <span className={styles['muted']} title="Simulation ticks elapsed">
         {status.tick.toLocaleString()} ticks
       </span>
+
+      <CoinCounter />
 
       <span className={styles['muted']} title="Workers hired">
         {workers.length} {workers.length === 1 ? 'worker' : 'workers'}

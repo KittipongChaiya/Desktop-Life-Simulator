@@ -66,10 +66,50 @@
   text-align: center;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* One stack line: icon+count, name, live price, sell buttons (06e). */
+.sellRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.price {
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Depressed price: quiet amber, never red — routine, not alarming (§10.1). */
+.priceDown {
+  color: #e0a93e;
+  font-variant-numeric: tabular-nums;
+}
+
+.sell {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(84, 128, 84, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.sell:hover {
+  background: rgba(104, 152, 104, 0.96);
 }
 
 .stack {
@@ -77,9 +117,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1;
+  width: 30px;
+  height: 30px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 6px;
+  flex: none;
 }
 
 .count {
