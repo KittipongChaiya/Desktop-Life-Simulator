@@ -22,6 +22,7 @@ declare global {
         getState(): Promise<CompanionState>;
         toggleHidden(): Promise<CompanionState>;
         toggleClickThrough(): Promise<CompanionState>;
+        toggleWorkMode(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
       };
       readonly app: {

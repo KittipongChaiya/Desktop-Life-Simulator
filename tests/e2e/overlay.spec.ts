@@ -51,7 +51,11 @@ test('is frameless, transparent, and absent from the taskbar', async () => {
     };
   });
 
-  expect(flags.alwaysOnTop).toBe(true);
+  // ALWAYS-ON-BOTTOM since phase-01.8c (ADR-014 §2, superseding ADR-003's
+  // always-on-top clause): the overlay lives behind normal windows and never
+  // self-raises. The full behind-everything behavior is OS z-order and stays
+  // on the manual checklist; what is assertable is that on-top is gone.
+  expect(flags.alwaysOnTop).toBe(false);
   expect(flags.resizable).toBe(false);
   expect(flags.movable).toBe(false);
 });

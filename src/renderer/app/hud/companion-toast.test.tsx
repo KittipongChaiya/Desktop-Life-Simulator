@@ -99,6 +99,18 @@ describe('CompanionToast', () => {
     expect(screen.getByRole('status').textContent).toContain('Click-through off');
   });
 
+  it('announces work mode with the way back out (01.8c)', () => {
+    const harness = mount();
+    harness.emit(state({ workMode: true }));
+
+    const toast = screen.getByRole('status');
+    expect(toast.textContent).toContain('Work mode on');
+    expect(toast.textContent).toContain(DEFAULT_BINDINGS[ShortcutAction.WorkMode]);
+
+    harness.emit(state({ workMode: false }));
+    expect(screen.getByRole('status').textContent).toContain('Work mode off');
+  });
+
   it('announces a quick-hide restore, but never the hide itself', () => {
     const harness = mount();
 

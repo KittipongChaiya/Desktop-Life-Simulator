@@ -158,9 +158,10 @@ src/
 │   └── app/                    React only — no PixiJS
 │       ├── App.tsx
 │       ├── companion-controller.ts  Desktop-companion bridge wrapper (01.8a) —
-│       │                       React never touches window.desktopLife directly
-│       ├── work-mode.ts        Work-mode presentation store (ADR-014 §3) —
-│       │                       hides HUD surfaces; never enters the sim
+│       │                       React never touches window.desktopLife directly.
+│       │                       Also the work-mode presentation source: App
+│       │                       gates the HUD on it (a separate store would
+│       │                       have duplicated it; never enters the sim)
 │       ├── hooks/
 │       │   ├── use-slice.ts    useSyncExternalStore wrapper
 │       │   └── use-command.ts

@@ -32,6 +32,8 @@ export interface DesktopLifeApi {
     toggleHidden(): Promise<CompanionState>;
     /** Click-through mode — the same action `Ctrl+Shift+C` drives. */
     toggleClickThrough(): Promise<CompanionState>;
+    /** Work mode — the same action `F11` drives. */
+    toggleWorkMode(): Promise<CompanionState>;
     /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
     onStateChanged(listener: (state: CompanionState) => void): () => void;
   };
@@ -77,6 +79,9 @@ const api: DesktopLifeApi = {
 
     toggleClickThrough: () =>
       ipcRenderer.invoke(InvokeChannel.ToggleClickThrough) as Promise<CompanionState>,
+
+    toggleWorkMode: () =>
+      ipcRenderer.invoke(InvokeChannel.ToggleWorkMode) as Promise<CompanionState>,
 
     onStateChanged: (listener) => {
       const handler = (_event: unknown, state: CompanionState): void => {

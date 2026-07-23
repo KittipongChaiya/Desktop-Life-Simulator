@@ -22,14 +22,22 @@ import styles from './CompanionToast.module.css';
 export const TOAST_DURATION_MS = 2400;
 
 interface Watched {
+  readonly workMode: boolean;
   readonly clickThrough: boolean;
   readonly hidden: boolean;
 }
 
 /** The toast for one transition, or null when this transition stays silent. */
 function messageFor(previous: Watched, next: Watched): string | null {
-  if (next.clickThrough !== previous.clickThrough) {
+  if (next.workMode !== previous.workMode) {
     // The way back out comes from the one bindings table — never hardcoded.
+    // Work mode hides everything else, so this confirmation is the one thing
+    // the player still sees land (resolved interpretation 6).
+    return next.workMode
+      ? `Work mode on — ${DEFAULT_BINDINGS[ShortcutAction.WorkMode]} to leave`
+      : 'Work mode off';
+  }
+  if (next.clickThrough !== previous.clickThrough) {
     return next.clickThrough
       ? `Click-through on — ${DEFAULT_BINDINGS[ShortcutAction.ClickThrough]} to interact`
       : 'Click-through off';
@@ -42,6 +50,7 @@ export function CompanionToast(): ReactNode {
   const companion = useCompanion();
   const [message, setMessage] = useState<string | null>(null);
   const previous = useRef<Watched>({
+    workMode: companion.workMode(),
     clickThrough: companion.clickThrough(),
     hidden: companion.hidden(),
   });
@@ -49,6 +58,7 @@ export function CompanionToast(): ReactNode {
   useEffect(() => {
     return companion.subscribe(() => {
       const next: Watched = {
+        workMode: companion.workMode(),
         clickThrough: companion.clickThrough(),
         hidden: companion.hidden(),
       };

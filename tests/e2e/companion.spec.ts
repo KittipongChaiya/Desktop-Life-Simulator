@@ -13,7 +13,12 @@ import { join } from 'node:path';
 
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
 
-import { OPACITY_DEFAULT_PERCENT, OPACITY_STEP_PERCENT } from '../../src/shared/constants';
+import {
+  OPACITY_DEFAULT_PERCENT,
+  OPACITY_STEP_PERCENT,
+  OVERLAY_HEIGHT_COLLAPSED,
+  OVERLAY_HEIGHT_EXPANDED,
+} from '../../src/shared/constants';
 
 let app: ElectronApplication;
 let userData: string;
@@ -104,7 +109,7 @@ test('the settings panel documents the three companion shortcuts (ADR-014 §5)',
  * OS-level and stays on the manual checklist.) */
 async function toggleViaBridge(
   window: Awaited<ReturnType<ElectronApplication['firstWindow']>>,
-  which: 'toggleHidden' | 'toggleClickThrough',
+  which: 'toggleHidden' | 'toggleClickThrough' | 'toggleWorkMode',
 ): Promise<void> {
   await window.evaluate(async (method) => {
     const api = (
@@ -202,12 +207,67 @@ test('global hotkeys register through the manager — and work mode not yet', as
   }));
 
   expect(registered.clickThrough).toBe(true);
-  // Unbound in 01.8b: an action without a feature must not swallow its key.
-  expect(registered.workMode).toBe(false);
+  // Bound in 01.8c: work mode is real, so its key is claimed now.
+  expect(registered.workMode).toBe(true);
   // F12 is deliberately NOT asserted: Windows reserves F12 for the debugger
   // (RegisterHotKey refuses it), so its registration outcome is
   // platform-dependent. The action itself stays reachable — the quick-hide
   // test above proves it through the IPC input, and the tray is the standing
   // fallback (ADR-014 §5.2). The finding is recorded in the phase doc.
   expect(typeof registered.quickHide).toBe('boolean');
+});
+
+test('work mode: strips the HUD to the living world, and its state persists (crit 5)', async () => {
+  const window = await app.firstWindow();
+  await window.locator('[title="Simulation uptime"]').waitFor();
+
+  await toggleViaBridge(window, 'toggleWorkMode');
+
+  // The mode constant, below the slider floor — a state, not a dial position.
+  await expect.poll(windowOpacity).toBeCloseTo(0.25, 5);
+  // Every HUD surface gone; the toast is the one thing that still lands.
+  await expect(window.getByRole('status')).toHaveText(/Work mode on — F11/);
+  await expect(window.getByRole('button', { name: 'Shop' })).toHaveCount(0);
+  await expect(window.getByRole('button', { name: 'Settings' })).toHaveCount(0);
+  await expect(window.locator('[title="Simulation uptime"]')).toHaveCount(0);
+
+  // Last state persists: relaunch resumes work mode (ADR-014 §4) — at the
+  // mode opacity, HUD still stripped, before any UI interaction.
+  await app.close();
+  app = await launch();
+  await expect.poll(windowOpacity).toBeCloseTo(0.25, 5);
+  const reopened = await app.firstWindow();
+  await expect(reopened.getByRole('button', { name: 'Shop' })).toHaveCount(0);
+
+  // Leaving work mode restores the player's own dial (100% default here).
+  await toggleViaBridge(reopened, 'toggleWorkMode');
+  await expect.poll(windowOpacity).toBeCloseTo(1.0, 5);
+  await expect(reopened.getByRole('button', { name: 'Shop' })).toBeVisible();
+  await expect(reopened.locator('[title="Simulation uptime"]')).toBeVisible();
+});
+
+test('work mode from collapsed expands, and leaving restores the prior presence', async () => {
+  const window = await app.firstWindow();
+  await window.locator('[title="Simulation uptime"]').waitFor();
+
+  // Collapse through the real UI path, then enter work mode.
+  await window.evaluate(async () => {
+    const api = (
+      globalThis as unknown as {
+        desktopLife: { overlay: { setCollapsed(next: boolean): Promise<unknown> } };
+      }
+    ).desktopLife;
+    await api.overlay.setCollapsed(true);
+  });
+  const height = (): Promise<number> =>
+    app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getBounds().height ?? -1);
+  await expect.poll(height).toBe(OVERLAY_HEIGHT_COLLAPSED);
+
+  // Work mode implies the expanded overlay — it exists to show the world.
+  await toggleViaBridge(window, 'toggleWorkMode');
+  await expect.poll(height).toBe(OVERLAY_HEIGHT_EXPANDED);
+
+  // Leaving restores the presence the player left behind: collapsed.
+  await toggleViaBridge(window, 'toggleWorkMode');
+  await expect.poll(height).toBe(OVERLAY_HEIGHT_COLLAPSED);
 });

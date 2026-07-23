@@ -187,6 +187,18 @@ export function startApplication(): void {
   // so wake the render-on-demand gate to draw (or clear) the selection box.
   selection.subscribe(() => worldMount.current()?.gate.markDirty());
 
+  // Work mode strips presentation adornments the React unmount cannot reach:
+  // the selection box, the armed tool's hover highlight, and the build ghost
+  // all live in the world view (fix/0.1/1.8.md §5 — hide selection outlines,
+  // disable non-essential effects). Idempotent and cheap, so it simply runs
+  // on every companion notify while the mode is active.
+  companion.subscribe(() => {
+    if (!companion.workMode()) return;
+    selection.select(null);
+    placement.deactivate();
+    playerInput.selectTool(null);
+  });
+
   const loop = createGameLoop({
     world,
     store,

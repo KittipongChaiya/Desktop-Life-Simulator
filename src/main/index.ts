@@ -41,6 +41,11 @@ let clickThroughMode = false;
 // truthful; without this, the window stays mouse-inert until the pointer
 // happens to cross a UI boundary).
 let hitTestClickThrough = true;
+// Whether the overlay was collapsed when work mode was entered — runtime
+// only, so leaving work mode within a session restores the prior presence
+// (resolved interpretation 1); across a relaunch the memory is gone and
+// leaving work mode simply stays expanded.
+let collapsedBeforeWorkMode: boolean | null = null;
 let shortcuts: ShortcutManager | null = null;
 let stopWatchingDisplays: (() => void) | null = null;
 
@@ -76,6 +81,34 @@ function toggleHidden(): CompanionState {
   // it receives this and can toast the restore when the window returns.
   broadcastCompanionState();
   refreshTrayMenu();
+  return companionState();
+}
+
+/**
+ * Work mode (fix/0.1/1.8.md §5): the simulation runs on; opacity drops to the
+ * mode constant by schema precedence; the renderer strips its HUD off the
+ * broadcast state. Work mode implies the expanded overlay — it exists to show
+ * the living world, which collapse has torn down (ADR-001 §2) — so entering
+ * from collapsed expands, and leaving restores the prior presence.
+ */
+function toggleWorkMode(): CompanionState {
+  const entering = !settings.desktop.workMode;
+
+  if (entering) {
+    collapsedBeforeWorkMode = settings.overlay.collapsed;
+    if (settings.overlay.collapsed) applyCollapsed(false);
+  }
+
+  settings = { ...settings, desktop: { ...settings.desktop, workMode: entering } };
+  if (overlay !== null) applyOpacity(overlay, settings.desktop);
+
+  if (!entering) {
+    if (collapsedBeforeWorkMode === true) applyCollapsed(true);
+    collapsedBeforeWorkMode = null;
+  }
+
+  broadcastCompanionState();
+  saveSettings(settings);
   return companionState();
 }
 
@@ -189,6 +222,11 @@ function registerIpc(): void {
     return toggleClickThroughMode();
   });
 
+  ipcMain.handle(InvokeChannel.ToggleWorkMode, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.ToggleWorkMode);
+    return toggleWorkMode();
+  });
+
   ipcMain.handle(InvokeChannel.Quit, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.Quit);
     app.quit();
@@ -225,11 +263,12 @@ function bootstrap(): void {
   registerIpc();
 
   // Global hotkeys, resolved through the one manager (fix/0.1/1.8a.md).
-  // Work mode's action stays UNBOUND until 01.8c wires it — its key must not
-  // be swallowed doing nothing. Failures are non-fatal by policy: the feature
-  // degrades and the tray remains the fallback (ADR-014 §5.2).
+  // Failures are non-fatal by policy: the feature degrades and the tray
+  // remains the fallback (ADR-014 §5.2). Known on Windows: F12 is refused
+  // outright — RegisterHotKey reserves it for the debugger (01.8b finding).
   shortcuts = createShortcutManager(DEFAULT_BINDINGS, globalShortcutRegistrar);
   const failed = shortcuts.registerAll({
+    [ShortcutAction.WorkMode]: () => void toggleWorkMode(),
     [ShortcutAction.QuickHide]: () => void toggleHidden(),
     [ShortcutAction.ClickThrough]: () => void toggleClickThroughMode(),
   });

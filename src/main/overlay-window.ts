@@ -47,10 +47,16 @@ export function createOverlayWindow(collapsed: boolean): BrowserWindow {
     },
   });
 
-  // 'floating' sits above normal windows but BELOW fullscreen applications,
-  // so a fullscreen game or video is never intruded upon. A higher level such
-  // as 'screen-saver' would draw over them — VISION.md §2.1 forbids that.
-  window.setAlwaysOnTop(true, 'floating');
+  // ALWAYS-ON-BOTTOM (ADR-014 §2, superseding ADR-003's always-on-top
+  // clause): the game is part of the desktop, not the workspace — VSCode, the
+  // browser, and every ordinary window sit above it. Electron exposes no
+  // push-to-bottom on Windows, so the mechanism is NEVER-RAISE: the window is
+  // unfocusable, shown with showInactive (SW_SHOWNA keeps z-position), and no
+  // code path calls moveTop or focus — every window the player touches rises
+  // above the overlay and stays there. The launch instant, before the first
+  // interaction elsewhere, is the accepted residue; the native HWND_BOTTOM
+  // escape hatch (ADR-014 §2) stays deliberately unexercised in v0.1.
+  window.setAlwaysOnTop(false);
 
   // Do not follow the user across virtual desktops; the overlay belongs to the
   // workspace it was opened on.

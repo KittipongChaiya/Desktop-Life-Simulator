@@ -20,15 +20,25 @@ import { ShopPanel } from './hud/ShopPanel';
 import { StatusBar } from './hud/StatusBar';
 import { WorkerInfo } from './hud/WorkerInfo';
 import { WorkerPanel } from './hud/WorkerPanel';
-import { useOverlay } from './store-context';
+import { useCompanion, useOverlay } from './store-context';
 
 export function App(): ReactNode {
   const overlay = useOverlay();
+  const companion = useCompanion();
 
   const collapsed = useSyncExternalStore(
     (listener) => overlay.subscribe(listener),
     () => overlay.isCollapsed(),
     () => overlay.isCollapsed(),
+  );
+
+  // Work mode strips React entirely (fix/0.1/1.8.md §5): the world is PixiJS,
+  // so keeping "world, workers, crops, buildings" means this tree's job is to
+  // get out of the way — fewer mounted components, structurally fewer commits.
+  const workMode = useSyncExternalStore(
+    (listener) => companion.subscribe(listener),
+    () => companion.workMode(),
+    () => companion.workMode(),
   );
 
   useEffect(() => {
@@ -84,18 +94,23 @@ export function App(): ReactNode {
   }, [overlay]);
 
   return (
-    <div className={styles['root']} data-collapsed={collapsed}>
-      <div className={styles['statusBar']} data-interactive>
-        <StatusBar />
-      </div>
+    <div className={styles['root']} data-collapsed={collapsed} data-testid="app-root">
+      {/* The status bar is HUD too: work mode hides it with everything else.
+          The exits stay reachable — F11 is global, and the tray never leaves. */}
+      {!workMode && (
+        <div className={styles['statusBar']} data-interactive>
+          <StatusBar />
+        </div>
+      )}
 
-      {/* Companion toasts show in BOTH presence modes — a mode confirmation
-          must reach the player whether the world is up or collapsed. */}
+      {/* Companion toasts show in EVERY presence mode — a mode confirmation
+          must reach the player whether the world is up, collapsed, or muted
+          (resolved interpretation 6: the work-mode toast itself still shows). */}
       <CompanionToast />
 
       {/* The worker panel (count, hire, list), the shop, the selected-worker
           panel, the inventory, and settings show over the world when expanded. */}
-      {!collapsed && (
+      {!collapsed && !workMode && (
         <>
           <WorkerPanel />
           <ShopPanel />

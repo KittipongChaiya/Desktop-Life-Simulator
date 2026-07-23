@@ -27,6 +27,8 @@ export const InvokeChannel = {
   ToggleHidden: 'companion:toggle-hidden',
   /** Click-through mode toggle (phase-01.8b) — the `Ctrl+Shift+C` action's IPC input. */
   ToggleClickThrough: 'companion:toggle-click-through',
+  /** Work mode toggle (phase-01.8c) — the `F11` action's IPC input. */
+  ToggleWorkMode: 'companion:toggle-work-mode',
   /** Quit the application. */
   Quit: 'app:quit',
 } as const;
@@ -90,6 +92,7 @@ export interface IpcContract {
   [InvokeChannel.GetCompanionState]: { request: void; response: CompanionState };
   [InvokeChannel.ToggleHidden]: { request: void; response: CompanionState };
   [InvokeChannel.ToggleClickThrough]: { request: void; response: CompanionState };
+  [InvokeChannel.ToggleWorkMode]: { request: void; response: CompanionState };
   [InvokeChannel.Quit]: { request: void; response: void };
   [SendChannel.SetClickThrough]: { request: boolean };
   [EventChannel.OverlayStateChanged]: { payload: OverlayState };
