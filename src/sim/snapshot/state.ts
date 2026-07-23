@@ -8,6 +8,14 @@
  */
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
+import {
+  economyEquals,
+  projectEconomy,
+  projectWallet,
+  walletEquals,
+  type EconomyView,
+  type WalletView,
+} from './economy-slice';
 import { inventoryEqual, projectInventory, type InventoryView } from './inventory-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
 import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
@@ -23,6 +31,8 @@ export interface SnapshotState {
   readonly workers: VersionedSlice<readonly WorkerView[]>;
   readonly buildings: VersionedSlice<readonly BuildingView[]>;
   readonly inventory: VersionedSlice<InventoryView>;
+  readonly wallet: VersionedSlice<WalletView>;
+  readonly economy: VersionedSlice<EconomyView>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -33,6 +43,9 @@ export function createSnapshotState(): SnapshotState {
     buildings: { version: 0, value: [] },
     // Corrected to the real capacity on the first tick's projection.
     inventory: { version: 0, value: { stacks: [], capacity: 0, usedSlots: 0 } },
+    // Corrected to the real balance and price list on the first tick.
+    wallet: { version: 0, value: { coins: 0 } },
+    economy: { version: 0, value: { prices: [], expansionsPurchased: 0, nextExpansionCost: null } },
   };
 }
 
@@ -60,6 +73,8 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     workers: state.workers.version,
     buildings: state.buildings.version,
     inventory: state.inventory.version,
+    wallet: state.wallet.version,
+    economy: state.economy.version,
   };
 }
 
@@ -72,4 +87,8 @@ export {
   projectBuildings,
   inventoryEqual,
   projectInventory,
+  walletEquals,
+  projectWallet,
+  economyEquals,
+  projectEconomy,
 };

@@ -135,6 +135,15 @@ export interface GrantCoinsCommand {
 }
 
 /**
+ * Buy the next ring of land (§6.3). Carries no fields: the cost derives from
+ * `expansionsPurchased`, exactly as `hireWorker` derives from headcount, so
+ * the command serializes and replays identically.
+ */
+export interface ExpandLandCommand {
+  readonly type: 'expandLand';
+}
+
+/**
  * Every command the simulation accepts.
  *
  * A new gameplay action is a new member here plus a registered handler — never
@@ -150,7 +159,8 @@ export type Command =
   | SellItemsCommand
   | BuySeedsCommand
   | SellBuildingCommand
-  | GrantCoinsCommand;
+  | GrantCoinsCommand
+  | ExpandLandCommand;
 
 export type CommandType = Command['type'];
 

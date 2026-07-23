@@ -14,12 +14,20 @@
  * at the §3.1 list price — only selling passes the multiplier pipeline.
  */
 
+import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
 import { appError, ErrorCode } from '../../shared/errors';
 import { isContentId, type ContentId } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
 import { stackSizeOf } from '../content/items';
 import { acceptable, addItems, containerCount, removeItems } from '../world/container';
-import { multiplierOf, recordSale, salePrice } from '../world/economy';
+import {
+  expansionCost,
+  multiplierOf,
+  plotSizeAfter,
+  recordSale,
+  salePrice,
+} from '../world/economy';
+import { claimCenteredPlot } from '../world/tile-grid';
 import { addCoins, spendCoins } from '../world/wallet';
 
 import type { CommandDispatcher } from './dispatcher';
@@ -156,6 +164,49 @@ function toContentIdField(raw: string, field: string): Result<ContentId> {
 }
 
 /**
+ * Checks a land expansion is legal. Rejects: a plot already at the world edge,
+ * insufficient funds for the §6.3 escalation.
+ */
+export function validateExpandLand(world: CommandWorld): ValidationResult {
+  const purchased = world.economy.expansionsPurchased;
+  if (plotSizeAfter(purchased + 1) > Math.min(WORLD_WIDTH, WORLD_HEIGHT)) {
+    return err(
+      appError(ErrorCode.InvalidIntent, 'the plot is already at its maximum size', { purchased }),
+    );
+  }
+
+  const cost = expansionCost(purchased);
+  if (world.wallet.coins < cost) {
+    return err(
+      appError(ErrorCode.InsufficientFunds, 'not enough coins to expand', {
+        cost,
+        held: world.wallet.coins,
+      }),
+    );
+  }
+
+  return ok();
+}
+
+/**
+ * Buys the next ring of land (§6.3): spends `floor(100 × 1.8^n)`, claims the
+ * larger centered plot (the inner claim is idempotent — only the ring is new),
+ * and counts the purchase. New tiles arrive grass, therefore tillable.
+ */
+export function expandLand(world: CommandWorld): Result<void> {
+  const validation = validateExpandLand(world);
+  if (!validation.ok) return validation;
+
+  const purchased = world.economy.expansionsPurchased;
+  const spend = spendCoins(world.wallet, expansionCost(purchased));
+  if (!spend.ok) return spend; // unreachable — funds validated above
+
+  claimCenteredPlot(world.tiles, plotSizeAfter(purchased + 1));
+  world.economy.expansionsPurchased = purchased + 1;
+  return ok();
+}
+
+/**
  * Credits the wallet — the declared DEV-ONLY source (ADR-013 §sources). Only
  * the devtools console's `money` command and test setups issue this; no
  * gameplay surface does. It exists as a command because there is no other
@@ -197,6 +248,11 @@ export function registerCommerceCommands(dispatcher: CommandDispatcher): void {
       const cropId = toContentIdField(command.cropId, 'cropId');
       return cropId.ok ? buySeeds(context.world, cropId.value, quantity.value) : cropId;
     },
+  });
+
+  dispatcher.register('expandLand', {
+    validate: (world) => validateExpandLand(world),
+    execute: (context) => expandLand(context.world),
   });
 
   dispatcher.register('grantCoins', {

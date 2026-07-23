@@ -41,7 +41,7 @@ import { createBuildingStore, type BuildingStore } from './building';
 import { createContainer, type Container } from './container';
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
-import { createEconomyState, type EconomyState } from './economy';
+import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
 import { createWallet, STARTING_COINS, type Wallet } from './wallet';
 import { createWorkerStore, type WorkerStore } from './worker';
@@ -151,9 +151,6 @@ export interface World {
   readonly snapshots: SnapshotState;
 }
 
-/** Starting owned plot, in tiles per side. GAME_DESIGN.md §2.1. */
-const STARTING_PLOT_SIZE = 8;
-
 /** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
 const BASE_INVENTORY_SLOTS = 40;
 
@@ -203,7 +200,8 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   const tiles = createTileGrid();
   // Every tile defaults to kind index 0, which is core:grass by registration
   // order — so an all-zero grid is a valid grass world with no fill pass.
-  claimCenteredPlot(tiles, STARTING_PLOT_SIZE);
+  // The 8×8 start is `plotSizeAfter(0)` — the same formula `expandLand` grows.
+  claimCenteredPlot(tiles, plotSizeAfter(0));
 
   const events = createEventBus();
   const cropStats = createCropStats();

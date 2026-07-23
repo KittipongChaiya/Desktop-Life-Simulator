@@ -12,7 +12,7 @@
 | **06a**   | Wallet, economy state, pricing engine, `economySystem`, base prices finalised             | **Delivered** |
 | **06b**   | Seed items, seed consumption on plant, `sellItems` / `buySeeds`, `itemSold`, seed icons   | **Delivered** |
 | **06c**   | Three new buildings, costs charged (buildings + hire), `sellBuilding`, building effects   | **Delivered** |
-| **06d**   | `expandLand`, progression state, `wallet` + `economy` snapshot slices                     | Pending       |
+| **06d**   | `expandLand`, progression state, `wallet` + `economy` snapshot slices                     | **Delivered** |
 | **06e**   | `ShopPanel`, sell interface, seed selector, coin counter, price indicators, full-loop E2E | Pending       |
 | **06f**   | The idle proof: 8-hour long-run, balance ordering, 100k-tick determinism, pacing          | Pending       |
 
@@ -124,6 +124,23 @@ one later is a spec edit, not a refactor surprise.
   the counter) join the buildings atlas; 89 sprites pack. Four buildings, four
   silhouette classes.
 
+**06d delivered** — land expansion and the snapshot bridge; the sim side of
+phase-06 is complete:
+
+- `expandLand` — a bare intent like `hireWorker`: cost derives from
+  `expansionsPurchased` (`expansionCost(n) = floor(100 × 1.8^n)`, the §6.3
+  table pinned by test), claims the next centered ring (the inner claim is
+  idempotent), and stops at the world edge. New tiles arrive grass, therefore
+  tillable. The starting 8×8 now comes from the same `plotSizeAfter(0)`
+  formula expansions grow — one source of truth.
+- `wallet` slice: one number, so the coin readout re-renders alone.
+- `economy` slice: every item's live INTEGER price + base price, sorted;
+  `expansionsPurchased` + `nextExpansionCost` for the shop. **The crit-16
+  gate holds by construction**: the slice speaks in whole coins, never raw
+  multipliers — a full 0.80 → 1.00 recovery republishes ≤ 8 times (the
+  integer price's distinct values), not 40 (periods), not 800 (ticks);
+  pinned by test, plus a 400-tick static-economy zero-republish test.
+
 ---
 
 ## Objectives
@@ -187,15 +204,15 @@ After this, the game is complete except for persistence. Everything the player n
 
 ### Land expansion
 
-- [ ] `expandLand` intent; cost `floor(100 × 1.8^n)`
-- [ ] Expands the owned plot by one ring
-- [ ] Newly owned tiles become tillable
-- [ ] `expansionsPurchased` tracked in progression state
+- [x] `expandLand` intent; cost `floor(100 × 1.8^n)`
+- [x] Expands the owned plot by one ring
+- [x] Newly owned tiles become tillable
+- [x] `expansionsPurchased` tracked in progression state
 
 ### Snapshot slices
 
-- [ ] `wallet` slice — republishes only on coin change
-- [ ] `economy` slice — prices, throttled; **must not republish every tick as multipliers recover**
+- [x] `wallet` slice — republishes only on coin change
+- [x] `economy` slice — prices, throttled; **must not republish every tick as multipliers recover**
 
 ### UI
 

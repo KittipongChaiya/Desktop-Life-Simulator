@@ -14,6 +14,7 @@
 import { ticksToWholeSeconds } from '../time/game-clock';
 
 import type { BuildingView } from './buildings-slice';
+import type { EconomyView, WalletView } from './economy-slice';
 import type { InventoryView } from './inventory-slice';
 import type { WorkerView } from './workers-slice';
 
@@ -40,6 +41,10 @@ export interface SliceMap {
   readonly buildings: readonly BuildingView[];
   /** The player's aggregated holdings, for the inventory panel. Phase-05d. */
   readonly inventory: InventoryView;
+  /** The coin balance, alone — so it re-renders alone. Phase-06d. */
+  readonly wallet: WalletView;
+  /** Live integer prices and the expansion counter. Phase-06d. */
+  readonly economy: EconomyView;
 }
 
 export type SliceName = keyof SliceMap;
@@ -49,6 +54,8 @@ export const SLICE_NAMES = [
   'workers',
   'buildings',
   'inventory',
+  'wallet',
+  'economy',
 ] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */

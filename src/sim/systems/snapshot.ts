@@ -7,13 +7,17 @@
 
 import {
   buildingsEqual,
+  economyEquals,
   inventoryEqual,
   projectBuildings,
+  projectEconomy,
   projectInventory,
   projectStatus,
+  projectWallet,
   projectWorkers,
   publishIfChanged,
   statusEquals,
+  walletEquals,
   workersEqual,
 } from '../snapshot/state';
 import type { World } from '../world/world';
@@ -27,4 +31,8 @@ export function snapshotSystem(world: World): void {
   publishIfChanged(world.snapshots.buildings, projectBuildings(world), buildingsEqual);
   // Inventory republishes only when the player's aggregated holdings change (crit 17).
   publishIfChanged(world.snapshots.inventory, projectInventory(world), inventoryEqual);
+  // Coins republish on change only; prices only when an INTEGER price moves —
+  // never per recovery period, let alone per tick (crit 16).
+  publishIfChanged(world.snapshots.wallet, projectWallet(world), walletEquals);
+  publishIfChanged(world.snapshots.economy, projectEconomy(world), economyEquals);
 }

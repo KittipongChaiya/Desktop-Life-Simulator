@@ -98,3 +98,24 @@ export function recoverAll(state: EconomyState): void {
     else state.multipliers.set(item, recovered);
   }
 }
+
+// ── Land expansion (§6.3) ────────────────────────────────────────────────────
+
+/** Base cost of the first expansion (§6.3). */
+export const EXPANSION_BASE_COST = 100;
+
+/** Per-expansion cost multiplier (§6.3). */
+export const EXPANSION_COST_GROWTH = 1.8;
+
+/** Starting plot side length (`GAME_DESIGN.md` §2.1). */
+export const BASE_PLOT_SIZE = 8;
+
+/** Cost of the NEXT expansion after `purchased` have been bought: `floor(100 × 1.8^n)`. */
+export function expansionCost(purchased: number): number {
+  return Math.floor(EXPANSION_BASE_COST * EXPANSION_COST_GROWTH ** purchased);
+}
+
+/** Plot side length after `purchased` expansions — one ring (+2) each (§6.3). */
+export function plotSizeAfter(purchased: number): number {
+  return BASE_PLOT_SIZE + 2 * purchased;
+}
