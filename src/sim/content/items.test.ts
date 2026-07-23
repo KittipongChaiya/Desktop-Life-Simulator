@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { asContentId } from '../../shared/ids';
 
 import {
+  CORE_CARROT,
   CORE_PUMPKIN,
+  CORE_TURNIP,
   CORE_WHEAT,
   createItemRegistry,
   DEFAULT_STACK_SIZE,
@@ -39,6 +41,17 @@ describe('core items', () => {
     if (wheat.ok && pumpkin.ok) {
       expect(pumpkin.value.basePrice).toBeGreaterThan(wheat.value.basePrice);
     }
+  });
+
+  it('base prices match the §3.1 crop table — finalised in phase-06', () => {
+    const priceOf = (id: typeof CORE_TURNIP): number => {
+      const item = registry.get(id);
+      return item.ok ? item.value.basePrice : -1;
+    };
+    expect(priceOf(CORE_TURNIP)).toBe(12);
+    expect(priceOf(CORE_WHEAT)).toBe(34);
+    expect(priceOf(CORE_CARROT)).toBe(80);
+    expect(priceOf(CORE_PUMPKIN)).toBe(230);
   });
 });
 

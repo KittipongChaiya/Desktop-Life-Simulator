@@ -10,6 +10,7 @@
  */
 
 import { commandSystem } from './command';
+import { economySystem } from './economy';
 import { eventFlushSystem, tickEventSystem } from './event-flush';
 import { movementSystem } from './movement';
 import type { SystemRegistration } from './scheduler';
@@ -33,7 +34,10 @@ export const TICK_SYSTEMS: readonly SystemRegistration[] = [
   { name: 'worker', phase: 'workers', run: workerSystem },
   { name: 'movement', phase: 'workers', run: movementSystem },
 
-  // phase-06: economySystem (economy)
+  // Price recovery (and, from 06c, the market stall sweep) settle after
+  // workers act, so a deposit made this tick is visible to the same tick's
+  // sweep and views observe settled prices.
+  { name: 'economy', phase: 'economy', run: economySystem },
 
   { name: 'tickEvent', phase: 'postUpdate', run: tickEventSystem },
   { name: 'eventFlush', phase: 'postUpdate', run: eventFlushSystem },

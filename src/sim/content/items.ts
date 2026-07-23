@@ -9,9 +9,9 @@
  * migration.
  *
  * The v0.1 items are the four crops' harvest goods; their ids match the crop
- * ids (`core:wheat` the crop yields `core:wheat` the item). `basePrice` is
- * defined here but unused until phase-06 introduces selling — the values are
- * provisional and finalised with the economy.
+ * ids (`core:wheat` the crop yields `core:wheat` the item). `basePrice` values
+ * are the `GAME_DESIGN.md` §3.1 crop table's "Sell (base)" column, finalised in
+ * phase-06 — rebalancing them is a data edit here, never a save migration.
  */
 
 import { asContentId, type ContentId } from '../../shared/ids';
@@ -47,8 +47,7 @@ export function createItemRegistry(): ItemRegistry {
  * Registers the v0.1 items — one per crop.
  *
  * Prices rise with growth time so the longer crops stay worth the wait
- * (`GAME_DESIGN.md` §3.2); the exact numbers are set with the economy in
- * phase-06.
+ * (`GAME_DESIGN.md` §3.2). The numbers are §3.1's, exactly.
  */
 export function registerCoreItems(registry: ItemRegistry): void {
   const items: readonly ItemDefinition[] = [
@@ -56,28 +55,28 @@ export function registerCoreItems(registry: ItemRegistry): void {
       id: CORE_TURNIP,
       displayName: 'Turnip',
       sprite: 'ui-world:item_turnip',
-      basePrice: 6,
+      basePrice: 12,
       stackSize: DEFAULT_STACK_SIZE,
     },
     {
       id: CORE_WHEAT,
       displayName: 'Wheat',
       sprite: 'ui-world:item_wheat',
-      basePrice: 15,
+      basePrice: 34,
       stackSize: DEFAULT_STACK_SIZE,
     },
     {
       id: CORE_CARROT,
       displayName: 'Carrot',
       sprite: 'ui-world:item_carrot',
-      basePrice: 30,
+      basePrice: 80,
       stackSize: DEFAULT_STACK_SIZE,
     },
     {
       id: CORE_PUMPKIN,
       displayName: 'Pumpkin',
       sprite: 'ui-world:item_pumpkin',
-      basePrice: 80,
+      basePrice: 230,
       stackSize: DEFAULT_STACK_SIZE,
     },
   ];

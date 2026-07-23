@@ -40,7 +40,9 @@ import { createBuildingStore, type BuildingStore } from './building';
 import { createContainer, type Container } from './container';
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
+import { createEconomyState, type EconomyState } from './economy';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
+import { createWallet, STARTING_COINS, type Wallet } from './wallet';
 import { createWorkerStore, type WorkerStore } from './worker';
 
 export interface World {
@@ -99,6 +101,19 @@ export interface World {
    * "ever harvested" cannot be recomputed from the current crop map (ADR-008).
    */
   readonly cropStats: CropStats;
+
+  /**
+   * The player's coins — a conserved integer resource in its container
+   * (ADR-013). Written only through `addCoins`/`spendCoins`, from command
+   * handlers only.
+   */
+  readonly wallet: Wallet;
+
+  /**
+   * Pricing state: per-item multipliers (sparse) and the land-expansion
+   * counter. Depressed by sale commands; recovered by `economySystem` (§6.2).
+   */
+  readonly economy: EconomyState;
 
   /**
    * Typed event bus. Queue-and-flush; subscribers run in `postUpdate` only
@@ -200,6 +215,10 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
     cropStats,
+    // The opening balance is the declared source `GAME_DESIGN.md` §6.4 names:
+    // coins enter at world creation and thereafter only at sale boundaries.
+    wallet: createWallet(STARTING_COINS),
+    economy: createEconomyState(),
     events,
     // Reads `world` lazily. The closure runs at dispatch time, never during
     // construction, so the self-reference is sound — and it is what keeps the
