@@ -1,18 +1,20 @@
 # ADR-014: The Desktop Companion
 
-|                   |                                                                |
-| ----------------- | -------------------------------------------------------------- |
-| **Status**        | Accepted                                                       |
-| **Date**          | 2026-07-23                                                     |
-| **Deciders**      | Project owner (directives `fix/0.1/1.8.md`, `fix/0.1/1.8a.md`) |
-| **Supersedes**    | ADR-003 — the window **z-order clause only** (see §2)          |
-| **Superseded by** | —                                                              |
+|                   |                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| **Status**        | Accepted                                                                                               |
+| **Date**          | 2026-07-23                                                                                             |
+| **Deciders**      | Project owner (directives `fix/0.1/1.8.md`, `fix/0.1/1.8a.md`)                                         |
+| **Supersedes**    | ADR-003 — the window **z-order clause only** (see §2) — _reverted 2026-07-23; the clause stands again_ |
+| **Superseded by** | —                                                                                                      |
 
 > The canonical authority for every desktop-companion feature — window presence, global hotkeys, platform persistence — from phase-01.8 through v1.0+. Authored under the foundation freeze (ADR-012) as its second sanctioned new decision. This ADR defines **platform architecture only**; concrete numbers (the opacity range, the work-mode constant) live in the phase-01.8 specification and the settings schema, not here.
 >
 > **Amended 2026-07-23** by directive `fix/0.1/1.8a.md`: §4 gains the categorized application settings model; §5 gains the rebindable-shortcut architecture (stable actions, one bindings table, the centralized `ShortcutManager`).
 >
 > **Amended 2026-07-23** (owner decision, post-phase): quick hide's default binding is **`F10`**. The directive's `F12` proved unregistrable on Windows — `RegisterHotKey` reserves it for the debugger (the 01.8b finding) — leaving the hotkey path dead on the primary platform. The rebind exercised §5's replaceable-configuration promise exactly as written: one line in `shared/shortcuts.ts`, nothing else.
+>
+> **Amended 2026-07-23** (owner decision — **the livability verdict §2 was waiting for**): the z-order inversion is **reverted**. The overlay is **always-on-top again** (`setAlwaysOnTop(true, 'floating')`, ADR-003's original clause restored), because the trade-off §Trade-offs accepted with eyes open — a maximized window covers the game entirely — proved unlivable in practice: a covered game is a forgotten game. What remains from §2's delivery: the window is still unfocusable, still shown with `showInactive`, and still never steals focus — on-top and focus-proof are independent properties, and only the z-order reverted. The presence dials (§1) are now the player's _only_ way to turn the game down, which strengthens rather than weakens their reason to exist. Behind-normal-windows remains available to a future version as a presence _mode_ (§6's state model), opt-in rather than identity.
 
 ---
 
@@ -49,8 +51,8 @@ Through every dial, **the simulation continues**. Hidden, inert, muted — the f
 
 ### 2. Window behavior
 
-- **Always-on-bottom, superseding ADR-003's always-on-top clause.** ADR-003 specified "a borderless, transparent, always-on-top window" and phase-01 shipped `setAlwaysOnTop(true, 'floating')`. That clause — and only that clause — is superseded: the overlay must remain behind normal application windows and must never raise itself. Everything else in ADR-003 (process split, Electron choice, IPC discipline) stands untouched. The freeze is honored by this supersession being an ADR (ADR-012 §2).
-- **Mechanism, at the decision level:** the window never self-raises (it is already `focusable: false` and shown with `showInactive`) and is pushed to the bottom of the z-order on show and on display changes. If Electron's surface proves insufficient on Windows, a native `HWND_BOTTOM` call is permitted — confined to `src/main`, behind the platform service, with its own review. _(01.8c delivered reality: Electron exposes no push-to-bottom on Windows, so the shipped mechanism is never-raise alone — `showInactive` maps to `SW_SHOWNA`, which keeps z-position, and no code path raises the window — putting the overlay behind every window the player touches from the first interaction on. The launch instant is the accepted residue; the native escape hatch stays deliberately unexercised in v0.1, pending the livability pass's verdict on whether the residue matters.)_
+- **Always-on-bottom, superseding ADR-003's always-on-top clause.** ADR-003 specified "a borderless, transparent, always-on-top window" and phase-01 shipped `setAlwaysOnTop(true, 'floating')`. That clause — and only that clause — is superseded: the overlay must remain behind normal application windows and must never raise itself. Everything else in ADR-003 (process split, Electron choice, IPC discipline) stands untouched. The freeze is honored by this supersession being an ADR (ADR-012 §2). **_REVERTED 2026-07-23_** _(see the amendment note): the livability verdict rejected the inversion — the overlay is always-on-top again, ADR-003's clause restored. This bullet is kept as the decision's history, not its present._
+- **Mechanism, at the decision level:** the window never self-raises (it is already `focusable: false` and shown with `showInactive`) and is pushed to the bottom of the z-order on show and on display changes. If Electron's surface proves insufficient on Windows, a native `HWND_BOTTOM` call is permitted — confined to `src/main`, behind the platform service, with its own review. _(01.8c delivered reality: Electron exposes no push-to-bottom on Windows, so the shipped mechanism was never-raise alone — `showInactive` maps to `SW_SHOWNA`, which keeps z-position, and no code path raises the window. The livability pass's verdict, which this paragraph was explicitly waiting on, arrived 2026-07-23: the inversion is reverted; the delivered mechanism is `setAlwaysOnTop(true, 'floating')` with the unfocusable/`showInactive` discipline unchanged.)_
 - **Quick hide is `hide()`/`showInactive()`** and nothing else. Hiding changes no other state — not opacity, not position, not mode — so restoration is exact _by construction_ rather than by bookkeeping.
 - **Opacity is a window property** (`BrowserWindow.setOpacity`), applied immediately on change. Work mode's reduced opacity is a **mode constant deliberately below the slider's floor** — it reads as a different state, not a slider position, and leaving work mode restores the player's own setting.
 - **Click-through mode is a main-process override** stacked on phase-01's per-region hit-testing: mode ON forces mouse transparency regardless of what the renderer's hit-testing requests; mode OFF returns control to hit-testing untouched. Two mechanisms, one owner, no negotiation between them.
@@ -127,7 +129,7 @@ Every restricted feature in the directive arrives, if it ever arrives, as a new 
 
 ## Trade-offs
 
-- **Behind-normal-windows means a maximized window covers the game entirely** — including the collapsed status bar. Accepted, with eyes open: that is what "guest" means, and it is the directive's explicit intent. The game is visible exactly when the player's layout leaves it visible; the tray and the global hotkeys are the handles that never disappear. The glance loop (`VISION.md` §3.1) now happens on the player's terms, not the game's.
+- **Behind-normal-windows means a maximized window covers the game entirely** — including the collapsed status bar. Accepted, with eyes open: that is what "guest" means, and it is the directive's explicit intent. The game is visible exactly when the player's layout leaves it visible; the tray and the global hotkeys are the handles that never disappear. The glance loop (`VISION.md` §3.1) now happens on the player's terms, not the game's. **_This trade-off is the one the 2026-07-23 livability verdict rejected_** — lived with, a covered game was a forgotten game. The reversion (see the amendment note) restores always-on-top; the presence dials carry the "guest" duty instead.
 - **Global hotkey shadowing** — `F10`/`F11` are meaningful in other applications. Accepted for v0.1; rebinding is the first extensibility item and the mitigation is that the hotkeys exist only while the game runs.
 - **Two opacity sources** (slider and work-mode constant) — resolved by one precedence rule: work mode active → mode constant; otherwise → slider. No blending, no memory of anything but the slider value.
 - **Presence states multiply** (expanded / collapsed / work / hidden / click-through). Contained by orthogonality: hidden and click-through compose over any base state; work mode is a variant of expanded. The state model is small and is tested as a unit.

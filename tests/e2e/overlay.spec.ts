@@ -51,11 +51,12 @@ test('is frameless, transparent, and absent from the taskbar', async () => {
     };
   });
 
-  // ALWAYS-ON-BOTTOM since phase-01.8c (ADR-014 §2, superseding ADR-003's
-  // always-on-top clause): the overlay lives behind normal windows and never
-  // self-raises. The full behind-everything behavior is OS z-order and stays
-  // on the manual checklist; what is assertable is that on-top is gone.
-  expect(flags.alwaysOnTop).toBe(false);
+  // ALWAYS-ON-TOP again (owner decision, 2026-07-23 — the livability verdict
+  // on phase-01.8c's z-order inversion): a maximized window covering the game
+  // entirely proved unlivable, so ADR-003's original clause stands restored
+  // (ADR-014 amendment). The window still NEVER steals focus — on-top and
+  // focus-proof are independent properties, and only the first reverted.
+  expect(flags.alwaysOnTop).toBe(true);
   expect(flags.resizable).toBe(false);
   expect(flags.movable).toBe(false);
 });

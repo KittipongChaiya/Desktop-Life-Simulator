@@ -193,7 +193,8 @@ src/
 │
 ├── main/                       Electron main process
 │   ├── index.ts                Entry
-│   ├── overlay-window.ts       Frameless, transparent, docked, always-on-bottom (ADR-014)
+│   ├── overlay-window.ts       Frameless, transparent, docked, always-on-top
+│   │                           (restored 2026-07-23 — ADR-014 amendment)
 │   ├── docking.ts              workArea geometry, multi-monitor, DPI
 │   ├── settings.ts             App preferences (settings.json) — NOT game state
 │   ├── settings-schema.ts      The categorized application settings model

@@ -47,16 +47,16 @@ export function createOverlayWindow(collapsed: boolean): BrowserWindow {
     },
   });
 
-  // ALWAYS-ON-BOTTOM (ADR-014 §2, superseding ADR-003's always-on-top
-  // clause): the game is part of the desktop, not the workspace — VSCode, the
-  // browser, and every ordinary window sit above it. Electron exposes no
-  // push-to-bottom on Windows, so the mechanism is NEVER-RAISE: the window is
-  // unfocusable, shown with showInactive (SW_SHOWNA keeps z-position), and no
-  // code path calls moveTop or focus — every window the player touches rises
-  // above the overlay and stays there. The launch instant, before the first
-  // interaction elsewhere, is the accepted residue; the native HWND_BOTTOM
-  // escape hatch (ADR-014 §2) stays deliberately unexercised in v0.1.
-  window.setAlwaysOnTop(false);
+  // ALWAYS-ON-TOP (ADR-003's original clause, RESTORED 2026-07-23 by owner
+  // decision — the livability verdict on phase-01.8c's z-order inversion: a
+  // maximized window covering the game entirely, collapsed status bar
+  // included, proved unlivable in practice; the trade ADR-014 §2 accepted
+  // with eyes open was rejected by use). 'floating' is the phase-01 level:
+  // above normal windows, below OS-critical surfaces, and fullscreen
+  // applications still cover it. On-top and focus-proof are INDEPENDENT —
+  // the window remains unfocusable and shown with showInactive, so it sits
+  // above the workspace without ever interrupting it.
+  window.setAlwaysOnTop(true, 'floating');
 
   // Do not follow the user across virtual desktops; the overlay belongs to the
   // workspace it was opened on.

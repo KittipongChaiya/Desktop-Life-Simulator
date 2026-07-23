@@ -24,7 +24,7 @@ The player's actual work is the priority; the game is the guest. This is not a s
 
 - The overlay must never steal focus, never raise itself over a fullscreen application, and never interrupt with modal dialogs.
 - The game must be collapsible to a thin status bar with a single click, and must survive being ignored for days.
-- Presence is the player's dial, not the game's: opacity is adjustable, hiding is instant, the overlay can be made mouse-inert, and a work mode strips it to its living world — all while the simulation runs on. The overlay sits _behind_ normal application windows: it is part of the desktop, never in front of the player's work (ADR-014).
+- Presence is the player's dial, not the game's: opacity is adjustable, hiding is instant, the overlay can be made mouse-inert, and a work mode strips it to its living world — all while the simulation runs on (ADR-014). The overlay sits on top of the workspace without ever interrupting it — never focused, never in the way; the presence dials, not z-order, are how the player turns it down. _(Phase-01.8 briefly inverted this to behind-normal-windows; the 2026-07-23 livability verdict restored always-on-top — a covered game turned out to be a forgotten game.)_
 - Idle CPU and memory consumption are **features**, not optimizations. A beautiful game that makes the fan spin is a failed game. See `PERFORMANCE.md` for the enforced budgets.
 - Nothing in the game may ever be time-critical in a way that punishes the player for doing their job. There are no failure states driven by inattention.
 

@@ -2,7 +2,7 @@
 
 > **Status: Phase 01.8 is complete.** All four milestones delivered; the manual companion-livability pass remains for a human (see Testing Checklist).
 >
-> **Delivers:** The platform features that define the project's identity — an opacity dial, quick hide, click-through mode, work mode, and always-on-bottom — implemented as a main-process platform service the simulation never learns exists (ADR-014).
+> **Delivers:** The platform features that define the project's identity — an opacity dial, quick hide, click-through mode, work mode, and z-order control — implemented as a main-process platform service the simulation never learns exists (ADR-014). _(Shipped as always-on-bottom; the 2026-07-23 livability verdict reverted the inversion to always-on-top — see the post-phase notes.)_
 > **Runnable at completion:** The game coexists with real desktop work: fade it, banish it, make it untouchable, or strip it to its living world — the farm runs through all of it.
 > **Source directives:** `fix/0.1/1.8.md` (the features), `fix/0.1/1.8a.md` (the architecture extension). **Architecture:** ADR-014 (as amended).
 
@@ -19,7 +19,7 @@ These are **not gameplay systems.** They are platform-level overlay features. Th
 ## Objectives
 
 1. Give the player the four presence dials (ADR-014 §1): opacity, quick hide, click-through mode, work mode.
-2. Invert the z-order: the game lives **behind** normal application windows (ADR-014 §2, superseding ADR-003's always-on-top clause).
+2. Invert the z-order: the game lives **behind** normal application windows (ADR-014 §2, superseding ADR-003's always-on-top clause). _(Delivered, lived with, and reverted by the 2026-07-23 livability verdict — always-on-top stands again.)_
 3. Prove the simulation runs unaffected through every dial — hidden, inert, muted.
 4. Fix the preference/save boundary in code before phase-07 builds the save.
 
@@ -48,7 +48,7 @@ Exactly these five. No additional desktop features (Out of Scope is binding).
 - A main-process **override** above phase-01's per-region hit-testing — mode ON forces mouse transparency; mode OFF returns control to hit-testing untouched (ADR-014 §2).
 - A brief toast confirms the current mode on each toggle.
 
-### 4. Always on bottom
+### 4. Always on bottom _(reverted post-phase — see the 2026-07-23 note below)_
 
 - The game window remains behind normal application windows — VSCode, browsers, Explorer, terminals, Office apps always appear above it.
 - Never steals focus (already `focusable: false`); never self-raises; pushed to the z-order bottom on show and display changes.
@@ -133,6 +133,10 @@ Infrastructure only, landed deliberately **before 01.8b registers the first hotk
 - **F12 remained the shipped default** per the directive's letter — no rebind decision had been received at close-out; the binding stays one line in `shared/shortcuts.ts` whenever it comes. _(It came: see the post-phase fix note below.)_
 - Gates: typecheck, lint, **720** unit/integration, **24 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched across the entire phase — criterion 10 held from first commit to last.
 
+### Post-phase reversal (2026-07-23) — always-on-top restored: the livability verdict
+
+The 01.8c close-out left one judgment explicitly to a human: whether always-on-bottom is livable. **The verdict came back: it is not.** A maximized window covers the game entirely — collapsed status bar included — and a covered game turned out to be a forgotten game, exactly the trade-off ADR-014 §Trade-offs had accepted with eyes open. The owner reverted the inversion: `overlay-window.ts` is back to `setAlwaysOnTop(true, 'floating')` (phase-01's original level — above normal windows, below OS-critical surfaces, still covered by fullscreen apps), the phase-01 overlay E2E assertion is flipped back to `true`, and ADR-003's z-order clause stands restored (ADR-014 carries the amendment). **What did not revert:** the window is still unfocusable and shown with `showInactive` — on-top and focus-proof are independent, and only the z-order changed. The presence dials this phase built (opacity, quick hide, click-through, work mode) are now the player's _only_ way to turn the game down, which strengthens their reason to exist; behind-normal-windows remains available to a future version as an opt-in presence mode (ADR-014 §6). Acceptance criterion 6 and the manual always-on-bottom checklist item are discharged by this verdict — the pass ran, and its answer was the reversal.
+
 ### Post-phase fix (2026-07-23) — quick hide rebound `F12` → `F10`
 
 The owner's decision on the 01.8b escalation: quick hide's default binding is **`F10`**. The change was, as designed, **one line in `shared/shortcuts.ts`** — the manager registers the new key, the settings panel's reference re-renders from the table, and no component, handler, or test helper changed behavior. F10 registers successfully on Windows, so the E2E hotkey test now asserts all three registrations outright (the platform hedge is gone), and the manual pass's physical-keypress item covers all three keys for the first time. ADR-014 carries the matching amendment note; `GAME_DESIGN.md` §8.3/§10.3 updated.
@@ -151,19 +155,19 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 
 ## Acceptance Criteria
 
-| #   | Criterion                                                                    | Verified by                        |
-| --- | ---------------------------------------------------------------------------- | ---------------------------------- |
-| 1   | Opacity changes instantly                                                    | E2E + manual                       |
-| 2   | Opacity persists between launches                                            | E2E (relaunch)                     |
-| 3   | `F10` hides and restores the window, state exact _(rebound from `F12`)_      | E2E (service) + manual (hotkey)    |
-| 4   | `Ctrl+Shift+C` toggles click-through                                         | E2E (service) + manual (hotkey)    |
-| 5   | `F11` toggles work mode; previous state restored on exit                     | E2E (service) + manual (hotkey)    |
-| 6   | Always-on-bottom: VSCode/browser/Explorer/terminal/Office sit above the game | Manual                             |
-| 7   | **Simulation continues while hidden** — tick advances through hide/restore   | E2E                                |
-| 8   | No gameplay regressions                                                      | Full existing suite green          |
-| 9   | No architecture violations                                                   | `check:boundaries`, `check:cycles` |
-| 10  | **No simulation awareness of platform features** — `src/sim` untouched       | Diff + sim suite byte-identical    |
-| 11  | All existing tests pass                                                      | Full gates                         |
+| #   | Criterion                                                                                                                                                      | Verified by                        |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 1   | Opacity changes instantly                                                                                                                                      | E2E + manual                       |
+| 2   | Opacity persists between launches                                                                                                                              | E2E (relaunch)                     |
+| 3   | `F10` hides and restores the window, state exact _(rebound from `F12`)_                                                                                        | E2E (service) + manual (hotkey)    |
+| 4   | `Ctrl+Shift+C` toggles click-through                                                                                                                           | E2E (service) + manual (hotkey)    |
+| 5   | `F11` toggles work mode; previous state restored on exit                                                                                                       | E2E (service) + manual (hotkey)    |
+| 6   | Always-on-bottom: VSCode/browser/Explorer/terminal/Office sit above the game _(discharged by the 2026-07-23 livability verdict — the answer was the reversal)_ | Manual                             |
+| 7   | **Simulation continues while hidden** — tick advances through hide/restore                                                                                     | E2E                                |
+| 8   | No gameplay regressions                                                                                                                                        | Full existing suite green          |
+| 9   | No architecture violations                                                                                                                                     | `check:boundaries`, `check:cycles` |
+| 10  | **No simulation awareness of platform features** — `src/sim` untouched                                                                                         | Diff + sim suite byte-identical    |
+| 11  | All existing tests pass                                                                                                                                        | Full gates                         |
 
 **E2E honesty note:** Playwright cannot synthesize OS-level global keypresses. E2E drives the platform service's toggle functions directly (via the Electron main-process handle) and asserts hotkey **registration** (`globalShortcut.isRegistered`); the physical keypress path is the manual checklist's job. The wiring between them is one `register(key, fn)` call.
 
@@ -189,7 +193,7 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 ### Manual — the companion livability pass
 
 - [ ] Each hotkey pressed physically, from another application's focus, in and out
-- [ ] Always-on-bottom against each named app class: VSCode, browser, Explorer, terminal, Office
+- [x] Always-on-bottom against each named app class: VSCode, browser, Explorer, terminal, Office _(ran as the livability verdict, 2026-07-23 — the outcome was the always-on-top reversal; the item is complete, its answer just wasn't "keep")_
 - [ ] `F10` conflict observation: note what breaks in other apps while the game runs (`F10` reaches the menu bar in some Windows apps — feeds the rebinding priority, ADR-014 §5.3)
 - [ ] A working day in work mode: is 25% + world-only genuinely non-distracting?
 - [ ] Task Manager before/after: companion features add no measurable idle cost

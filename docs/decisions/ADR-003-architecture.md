@@ -1,12 +1,12 @@
 # ADR-003: Electron Shell, Process Layout, and Layered Architecture
 
-|                   |                                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **Status**        | Accepted                                                                                                |
-| **Date**          | 2026-07-21                                                                                              |
-| **Deciders**      | Project owner, lead architect                                                                           |
-| **Supersedes**    | —                                                                                                       |
-| **Superseded by** | ADR-014 — the window **z-order clause only** (always-on-top → always-on-bottom); everything else stands |
+|                   |                                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**        | Accepted                                                                                                                                                                               |
+| **Date**          | 2026-07-21                                                                                                                                                                             |
+| **Deciders**      | Project owner, lead architect                                                                                                                                                          |
+| **Supersedes**    | —                                                                                                                                                                                      |
+| **Superseded by** | — _(ADR-014 superseded the z-order clause in phase-01.8; the owner's 2026-07-23 livability verdict restored it — the always-on-top clause stands again, see ADR-014's amendment note)_ |
 
 ---
 
