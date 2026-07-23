@@ -66,7 +66,9 @@ Two standing reconciliations for script-authored art, recorded here once:
 | **05.6b** | The golden crop: `wheat_0..3` (new `crops` atlas) + production `item_*` icons                                                                                                  | SCRIPT        | **Delivered** |
 | **05.6c** | Icon set + UI set (panel, buttons, hotbar, tooltip, cursor, notification) per `UI_STYLE_GUIDE`                                                                                 | SCRIPT + SPEC | **Delivered** |
 | **05.6d** | Characters: worker + player rigs (idle/walk/harvest), animation metadata; portraits                                                                                            | SCRIPT + SPEC | **Delivered** |
-| **05.6e** | Audio production specs + `ASSET_VALIDATION_REPORT.md` + final review; close the phase                                                                                          | SPEC + report | Pending       |
+| **05.6e** | Audio production specs + `ASSET_VALIDATION_REPORT.md` + final review; close the phase                                                                                          | SPEC + report | **Delivered** |
+
+**Phase 05.6 is complete.** The verdict lives in `docs/assets/ASSET_VALIDATION_REPORT.md`: **GO for phase-06** — the canon survived production with fifteen small findings (two fixed in-canon during the phase, the rest queued additively), zero placeholders remaining, zero undocumented assets, zero `src/` changes across all five sub-milestones.
 
 Execution order: tooling first (everything else uses it), characters late (hardest SCRIPT call), the report last (it can only validate finished work).
 
@@ -171,9 +173,25 @@ Execution order: tooling first (everything else uses it), characters late (harde
 
 ### 05.6e — Audio specs, validation report, close
 
-- [ ] Production briefs for: Main Theme, harvest SFX, footstep SFX, button SFX, ambient wind, bird ambience — each a complete, self-sufficient spec against `AUDIO_DIRECTION.md` / `MUSIC_LIBRARY.md` / `SFX_LIBRARY.md` (tempo/key/instrumentation intent, loop points, file name per `NAMING_CONVENTION.md §4.1–4.2`, tier).
-- [ ] `docs/assets/ASSET_VALIDATION_REPORT.md` — the directive's required report: per-check verification (visual/naming/folder/palette/pixel/animation/style/audio consistency, documentation coverage), every canon gap or friction found while producing 05.6a–d, missing documentation, recommended doc updates, risks, and the phase-06 go/no-go.
-- [ ] Flip this phase's status; CHANGELOG; close.
+- [x] Production briefs for: Main Theme, harvest SFX, footstep SFX, button SFX, ambient wind, bird ambience — each a complete, self-sufficient spec against `AUDIO_DIRECTION.md` / `MUSIC_LIBRARY.md` / `SFX_LIBRARY.md` (tempo/key/instrumentation intent, loop points, file name per `NAMING_CONVENTION.md §4.1–4.2`, tier).
+- [x] `docs/assets/ASSET_VALIDATION_REPORT.md` — the directive's required report: per-check verification (visual/naming/folder/palette/pixel/animation/style/audio consistency, documentation coverage), every canon gap or friction found while producing 05.6a–d, missing documentation, recommended doc updates, risks, and the phase-06 go/no-go.
+- [x] Flip this phase's status; CHANGELOG; close.
+
+**05.6e delivered** — six audio production briefs (below), the validation report, two small canon fixes (`SFX_LIBRARY.md §5` gains the `birds` row `AUDIO_DIRECTION.md §3–4` already promised; `ATTRIBUTION.md`'s prettier-mangled `*` wildcards repaired with the backtick convention). Two directive reconciliations: **"Main Theme" → `bgm_farm`** — this game has no title screen; its main theme is the home bed, "the core working score" (`MUSIC_LIBRARY.md §4`); **"bird ambience" → `sfx_birds`** via the new catalog row. All audio is SPEC — none ships in v0.1 (`VISION.md §5.2`); every brief obeys the one principle: _audio you can leave running all day_ (`AUDIO_DIRECTION.md §1`).
+
+**Audio production briefs (SPEC — WAV source → `.ogg` via `ADR-006 §8`, lazy-loaded, never blocking startup; all v0.2):**
+
+> **`bgm_farm.ogg`** — the main theme (`MUSIC_LIBRARY.md §4`: warm, tended, the core working score). Tempo ≈ 68–76 BPM, unhurried; a soft pastoral major (F or G). Instrumentation per `AUDIO_DIRECTION.md §2`: nylon guitar and warm felt piano carrying gentle fragments, light strings and a low warm pad beneath, distant woodwind colour — **no driving percussion, no loud melody**. Structure: a 3–4 minute seamless loop of long, low-contour phrases that **falls to near-silence at least once mid-loop** (music breathes, §2); no motif recurring sharply enough to grate on the hundredth pass (§8). Loop point lands on a sustained pad tone, click-free. Mix: generous headroom, comfortably below the player's other audio (§7) — muting it entirely must leave a perfectly playable game.
+
+> **`sfx_harvest.wav`** — the loop's payoff (`SFX_LIBRARY.md §2`: a crisp, pleasing rustle-and-pluck). Syncs to the 30-tick harvest animation (`GAME_DESIGN.md §4.3`, `ANIMATION_GUIDE.md §2`): total ≤ 1.5 s; a dry-grass rustle rises through the reach, one soft rounded pluck transient lands on the ground-touch beat (≈ 0.6–0.9 s in — frames 2–3 of the one-shot), a light straw-settle tail as the sheaf lifts. Satisfaction, not spectacle (`AUDIO_DIRECTION.md §6`); no metallic ring, nothing sharp. Sits above ambience, below the reward chime in the §7 hierarchy.
+
+> **`sfx_step_0..3.wav`** — footfalls felt more than heard (`SFX_LIBRARY.md §3`). Four zero-indexed round-robin variants (`NAMING_CONVENTION.md §4.2`) so repetition never patterns. Each ≤ 150 ms: a soft soil thud, low-passed, no heel click. Steps land on the walk's contact frames (0 and 2 of the 5 fps gait). The very bottom of the mix; with several workers walking, steps thin out rather than stack.
+
+> **`sfx_button.wav`** — the interface's voice (`SFX_LIBRARY.md §6`: a gentle, low click). ≤ 80 ms, a woody/felt tick — a well-worn toolbox latch, never a digital beep. Quiet by default; never a harsh alert (`AUDIO_DIRECTION.md §5`).
+
+> **`sfx_wind.wav`** — the ambient bed's base layer (`SFX_LIBRARY.md §5`: a gentle, low breath through foliage). A ≥ 60 s seamless loop: soft low-passed air with occasional unhurried foliage rustle; **no gust ever spikes** (`AUDIO_DIRECTION.md §3` — nothing in the bed startles). Click-free splice; holds a steady low level under everything.
+
+> **`sfx_birds.wav`** — farm birdsong (`SFX_LIBRARY.md §5`, the row added this phase). A ≥ 90 s loop that is **mostly rests**: two or three distant, distinct chirp phrases separated by long silence — sparse, never chattering, no alarm calls (silence is a valid loop state, `AUDIO_DIRECTION.md §8`). Daytime farm layer over the wind bed (§4).
 
 ---
 

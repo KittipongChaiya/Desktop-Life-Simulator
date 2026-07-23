@@ -49,10 +49,11 @@ The emotional peak of the mix — the one family the ear learns to want (`AUDIO_
 
 Loops, not one-shots — layers over the ambient bed, never replacing it (`AUDIO_DIRECTION.md §4`). Long, seamless, hook-free (`AUDIO_DIRECTION.md §8`).
 
-| Event  | Ships | Intent                                 | Trigger / sync            |
-| ------ | ----- | -------------------------------------- | ------------------------- |
-| `rain` | v0.2  | Cozy, soothing rainfall — never gloomy | Rain weather active; loop |
-| `wind` | v0.2  | A gentle, low breath through foliage   | Ambient layer; loop       |
+| Event   | Ships | Intent                                                                                | Trigger / sync                               |
+| ------- | ----- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `rain`  | v0.2  | Cozy, soothing rainfall — never gloomy                                                | Rain weather active; loop                    |
+| `wind`  | v0.2  | A gentle, low breath through foliage                                                  | Ambient layer; loop                          |
+| `birds` | v0.2  | Soft, occasional farm birdsong — sparse, never chattering (`AUDIO_DIRECTION.md §3–4`) | Ambient layer, daytime; loop with long rests |
 
 ## 6. UI (v0.2)
 
