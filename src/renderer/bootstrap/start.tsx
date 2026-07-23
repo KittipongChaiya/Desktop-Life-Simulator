@@ -227,6 +227,9 @@ export function startApplication(): void {
     world: () => worldMount.current(),
     worldError: () => lastWorldError,
     commandRejection: () => lastCommandRejection,
+    // The console's `money` command submits through the ordinary player
+    // source — no privileged write path (ADR-010 §6).
+    submitCommand: (command) => playerSource.submit(command),
     appVersion: __APP_VERSION__,
     reload: () => {
       window.location.reload();

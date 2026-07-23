@@ -18,6 +18,7 @@ import { MetricGroup } from '@devtools/metrics/registry';
 import type { WorldView } from '@render/world-view';
 
 import type { SimulationControl } from '../../shared/simulation-control';
+import type { Command, CommandResult } from '../../sim/commands/types';
 
 export interface DevToolsMountOptions {
   readonly simulation: SimulationControl;
@@ -36,20 +37,55 @@ export interface DevToolsMountOptions {
    * than discarded (`AI_RULES.md` §2.2).
    */
   readonly commandRejection?: () => string | null;
+  /**
+   * Submits a sim command through the ordinary player source (06c). Enables
+   * console commands that act on the world — `money`, the declared dev-only
+   * coin source — with no privileged write path (ADR-010 §6).
+   */
+  readonly submitCommand?: (command: Command) => CommandResult;
 }
 
 /** Resolves once tooling is mounted, or immediately when the build has none. */
 export async function mountDevTools(options: DevToolsMountOptions): Promise<void> {
   if (!FEATURE_DEBUG) return;
 
-  const [{ createDevTools }, { DevTools }, { createRoot }, react] = await Promise.all([
-    import('@devtools/host'),
-    import('@devtools/ui/DevTools'),
-    import('react-dom/client'),
-    import('react'),
-  ]);
+  const [{ createDevTools }, { DevTools }, { createRoot }, react, consoleRegistry] =
+    await Promise.all([
+      import('@devtools/host'),
+      import('@devtools/ui/DevTools'),
+      import('react-dom/client'),
+      import('react'),
+      import('@devtools/console/registry'),
+    ]);
 
   const host = createDevTools(options);
+
+  // The `money` console command the phase-01.5 builtins reserved — registered
+  // by its owning phase (06c) through the same public API, exactly as the
+  // builtins module prescribes. Dev-only by construction: this whole function
+  // is behind FEATURE_DEBUG.
+  const submitCommand = options.submitCommand;
+  if (submitCommand !== undefined) {
+    host.commands.register({
+      name: 'money',
+      summary: 'Grant coins (dev-only source, ADR-013).',
+      usage: 'money <amount>',
+      run: ({ args }) => {
+        const [raw] = args;
+        const amount = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
+        if (!Number.isSafeInteger(amount) || amount < 1) {
+          return consoleRegistry.resultOf(
+            `Expected a positive integer amount, got "${raw ?? ''}"`,
+            consoleRegistry.OutputKind.Error,
+          );
+        }
+        const result = submitCommand({ type: 'grantCoins', amount });
+        return result.ok
+          ? consoleRegistry.resultOf(`granted ${amount.toLocaleString()} coins`)
+          : consoleRegistry.resultOf(result.error.message, consoleRegistry.OutputKind.Error);
+      },
+    });
+  }
 
   const commandRejection = options.commandRejection;
   if (commandRejection !== undefined) {

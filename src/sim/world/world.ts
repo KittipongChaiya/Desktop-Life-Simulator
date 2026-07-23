@@ -10,7 +10,7 @@
  * (AI_RULES.md §3.2).
  */
 
-import type { BuildingId } from '../../shared/ids';
+import type { BuildingId, ContentId, TileIndex } from '../../shared/ids';
 import { registerBuildingCommands } from '../commands/building-commands';
 import { registerCommerceCommands } from '../commands/commerce-commands';
 import { registerCropCommands } from '../commands/crop-commands';
@@ -117,6 +117,13 @@ export interface World {
   readonly economy: EconomyState;
 
   /**
+   * Last crop planted per tile — the seed bin's memory (06c, `GAME_DESIGN.md`
+   * §5). Written on every successful plant whether or not a bin stands
+   * (recording is free); worker task selection reads it only when one does.
+   */
+  readonly lastPlanted: Map<TileIndex, ContentId>;
+
+  /**
    * Typed event bus. Queue-and-flush; subscribers run in `postUpdate` only
    * (ADR-008).
    */
@@ -220,6 +227,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     // coins enter at world creation and thereafter only at sale boundaries.
     wallet: createWallet(STARTING_COINS),
     economy: createEconomyState(),
+    lastPlanted: new Map(),
     events,
     // Reads `world` lazily. The closure runs at dispatch time, never during
     // construction, so the self-reference is sound — and it is what keeps the

@@ -13,6 +13,7 @@ import { toIndexUnchecked } from '../../shared/geometry';
 import { asWorkerId } from '../../shared/ids';
 import { CommandSource } from '../commands/types';
 import { stepSimulation, stepSimulationBy } from '../tick';
+import { addCoins } from '../world/wallet';
 import { createWorker, WorkerState, WorkerTaskKind, type Worker } from '../world/worker';
 import { createWorld, type World } from '../world/world';
 
@@ -75,6 +76,7 @@ describe('projectWorkers', () => {
   it('identical simulation state produces identical snapshots', () => {
     const build = (): World => {
       const world = createWorld(4242);
+      addCoins(world.wallet, 150); // hiring charges since 06c
       world.commands.dispatch({ type: 'hireWorker' }, { source: CommandSource.Player });
       stepSimulationBy(world, 137);
       return world;
@@ -133,6 +135,7 @@ describe('workersEqual', () => {
 describe('snapshotSystem publishes the workers slice', () => {
   it('bumps the version as a worker acts, and reflects it in the slice', () => {
     const world = createWorld(1);
+    addCoins(world.wallet, 150); // hiring charges since 06c
     world.commands.dispatch({ type: 'hireWorker' }, { source: CommandSource.Player });
     stepSimulation(world); // hire applies; worker begins acting
 

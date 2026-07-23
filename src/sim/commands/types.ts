@@ -15,7 +15,7 @@
  * (`CODE_STYLE.md` §1.2, `AI_RULES.md` §2.4).
  */
 
-import type { BuildingId } from '../../shared/ids';
+import type { BuildingId, ContentId, TileIndex } from '../../shared/ids';
 import type { Result } from '../../shared/result';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
@@ -114,6 +114,27 @@ export interface BuySeedsCommand {
 }
 
 /**
+ * Sell a placed building back for 50% of its cost (§5.2). A storing building
+ * sells only once its container is empty — the refund never destroys goods
+ * (ADR-011 §7).
+ */
+export interface SellBuildingCommand {
+  readonly type: 'sellBuilding';
+  readonly building: number;
+}
+
+/**
+ * Credit the wallet directly — the declared DEV-ONLY source (ADR-013: money
+ * enters only at declared sources; this one is declared here). Reached through
+ * the devtools console's `money` command and the test suites; no gameplay
+ * surface issues it.
+ */
+export interface GrantCoinsCommand {
+  readonly type: 'grantCoins';
+  readonly amount: number;
+}
+
+/**
  * Every command the simulation accepts.
  *
  * A new gameplay action is a new member here plus a registered handler — never
@@ -127,7 +148,9 @@ export type Command =
   | DepositWorkerCommand
   | PlaceBuildingCommand
   | SellItemsCommand
-  | BuySeedsCommand;
+  | BuySeedsCommand
+  | SellBuildingCommand
+  | GrantCoinsCommand;
 
 export type CommandType = Command['type'];
 
@@ -171,6 +194,11 @@ export interface CommandWorld {
   readonly wallet: Wallet;
   /** Pricing state — multipliers and the expansion counter (phase-06). */
   readonly economy: EconomyState;
+  /**
+   * Last crop planted per tile — the seed bin's memory (06c). Written by
+   * `plantCrop`; read by worker task selection when a seed bin stands.
+   */
+  readonly lastPlanted: Map<TileIndex, ContentId>;
 }
 
 /**

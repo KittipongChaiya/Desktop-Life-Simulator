@@ -17,6 +17,7 @@ import { CORE_TURNIP, CORE_WHEAT } from '../content/crops';
 import { CORE_TURNIP_SEED, CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, stepSimulationBy } from '../tick';
 import { addItems } from '../world/container';
+import { addCoins } from '../world/wallet';
 import { createWorld, type World } from '../world/world';
 
 import { registerCropCommands } from './crop-commands';
@@ -156,6 +157,7 @@ describe('preview: legality without queuing', () => {
   // queues nothing and touches nothing.
   it('reports a legal command as ok', () => {
     const world = createWorld(1);
+    addCoins(world.wallet, 200); // placement charges since 06c
     expect(world.commands.preview(place(OWNED, CORE_STORAGE_SHED)).ok).toBe(true);
   });
 

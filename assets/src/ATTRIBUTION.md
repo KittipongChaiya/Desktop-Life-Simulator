@@ -26,10 +26,10 @@ clarified to mean one file per group directory, split this along its sections.
 
 ## buildings{tps}/
 
-| File                           | Source                                      | Author  | License       |
-| ------------------------------ | ------------------------------------------- | ------- | ------------- |
-| tree/rock/bush/flower.png      | Original — `scripts/generate-world-art.mjs` | project | Original work |
-| storage_shed.png, rest_hut.png | Original — `scripts/generate-world-art.mjs` | project | Original work |
+| File                                            | Source                                      | Author  | License       |
+| ----------------------------------------------- | ------------------------------------------- | ------- | ------------- |
+| tree/rock/bush/flower.png                       | Original — `scripts/generate-world-art.mjs` | project | Original work |
+| storage_shed/rest_hut/seed_bin/market_stall.png | Original — `scripts/generate-world-art.mjs` | project | Original work |
 
 ## ui-world{tps}/
 

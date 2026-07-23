@@ -155,6 +155,19 @@ function toContentIdField(raw: string, field: string): Result<ContentId> {
   return ok(raw);
 }
 
+/**
+ * Credits the wallet — the declared DEV-ONLY source (ADR-013 §sources). Only
+ * the devtools console's `money` command and test setups issue this; no
+ * gameplay surface does. It exists as a command because there is no other
+ * write path into the world (ADR-010 §1), dev tooling included.
+ */
+export function grantCoins(world: CommandWorld, amount: number): Result<void> {
+  if (!Number.isSafeInteger(amount) || amount < 1) {
+    return err(appError(ErrorCode.InvalidIntent, 'grant must be a positive integer', { amount }));
+  }
+  return addCoins(world.wallet, amount);
+}
+
 export function registerCommerceCommands(dispatcher: CommandDispatcher): void {
   dispatcher.register('sellItems', {
     validate: (world, command) => {
@@ -184,5 +197,17 @@ export function registerCommerceCommands(dispatcher: CommandDispatcher): void {
       const cropId = toContentIdField(command.cropId, 'cropId');
       return cropId.ok ? buySeeds(context.world, cropId.value, quantity.value) : cropId;
     },
+  });
+
+  dispatcher.register('grantCoins', {
+    validate: (_world, command) =>
+      Number.isSafeInteger(command.amount) && command.amount >= 1
+        ? ok()
+        : err(
+            appError(ErrorCode.InvalidIntent, 'grant must be a positive integer', {
+              amount: command.amount,
+            }),
+          ),
+    execute: (context, command) => grantCoins(context.world, command.amount),
   });
 }

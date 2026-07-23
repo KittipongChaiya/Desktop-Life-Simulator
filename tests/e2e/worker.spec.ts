@@ -30,10 +30,29 @@ async function setCollapsed(collapsed: boolean): Promise<void> {
   }, collapsed);
 }
 
+/**
+ * Grants coins through the devtools console's `money` command — the declared
+ * dev-only source (06c). Hiring charges real coins now, and `hireCost(0)` =
+ * 150 > the 100-coin start: a fresh farm cannot hire until it sells, so the
+ * suite funds itself the way a developer would.
+ */
+async function grantCoins(amount: number): Promise<void> {
+  const window = await app.firstWindow();
+  await window.keyboard.press('F1');
+  const input = window.getByLabel('Developer console input');
+  await input.fill(`money ${String(amount)}`);
+  await input.press('Enter');
+  await window.keyboard.press('F1');
+  // The grant applies on the next simulation tick (50 ms); let it land before
+  // any dispatch validates against the balance.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}
+
 test.beforeEach(async () => {
   app = await electron.launch({ args: ['.'] });
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
+  await grantCoins(5_000);
 });
 
 test.afterEach(async () => {

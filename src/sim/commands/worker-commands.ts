@@ -1,14 +1,15 @@
 /**
- * Worker commands. Phase-04, GAME_DESIGN.md §4.1.
+ * Worker commands. Phase-04 + 06c, GAME_DESIGN.md §4.1.
  *
  * `hireWorker` is the only worker command a PLAYER issues — the worker's own
  * actions (till, plant, harvest) reuse the crop commands, submitted worker-
  * sourced through the same dispatcher (ADR-010 §6). Hiring spawns a worker at
  * the plot centre with a fresh deterministic id.
  *
- * Cost is computed but not charged: there is no wallet until phase-06, so hiring
- * always succeeds in v0.1 (`AI_RULES.md` §1.5). The escalation formula is fixed
- * now so the economy that arrives later has a stable number to bill against.
+ * Since 06c, hiring CHARGES `hireCost(n)` — the §6.4 escalating worker sink.
+ * `hireCost(0)` = 150 > the 100-coin starting capital: a fresh farm must sell
+ * a first harvest before its first hire, which is the §1.1 stage-2 gate as
+ * arithmetic, not as a scripted lock.
  *
  * No `workerHired` event yet: `events/types.ts` forbids an event with no
  * consumer, and its consumer (the HUD count) arrives in phase-04c.
@@ -21,6 +22,7 @@ import { asBuildingId, asWorkerId } from '../../shared/ids';
 import { err, ok } from '../../shared/result';
 import { stackSizeOf } from '../content/items';
 import { transfer, type Container } from '../world/container';
+import { spendCoins } from '../world/wallet';
 import { createWorker } from '../world/worker';
 
 import type { CommandDispatcher } from './dispatcher';
@@ -47,8 +49,28 @@ function plotCentre(): ReturnType<typeof toIndexUnchecked> {
   return toIndexUnchecked(WORLD_WIDTH >> 1, WORLD_HEIGHT >> 1);
 }
 
-/** Spawns a worker. Always valid in v0.1 — affordability arrives with the wallet. */
+/** Checks a hire is affordable at the current headcount. */
+export function validateHire(world: CommandWorld): ValidationResult {
+  const cost = hireCost(world.workers.size);
+  if (world.wallet.coins < cost) {
+    return err(
+      appError(ErrorCode.InsufficientFunds, 'not enough coins to hire', {
+        cost,
+        held: world.wallet.coins,
+      }),
+    );
+  }
+  return ok();
+}
+
+/** Spawns a worker, charging `hireCost(existing)` (06c). */
 export function hireWorker(world: CommandWorld): ValidationResult {
+  const validation = validateHire(world);
+  if (!validation.ok) return validation;
+
+  const spend = spendCoins(world.wallet, hireCost(world.workers.size));
+  if (!spend.ok) return spend; // unreachable — funds validated above
+
   const id = world.ids.allocateWorker();
   world.workers.set(id, createWorker(id, plotCentre()));
   return ok();
@@ -98,7 +120,7 @@ export function depositWorker(
 /** Registers the worker commands into a dispatcher. */
 export function registerWorkerCommands(dispatcher: CommandDispatcher): void {
   dispatcher.register('hireWorker', {
-    validate: () => ok(),
+    validate: (world) => validateHire(world),
     execute: (context) => hireWorker(context.world),
   });
 

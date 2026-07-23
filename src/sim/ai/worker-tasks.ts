@@ -15,9 +15,11 @@ import { manhattanDistance, toPosition } from '../../shared/geometry';
 import { type ContentId, type TileIndex } from '../../shared/ids';
 import { unwrap } from '../../shared/result';
 import { type Command } from '../commands/types';
+import { CORE_SEED_BIN } from '../content/buildings';
 import { isMature, type CropRegistry } from '../content/crops';
 import { CORE_TURNIP } from '../content/crops';
 import { type TileKindRegistry } from '../content/tile-kinds';
+import { type BuildingStore } from '../world/building';
 import { containerCount, type Container } from '../world/container';
 import { elapsedTicks, type CropStore } from '../world/crop';
 import { getKind, isOwned, ownedBounds, tilesInRect, type TileGrid } from '../world/tile-grid';
@@ -42,6 +44,10 @@ export interface TaskContext {
   readonly cropRegistry: CropRegistry;
   /** The farm stock worker plants draw seeds from (06b interpretation 2). */
   readonly inventory: Container;
+  /** Placed buildings — read only for "does a seed bin stand?" (06c). */
+  readonly buildings: BuildingStore;
+  /** Per-tile last-planted memory, the seed bin's data (06c). */
+  readonly lastPlanted: ReadonlyMap<TileIndex, ContentId>;
   readonly tick: number;
 }
 
@@ -116,20 +122,47 @@ function hasSeedFor(ctx: TaskContext, cropId: ContentId): boolean {
   return definition.ok && containerCount(ctx.inventory, definition.value.seedItem) >= 1;
 }
 
+/** True when a seed bin stands anywhere on the farm (its effect is global). */
+function hasSeedBin(ctx: TaskContext): boolean {
+  for (const building of ctx.buildings.values()) {
+    if (building.buildingId === CORE_SEED_BIN) return true;
+  }
+  return false;
+}
+
+/**
+ * The crop a worker would sow on `tile`, honouring the seed bin's chain (06c,
+ * §5): with a bin, the tile's last crop if its seed is in stock; falling back
+ * to the default when there is no record or no matching seed. Returns null
+ * when no sowable crop has seeds — the tile is not a plant candidate.
+ */
+function plantCropFor(ctx: TaskContext, tile: TileIndex, binStands: boolean): ContentId | null {
+  if (binStands) {
+    const remembered = ctx.lastPlanted.get(tile);
+    if (remembered !== undefined && hasSeedFor(ctx, remembered)) return remembered;
+  }
+  return hasSeedFor(ctx, WORKER_DEFAULT_CROP) ? WORKER_DEFAULT_CROP : null;
+}
+
 export function selectTask(
   ctx: TaskContext,
   from: TileIndex,
   claimed: ReadonlySet<TileIndex>,
 ): WorkerTask | null {
   const owned = ownedTiles(ctx.tiles); // already ascending
+  const binStands = hasSeedBin(ctx);
 
-  const canPlant = hasSeedFor(ctx, WORKER_DEFAULT_CROP);
   const bands: readonly { readonly kind: WorkerTaskKind; readonly tiles: readonly TileIndex[] }[] =
     [
       { kind: WorkerTaskKind.Harvest, tiles: harvestCandidates(ctx, claimed) },
       {
         kind: WorkerTaskKind.Plant,
-        tiles: canPlant ? owned.filter((tile) => !claimed.has(tile) && isPlantable(ctx, tile)) : [],
+        tiles: owned.filter(
+          (tile) =>
+            !claimed.has(tile) &&
+            isPlantable(ctx, tile) &&
+            plantCropFor(ctx, tile, binStands) !== null,
+        ),
       },
       {
         kind: WorkerTaskKind.Till,
@@ -139,7 +172,11 @@ export function selectTask(
 
   for (const band of bands) {
     const tile = nearest(from, band.tiles);
-    if (tile !== null) return { kind: band.kind, tile };
+    if (tile === null) continue;
+    if (band.kind !== WorkerTaskKind.Plant) return { kind: band.kind, tile };
+    const cropId = plantCropFor(ctx, tile, binStands);
+    // cropId is non-null by the band filter; guarded over asserted.
+    if (cropId !== null) return { kind: WorkerTaskKind.Plant, tile, cropId };
   }
   return null;
 }
@@ -155,7 +192,9 @@ export function commandForTask(task: WorkerTask): Command {
     case WorkerTaskKind.Harvest:
       return { type: 'harvestCrop', tile: task.tile };
     case WorkerTaskKind.Plant:
-      return { type: 'plantCrop', tile: task.tile, cropId: WORKER_DEFAULT_CROP };
+      // The crop chosen at selection (the seed bin's chain); default for a
+      // legacy task that carries none.
+      return { type: 'plantCrop', tile: task.tile, cropId: task.cropId ?? WORKER_DEFAULT_CROP };
     case WorkerTaskKind.Till:
       return { type: 'tillTile', tile: task.tile };
   }

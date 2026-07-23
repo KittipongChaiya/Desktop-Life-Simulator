@@ -17,6 +17,7 @@ import { findPath } from '../pathing/astar';
 import { stepSimulation, stepSimulationBy } from '../tick';
 import { addItems, containerCount, containerTotal } from '../world/container';
 import { isBlocked } from '../world/tile-grid';
+import { addCoins } from '../world/wallet';
 import { createWorker } from '../world/worker';
 import { createWorld, type World } from '../world/world';
 
@@ -25,6 +26,9 @@ import { CommandSource } from './types';
 const CENTER = toIndexUnchecked(32, 32);
 
 function placeShed(world: World, tile: TileIndex): void {
+  // Placement charges since 06c; fund the attempt (legality of the TILE is
+  // what these tests probe, so affordability must never be the rejection).
+  addCoins(world.wallet, 200);
   world.commands.dispatch(
     { type: 'placeBuilding', tile, buildingId: CORE_STORAGE_SHED },
     { source: CommandSource.Player },

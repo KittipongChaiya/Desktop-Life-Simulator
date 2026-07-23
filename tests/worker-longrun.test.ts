@@ -15,15 +15,18 @@ import { CommandSource } from '../src/sim/commands/types';
 import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../src/sim/content/items';
 import { stepSimulationBy } from '../src/sim/tick';
 import { addItems, containerTotal } from '../src/sim/world/container';
+import { addCoins } from '../src/sim/world/wallet';
 import { createWorld, type World } from '../src/sim/world/world';
 import { MAX_ENERGY } from '../src/sim/world/worker';
 
 function withWorkers(seed: number, count: number): World {
   const world = createWorld(seed);
-  // Planting consumes seeds (phase-06b); stock the farm generously so the
-  // subject under test stays automation, not procurement. Exhausting the
-  // stock mid-run is a valid end state — workers idle, never jam.
+  // Planting consumes seeds (06b) and hiring charges (06c); stock and fund
+  // the farm generously so the subject under test stays automation, not
+  // procurement. Exhausting the stock mid-run is a valid end state — workers
+  // idle, never jam.
   addItems(world.inventory, CORE_TURNIP_SEED, 5 * DEFAULT_STACK_SIZE, DEFAULT_STACK_SIZE);
+  addCoins(world.wallet, 5_000);
   for (let i = 0; i < count; i += 1) {
     world.commands.dispatch({ type: 'hireWorker' }, { source: CommandSource.Player });
   }

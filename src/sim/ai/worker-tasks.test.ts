@@ -9,9 +9,13 @@ import { describe, expect, it } from 'vitest';
 
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asTileIndex, type TileIndex } from '../../shared/ids';
-import { CORE_TURNIP } from '../content/crops';
-import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../content/items';
+import { CommandSource } from '../commands/types';
+import { CORE_SEED_BIN } from '../content/buildings';
+import { CORE_TURNIP, CORE_WHEAT } from '../content/crops';
+import { CORE_TURNIP_SEED, CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../content/items';
+import { stepSimulation } from '../tick';
 import { addItems } from '../world/container';
+import { addCoins } from '../world/wallet';
 import { WorkerTaskKind } from '../world/worker';
 import { createWorld, type World } from '../world/world';
 
@@ -50,6 +54,7 @@ describe('selectTask priority', () => {
     expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
       kind: WorkerTaskKind.Plant,
       tile: CENTER,
+      cropId: WORKER_DEFAULT_CROP,
     });
   });
 
@@ -69,6 +74,7 @@ describe('selectTask priority', () => {
     expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
       kind: WorkerTaskKind.Plant,
       tile: CENTER,
+      cropId: WORKER_DEFAULT_CROP,
     });
   });
 
@@ -113,6 +119,77 @@ describe('selectTask nearest-first and tie-breaking', () => {
   });
 });
 
+describe('seed bin auto-replant (06c, §5)', () => {
+  /** A world with a seed bin placed and CENTER tilled. */
+  function binWorld(): World {
+    const world = createWorld(1);
+    addCoins(world.wallet, 500);
+    world.commands.dispatch(
+      { type: 'placeBuilding', tile: toIndexUnchecked(29, 29), buildingId: CORE_SEED_BIN },
+      { source: CommandSource.Player },
+    );
+    stepSimulation(world);
+    till(world, CENTER);
+    return world;
+  }
+
+  it('replants the last crop planted on the tile', () => {
+    const world = binWorld();
+    world.lastPlanted.set(CENTER, CORE_WHEAT);
+    addItems(world.inventory, CORE_WHEAT_SEED, 5, DEFAULT_STACK_SIZE);
+
+    expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
+      kind: WorkerTaskKind.Plant,
+      tile: CENTER,
+      cropId: CORE_WHEAT,
+    });
+  });
+
+  it('falls back to the default crop when the tile has no record', () => {
+    const world = binWorld();
+    grantSeeds(world);
+
+    expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
+      kind: WorkerTaskKind.Plant,
+      tile: CENTER,
+      cropId: WORKER_DEFAULT_CROP,
+    });
+  });
+
+  it('falls back to the default crop when no seed matches the record', () => {
+    const world = binWorld();
+    world.lastPlanted.set(CENTER, CORE_WHEAT); // recorded, but no wheat seeds
+    grantSeeds(world); // turnip seeds only
+
+    expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
+      kind: WorkerTaskKind.Plant,
+      tile: CENTER,
+      cropId: WORKER_DEFAULT_CROP,
+    });
+  });
+
+  it('with no seeds at all the tile is skipped — never blocks', () => {
+    const world = binWorld();
+    world.lastPlanted.set(CENTER, CORE_WHEAT);
+
+    expect(selectTask(world, CENTER, NO_CLAIMS)?.kind).toBe(WorkerTaskKind.Till);
+  });
+
+  it('without a seed bin the record is ignored — workers sow the default', () => {
+    const world = createWorld(1);
+    till(world, CENTER);
+    world.lastPlanted.set(CENTER, CORE_WHEAT);
+    addItems(world.inventory, CORE_WHEAT_SEED, 5, DEFAULT_STACK_SIZE);
+    grantSeeds(world);
+
+    expect(selectTask(world, CENTER, NO_CLAIMS)).toEqual({
+      kind: WorkerTaskKind.Plant,
+      tile: CENTER,
+      cropId: WORKER_DEFAULT_CROP,
+    });
+  });
+});
+
 describe('commandForTask', () => {
   it('maps a till task to a tillTile command', () => {
     expect(commandForTask({ kind: WorkerTaskKind.Till, tile: asTileIndex(5) })).toEqual({
@@ -121,7 +198,17 @@ describe('commandForTask', () => {
     });
   });
 
-  it('maps a plant task to a plantCrop command using the default crop', () => {
+  it('maps a plant task to a plantCrop command carrying the selected crop', () => {
+    expect(
+      commandForTask({ kind: WorkerTaskKind.Plant, tile: asTileIndex(5), cropId: CORE_WHEAT }),
+    ).toEqual({
+      type: 'plantCrop',
+      tile: 5,
+      cropId: CORE_WHEAT,
+    });
+  });
+
+  it('a plant task without a crop falls back to the default', () => {
     expect(commandForTask({ kind: WorkerTaskKind.Plant, tile: asTileIndex(5) })).toEqual({
       type: 'plantCrop',
       tile: 5,

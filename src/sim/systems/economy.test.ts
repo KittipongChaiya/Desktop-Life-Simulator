@@ -9,14 +9,21 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { toIndexUnchecked } from '../../shared/geometry';
 import { asContentId } from '../../shared/ids';
+import { CommandSource } from '../commands/types';
+import { CORE_MARKET_STALL } from '../content/buildings';
+import { DEFAULT_STACK_SIZE } from '../content/items';
+import { stepSimulation } from '../tick';
+import { addItems, containerTotal, type Container } from '../world/container';
 import { multiplierOf, recordSale } from '../world/economy';
-import { STARTING_COINS } from '../world/wallet';
-import { createWorld } from '../world/world';
+import { addCoins, STARTING_COINS } from '../world/wallet';
+import { createWorld, type World } from '../world/world';
 
 import { economySystem } from './economy';
 
 const WHEAT = asContentId('core:wheat');
+const TURNIP = asContentId('core:turnip');
 
 describe('world wiring', () => {
   it('a new world opens with the declared starting capital (§6.4)', () => {
@@ -91,5 +98,79 @@ describe('economySystem', () => {
       return multiplierOf(world.economy, WHEAT);
     };
     expect(run()).toBe(run());
+  });
+});
+
+describe('the market stall sweep (06c, §5.1)', () => {
+  /** A world with a stall placed; returns its container. */
+  function stallWorld(): { world: World; stall: Container } {
+    const world = createWorld(1);
+    addCoins(world.wallet, 1_200); // 1,300 total
+    world.commands.dispatch(
+      { type: 'placeBuilding', tile: toIndexUnchecked(30, 30), buildingId: CORE_MARKET_STALL },
+      { source: CommandSource.Player },
+    );
+    stepSimulation(world); // -> 100 coins, stall standing
+    const stall = world.buildingStorage.get([...world.buildingStorage.keys()][0]!);
+    if (stall === undefined) throw new Error('setup failed');
+    return { world, stall };
+  }
+
+  it('auto-sells deposited crops at exactly 90% of the current price (crit 12)', () => {
+    const { world, stall } = stallWorld();
+    addItems(stall, WHEAT, 10, DEFAULT_STACK_SIZE);
+
+    world.tick += 1;
+    economySystem(world);
+
+    // floor(0.9 × floor(34 × 1.0)) = 30 per unit — not 34: the 10% tax is
+    // deliberate (§5.1). Do not "optimize" it away.
+    expect(world.wallet.coins).toBe(100 + 10 * 30);
+    expect(containerTotal(stall)).toBe(0);
+  });
+
+  it('applies the same multiplier decay as manual selling', () => {
+    const { world, stall } = stallWorld();
+    addItems(stall, WHEAT, 50, DEFAULT_STACK_SIZE);
+
+    world.tick += 1;
+    economySystem(world);
+
+    expect(multiplierOf(world.economy, WHEAT)).toBe(0.9);
+  });
+
+  it('publishes itemSold marked automatic', () => {
+    const { world, stall } = stallWorld();
+    const seen: { item: string; quantity: number; coins: number; automatic: boolean }[] = [];
+    world.events.subscribe('itemSold', (event) => seen.push({ ...event }));
+    addItems(stall, WHEAT, 4, DEFAULT_STACK_SIZE);
+
+    world.tick += 1;
+    economySystem(world);
+    world.events.flush();
+
+    expect(seen).toEqual([{ item: 'core:wheat', quantity: 4, coins: 120, automatic: true }]);
+  });
+
+  it('sweeps every stack, each priced at its own pre-sale multiplier', () => {
+    const { world, stall } = stallWorld();
+    addItems(stall, WHEAT, 10, DEFAULT_STACK_SIZE);
+    addItems(stall, TURNIP, 10, DEFAULT_STACK_SIZE);
+
+    world.tick += 1;
+    economySystem(world);
+
+    // wheat: 10 × floor(0.9 × 34) = 300; turnip: 10 × floor(0.9 × 12) = 100.
+    expect(world.wallet.coins).toBe(100 + 300 + 100);
+    expect(containerTotal(stall)).toBe(0);
+    expect(multiplierOf(world.economy, WHEAT)).toBe(0.98);
+    expect(multiplierOf(world.economy, TURNIP)).toBe(0.98);
+  });
+
+  it('an empty stall costs the tick nothing and changes nothing', () => {
+    const { world } = stallWorld();
+    world.tick += 1;
+    economySystem(world);
+    expect(world.wallet.coins).toBe(100);
   });
 });

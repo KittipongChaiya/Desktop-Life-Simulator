@@ -12,10 +12,13 @@ import { describe, expect, it } from 'vitest';
 
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asWorkerId, type TileIndex } from '../../shared/ids';
+import { CommandSource } from '../commands/types';
+import { CORE_REST_HUT } from '../content/buildings';
 import { CORE_TURNIP } from '../content/crops';
 import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, stepSimulationBy, tickOrder } from '../tick';
 import { addItems } from '../world/container';
+import { addCoins } from '../world/wallet';
 import {
   createWorker,
   IDLE_REPLAN_TICKS,
@@ -69,6 +72,34 @@ describe('autonomous farming', () => {
     addWorker(world, 1);
     stepSimulationBy(world, 150);
     expect(world.cropStats.planted).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a rest hut doubles rest recovery: 4/20t instead of 2/20t (§5, crit 9)', () => {
+    // Two identical exhausted workers; one farm has a rest hut. Recovery rate
+    // is global-while-placed (resolved interpretation 5) — workers still rest
+    // where they stand.
+    const recoverFor = (withHut: boolean): number => {
+      const world = createWorld(1);
+      if (withHut) {
+        addCoins(world.wallet, 300);
+        world.commands.dispatch(
+          { type: 'placeBuilding', tile: toIndexUnchecked(30, 30), buildingId: CORE_REST_HUT },
+          { source: CommandSource.Player },
+        );
+        stepSimulation(world);
+      }
+      occupyPlot(world); // no work — the worker rests undisturbed
+      const worker = addWorker(world, 1);
+      worker.energy = 0;
+      worker.state = WorkerState.SeekingRest;
+      // Tick 1 transitions SeekingRest → Rest; the next 200 ticks recover —
+      // exactly ten full energy periods.
+      stepSimulationBy(world, 201);
+      return worker.energy;
+    };
+
+    expect(recoverFor(false)).toBe(20); // 10 periods × 2
+    expect(recoverFor(true)).toBe(40); // 10 periods × 4
   });
 
   it('waits out a re-plan cadence when no work exists, instead of rescanning every tick', () => {

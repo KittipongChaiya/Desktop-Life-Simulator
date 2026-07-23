@@ -21,11 +21,13 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  CARROT_ORANGE,
   GRASS_BASE,
   GRASS_LIGHT,
   GRASS_SHADOW,
   LEAF_HIGHLIGHT,
   PARCHMENT,
+  PUMPKIN,
   SOFT_INK,
   SOIL_DARK,
   STONE_BASE,
@@ -336,6 +338,77 @@ function restHut() {
   return canvas;
 }
 
+/** Seed bin (`core:seed_bin`, GAME_DESIGN §5, 06c): a LOW open-topped hopper
+ * heaped with seed — the third silhouette class: the shed is tall-gabled, the
+ * hut is domed, the bin is low and open. Its function (a container of
+ * plantable stock) is its shape. */
+function seedBin() {
+  const canvas = createCanvas(TILE, TILE);
+  const rng = prng(1403);
+  // Crate body: low and wide, lit left edge, plank seams.
+  rect(canvas, 5, 17, 26, 28, WOOD_BASE);
+  rect(canvas, 5, 17, 6, 28, WOOD_LIGHT);
+  for (const x of [11, 17, 23]) rect(canvas, x, 18, x, 28, SOIL_DARK);
+  // Front cross-board, the crate read.
+  rect(canvas, 5, 22, 26, 23, WOOD_LIGHT);
+  rect(canvas, 5, 24, 26, 24, SOIL_DARK);
+  // The heap of seed above the rim — Straw, mounded, speckled.
+  ellipse(canvas, 15.5, 15.5, 10, 3.4, STRAW, 0.15);
+  for (let i = 0; i < 14; i += 1) {
+    const x = 7 + Math.floor(rng() * 18);
+    const y = 13 + Math.floor(rng() * 3);
+    if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, WOOD_LIGHT);
+  }
+  // Rim in front of the heap.
+  rect(canvas, 5, 17, 26, 17, WOOD_LIGHT);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 12, 1.8);
+  return canvas;
+}
+
+/** Market stall (`core:market_stall`, GAME_DESIGN §5, 06c): the tallest
+ * silhouette — a striped cloth canopy on posts over a goods counter. Cloth
+ * and produce say "market" with no sign needed; the stripes are Parchment
+ * and Straw, both already load-bearing canvas colours. */
+function marketStall() {
+  const canvas = createCanvas(TILE, TILE);
+  // Posts, lit on their left edge.
+  rect(canvas, 5, 10, 6, 28, WOOD_BASE);
+  rect(canvas, 5, 10, 5, 28, WOOD_LIGHT);
+  rect(canvas, 25, 10, 26, 28, WOOD_BASE);
+  set(canvas, 25, 10, WOOD_LIGHT);
+  // Counter with a lit top and a plank seam.
+  rect(canvas, 4, 21, 27, 27, WOOD_BASE);
+  rect(canvas, 4, 21, 27, 21, WOOD_LIGHT);
+  rect(canvas, 4, 24, 27, 24, SOIL_DARK);
+  // Goods on the counter: produce hints in the warm accents.
+  rect(canvas, 8, 19, 10, 20, CARROT_ORANGE);
+  set(canvas, 9, 18, GRASS_BASE); // frond tuft
+  rect(canvas, 14, 18, 17, 20, PUMPKIN);
+  set(canvas, 15, 17, WOOD_BASE); // stem
+  rect(canvas, 21, 19, 23, 20, PARCHMENT);
+  // Striped canopy: gentle slope, scalloped hem, alternating cloth stripes.
+  for (let y = 3; y <= 9; y += 1) {
+    const inset = y <= 4 ? 2 : 0; // rounded crown rows
+    rect(canvas, 3 + inset, y, 28 - inset, y, PARCHMENT);
+  }
+  for (let x = 3; x <= 28; x += 1) {
+    if (Math.floor((x - 3) / 4) % 2 === 1) {
+      for (let y = 3; y <= 9; y += 1) {
+        if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, STRAW);
+      }
+    }
+    // Scalloped hem: every other pair of columns drops one pixel.
+    if (Math.floor((x - 3) / 2) % 2 === 0 && alphaAt(canvas, x, 9) === 255) {
+      set(canvas, x, 10, Math.floor((x - 3) / 4) % 2 === 1 ? STRAW : PARCHMENT);
+    }
+  }
+  rect(canvas, 5, 3, 26, 3, WOOD_LIGHT); // ridge pole peeking over the crown
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 13, 1.8);
+  return canvas;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 function main() {
@@ -357,6 +430,8 @@ function main() {
     [buildingsDir, 'flower.png', flower],
     [buildingsDir, 'storage_shed.png', storageShed],
     [buildingsDir, 'rest_hut.png', restHut],
+    [buildingsDir, 'seed_bin.png', seedBin],
+    [buildingsDir, 'market_stall.png', marketStall],
   ];
 
   for (const [dir, name, paint] of assets) writePng(join(dir, name), paint());

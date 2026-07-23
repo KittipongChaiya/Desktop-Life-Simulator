@@ -11,7 +11,7 @@
 | --------- | ----------------------------------------------------------------------------------------- | ------------- |
 | **06a**   | Wallet, economy state, pricing engine, `economySystem`, base prices finalised             | **Delivered** |
 | **06b**   | Seed items, seed consumption on plant, `sellItems` / `buySeeds`, `itemSold`, seed icons   | **Delivered** |
-| **06c**   | Three new buildings, costs charged (buildings + hire), `sellBuilding`, building effects   | Pending       |
+| **06c**   | Three new buildings, costs charged (buildings + hire), `sellBuilding`, building effects   | **Delivered** |
 | **06d**   | `expandLand`, progression state, `wallet` + `economy` snapshot slices                     | Pending       |
 | **06e**   | `ShopPanel`, sell interface, seed selector, coin counter, price indicators, full-loop E2E | Pending       |
 | **06f**   | The idle proof: 8-hour long-run, balance ordering, 100k-tick determinism, pacing          | Pending       |
@@ -95,6 +95,35 @@ one later is a spec edit, not a refactor surprise.
   staleness; derived from `world.tick` only, so determinism and offline
   derivation hold (the field joins the byte-identical comparison).
 
+**06c delivered** — the buildings wave; every §5 and §4.1 sink is real:
+
+- The §5 table completed: `core:rest_hut` (300), `core:seed_bin` (500),
+  `core:market_stall` (1,200; a 10-slot pass-through container so it joins the
+  ordinary deposit-target service). `placeBuilding` charges; `hireWorker`
+  charges `hireCost(n)` — `hireCost(0)` = 150 > the 100-coin start, so the
+  §1.1 stage-2 gate is now arithmetic, not scripting.
+- `sellBuilding`: refund `floor(cost × 0.5)`, tile unblocked; a storing
+  building sells only once empty (interpretation 7 — refunds never destroy
+  goods).
+- Effects: rest hut → recovery 4/20t global-while-placed; seed bin →
+  per-tile `lastPlanted` memory (recorded on every plant), workers replant
+  the tile's crop when its seed is in stock, falling back to the default,
+  skipping the tile when nothing sowable — never blocks; market stall →
+  `economySystem` sweeps stall containers every tick at
+  `floor(0.9 × salePrice)` with normal decay, publishing
+  `itemSold {automatic: true}`. `WorkerTask` gains `cropId`, chosen at
+  selection.
+- `grantCoins` — the declared dev-only source (ADR-013), reached via the
+  devtools console's reserved `money` command, wired through the ordinary
+  player source (no privileged write path). **E2E finding:** `FEATURE_DEBUG`
+  is build-time and the E2E bundle in `out/` was STALE — the E2E gate now
+  rebuilds with `VITE_FEATURE_DEBUG=true npm run build` first, which also
+  un-skipped three render-budget criteria (all pass).
+- Art: `seed_bin` (a low open hopper heaped with seed) and `market_stall`
+  (the farm's tallest silhouette — Parchment/Straw striped canopy, produce on
+  the counter) join the buildings atlas; 89 sprites pack. Four buildings, four
+  silhouette classes.
+
 ---
 
 ## Objectives
@@ -136,25 +165,25 @@ After this, the game is complete except for persistence. Everything the player n
 
 ### Buildings
 
-- [ ] `core:rest_hut` — 300 coins; worker rest 4/20t instead of 2/20t
-- [ ] `core:seed_bin` — 500 coins; **workers auto-replant the last crop planted on a tile**
-- [ ] `core:market_stall` — 1,200 coins; **auto-sells deposited crops at 90% of market price**
-- [ ] Buildings sellable for 50% of cost
-- [ ] Purchase validated against coins and placement rules
+- [x] `core:rest_hut` — 300 coins; worker rest 4/20t instead of 2/20t
+- [x] `core:seed_bin` — 500 coins; **workers auto-replant the last crop planted on a tile**
+- [x] `core:market_stall` — 1,200 coins; **auto-sells deposited crops at 90% of market price**
+- [x] Buildings sellable for 50% of cost
+- [x] Purchase validated against coins and placement rules
 
 ### Auto-replant (Seed Bin)
 
-- [ ] Per-tile `lastPlantedCrop` recorded on plant
-- [ ] Worker plant task defaults to the tile's last crop when a Seed Bin exists
-- [ ] Falls back to the selected seed when no record or no seeds
-- [ ] **Never blocks — a worker with no matching seeds moves to the next task**
+- [x] Per-tile `lastPlantedCrop` recorded on plant
+- [x] Worker plant task defaults to the tile's last crop when a Seed Bin exists
+- [x] Falls back to the selected seed when no record or no seeds
+- [x] **Never blocks — a worker with no matching seeds moves to the next task**
 
 ### Auto-sell (Market Stall)
 
-- [ ] Deposited crops auto-sell at 90% of current price
-- [ ] Applies the same multiplier decay as manual selling
-- [ ] `itemSold` emitted so the return summary can report it
-- [ ] The 10% tax is deliberate (`GAME_DESIGN.md` §5.1) — do not "optimize" it away
+- [x] Deposited crops auto-sell at 90% of current price
+- [x] Applies the same multiplier decay as manual selling
+- [x] `itemSold` emitted so the return summary can report it
+- [x] The 10% tax is deliberate (`GAME_DESIGN.md` §5.1) — do not "optimize" it away
 
 ### Land expansion
 

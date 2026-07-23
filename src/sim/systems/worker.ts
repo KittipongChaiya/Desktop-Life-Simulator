@@ -16,6 +16,7 @@ import type { TileIndex, WorkerId } from '../../shared/ids';
 import { selectStorageTarget } from '../ai/storage-target';
 import { commandForTask, selectTask } from '../ai/worker-tasks';
 import { CommandSource } from '../commands/types';
+import { CORE_REST_HUT } from '../content/buildings';
 import { findPath } from '../pathing/astar';
 import { containerTotal } from '../world/container';
 import {
@@ -25,6 +26,7 @@ import {
   ENERGY_RECOVER_PER_PERIOD,
   IDLE_REPLAN_TICKS,
   MAX_ENERGY,
+  REST_HUT_RECOVER_PER_PERIOD,
   TASK_DURATION_TICKS,
   WorkerState,
   type Worker,
@@ -53,8 +55,20 @@ function drain(worker: Worker): void {
   worker.energyTimer = next.timer;
 }
 
-function recover(worker: Worker): void {
-  const next = advanceEnergy(worker.energy, worker.energyTimer, ENERGY_RECOVER_PER_PERIOD);
+/**
+ * True when a rest hut stands. Its effect is global-while-placed (§5, 06c
+ * interpretation 5) — workers rest where they stand at the boosted rate.
+ */
+function hasRestHut(world: World): boolean {
+  for (const building of world.buildings.values()) {
+    if (building.buildingId === CORE_REST_HUT) return true;
+  }
+  return false;
+}
+
+function recover(world: World, worker: Worker): void {
+  const rate = hasRestHut(world) ? REST_HUT_RECOVER_PER_PERIOD : ENERGY_RECOVER_PER_PERIOD;
+  const next = advanceEnergy(worker.energy, worker.energyTimer, rate);
   worker.energy = next.energy;
   worker.energyTimer = next.timer;
 }
@@ -148,8 +162,8 @@ function stepSeekingRest(worker: Worker): void {
   worker.state = WorkerState.Rest;
 }
 
-function stepRest(worker: Worker): void {
-  recover(worker);
+function stepRest(world: World, worker: Worker): void {
+  recover(world, worker);
   if (worker.energy >= MAX_ENERGY) worker.state = WorkerState.Idle;
 }
 
@@ -169,7 +183,7 @@ export function workerSystem(world: World): void {
         stepSeekingRest(worker);
         break;
       case WorkerState.Rest:
-        stepRest(worker);
+        stepRest(world, worker);
         break;
     }
   }

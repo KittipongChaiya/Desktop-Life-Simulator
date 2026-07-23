@@ -12,7 +12,7 @@
  * conversions. The renderer derives `x/y` for interpolation at the view boundary.
  */
 
-import type { TileIndex, WorkerId } from '../../shared/ids';
+import type { ContentId, TileIndex, WorkerId } from '../../shared/ids';
 
 import { createContainer, type Container } from './container';
 
@@ -52,6 +52,12 @@ export type WorkerTaskKind = (typeof WorkerTaskKind)[keyof typeof WorkerTaskKind
 export interface WorkerTask {
   readonly kind: WorkerTaskKind;
   readonly tile: TileIndex;
+  /**
+   * The crop a Plant task sows, chosen at selection time (the seed bin's
+   * per-tile memory, 06c). Absent on other kinds — and on a legacy Plant,
+   * where the worker default applies.
+   */
+  readonly cropId?: ContentId;
 }
 
 export interface Worker {
@@ -125,8 +131,15 @@ export const ENERGY_PERIOD_TICKS = 20;
 /** Energy lost per period while `Working` or `Moving`. §4.5. */
 export const ENERGY_DRAIN_PER_PERIOD = 1;
 
-/** Energy recovered per period while `Rest` (base rate, no Rest Hut in v0.1). §4.5. */
+/** Energy recovered per period while `Rest`, with no rest hut. §4.5. */
 export const ENERGY_RECOVER_PER_PERIOD = 2;
+
+/**
+ * Energy recovered per period while `Rest` when a rest hut stands (§5, 06c).
+ * Global-while-placed — workers still rest where they stand (resolved
+ * interpretation 5); walking to the hut is v0.2 behaviour.
+ */
+export const REST_HUT_RECOVER_PER_PERIOD = 4;
 
 /** Ticks each action takes. `GAME_DESIGN.md` §4.3. */
 export const TASK_DURATION_TICKS: Readonly<Record<WorkerTaskKind, number>> = {

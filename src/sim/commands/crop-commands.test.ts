@@ -129,6 +129,23 @@ describe('planting consumes a seed (phase-06b, §8.1)', () => {
     expect(plantCrop(world, OWNED, CORE_TURNIP).ok).toBe(true);
   });
 
+  it("records the tile's last planted crop — the seed bin's memory (06c)", () => {
+    const world = readyWorld();
+    expect(world.lastPlanted.get(OWNED)).toBeUndefined();
+
+    plantCrop(world, OWNED, CORE_WHEAT);
+    expect(world.lastPlanted.get(OWNED)).toBe(CORE_WHEAT);
+
+    // The record survives the harvest — that is its entire purpose.
+    stepSimulationBy(world, 2400);
+    harvestCrop(world, OWNED);
+    expect(world.lastPlanted.get(OWNED)).toBe(CORE_WHEAT);
+
+    // Replanting a different crop overwrites it.
+    plantCrop(world, OWNED, CORE_TURNIP);
+    expect(world.lastPlanted.get(OWNED)).toBe(CORE_TURNIP);
+  });
+
   it('the last seed plants; the next plant is refused', () => {
     const world = createWorld(1);
     const wheat = world.cropRegistry.get(CORE_WHEAT);

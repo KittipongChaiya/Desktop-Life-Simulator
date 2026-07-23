@@ -130,6 +130,9 @@ export function plantCrop(world: CommandWorld, tile: TileIndex, cropId: ContentI
   removeItems(world.inventory, definition.value.seedItem, 1); // validated — removes exactly
 
   world.crops.set(tile, { cropId, tile, plantedTick: world.tick });
+  // The seed bin's memory (06c): recorded unconditionally — recording is free,
+  // and a bin placed later inherits the farm's history.
+  world.lastPlanted.set(tile, cropId);
   world.events.publish('cropPlanted', { tile, cropId, plantedTick: world.tick });
   return ok();
 }
