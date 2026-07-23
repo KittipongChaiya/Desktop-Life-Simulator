@@ -45,7 +45,7 @@ Because this phase writes only Markdown, the TDD / coverage / E2E gates do not a
 | **05.5d** | D      | `ASSET_CATALOG`, `PROMPT_LIBRARY`, `AI_ASSET_PIPELINE`                     | **Delivered** |
 | **05.5e** | E      | `AUDIO_DIRECTION`, `MUSIC_LIBRARY`, `SFX_LIBRARY`                          | **Delivered** |
 | **05.5f** | G      | `VISUAL_REFERENCE`, `TECHNICAL_ASSET_SPEC`                                 | **Delivered** |
-| **05.5g** | F + H  | `DESIGN_PRINCIPLES`, `CONTENT_RULES`, `GAME_LOOPS` + reconciliation report | Pending       |
+| **05.5g** | F + H  | `DESIGN_PRINCIPLES`, `CONTENT_RULES`, `GAME_LOOPS` + reconciliation report | **Delivered** |
 
 Execution order is dependency-driven: **A first** (every later doc cites `STYLE_LOCK` and `COLOR_PALETTE`), the **reconciliation report last** (it can only summarise finished docs). B–G in between may proceed in file order.
 
@@ -98,6 +98,13 @@ All three marked forward-looking — **no audio ships in v0.1** (`VISION.md §5.
 - `TECHNICAL_ASSET_SPEC.md` (ROUTER) — the one-hop index mapping every technical concern the directive listed to its existing owner (`ASSETS.md`, `ADR-006`, `PERFORMANCE.md`, `ARCHITECTURE.md §5`, `PIXEL_GUIDE.md`…), with unowned future concerns (auto-tiles, hit frames, combat layers) marked **"no owner yet"** as a binding statement rather than invented ad hoc. Owns exactly one thing: the **`GENERATION.md` asset-metadata schema** `AI_ASSET_PIPELINE.md §7` assigned here — per-directory generation provenance (AI model, prompt §+hash, palette/anim canon hashes, date, dependencies) using git hashes as version numbers (`ADR-006 §2`'s "git is the version store" rule reused). Unique ID/category/author/license are deliberately absent — each already has an owner.
 
 Consistency edit in the same commit: `QUALITY_GUIDELINES.md §6` gains the checklist line requiring the `GENERATION.md` row for AI-generated assets, because the reviewer is the gate that enforces it.
+
+**05.5g delivered** — the design canon (`docs/design/`, new directory) and the reconciliation report. **Phase 05.5 is complete.**
+
+- `DESIGN_PRINCIPLES.md` (DEFER+DELTA) — the citation-friendly digest of the design philosophy: seventeen citable principles (P-01..P-17) in three groups (the player's day, the game, the craft), each with rationale, a practical example from the shipped game, and its `VISION.md`/`GAME_DESIGN.md` source. The directive's "highest-level design authority" framing was reconciled: `VISION.md` keeps that authority and wins every conflict — this doc is the digest that makes the philosophy quotable (`P-07` in a review, like `R-03`). A mapping table shows where each of the directive's ~26 suggested principle names landed.
+- `CONTENT_RULES.md` (CREATE) — the design counterpart of `STYLE_LOCK.md`: twenty-one binding content-design rules (C-01..C-21) across connection, purpose, progression, economy, scale/identity, and future tiers, plus **the feature gate** (§3) — the single pre-implementation checklist merging file F's review-checklist demand with file H's feature-integration and loop-validation lists (one gate, one owner; `GAME_LOOPS.md §10` routes here). Worked examples show a pass (the market stall), a hard fail (a login streak), and a repairable fail (trophy fish).
+- `GAME_LOOPS.md` (DEFER+DELTA) — the loop taxonomy (primary/secondary/meta/long-term/endgame, extending `VISION.md §3`'s three timescales), the three legal loop couplings, a tier-tagged catalog of sixteen secondary loops, the RPG web and city-defense loop with their constitutional constraints (`C-19`/`C-20`; raids may never destroy value while absent), resource-flow families each naming its mandatory pipe back into farming, the motivation and progression ladders, the idle-vs-active vocabulary, and an honest weak-point register (§12). Defers the canonical v0.1 loop, diagram, and numbers to `GAME_DESIGN.md §1`.
+- **Reconciliation report** — completed in `docs/assets/README.md §5`: summaries of all twenty-five documents, the eleven conflicts found during authoring and their resolutions (all by ownership declaration, none open), recommended improvements before generation begins (golden set first, append-don't-renumber, prompt-palette sync, assign the "no owner yet" list deliberately), and the closing verdict: phase-06 art generation may begin on this canon.
 
 ---
 
@@ -184,10 +191,10 @@ Every doc: states its `Owns / Does not own` header in the house style, cross-ref
 
 ### 05.5g — Design & loops (files F + H) → `docs/design/`
 
-- [ ] `DESIGN_PRINCIPLES.md` — distilled principles, each citing its `VISION.md` source.
-- [ ] `CONTENT_RULES.md` — feature design rules + the pre-implementation review checklist.
-- [ ] `GAME_LOOPS.md` — the full loop taxonomy and resource-flow diagrams from file H; defers v0.1 loop specifics to `GAME_DESIGN.md §1`.
-- [ ] **Reconciliation report** in `docs/assets/README.md` — per file H: summarise every document, list any conflicting decisions found, and recommend improvements. Flip this phase's status and close the milestone.
+- [x] `DESIGN_PRINCIPLES.md` — distilled principles, each citing its `VISION.md` source.
+- [x] `CONTENT_RULES.md` — feature design rules + the pre-implementation review checklist.
+- [x] `GAME_LOOPS.md` — the full loop taxonomy and resource-flow diagrams from file H; defers v0.1 loop specifics to `GAME_DESIGN.md §1`.
+- [x] **Reconciliation report** in `docs/assets/README.md` — per file H: summarise every document, list any conflicting decisions found, and recommend improvements. Flip this phase's status and close the milestone.
 
 ---
 
@@ -213,7 +220,7 @@ Adapted from the standing working cadence; the code-specific gates are N/A becau
 
 ## Reconciliation report
 
-_Filled in 05.5g._ Will contain: a one-paragraph summary of each of the ~24 documents; a list of any conflicting decisions discovered during authoring; and recommended improvements to make before art/audio generation begins in phase-06 and v0.2.
+**Delivered in 05.5g** — the report lives with the canon it reconciles: `docs/assets/README.md §5`. It contains the per-document summaries, the eleven conflicts found and resolved during authoring, the recommended improvements before generation begins, and the closing verdict.
 
 ---
 
