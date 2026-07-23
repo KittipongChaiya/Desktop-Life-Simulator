@@ -35,9 +35,15 @@ export const SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
  * `Ctrl` rather than `CommandOrControl` deliberately: the product is
  * Windows-first (`VISION.md` §5.1), and pretending otherwise here would be
  * untested cross-platform surface.
+ *
+ * Quick hide is `F10` by owner decision (2026-07-23): the directive's
+ * original `F12` is unregistrable on Windows — `RegisterHotKey` reserves it
+ * for the debugger, so the hotkey path was dead on the primary platform
+ * (the 01.8b finding). This line is the entire rebind, as ADR-014 §5
+ * (amended) promised.
  */
 export const DEFAULT_BINDINGS: Readonly<Record<ShortcutAction, string>> = {
   [ShortcutAction.WorkMode]: 'F11',
-  [ShortcutAction.QuickHide]: 'F12',
+  [ShortcutAction.QuickHide]: 'F10',
   [ShortcutAction.ClickThrough]: 'Ctrl+Shift+C',
 };

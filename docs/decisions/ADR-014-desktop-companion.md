@@ -11,6 +11,8 @@
 > The canonical authority for every desktop-companion feature — window presence, global hotkeys, platform persistence — from phase-01.8 through v1.0+. Authored under the foundation freeze (ADR-012) as its second sanctioned new decision. This ADR defines **platform architecture only**; concrete numbers (the opacity range, the work-mode constant) live in the phase-01.8 specification and the settings schema, not here.
 >
 > **Amended 2026-07-23** by directive `fix/0.1/1.8a.md`: §4 gains the categorized application settings model; §5 gains the rebindable-shortcut architecture (stable actions, one bindings table, the centralized `ShortcutManager`).
+>
+> **Amended 2026-07-23** (owner decision, post-phase): quick hide's default binding is **`F10`**. The directive's `F12` proved unregistrable on Windows — `RegisterHotKey` reserves it for the debugger (the 01.8b finding) — leaving the hotkey path dead on the primary platform. The rebind exercised §5's replaceable-configuration promise exactly as written: one line in `shared/shortcuts.ts`, nothing else.
 
 ---
 
@@ -79,7 +81,7 @@ The renderer's work-mode state is a presentation store in the placement/seed-sel
 
 | Hotkey         | Action             | Why it must be global                              |
 | -------------- | ------------------ | -------------------------------------------------- |
-| `F12`          | Quick hide/restore | Must work when the window is hidden                |
+| `F10`          | Quick hide/restore | Must work when the window is hidden                |
 | `Ctrl+Shift+C` | Click-through mode | Must work when the window ignores the mouse        |
 | `F11`          | Work mode          | Must work without giving the overlay focus (never) |
 
@@ -87,7 +89,7 @@ The policy:
 
 1. **Global registration is reserved** for actions that must function while the overlay is not interactive. In-game keys (`1`–`4`, `Space`, `F1`/`F3`/`F4`) stay window-local; a global expand hotkey remains v0.2.
 2. **Registration failure is non-fatal.** A hotkey already claimed by another application is logged and skipped; the feature degrades, the app never crashes, and the tray remains the universal fallback.
-3. **The cost is named honestly:** a global `F12` shadows other applications' `F12` (browser devtools among them) while the game runs. v0.1 accepts the directive's bindings; rebindable shortcuts are the first item in §6.
+3. **The cost is named honestly:** a global hotkey shadows that key in every other application while the game runs (`F10` reaches the menu bar in some Windows apps; `F11` is fullscreen in browsers). v0.1 accepts the default bindings; rebindable shortcuts are the first item in §6. _(The directive's original quick-hide default, `F12`, was rebound to `F10` — see the amendment note — so the browser-devtools shadowing originally named here never arises.)_
 4. **Three is the number.** Adding a fourth global hotkey requires amending this ADR — the directive's restriction list ("no additional hotkeys") is adopted as an architectural bound.
 
 **The rebindable architecture** _(amended per `fix/0.1/1.8a.md`)_. Four statements, explicit and binding:
@@ -126,7 +128,7 @@ Every restricted feature in the directive arrives, if it ever arrives, as a new 
 ## Trade-offs
 
 - **Behind-normal-windows means a maximized window covers the game entirely** — including the collapsed status bar. Accepted, with eyes open: that is what "guest" means, and it is the directive's explicit intent. The game is visible exactly when the player's layout leaves it visible; the tray and the global hotkeys are the handles that never disappear. The glance loop (`VISION.md` §3.1) now happens on the player's terms, not the game's.
-- **Global hotkey shadowing** — `F12`/`F11` are meaningful in other applications. Accepted for v0.1 per the directive; rebinding is the first extensibility item and the mitigation is that the hotkeys exist only while the game runs.
+- **Global hotkey shadowing** — `F10`/`F11` are meaningful in other applications. Accepted for v0.1; rebinding is the first extensibility item and the mitigation is that the hotkeys exist only while the game runs.
 - **Two opacity sources** (slider and work-mode constant) — resolved by one precedence rule: work mode active → mode constant; otherwise → slider. No blending, no memory of anything but the slider value.
 - **Presence states multiply** (expanded / collapsed / work / hidden / click-through). Contained by orthogonality: hidden and click-through compose over any base state; work mode is a variant of expanded. The state model is small and is tested as a unit.
 

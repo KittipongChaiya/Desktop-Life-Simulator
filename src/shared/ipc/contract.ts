@@ -22,7 +22,7 @@ export const InvokeChannel = {
   GetCompanionState: 'companion:get-state',
   /**
    * Quick hide / restore (phase-01.8b). One INPUT to the same action the
-   * `F12` global hotkey and the tray drive — never a separate path.
+   * `F10` global hotkey and the tray drive — never a separate path.
    */
   ToggleHidden: 'companion:toggle-hidden',
   /** Click-through mode toggle (phase-01.8b) — the `Ctrl+Shift+C` action's IPC input. */

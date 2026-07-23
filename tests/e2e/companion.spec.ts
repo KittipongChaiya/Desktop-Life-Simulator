@@ -99,8 +99,10 @@ test('the settings panel documents the three companion shortcuts (ADR-014 §5)',
   const window = await app.firstWindow();
   await window.getByRole('button', { name: 'Settings' }).click();
 
+  // Rendered from DEFAULT_BINDINGS — the F12 → F10 rebind reached this panel
+  // with zero component changes.
   await expect(window.getByText('F11')).toBeVisible();
-  await expect(window.getByText('F12')).toBeVisible();
+  await expect(window.getByText('F10')).toBeVisible();
   await expect(window.getByText('Ctrl+Shift+C')).toBeVisible();
 });
 
@@ -199,22 +201,20 @@ test('click-through mode: toggles, toasts, and both runtime states reset on laun
   expect(state.hidden).toBe(false);
 });
 
-test('global hotkeys register through the manager — and work mode not yet', async () => {
+test('all three global hotkeys register through the manager', async () => {
   const registered = await app.evaluate(({ globalShortcut }) => ({
-    quickHide: globalShortcut.isRegistered('F12'),
+    quickHide: globalShortcut.isRegistered('F10'),
     clickThrough: globalShortcut.isRegistered('Ctrl+Shift+C'),
     workMode: globalShortcut.isRegistered('F11'),
   }));
 
   expect(registered.clickThrough).toBe(true);
-  // Bound in 01.8c: work mode is real, so its key is claimed now.
   expect(registered.workMode).toBe(true);
-  // F12 is deliberately NOT asserted: Windows reserves F12 for the debugger
-  // (RegisterHotKey refuses it), so its registration outcome is
-  // platform-dependent. The action itself stays reachable — the quick-hide
-  // test above proves it through the IPC input, and the tray is the standing
-  // fallback (ADR-014 §5.2). The finding is recorded in the phase doc.
-  expect(typeof registered.quickHide).toBe('boolean');
+  // Quick hide is F10 by owner rebind (2026-07-23): the directive's original
+  // F12 is unregistrable on Windows — RegisterHotKey reserves it for the
+  // debugger (01.8b finding) — which is why this assertion used to be
+  // platform-hedged. F10 registers, so it is asserted outright.
+  expect(registered.quickHide).toBe(true);
 });
 
 test('work mode: strips the HUD to the living world, and its state persists (crit 5)', async () => {

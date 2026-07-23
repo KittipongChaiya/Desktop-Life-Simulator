@@ -53,10 +53,14 @@ function handlers(): Record<ShortcutAction, ReturnType<typeof vi.fn>> {
 }
 
 describe('the default bindings', () => {
-  it('carry the directive’s v0.1 keys, and nothing else defines them', () => {
+  it('carry the v0.1 keys, and nothing else defines them', () => {
     // Pinned: these are DEFAULTS, not identity — actions are the stable names.
+    // Quick hide is F10 by owner decision (2026-07-23): the directive's F12 is
+    // unregistrable on Windows (RegisterHotKey reserves it for the debugger).
+    // The rebind was exactly the one-line configuration change ADR-014 §5
+    // promised.
     expect(DEFAULT_BINDINGS[ShortcutAction.WorkMode]).toBe('F11');
-    expect(DEFAULT_BINDINGS[ShortcutAction.QuickHide]).toBe('F12');
+    expect(DEFAULT_BINDINGS[ShortcutAction.QuickHide]).toBe('F10');
     expect(DEFAULT_BINDINGS[ShortcutAction.ClickThrough]).toBe('Ctrl+Shift+C');
     expect(SHORTCUT_ACTIONS).toHaveLength(3);
   });
@@ -67,7 +71,7 @@ describe('createShortcutManager', () => {
     const registrar = stubRegistrar();
     createShortcutManager(DEFAULT_BINDINGS, registrar).registerAll(handlers());
 
-    expect(registrar.registered).toEqual(['F11', 'F12', 'Ctrl+Shift+C']);
+    expect(registrar.registered).toEqual(['F11', 'F10', 'Ctrl+Shift+C']);
   });
 
   it('resolves a keypress to its action’s handler — resolution lives here only', () => {
@@ -75,14 +79,14 @@ describe('createShortcutManager', () => {
     const bound = handlers();
     createShortcutManager(DEFAULT_BINDINGS, registrar).registerAll(bound);
 
-    registrar.press('F12');
+    registrar.press('F10');
     expect(bound[ShortcutAction.QuickHide]).toHaveBeenCalledTimes(1);
     expect(bound[ShortcutAction.WorkMode]).not.toHaveBeenCalled();
     expect(bound[ShortcutAction.ClickThrough]).not.toHaveBeenCalled();
   });
 
   it('reports failed registrations and keeps the rest working (ADR-014 §5.2)', () => {
-    const registrar = stubRegistrar(['F12']); // F12 already claimed by another app
+    const registrar = stubRegistrar(['F10']); // F10 already claimed by another app
     const bound = handlers();
     const failed = createShortcutManager(DEFAULT_BINDINGS, registrar).registerAll(bound);
 
@@ -113,7 +117,7 @@ describe('createShortcutManager', () => {
       [ShortcutAction.ClickThrough]: vi.fn(),
     });
 
-    expect(registrar.registered).toEqual(['F12', 'Ctrl+Shift+C']);
+    expect(registrar.registered).toEqual(['F10', 'Ctrl+Shift+C']);
   });
 
   it('dispose unregisters everything', () => {

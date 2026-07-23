@@ -70,7 +70,7 @@ function broadcastCompanionState(): void {
 }
 
 /**
- * Quick hide / restore. ONE action with three inputs — the `F12` global
+ * Quick hide / restore. ONE action with three inputs — the `F10` global
  * hotkey, the tray item, and the IPC toggle — exactly the action/input split
  * fix/0.1/1.8a.md demands. Nothing is persisted: relaunch always shows.
  */
@@ -264,8 +264,9 @@ function bootstrap(): void {
 
   // Global hotkeys, resolved through the one manager (fix/0.1/1.8a.md).
   // Failures are non-fatal by policy: the feature degrades and the tray
-  // remains the fallback (ADR-014 §5.2). Known on Windows: F12 is refused
-  // outright — RegisterHotKey reserves it for the debugger (01.8b finding).
+  // remains the fallback (ADR-014 §5.2). Quick hide defaults to F10 because
+  // Windows refuses F12 outright — RegisterHotKey reserves it for the
+  // debugger (01.8b finding; owner rebind 2026-07-23).
   shortcuts = createShortcutManager(DEFAULT_BINDINGS, globalShortcutRegistrar);
   const failed = shortcuts.registerAll({
     [ShortcutAction.WorkMode]: () => void toggleWorkMode(),

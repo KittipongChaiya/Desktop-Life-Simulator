@@ -106,8 +106,10 @@ describe('SettingsPanel', () => {
     mount();
     openPanel();
 
+    // The reference renders from DEFAULT_BINDINGS, so the F12 → F10 rebind
+    // reached this panel with zero component changes — the point of the table.
     expect(screen.getByText('F11')).toBeDefined();
-    expect(screen.getByText('F12')).toBeDefined();
+    expect(screen.getByText('F10')).toBeDefined();
     expect(screen.getByText('Ctrl+Shift+C')).toBeDefined();
     expect(screen.getByText('Work mode')).toBeDefined();
     expect(screen.getByText('Quick hide')).toBeDefined();

@@ -35,9 +35,9 @@ Exactly these five. No additional desktop features (Out of Scope is binding).
 - Applies immediately (`BrowserWindow.setOpacity`); the UI shows the current percentage.
 - Persists in `settings.json`. **Loading a save must not affect opacity** — opacity is an application setting, not game state.
 
-### 2. Quick hide — global `F12`
+### 2. Quick hide — global `F10` _(rebound from the directive's `F12` — owner decision, 2026-07-23)_
 
-- Hides the overlay window immediately; `F12` again restores it.
+- Hides the overlay window immediately; `F10` again restores it.
 - Restore is exact — position, opacity, mode — **by construction**: hiding changes no other state (ADR-014 §2).
 - Response feels instantaneous. The simulation continues while hidden; the game is never paused.
 
@@ -63,7 +63,7 @@ Exactly these five. No additional desktop features (Out of Scope is binding).
 
 ### Supporting surfaces
 
-- **Settings — Desktop Companion section:** opacity slider + current %, and the shortcut reference (`F11` work mode, `F12` quick hide, `Ctrl+Shift+C` click-through). Minimal interface, inside the 220 px overlay (`GAME_DESIGN.md` §10).
+- **Settings — Desktop Companion section:** opacity slider + current %, and the shortcut reference (`F11` work mode, `F10` quick hide, `Ctrl+Shift+C` click-through — rendered from the bindings table, so the rebind reached it with zero component changes). Minimal interface, inside the 220 px overlay (`GAME_DESIGN.md` §10).
 - **Toasts:** brief, auto-dismissing, in-overlay confirmations for work-mode toggle, click-through toggle, and quick-hide restore. Never OS notifications (`VISION.md` §5.1).
 
 ---
@@ -75,11 +75,11 @@ Recorded before implementation; changing one is a spec edit, not a coding choice
 1. **Work mode implies the expanded overlay** — it must show the living world, which collapsed mode has torn down (ADR-001 §2). `F11` while collapsed expands into work mode; leaving work mode returns to the prior presence state.
 2. **Work mode's 25% never touches the slider.** Precedence: work mode active → mode constant; otherwise → slider value. Leaving work mode restores the player's own setting untouched.
 3. **Click-through mode composes over any base state** (expanded, collapsed, work). It owns nothing but mouse transparency.
-4. **Hidden changes nothing else**, so `F12` restore needs no bookkeeping. Other global hotkeys still fire while hidden (a player may toggle work mode blind; the state is applied on restore).
+4. **Hidden changes nothing else**, so quick-hide restore needs no bookkeeping. Other global hotkeys still fire while hidden (a player may toggle work mode blind; the state is applied on restore).
 5. **Persistence set:** opacity, work-mode last state, and the existing collapsed flag. **Hidden and click-through have no persisted representation at all** — they reset by not existing (ADR-014 §4).
 6. **Toast triggers are exactly three:** work-mode toggle, click-through toggle, quick-hide restore. In work mode, the work-mode toast itself still shows (the player must see the mode change land); all other notifications are hidden.
 7. **"Non-essential animations"** = presentation effects: hover/selection highlights and the coin-counter tween. Worker walk animation stays — workers are on the keep list, and a frozen walker reads as a jam.
-8. **Global hotkeys are OS-global** per the directive. Registration failure is logged and non-fatal (tray remains the fallback); the `F12`-shadows-devtools cost is accepted for v0.1 and rebinding is ADR-014 §6's first future item. _(01.8b superseded the premise: Windows refuses to register F12 at all — see the 01.8b delivered note. The shadowing concern never arises; the availability concern replaced it, and the default-binding decision sits with the project owner.)_
+8. **Global hotkeys are OS-global** per the directive. Registration failure is logged and non-fatal (tray remains the fallback); the `F12`-shadows-devtools cost is accepted for v0.1 and rebinding is ADR-014 §6's first future item. _(01.8b superseded the premise: Windows refuses to register F12 at all — see the 01.8b delivered note. The shadowing concern never arises; the availability concern replaced it, and the default-binding decision sat with the project owner.)_ **Resolved 2026-07-23:** the owner rebound quick hide to **`F10`** — one line in `shared/shortcuts.ts`, exactly the rebinding path the 01.8a2 architecture promised (its unit test had already exercised it). All three defaults now register on Windows; the E2E hotkey assertion is un-hedged.
 
 ---
 
@@ -130,8 +130,12 @@ Infrastructure only, landed deliberately **before 01.8b registers the first hotk
 - **Presence memory (resolved interpretation 1)**: entering work mode from collapsed expands the overlay (the mode exists to show the world, which collapse has torn down); leaving restores the prior presence — E2E drives collapsed → work (expanded, 220 px) → normal (collapsed again, 48 px). The memory is runtime-only: across a relaunch, leaving work mode simply stays expanded.
 - **Last state persists**: quit in work mode, relaunch — the window opens at 25% with the HUD stripped _before any UI interaction_, and the launch toast explains the stripped screen ("Work mode on — F11 to leave", the way out named from the bindings table). Leaving restores the player's own dial exactly.
 - **Always-on-bottom shipped as never-raise.** Electron exposes no push-to-bottom on Windows, so the mechanism is the honest one: `setAlwaysOnTop(false)`, unfocusable, shown with `showInactive` (`SW_SHOWNA` keeps z-position), and **no code path raises the window** — every window the player touches rises above the overlay and stays there. The launch instant is the accepted residue; the native `HWND_BOTTOM` escape hatch stays deliberately unexercised in v0.1 (no native dependencies; the livability pass judges the residue). ADR-014 §2 carries the delivered-reality note; the overlay E2E's phase-01 `alwaysOnTop === true` assertion is formally flipped.
-- **F12 remains the shipped default** per the directive's letter — no rebind decision was received; the binding stays one line in `shared/shortcuts.ts` whenever it comes.
+- **F12 remained the shipped default** per the directive's letter — no rebind decision had been received at close-out; the binding stays one line in `shared/shortcuts.ts` whenever it comes. _(It came: see the post-phase fix note below.)_
 - Gates: typecheck, lint, **720** unit/integration, **24 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched across the entire phase — criterion 10 held from first commit to last.
+
+### Post-phase fix (2026-07-23) — quick hide rebound `F12` → `F10`
+
+The owner's decision on the 01.8b escalation: quick hide's default binding is **`F10`**. The change was, as designed, **one line in `shared/shortcuts.ts`** — the manager registers the new key, the settings panel's reference re-renders from the table, and no component, handler, or test helper changed behavior. F10 registers successfully on Windows, so the E2E hotkey test now asserts all three registrations outright (the platform hedge is gone), and the manual pass's physical-keypress item covers all three keys for the first time. ADR-014 carries the matching amendment note; `GAME_DESIGN.md` §8.3/§10.3 updated.
 
 ---
 
@@ -151,7 +155,7 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 | --- | ---------------------------------------------------------------------------- | ---------------------------------- |
 | 1   | Opacity changes instantly                                                    | E2E + manual                       |
 | 2   | Opacity persists between launches                                            | E2E (relaunch)                     |
-| 3   | `F12` hides and restores the window, state exact                             | E2E (service) + manual (hotkey)    |
+| 3   | `F10` hides and restores the window, state exact _(rebound from `F12`)_      | E2E (service) + manual (hotkey)    |
 | 4   | `Ctrl+Shift+C` toggles click-through                                         | E2E (service) + manual (hotkey)    |
 | 5   | `F11` toggles work mode; previous state restored on exit                     | E2E (service) + manual (hotkey)    |
 | 6   | Always-on-bottom: VSCode/browser/Explorer/terminal/Office sit above the game | Manual                             |
@@ -163,7 +167,7 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 
 **E2E honesty note:** Playwright cannot synthesize OS-level global keypresses. E2E drives the platform service's toggle functions directly (via the Electron main-process handle) and asserts hotkey **registration** (`globalShortcut.isRegistered`); the physical keypress path is the manual checklist's job. The wiring between them is one `register(key, fn)` call.
 
-**Close-out status:** criteria 1–5 and 7–11 are discharged by the automated gates above (the hotkey halves of 3/4/5 via registration + the shared toggle path; the physical keypresses join the manual pass — where **F12 will not fire on Windows**, the recorded platform finding). Criterion 6 (always-on-bottom against real applications) is inherently the manual pass's. Criterion 10 held from the phase's first commit to its last: `src/sim` has zero changes across 01.8a–01.8c.
+**Close-out status:** criteria 1–5 and 7–11 are discharged by the automated gates above (the hotkey halves of 3/4/5 via registration + the shared toggle path; the physical keypresses join the manual pass — where, at close-out, **F12 would not fire on Windows**, the recorded platform finding; the post-phase `F10` rebind has since restored the hotkey path, so all three keys are exercisable). Criterion 6 (always-on-bottom against real applications) is inherently the manual pass's. Criterion 10 held from the phase's first commit to its last: `src/sim` has zero changes across 01.8a–01.8c.
 
 ---
 
@@ -179,14 +183,14 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 - [x] E2E: hide → wait → restore → tick advanced continuously (crit 7; ADR-014 assumption 1 made testable) _(01.8b — ≥30 ticks over 1.5 s hidden; the rAF fallback stays unused)_
 - [x] E2E: click-through ON → clicks pass; OFF → hit-testing behavior identical to pre-phase _(01.8b — state, toast, override composition, and reset E2E'd; the physical click pass-through is OS-level and stays on the manual pass)_
 - [x] E2E: work mode ON → HUD absent, world present, sim advancing; OFF → prior state _(01.8c — including collapsed → work → collapsed presence restore, and cross-launch resumption at 25%)_
-- [x] E2E: all three hotkeys registered; loading a save (once phase-07 exists) leaves opacity untouched _(01.8c — `F11` and `Ctrl+Shift+C` asserted registered; `F12`'s outcome is platform-dependent — Windows refuses it, see the 01.8b finding. The save half falls due in phase-07 and is structurally true today: settings.json and saves never meet)_
+- [x] E2E: all three hotkeys registered; loading a save (once phase-07 exists) leaves opacity untouched _(01.8c — `F11` and `Ctrl+Shift+C` asserted registered; `F12`'s outcome was platform-dependent — Windows refuses it, see the 01.8b finding. **Post-phase fix:** quick hide rebound to `F10`, which registers — all three now asserted outright. The save half falls due in phase-07 and is structurally true today: settings.json and saves never meet)_
 - [x] Idle-cost E2E still passes in work mode (ADR-014 checkpoint 3) _(01.8c — structurally: work mode strictly UNMOUNTS components, and unmounted components cannot commit; the existing idle-cost tests bound the superset UI. A dedicated in-work-mode measurement joins the manual CPU pass)_
 
 ### Manual — the companion livability pass
 
 - [ ] Each hotkey pressed physically, from another application's focus, in and out
 - [ ] Always-on-bottom against each named app class: VSCode, browser, Explorer, terminal, Office
-- [ ] `F12` conflict observation: note what breaks in other apps while the game runs (feeds the rebinding priority, ADR-014 §5.3)
+- [ ] `F10` conflict observation: note what breaks in other apps while the game runs (`F10` reaches the menu bar in some Windows apps — feeds the rebinding priority, ADR-014 §5.3)
 - [ ] A working day in work mode: is 25% + world-only genuinely non-distracting?
 - [ ] Task Manager before/after: companion features add no measurable idle cost
 
