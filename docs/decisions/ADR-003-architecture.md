@@ -1,12 +1,12 @@
 # ADR-003: Electron Shell, Process Layout, and Layered Architecture
 
-| | |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-07-21 |
-| **Deciders** | Project owner, lead architect |
-| **Supersedes** | — |
-| **Superseded by** | — |
+|                   |                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| **Status**        | Accepted                                                                                                |
+| **Date**          | 2026-07-21                                                                                              |
+| **Deciders**      | Project owner, lead architect                                                                           |
+| **Supersedes**    | —                                                                                                       |
+| **Superseded by** | ADR-014 — the window **z-order clause only** (always-on-top → always-on-bottom); everything else stands |
 
 ---
 
@@ -45,17 +45,17 @@ The tick loop, all systems, and the authoritative world state live in the render
 
 **Migration trigger (stated in advance so a future session doesn't have to argue it):** move the simulation to a worker when a p99 tick exceeds 3 ms, or when tick execution measurably delays frame presentation. Both are tracked in `PERFORMANCE.md`.
 
-**The mandatory mitigation:** Chromium throttles background renderer timers to ~1 Hz. For a game whose *normal* state is "running behind other windows," that would silently stall the simulation. `backgroundThrottling: false` is therefore not optional, and phase-01 includes an E2E test asserting the tick continues while the window is occluded. Offline progress (ADR-002 §6) is the safety net, not the mechanism.
+**The mandatory mitigation:** Chromium throttles background renderer timers to ~1 Hz. For a game whose _normal_ state is "running behind other windows," that would silently stall the simulation. `backgroundThrottling: false` is therefore not optional, and phase-01 includes an E2E test asserting the tick continues while the window is occluded. Offline progress (ADR-002 §6) is the safety net, not the mechanism.
 
 ### 3. Process responsibilities
 
-| Process | Owns | Never does |
-|---|---|---|
-| **main** | Window lifecycle, overlay geometry, always-on-top, click-through, tray, single-instance lock, all disk I/O, IPC validation | Game logic. Rendering. |
-| **preload** | A narrow, typed `contextBridge` surface | Business logic. Exposing `ipcRenderer`. |
-| **renderer** | Simulation, rendering, UI | Direct disk access. Direct `electron` imports. |
+| Process      | Owns                                                                                                                       | Never does                                     |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **main**     | Window lifecycle, overlay geometry, always-on-top, click-through, tray, single-instance lock, all disk I/O, IPC validation | Game logic. Rendering.                         |
+| **preload**  | A narrow, typed `contextBridge` surface                                                                                    | Business logic. Exposing `ipcRenderer`.        |
+| **renderer** | Simulation, rendering, UI                                                                                                  | Direct disk access. Direct `electron` imports. |
 
-The renderer is treated as untrusted by the main process. Every IPC payload is validated on receipt (`AI_RULES.md` §2.4). This is defensive today and *literally correct* from v0.2, when plugin code runs in the renderer.
+The renderer is treated as untrusted by the main process. Every IPC payload is validated on receipt (`AI_RULES.md` §2.4). This is defensive today and _literally correct_ from v0.2, when plugin code runs in the renderer.
 
 ### 4. Layered architecture inside the renderer
 
@@ -75,7 +75,7 @@ The renderer is treated as untrusted by the main process. Every IPC payload is v
 
 **One rule governs everything:** `src/sim` is a headless, deterministic TypeScript library that has no idea it is inside a game client. It imports only `shared`. It runs under `vitest` with no DOM, no Electron, and no Pixi.
 
-Both views are *disposable*: destroying and rebuilding the renderer or the React tree loses nothing, because neither holds authoritative state. This is what makes ADR-001's collapsed-mode teardown possible, and it is what will make a worker migration or a future headless server possible.
+Both views are _disposable_: destroying and rebuilding the renderer or the React tree loses nothing, because neither holds authoritative state. This is what makes ADR-001's collapsed-mode teardown possible, and it is what will make a worker migration or a future headless server possible.
 
 Enforcement is mechanical, not cultural — `eslint-plugin-boundaries` plus a separate `tsconfig` with neither DOM nor Node libs (`CODE_STYLE.md` §8, `TECH_STACK.md` §3.1). The full import matrix lives in `CODE_STYLE.md` §8.1.
 
@@ -93,23 +93,23 @@ User clicks a tile
   → UI subscribes to snapshot slices at a throttled rate (ADR-005)
 ```
 
-Intents being queued and applied *on a tick boundary* — never mid-tick — is what preserves determinism (ADR-007). It also means every player action is already in the shape a replay or a network layer would need.
+Intents being queued and applied _on a tick boundary_ — never mid-tick — is what preserves determinism (ADR-007). It also means every player action is already in the shape a replay or a network layer would need.
 
 ### 6. A `plugins/` architecture is reserved now, implemented in v0.2
 
-`VISION.md` §4 commits to mod support. Retrofitting extensibility into a core that assumes it owns all content is a rewrite, so v0.1 pays the small, bounded cost of being *shaped* for plugins without building a loader.
+`VISION.md` §4 commits to mod support. Retrofitting extensibility into a core that assumes it owns all content is a rewrite, so v0.1 pays the small, bounded cost of being _shaped_ for plugins without building a loader.
 
 **What v0.1 builds:**
 
 - **Namespaced content IDs.** Every crop, item, building, and tile type is `namespace:name` — `core:wheat`. Permanent identifiers (`AI_RULES.md` §1.4).
-- **Content registries.** All content is registered through a typed registry API (`registerCrop`, `registerItem`, …) rather than being hardcoded in switch statements or imported directly by systems. First-party content registers through the *same* API a plugin will use.
+- **Content registries.** All content is registered through a typed registry API (`registerCrop`, `registerItem`, …) rather than being hardcoded in switch statements or imported directly by systems. First-party content registers through the _same_ API a plugin will use.
 - **A typed event bus** in the simulation with documented hook points (`onTickStart`, `onCropHarvested`, `onItemSold`, …). v0.1 core uses it for its own decoupling, so the hooks are exercised and real rather than speculative.
 - **Namespaced save partitioning** with preservation of data from absent plugins (ADR-002 §5).
 - **A top-level `plugins/` directory** containing `core/` — first-party content — plus the manifest schema and API documentation.
 
 **What v0.1 explicitly does not build:** dynamic loading, sandboxing, a permission model, dependency resolution, a plugin settings UI, or hot reload. Those are v0.2 (`PLAN.md`).
 
-The critical design point: **`plugins/core/` is registered through the public plugin API but statically imported.** The API is therefore proven sufficient by first-party content before any third party depends on it, and adding the loader in v0.2 changes *how* content arrives — not the shape of the content system. That is what makes this cheap now instead of a rewrite later.
+The critical design point: **`plugins/core/` is registered through the public plugin API but statically imported.** The API is therefore proven sufficient by first-party content before any third party depends on it, and adding the loader in v0.2 changes _how_ content arrives — not the shape of the content system. That is what makes this cheap now instead of a rewrite later.
 
 This is a deliberate, bounded exception to `AI_RULES.md` §1.5 (no unnecessary abstractions), authorized by the extension-point table in `VISION.md` §4.2.
 
@@ -151,14 +151,14 @@ The strongest alternative, and the one that best serves the idle-cost goal.
 
 ## Tradeoffs Accepted
 
-| We accept | To gain | Mitigation |
-|---|---|---|
-| Electron's memory baseline | Overlay maturity, delivery certainty | Strict budgets in `PERFORMANCE.md`; ADR-001 §2 teardown; Tauri exit criteria stated |
-| ~80–120 MB installer | Bundled, version-stable runtime | Acceptable for a desktop game |
-| Three-process complexity | Security isolation, correct architecture | `electron-vite` absorbs most of the build cost |
-| IPC ceremony for disk access | Renderer never touches the filesystem | Small, typed, enumerated surface |
-| Sim shares a thread with render + UI | Simplicity, no clone boundary | Budgeted and measured; worker trigger pre-committed |
-| Plugin-shaped code before a loader exists | v0.2 mod support without a core rewrite | Bounded to registries, IDs, events, and save namespacing |
+| We accept                                 | To gain                                  | Mitigation                                                                          |
+| ----------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| Electron's memory baseline                | Overlay maturity, delivery certainty     | Strict budgets in `PERFORMANCE.md`; ADR-001 §2 teardown; Tauri exit criteria stated |
+| ~80–120 MB installer                      | Bundled, version-stable runtime          | Acceptable for a desktop game                                                       |
+| Three-process complexity                  | Security isolation, correct architecture | `electron-vite` absorbs most of the build cost                                      |
+| IPC ceremony for disk access              | Renderer never touches the filesystem    | Small, typed, enumerated surface                                                    |
+| Sim shares a thread with render + UI      | Simplicity, no clone boundary            | Budgeted and measured; worker trigger pre-committed                                 |
+| Plugin-shaped code before a loader exists | v0.2 mod support without a core rewrite  | Bounded to registries, IDs, events, and save namespacing                            |
 
 ---
 

@@ -44,6 +44,7 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 05.5 | AI Asset Production Foundation | Creative canon: art direction, style lock, palette, world/character/lore bibles, prompt library, audio + design docs | Docs only — no runtime change       |
 | 05.6 | Vertical Slice (Golden Set)    | First production asset set validating the 05.5 canon: world/crop/UI/character art, audio specs, validation report    | Assets only — no code change        |
 | 06   | Economy                        | Coins, dynamic pricing, shop, land expansion, buildings                                                              | **Stage 4 — full idle loop**        |
+| 01.8 | Desktop Companion              | Opacity dial, quick hide, click-through mode, work mode, always-on-bottom — platform only (ADR-014)                  | The overlay coexists with real work |
 | 07   | Save/Load                      | Schema, atomic writes, migrations, autosave, offline progress                                                        | The game persists                   |
 
 Phase order is dictated by dependency, not preference. Two orderings are worth stating explicitly:
@@ -51,6 +52,7 @@ Phase order is dictated by dependency, not preference. Two orderings are worth s
 - **Overlay before world (01 → 02).** If the overlay is not livable, nothing else matters. It carries the highest product risk and is deliberately faced first, alone.
 - **Save/load last (07).** Persistence must serialize a _complete_ world. Building it earlier means migrating the schema after every subsequent phase — seven migrations before v0.1 ships, each one an opportunity to lose data.
 - **Resource model before inventory (ADR-011).** Phases 05 (inventory) and 06 (economy), and every resource system after them, share one model fixed before phase-05: resources are conserved quantities owned by containers, moved only by explicit transfer. Deciding it up front prevents each system inventing incompatible resource rules — the same forethought as the command model (03.5) preceding its four consumers.
+- **Desktop companion after the loop, before persistence (06 → 01.8 → 07).** Numbered with the overlay family because it extends phase-01's platform shell; built after phase-06 so the companion behaviors wrap a complete, earning game, and before phase-07 so the preference/save boundary (app settings in `settings.json`, never in the save — ADR-014 §4) is fixed in code before the save schema exists, and the return summary can be designed knowing work mode hides the HUD.
 
 ### 2.2 Success criteria
 

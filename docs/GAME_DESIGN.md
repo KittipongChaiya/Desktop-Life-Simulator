@@ -341,6 +341,16 @@ Failures surface as a brief inline message ("Inventory full", "Not enough coins"
 
 A global hotkey to expand the overlay is a **v0.2** feature — registering system-wide hotkeys risks conflicting with the player's real work, which needs its own design pass.
 
+**AMENDED IN PHASE-01.8 (ADR-014 §5).** The design pass this paragraph asked for happened. v0.1 ships exactly three **global** hotkeys — companion controls that must work while the overlay is not interactive:
+
+| Global key     | Action                    |
+| -------------- | ------------------------- |
+| `F11`          | Work mode toggle          |
+| `F12`          | Quick hide / restore      |
+| `Ctrl+Shift+C` | Click-through mode toggle |
+
+In-game keys above stay window-local; a global expand hotkey remains v0.2; adding a fourth global hotkey requires amending ADR-014.
+
 ---
 
 ## 9. Idle and Offline Mechanics
@@ -403,6 +413,20 @@ On load after a gap over 60 seconds, a dismissible summary shows time away, crop
 ```
 
 Collapsed mode destroys the Pixi application entirely (ADR-001 §2) — the status bar is plain DOM, so the idle cost approaches the tick alone.
+
+### 10.3 Companion presence states (phase-01.8, ADR-014)
+
+The overlay's presence is a small state model. The simulation runs identically through every row — the companion changes what the player _sees_, never what the world _does_.
+
+| State                              | Window        | Pixi world | HUD / panels         | Opacity                                           |
+| ---------------------------------- | ------------- | ---------- | -------------------- | ------------------------------------------------- |
+| Expanded                           | shown, 220 px | live       | shown                | player's slider (30–100%)                         |
+| Collapsed                          | shown, 48 px  | destroyed  | status bar only      | player's slider                                   |
+| **Work mode** (`F11`)              | shown, 220 px | live       | **hidden**           | **25% — a mode constant, below the slider floor** |
+| **Hidden** (`F12`)                 | hidden        | live       | —                    | —                                                 |
+| **Click-through** (`Ctrl+Shift+C`) | as base state | as base    | visible, mouse-inert | as base state                                     |
+
+Hidden and click-through compose over any base state; work mode is a variant of expanded (it must show the living world). Work mode keeps only world, workers, crops, and buildings; mode toggles confirm with a transient in-overlay toast — never an OS notification (`VISION.md` §5.1). Opacity and work-mode state are application preferences (`settings.json`), never save data; hidden and click-through always reset on launch (ADR-014 §4).
 
 ---
 

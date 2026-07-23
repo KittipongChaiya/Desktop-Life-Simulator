@@ -155,6 +155,8 @@ src/
 │   │       └── canvas2d.ts     Degraded backend (ADR-001 §Fallback)
 │   └── app/                    React only — no PixiJS
 │       ├── App.tsx
+│       ├── work-mode.ts        Work-mode presentation store (ADR-014 §3) —
+│       │                       hides HUD surfaces; never enters the sim
 │       ├── hooks/
 │       │   ├── use-slice.ts    useSyncExternalStore wrapper
 │       │   └── use-command.ts
@@ -166,7 +168,8 @@ src/
 │       ├── hud/
 │       │   ├── StatusBar.tsx   Collapsed-mode view
 │       │   └── CoinCounter.tsx
-│       ├── components/         Shared primitives (Button, List, Modal)
+│       ├── components/         Shared primitives (Button, List, Toast — never
+│       │                       a modal, GAME_DESIGN.md §10.1)
 │       └── styles/             CSS Modules
 │
 ├── devtools/                   DEVELOPER TOOLING — nothing in the game may
@@ -184,8 +187,11 @@ src/
 │
 ├── main/                       Electron main process
 │   ├── index.ts                Entry
-│   ├── overlay-window.ts       Frameless, transparent, docked, always-on-top
+│   ├── overlay-window.ts       Frameless, transparent, docked, always-on-bottom (ADR-014)
 │   ├── docking.ts              workArea geometry, multi-monitor, DPI
+│   ├── settings.ts             App preferences (settings.json) — NOT game state
+│   ├── desktop-companion.ts    Global hotkeys, opacity, quick hide, click-through
+│   │                           mode, work mode, z-order (ADR-014). Sim-invisible.
 │   ├── click-through.ts        setIgnoreMouseEvents management
 │   ├── tray.ts
 │   ├── single-instance.ts
@@ -318,7 +324,7 @@ docs/
 ├── ASSETS.md              Asset pipeline and conventions
 ├── TESTING.md             Strategy, tooling, coverage gates
 ├── CHANGELOG.md           Semantic-versioned change history
-├── decisions/             ADR-001 … ADR-013
+├── decisions/             ADR-001 … ADR-014
 └── phases/                phase-00 … phase-07
 ```
 
@@ -334,7 +340,8 @@ Written by the app on the user's machine:
 │   ├── slot-0.json             Current save
 │   ├── slot-0.json.bak         Previous good save (ADR-002 §2)
 │   └── backups/                Three most recent autosaves
-├── settings.json               UI preferences — not game state
+├── settings.json               UI + desktop-companion preferences (collapsed,
+│                               opacity, work mode) — not game state (ADR-014 §4)
 └── logs/
     └── main.log                Rotated
 ```

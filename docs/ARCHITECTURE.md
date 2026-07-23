@@ -281,15 +281,16 @@ The UI root is pointer-transparent except over actual controls, which combined w
 
 ## 7. Main Process
 
-| Concern         | Notes                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------- |
-| Overlay window  | Frameless, transparent, always-on-top, `skipTaskbar`, docked to `workArea` bottom edge |
-| Click-through   | `setIgnoreMouseEvents` toggled from renderer hit-testing                               |
-| Display changes | Re-dock on resolution, DPI, monitor add/remove                                         |
-| Tray            | Show/hide, collapse/expand, quit                                                       |
-| Single instance | `requestSingleInstanceLock` — two instances would race on the save file                |
-| Save I/O        | Atomic write, `.bak` rotation, backups (ADR-002 §2)                                    |
-| IPC             | Every payload validated on receipt; renderer treated as untrusted                      |
+| Concern           | Notes                                                                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overlay window    | Frameless, transparent, **always-on-bottom** (behind normal windows, ADR-014 §2 — superseding always-on-top), `skipTaskbar`, docked to `workArea` bottom edge               |
+| Click-through     | `setIgnoreMouseEvents` toggled from renderer hit-testing; a companion **mode** (`Ctrl+Shift+C`) overrides hit-testing entirely (ADR-014 §2)                                 |
+| Desktop companion | Global hotkeys (`F11`/`F12`/`Ctrl+Shift+C`), window opacity, quick hide, work mode broadcast — the platform service (ADR-014). The simulation never learns any of it exists |
+| Display changes   | Re-dock on resolution, DPI, monitor add/remove                                                                                                                              |
+| Tray              | Show/hide, collapse/expand, quit                                                                                                                                            |
+| Single instance   | `requestSingleInstanceLock` — two instances would race on the save file                                                                                                     |
+| Save I/O          | Atomic write, `.bak` rotation, backups (ADR-002 §2)                                                                                                                         |
+| IPC               | Every payload validated on receipt; renderer treated as untrusted                                                                                                           |
 
 ---
 
