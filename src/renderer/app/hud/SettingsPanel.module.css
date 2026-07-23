@@ -1,0 +1,91 @@
+/* Settings panel. Phase-01.8a — the Desktop Companion section (ADR-014). */
+
+.container {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  color: #e8e8ec;
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+.toggle {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 22, 28, 0.82);
+  color: #e8e8ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.toggle:hover {
+  background: rgba(32, 35, 44, 0.9);
+}
+
+.panel {
+  width: 220px;
+  /* Same window arithmetic as the shop (ShopPanel.module.css): the expanded
+     overlay is 220px tall and a control rendered past its edge is a click on
+     the desktop. The list scrolls internally rather than growing. */
+  max-height: 126px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(20, 22, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.section {
+  margin-top: 4px;
+  opacity: 0.6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section:first-child {
+  margin-top: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.name {
+  flex: 1;
+}
+
+.slider {
+  flex: 1 1 90px;
+  min-width: 70px;
+  accent-color: rgba(120, 180, 120, 0.95); /* the "equipped" green, never red */
+}
+
+.value {
+  min-width: 4ch;
+  text-align: right;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.keys {
+  padding: 1px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background: rgba(40, 44, 54, 0.8);
+  font: inherit;
+  font-size: 11px;
+}

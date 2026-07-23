@@ -12,6 +12,7 @@ import {
   EventChannel,
   InvokeChannel,
   SendChannel,
+  type CompanionState,
   type OverlayState,
 } from '../shared/ipc/contract';
 
@@ -22,6 +23,13 @@ export interface DesktopLifeApi {
     setClickThrough(enabled: boolean): void;
     /** Subscribes to external collapse/expand (tray, hotkey). Returns teardown. */
     onStateChanged(listener: (state: OverlayState) => void): () => void;
+  };
+  /** Desktop companion (phase-01.8, ADR-014): app preferences, never game state. */
+  readonly companion: {
+    setOpacity(percent: number): Promise<CompanionState>;
+    getState(): Promise<CompanionState>;
+    /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
+    onStateChanged(listener: (state: CompanionState) => void): () => void;
   };
   readonly app: {
     quit(): Promise<void>;
@@ -51,6 +59,23 @@ const api: DesktopLifeApi = {
       ipcRenderer.on(EventChannel.OverlayStateChanged, handler);
       return () => {
         ipcRenderer.off(EventChannel.OverlayStateChanged, handler);
+      };
+    },
+  },
+
+  companion: {
+    setOpacity: (percent) =>
+      ipcRenderer.invoke(InvokeChannel.SetOpacity, percent) as Promise<CompanionState>,
+
+    getState: () => ipcRenderer.invoke(InvokeChannel.GetCompanionState) as Promise<CompanionState>,
+
+    onStateChanged: (listener) => {
+      const handler = (_event: unknown, state: CompanionState): void => {
+        listener(state);
+      };
+      ipcRenderer.on(EventChannel.CompanionStateChanged, handler);
+      return () => {
+        ipcRenderer.off(EventChannel.CompanionStateChanged, handler);
       };
     },
   },

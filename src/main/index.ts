@@ -11,35 +11,59 @@ import {
   EventChannel,
   InvokeChannel,
   SendChannel,
+  type CompanionState,
   type OverlayState,
 } from '../shared/ipc/contract';
-import { validateBoolean, validateVoid } from '../shared/ipc/schemas';
+import { validateBoolean, validateNumber, validateVoid } from '../shared/ipc/schemas';
 
+import { applyOpacity } from './desktop-companion';
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
 import { loadSettings, saveSettings } from './settings';
+import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type UiSettings } from './settings-schema';
 
 let overlay: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let collapsed = false;
+// The one settings record. Updated immutably; every mutation persists it whole
+// so no field can be dropped by a partial write (found designing 01.8a: the
+// old `saveSettings({ collapsed })` calls would have erased the opacity).
+let settings: UiSettings = DEFAULT_SETTINGS;
 let stopWatchingDisplays: (() => void) | null = null;
 
 function overlayState(): OverlayState {
-  const bounds = dockedBounds(collapsed);
-  return { collapsed, width: bounds.width, height: bounds.height };
+  const bounds = dockedBounds(settings.collapsed);
+  return { collapsed: settings.collapsed, width: bounds.width, height: bounds.height };
+}
+
+function companionState(): CompanionState {
+  return { opacityPercent: settings.opacityPercent, workMode: settings.workMode };
 }
 
 function applyCollapsed(next: boolean): OverlayState {
-  collapsed = next;
+  settings = { ...settings, collapsed: next };
 
   if (overlay !== null && !overlay.isDestroyed()) {
-    setCollapsed(overlay, collapsed);
+    setCollapsed(overlay, settings.collapsed);
     overlay.webContents.send(EventChannel.OverlayStateChanged, overlayState());
   }
 
-  saveSettings({ collapsed });
+  saveSettings(settings);
   refreshTrayMenu();
   return overlayState();
+}
+
+function applyOpacityPercent(next: number): CompanionState {
+  settings = { ...settings, opacityPercent: sanitizeOpacityPercent(next) };
+
+  if (overlay !== null && !overlay.isDestroyed()) {
+    applyOpacity(overlay, settings);
+    // Confirms the sanitized value to the settings UI, and keeps it in sync
+    // when 01.8b/c change companion state from a global hotkey.
+    overlay.webContents.send(EventChannel.CompanionStateChanged, companionState());
+  }
+
+  saveSettings(settings);
+  return companionState();
 }
 
 function refreshTrayMenu(): void {
@@ -48,8 +72,8 @@ function refreshTrayMenu(): void {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: collapsed ? 'Expand' : 'Collapse',
-        click: () => void applyCollapsed(!collapsed),
+        label: settings.collapsed ? 'Expand' : 'Collapse',
+        click: () => void applyCollapsed(!settings.collapsed),
       },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
@@ -66,7 +90,7 @@ function createTray(): void {
   refreshTrayMenu();
 
   // Double-click toggles, matching the tray convention users expect.
-  tray.on('double-click', () => void applyCollapsed(!collapsed));
+  tray.on('double-click', () => void applyCollapsed(!settings.collapsed));
 }
 
 function registerIpc(): void {
@@ -79,6 +103,17 @@ function registerIpc(): void {
   ipcMain.handle(InvokeChannel.GetOverlayState, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.GetOverlayState);
     return overlayState();
+  });
+
+  ipcMain.handle(InvokeChannel.SetOpacity, (_event, payload: unknown) => {
+    const parsed = validateNumber(payload, InvokeChannel.SetOpacity);
+    if (!parsed.ok) return companionState();
+    return applyOpacityPercent(parsed.value);
+  });
+
+  ipcMain.handle(InvokeChannel.GetCompanionState, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.GetCompanionState);
+    return companionState();
   });
 
   ipcMain.handle(InvokeChannel.Quit, (_event, payload: unknown) => {
@@ -94,10 +129,13 @@ function registerIpc(): void {
 }
 
 function bootstrap(): void {
-  collapsed = loadSettings().collapsed;
+  settings = loadSettings();
 
-  overlay = createOverlayWindow(collapsed);
-  stopWatchingDisplays = watchDisplayChanges(() => collapsed, overlay);
+  overlay = createOverlayWindow(settings.collapsed);
+  // Opacity applies before first show — the window never flashes at 100% on
+  // its way to the player's preference (fix/0.1/1.8.md acceptance 2).
+  applyOpacity(overlay, settings);
+  stopWatchingDisplays = watchDisplayChanges(() => settings.collapsed, overlay);
 
   overlay.on('closed', () => {
     stopWatchingDisplays?.();
@@ -107,6 +145,15 @@ function bootstrap(): void {
 
   createTray();
   registerIpc();
+}
+
+// E2E and portable installs may isolate the profile — preferences AND the
+// single-instance lock live under userData, so an overridden path also keeps
+// test instances from quitting against a running dev instance. Must run before
+// any `getPath('userData')` consumer, including the lock below.
+const userDataOverride = process.env['DESKTOP_LIFE_USER_DATA'];
+if (userDataOverride !== undefined && userDataOverride !== '') {
+  app.setPath('userData', userDataOverride);
 }
 
 // Two instances would race on the same save file, which is a data-loss bug
@@ -126,7 +173,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  saveSettings({ collapsed });
+  saveSettings(settings);
   tray?.destroy();
   tray = null;
 });

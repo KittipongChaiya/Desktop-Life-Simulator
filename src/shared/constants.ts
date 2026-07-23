@@ -43,3 +43,16 @@ export const OVERLAY_HEIGHT_COLLAPSED = 48;
 
 /** Maximum rate at which snapshot slices are delivered to React. ADR-005 §2. */
 export const UI_UPDATE_HZ = 10;
+
+/**
+ * The desktop-companion opacity dial (phase-01.8, ADR-014 §2).
+ *
+ * Shared because both sides hold an end of it: the settings slider (renderer)
+ * renders the range and the platform service (main) sanitizes against it.
+ * Work mode's 25% is deliberately NOT here — it is a mode constant below this
+ * floor, owned by the main-process schema, never a position on this dial.
+ */
+export const OPACITY_MIN_PERCENT = 30;
+export const OPACITY_MAX_PERCENT = 100;
+export const OPACITY_STEP_PERCENT = 5;
+export const OPACITY_DEFAULT_PERCENT = 100;

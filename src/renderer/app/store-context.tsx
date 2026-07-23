@@ -10,6 +10,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
+import type { CompanionController } from './companion-controller';
 import type { OverlayController } from './overlay-controller';
 import type { PlacementController } from './placement';
 import type { SeedSelection } from './seed-selection';
@@ -26,6 +27,8 @@ interface AppServices {
   readonly placement: PlacementController;
   /** The crop the seed tool plants — shared with the click mapping (06e). */
   readonly seeds: SeedSelection;
+  /** Desktop-companion state — opacity dial, work mode (01.8a, ADR-014). */
+  readonly companion: CompanionController;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -37,6 +40,7 @@ export interface AppProvidersProps {
   readonly selection: WorkerSelection;
   readonly placement: PlacementController;
   readonly seeds: SeedSelection;
+  readonly companion: CompanionController;
   readonly children: ReactNode;
 }
 
@@ -47,10 +51,13 @@ export function AppProviders({
   selection,
   placement,
   seeds,
+  companion,
   children,
 }: AppProvidersProps): ReactNode {
   return (
-    <ServicesContext.Provider value={{ store, overlay, player, selection, placement, seeds }}>
+    <ServicesContext.Provider
+      value={{ store, overlay, player, selection, placement, seeds, companion }}
+    >
       {children}
     </ServicesContext.Provider>
   );
@@ -86,4 +93,8 @@ export function usePlacement(): PlacementController {
 
 export function useSeeds(): SeedSelection {
   return useServices().seeds;
+}
+
+export function useCompanion(): CompanionController {
+  return useServices().companion;
 }

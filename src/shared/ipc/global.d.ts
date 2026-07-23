@@ -6,7 +6,7 @@
  * it would let the two definitions drift silently.
  */
 
-import type { OverlayState } from './contract';
+import type { CompanionState, OverlayState } from './contract';
 
 declare global {
   interface Window {
@@ -16,6 +16,11 @@ declare global {
         getState(): Promise<OverlayState>;
         setClickThrough(enabled: boolean): void;
         onStateChanged(listener: (state: OverlayState) => void): () => void;
+      };
+      readonly companion: {
+        setOpacity(percent: number): Promise<CompanionState>;
+        getState(): Promise<CompanionState>;
+        onStateChanged(listener: (state: CompanionState) => void): () => void;
       };
       readonly app: {
         quit(): Promise<void>;

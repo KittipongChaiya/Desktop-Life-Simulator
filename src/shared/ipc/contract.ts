@@ -13,6 +13,13 @@ export const InvokeChannel = {
   SetCollapsed: 'overlay:set-collapsed',
   /** Current overlay state, for hydrating the UI on load. */
   GetOverlayState: 'overlay:get-state',
+  /**
+   * Sets the desktop-companion opacity dial, in percent (phase-01.8a).
+   * Main sanitizes to the dial's range/step and applies instantly (ADR-014 §2).
+   */
+  SetOpacity: 'companion:set-opacity',
+  /** Current companion state, for hydrating the settings UI on load. */
+  GetCompanionState: 'companion:get-state',
   /** Quit the application. */
   Quit: 'app:quit',
 } as const;
@@ -37,6 +44,8 @@ export type SendChannel = (typeof SendChannel)[keyof typeof SendChannel];
 export const EventChannel = {
   /** Overlay was collapsed or expanded from outside the UI (tray, hotkey). */
   OverlayStateChanged: 'overlay:state-changed',
+  /** Companion state changed — settings UI, or a global hotkey (01.8b/c). */
+  CompanionStateChanged: 'companion:state-changed',
 } as const;
 
 export type EventChannel = (typeof EventChannel)[keyof typeof EventChannel];
@@ -49,10 +58,27 @@ export interface OverlayState {
   readonly height: number;
 }
 
+/**
+ * Desktop-companion state (phase-01.8, ADR-014).
+ *
+ * Deliberately excludes hidden and click-through: those states have no
+ * persisted or UI representation — they live between a hotkey toggle and its
+ * counter-toggle in main (ADR-014 §4).
+ */
+export interface CompanionState {
+  /** The opacity dial's position, 30–100. Work mode does not move it. */
+  readonly opacityPercent: number;
+  /** Whether work mode is active (the toggle itself arrives in 01.8c). */
+  readonly workMode: boolean;
+}
+
 export interface IpcContract {
   [InvokeChannel.SetCollapsed]: { request: boolean; response: OverlayState };
   [InvokeChannel.GetOverlayState]: { request: void; response: OverlayState };
+  [InvokeChannel.SetOpacity]: { request: number; response: CompanionState };
+  [InvokeChannel.GetCompanionState]: { request: void; response: CompanionState };
   [InvokeChannel.Quit]: { request: void; response: void };
   [SendChannel.SetClickThrough]: { request: boolean };
   [EventChannel.OverlayStateChanged]: { payload: OverlayState };
+  [EventChannel.CompanionStateChanged]: { payload: CompanionState };
 }

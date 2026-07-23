@@ -25,6 +25,18 @@ export function validateBoolean(value: unknown, channel: string): Result<boolean
   return ok(value);
 }
 
+export function validateNumber(value: unknown, channel: string): Result<number> {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return err(
+      appError(ErrorCode.IpcRejected, 'expected a finite number payload', {
+        channel,
+        received: typeof value,
+      }),
+    );
+  }
+  return ok(value);
+}
+
 export function validateVoid(value: unknown, channel: string): Result<void> {
   if (value !== undefined && value !== null) {
     return err(

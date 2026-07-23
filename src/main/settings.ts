@@ -15,11 +15,9 @@ import { dirname, join } from 'node:path';
 
 import { app } from 'electron';
 
-export interface UiSettings {
-  readonly collapsed: boolean;
-}
+import { DEFAULT_SETTINGS, parseSettings, type UiSettings } from './settings-schema';
 
-const DEFAULTS: UiSettings = { collapsed: false };
+export type { UiSettings } from './settings-schema';
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json');
@@ -27,15 +25,12 @@ function settingsPath(): string {
 
 export function loadSettings(): UiSettings {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(settingsPath(), 'utf8'));
-
-    if (typeof parsed !== 'object' || parsed === null) return DEFAULTS;
-    const collapsed = (parsed as Record<string, unknown>)['collapsed'];
-
-    return { collapsed: typeof collapsed === 'boolean' ? collapsed : DEFAULTS.collapsed };
+    // Parsing and per-field sanitation live in the schema (settings-schema.ts,
+    // pure and unit-tested); this module owns only the disk around it.
+    return parseSettings(JSON.parse(readFileSync(settingsPath(), 'utf8')));
   } catch {
     // Missing or unreadable preferences are normal on first run and never fatal.
-    return DEFAULTS;
+    return DEFAULT_SETTINGS;
   }
 }
 

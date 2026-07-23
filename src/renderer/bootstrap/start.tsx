@@ -16,6 +16,7 @@ import { createRoot } from 'react-dom/client';
 
 import type { ContentId, TileIndex } from '../../shared/ids';
 import { App } from '../app/App';
+import { createCompanionController } from '../app/companion-controller';
 import { createOverlayController } from '../app/overlay-controller';
 import { createPlacementController } from '../app/placement';
 import { createSeedSelection } from '../app/seed-selection';
@@ -68,6 +69,9 @@ export function startApplication(): void {
   });
   const store = createSnapshotStore(world.snapshots);
   const overlay = createOverlayController(window.desktopLife.overlay);
+  // Desktop-companion state (01.8a): app preferences behind main-process IPC —
+  // the one controller whose writes never touch the world (ADR-014 §3).
+  const companion = createCompanionController(window.desktopLife.companion);
   // Worker selection is presentation state, shared by the renderer (which draws
   // the selection box) and React (which shows the selected worker's state/task).
   const selection = createWorkerSelection();
@@ -220,6 +224,7 @@ export function startApplication(): void {
         seeds={seeds}
         selection={selection}
         placement={placement}
+        companion={companion}
       >
         <App />
       </AppProviders>

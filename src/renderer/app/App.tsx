@@ -14,6 +14,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
 import { InventoryPanel } from './hud/InventoryPanel';
+import { SettingsPanel } from './hud/SettingsPanel';
 import { ShopPanel } from './hud/ShopPanel';
 import { StatusBar } from './hud/StatusBar';
 import { WorkerInfo } from './hud/WorkerInfo';
@@ -88,13 +89,14 @@ export function App(): ReactNode {
       </div>
 
       {/* The worker panel (count, hire, list), the shop, the selected-worker
-          panel, and the inventory show over the world when expanded. */}
+          panel, the inventory, and settings show over the world when expanded. */}
       {!collapsed && (
         <>
           <WorkerPanel />
           <ShopPanel />
           <WorkerInfo />
           <InventoryPanel />
+          <SettingsPanel />
         </>
       )}
     </div>

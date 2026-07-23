@@ -155,6 +155,8 @@ src/
 │   │       └── canvas2d.ts     Degraded backend (ADR-001 §Fallback)
 │   └── app/                    React only — no PixiJS
 │       ├── App.tsx
+│       ├── companion-controller.ts  Desktop-companion bridge wrapper (01.8a) —
+│       │                       React never touches window.desktopLife directly
 │       ├── work-mode.ts        Work-mode presentation store (ADR-014 §3) —
 │       │                       hides HUD surfaces; never enters the sim
 │       ├── hooks/
@@ -190,6 +192,8 @@ src/
 │   ├── overlay-window.ts       Frameless, transparent, docked, always-on-bottom (ADR-014)
 │   ├── docking.ts              workArea geometry, multi-monitor, DPI
 │   ├── settings.ts             App preferences (settings.json) — NOT game state
+│   ├── settings-schema.ts      Preference schema + derivations. Pure and
+│   │                           electron-free so vitest covers it (ADR-014 §4)
 │   ├── desktop-companion.ts    Global hotkeys, opacity, quick hide, click-through
 │   │                           mode, work mode, z-order (ADR-014). Sim-invisible.
 │   ├── click-through.ts        setIgnoreMouseEvents management

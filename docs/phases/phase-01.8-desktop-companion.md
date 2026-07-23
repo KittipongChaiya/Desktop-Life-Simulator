@@ -83,11 +83,21 @@ Recorded before implementation; changing one is a spec edit, not a coding choice
 
 ## Milestones
 
-| #     | Milestone                                | Delivers                                                                                                                                                                                                                                 | Status  |
-| ----- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| 01.8a | The platform service & the presence dial | `src/main/desktop-companion.ts`; `settings.json` schema extension (opacity, work mode); IPC contract extension; opacity applied instantly + persisted; Settings panel with the Desktop Companion section (slider, %, shortcut reference) | Planned |
-| 01.8b | The instant handles                      | Global `F12` quick hide/restore and `Ctrl+Shift+C` click-through mode; the toast surface (auto-dismiss, in-overlay); reset-on-launch semantics; hidden-tick proof                                                                        | Planned |
-| 01.8c | Work mode & the z-order inversion        | Global `F11` work mode (25%, HUD stripped, world kept, last state persisted); always-on-bottom replacing always-on-top; E2E suite; phase close-out                                                                                       | Planned |
+| #     | Milestone                                | Delivers                                                                                                                                                                                                                                 | Status        |
+| ----- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 01.8a | The platform service & the presence dial | `src/main/desktop-companion.ts`; `settings.json` schema extension (opacity, work mode); IPC contract extension; opacity applied instantly + persisted; Settings panel with the Desktop Companion section (slider, %, shortcut reference) | **Delivered** |
+| 01.8b | The instant handles                      | Global `F12` quick hide/restore and `Ctrl+Shift+C` click-through mode; the toast surface (auto-dismiss, in-overlay); reset-on-launch semantics; hidden-tick proof                                                                        | Planned       |
+| 01.8c | Work mode & the z-order inversion        | Global `F11` work mode (25%, HUD stripped, world kept, last state persisted); always-on-bottom replacing always-on-top; E2E suite; phase close-out                                                                                       | Planned       |
+
+### Delivered (01.8a) — the platform service & the presence dial
+
+- **The preference schema is pure and unit-tested** (`src/main/settings-schema.ts`): tolerant per-field parse — a phase-01 `settings.json` holding only `collapsed` upgrades in place; one corrupt field never discards its neighbours. The opacity sanitizer clamps to the dial and snaps to the 5% step. `effectiveOpacityPercent` carries the mode-precedence rule now (work mode's 25% constant overrides the slider without moving it), so 01.8c only wires the toggle. `settings.ts` keeps only the disk I/O.
+- **`desktop-companion.ts` opens with `applyOpacity`** — the `overlay-window.ts` split held: `index.ts` owns the one settings record (updated immutably, always persisted whole — the old `saveSettings({ collapsed })` calls would have silently erased the new fields on every collapse) and this module owns the window call. Opacity applies before first show, so the window never flashes 100% on its way to the preference.
+- **IPC**: `companion:set-opacity` / `companion:get-state` behind a new `validateNumber`, with `companion:state-changed` broadcasting for the hotkeys arriving in 01.8b/c. Preload + ambient types extended; the renderer's `companion-controller.ts` mirrors the overlay controller (hydrate, optimistic answer, external-change follow, dedupe).
+- **`SettingsPanel`** — the Desktop Companion section: slider on the shared dial constants (`shared/constants.ts` — the slider renders the range, main sanitizes against it, neither invents its own), live `%` readout, and the ADR-014 §5 shortcut reference. The one panel whose writes never touch the world: no slice, no command, only the companion bridge. Idle-cost safe: hydration at the default state dedupes to zero notifies.
+- **The `DESKTOP_LIFE_USER_DATA` seam**: an env override for `userData`, set before the single-instance lock (which lives there too). The companion E2E runs against an isolated temp profile — never the developer's real `settings.json` — and test instances cannot quit against a running dev instance. Latent E2E hazard closed.
+- **E2E** (`tests/e2e/companion.spec.ts`, 3 tests): default 100% and instant apply via a real slider keypress (crit 1); cross-launch persistence — slider → `settings.json` in the isolated profile → relaunch opens at 70% before any UI runs (crit 2); the shortcut reference visible.
+- Gates: typecheck, lint, **700** unit/integration (was 674), **19 E2E passed / 3 GPU-skipped** on a fresh debug build. `src/sim` untouched (crit 10 holding by construction).
 
 ---
 
@@ -125,11 +135,11 @@ Also out of scope: any change to `src/sim` (ADR-014's boundary makes this struct
 
 ### Automated
 
-- [ ] Unit: settings round-trip with the extended schema; missing fields → defaults (first-run and upgrade-in-place)
+- [x] Unit: settings round-trip with the extended schema; missing fields → defaults (first-run and upgrade-in-place) _(01.8a)_
 - [ ] Unit: companion state model — precedence (work-mode opacity over slider), orthogonality (hidden/click-through over any base state), restore exactness
 - [ ] Unit: toast lifecycle (appears, auto-dismisses, never queues unbounded)
 - [ ] Unit: work-mode store hides exactly the listed surfaces; world view untouched
-- [ ] E2E: opacity set → `getOpacity` reflects it; relaunch → persisted
+- [x] E2E: opacity set → `getOpacity` reflects it; relaunch → persisted _(01.8a — against an isolated userData profile)_
 - [ ] E2E: hide → wait → restore → tick advanced continuously (crit 7; ADR-014 assumption 1 made testable)
 - [ ] E2E: click-through ON → clicks pass; OFF → hit-testing behavior identical to pre-phase
 - [ ] E2E: work mode ON → HUD absent, world present, sim advancing; OFF → prior state
