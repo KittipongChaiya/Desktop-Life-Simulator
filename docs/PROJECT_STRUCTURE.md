@@ -119,9 +119,10 @@ src/
 │   ├── deserialize.ts          SaveDocument → World
 │   ├── validate.ts             Post-migration structural + semantic checks
 │   ├── catch-up.ts             Offline progress orchestration
-│   ├── schema.ts               Current SaveDocument type
+│   ├── schema.ts               Current SaveDocument type + SAVE_MAGIC,
+│   │                           CURRENT_SCHEMA_VERSION (ADR-015 §1)
 │   └── migrations/
-│       ├── index.ts            Ordered chain
+│       ├── index.ts            Ordered chain, validated at startup (ADR-015 §3)
 │       └── v1-to-v2.ts         (added as versions accrue)
 │
 ├── renderer/
@@ -347,16 +348,18 @@ Written by the app on the user's machine:
 ```
 %APPDATA%/desktop-life-simulator/
 ├── saves/
-│   ├── slot-0.json             Current save
+│   ├── slot-0.json             Current save (identity & versioning: ADR-015 §1)
 │   ├── slot-0.json.bak         Previous good save (ADR-002 §2)
-│   └── backups/                Three most recent autosaves
+│   └── backups/                Three most recent autosaves; from v0.2, also one
+│                               pre-migration copy per schema version, never
+│                               pruned (ADR-015 §3)
 ├── settings.json               UI + desktop-companion preferences (collapsed,
 │                               opacity, work mode) — not game state (ADR-014 §4)
 └── logs/
     └── main.log                Rotated
 ```
 
-Obtained via `app.getPath('userData')`. **Never hardcode a path.** Game state lives only in `saves/`; `settings.json` holds UI preferences and is not part of the save schema.
+Obtained via `app.getPath('userData')`. **Never hardcode a path.** Game state lives only in `saves/`; `settings.json` holds UI preferences and is not part of the save schema — the save system may never touch it (ADR-014 §4, ADR-015 §5).
 
 ---
 

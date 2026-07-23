@@ -45,12 +45,12 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 05.6 | Vertical Slice (Golden Set)    | First production asset set validating the 05.5 canon: world/crop/UI/character art, audio specs, validation report                                                | Assets only — no code change        |
 | 06   | Economy                        | Coins, dynamic pricing, shop, land expansion, buildings                                                                                                          | **Stage 4 — full idle loop**        |
 | 01.8 | Desktop Companion              | Opacity dial, quick hide, click-through mode, work mode, always-on-bottom; rebindable-shortcut & categorized app-settings architecture — platform only (ADR-014) | The overlay coexists with real work |
-| 07   | Save/Load                      | Schema, atomic writes, migrations, autosave, offline progress                                                                                                    | The game persists                   |
+| 07   | Save/Load                      | Schema & save identity, atomic writes, migration chain, autosave, offline progress — under the ADR-015 versioning & compatibility contract                       | The game persists                   |
 
 Phase order is dictated by dependency, not preference. Two orderings are worth stating explicitly:
 
 - **Overlay before world (01 → 02).** If the overlay is not livable, nothing else matters. It carries the highest product risk and is deliberately faced first, alone.
-- **Save/load last (07).** Persistence must serialize a _complete_ world. Building it earlier means migrating the schema after every subsequent phase — seven migrations before v0.1 ships, each one an opportunity to lose data.
+- **Save/load last (07).** Persistence must serialize a _complete_ world. Building it earlier means migrating the schema after every subsequent phase — seven migrations before v0.1 ships, each one an opportunity to lose data. The save **contract** itself — identity header, version separation, the compatibility matrix, migration governance — was decided ahead of implementation (ADR-015), so phase-07 implements a settled contract rather than designing one mid-flight.
 - **Resource model before inventory (ADR-011).** Phases 05 (inventory) and 06 (economy), and every resource system after them, share one model fixed before phase-05: resources are conserved quantities owned by containers, moved only by explicit transfer. Deciding it up front prevents each system inventing incompatible resource rules — the same forethought as the command model (03.5) preceding its four consumers.
 - **Desktop companion after the loop, before persistence (06 → 01.8 → 07).** Numbered with the overlay family because it extends phase-01's platform shell; built after phase-06 so the companion behaviors wrap a complete, earning game, and before phase-07 so the preference/save boundary (app settings in `settings.json`, never in the save — ADR-014 §4) is fixed in code before the save schema exists, and the return summary can be designed knowing work mode hides the HUD.
 
@@ -198,16 +198,16 @@ Multiplayer · cross-platform (macOS/Linux) · Steam release · cloud saves · m
 
 Binding at every version boundary. No exceptions, and none of these may be waived to hit a date — there are no dates (§Preamble).
 
-| Gate               | Requirement                                                        |
-| ------------------ | ------------------------------------------------------------------ |
-| Save compatibility | Every prior version's golden fixture loads (`SAVE_FORMAT.md` §4.4) |
-| Performance        | All ceilings measured on baseline hardware (`PERFORMANCE.md` §10)  |
-| Coverage           | All thresholds met (`TESTING.md` §4)                               |
-| Boundaries         | `check:boundaries` and `check:cycles` clean                        |
-| Docs               | `ARCHITECTURE.md`, `SAVE_FORMAT.md`, `CHANGELOG.md` current        |
-| ADRs               | Every architectural change recorded                                |
-| Data loss          | **Zero known defects. Blocking, always.**                          |
-| Dead code          | None; no placeholders; no skipped tests                            |
+| Gate               | Requirement                                                                    |
+| ------------------ | ------------------------------------------------------------------------------ |
+| Save compatibility | Every prior version's golden fixture loads (`SAVE_FORMAT.md` §4.4, ADR-015 §4) |
+| Performance        | All ceilings measured on baseline hardware (`PERFORMANCE.md` §10)              |
+| Coverage           | All thresholds met (`TESTING.md` §4)                                           |
+| Boundaries         | `check:boundaries` and `check:cycles` clean                                    |
+| Docs               | `ARCHITECTURE.md`, `SAVE_FORMAT.md`, `CHANGELOG.md` current                    |
+| ADRs               | Every architectural change recorded                                            |
+| Data loss          | **Zero known defects. Blocking, always.**                                      |
+| Dead code          | None; no placeholders; no skipped tests                                        |
 
 ---
 

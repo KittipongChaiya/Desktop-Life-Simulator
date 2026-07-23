@@ -251,7 +251,7 @@ Load:  main: read + parse + fallback to .bak on failure
        → compute offline catch-up → present summary
 ```
 
-Disk I/O never happens in the renderer (ADR-003 §3).
+Disk I/O never happens in the renderer (ADR-003 §3). Three authorities divide persistence: ADR-002 owns the **mechanism** (JSON, atomic writes, the linear chain), ADR-015 owns the **contract** (save identity, version separation, the compatibility matrix, migration governance, failure policy), and `SAVE_FORMAT.md` owns the field-by-field **schema**.
 
 ---
 
@@ -290,7 +290,7 @@ The UI root is pointer-transparent except over actual controls, which combined w
 | Display changes   | Re-dock on resolution, DPI, monitor add/remove                                                                                                                                                                                                                |
 | Tray              | Show/hide, collapse/expand, quit                                                                                                                                                                                                                              |
 | Single instance   | `requestSingleInstanceLock` — two instances would race on the save file                                                                                                                                                                                       |
-| Save I/O          | Atomic write, `.bak` rotation, backups (ADR-002 §2)                                                                                                                                                                                                           |
+| Save I/O          | Atomic write, `.bak` rotation, backups (ADR-002 §2); versioning, compatibility & migration contract per ADR-015                                                                                                                                               |
 | IPC               | Every payload validated on receipt; renderer treated as untrusted                                                                                                                                                                                             |
 
 ---
