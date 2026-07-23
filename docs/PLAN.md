@@ -42,6 +42,7 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 04   | Worker AI                      | Worker entities, FSM, pathing, task priority, energy                                                                 | **Stage 2 — delegation**            |
 | 05   | Resources & Containers         | Container model (ADR-011): items, stacks, capacity, storage buildings                                                | Unattended runs become possible     |
 | 05.5 | AI Asset Production Foundation | Creative canon: art direction, style lock, palette, world/character/lore bibles, prompt library, audio + design docs | Docs only — no runtime change       |
+| 05.6 | Vertical Slice (Golden Set)    | First production asset set validating the 05.5 canon: world/crop/UI/character art, audio specs, validation report    | Assets only — no code change        |
 | 06   | Economy                        | Coins, dynamic pricing, shop, land expansion, buildings                                                              | **Stage 4 — full idle loop**        |
 | 07   | Save/Load                      | Schema, atomic writes, migrations, autosave, offline progress                                                        | The game persists                   |
 
