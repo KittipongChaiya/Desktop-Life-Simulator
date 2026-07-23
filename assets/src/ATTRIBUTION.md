@@ -13,7 +13,9 @@ clarified to mean one file per group directory, split this along its sections.
 
 ## crops{tps}/
 
-_Empty until phase-05.6b lands the golden crop._
+| File           | Source                                     | Author  | License       |
+| -------------- | ------------------------------------------ | ------- | ------------- |
+| wheat_0..3.png | Original — `scripts/generate-crop-art.mjs` | project | Original work |
 
 ## entities{tps}/
 
@@ -31,6 +33,6 @@ _Empty until phase-05.6b lands the golden crop._
 
 ## ui-world{tps}/
 
-| File       | Source                                                                                   | Author  | License       |
-| ---------- | ---------------------------------------------------------------------------------------- | ------- | ------------- |
-| item_*.png | Original — `scripts/generate-placeholder-item-building-art.mjs` (placeholder, phase-05d) | project | Original work |
+| File       | Source                                     | Author  | License       |
+| ---------- | ------------------------------------------ | ------- | ------------- |
+| item_*.png | Original — `scripts/generate-crop-art.mjs` | project | Original work |

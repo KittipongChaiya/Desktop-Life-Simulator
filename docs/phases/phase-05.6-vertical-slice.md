@@ -63,7 +63,7 @@ Two standing reconciliations for script-authored art, recorded here once:
 | Milestone | Scope                                                                                                                                                                          | Mode          | Status        |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | ------------- |
 | **05.6a** | Tooling lib + terrain set (grass, tilled, water, stone, path) + props (tree, rock, bush, flower) + buildings (storage shed, rest hut) + attribution/provenance + contact sheet | SCRIPT        | **Delivered** |
-| **05.6b** | The golden crop: `wheat_0..3` (new `crops` atlas) + production `item_*` icons                                                                                                  | SCRIPT        | Pending       |
+| **05.6b** | The golden crop: `wheat_0..3` (new `crops` atlas) + production `item_*` icons                                                                                                  | SCRIPT        | **Delivered** |
 | **05.6c** | Icon set + UI set (panel, buttons, hotbar, tooltip, cursor, notification) per `UI_STYLE_GUIDE`                                                                                 | SCRIPT + SPEC | Pending       |
 | **05.6d** | Characters: worker + player rigs (idle/walk/harvest), animation metadata; portraits                                                                                            | SCRIPT + SPEC | Pending       |
 | **05.6e** | Audio production specs + `ASSET_VALIDATION_REPORT.md` + final review; close the phase                                                                                          | SPEC + report | Pending       |
@@ -92,9 +92,17 @@ Execution order: tooling first (everything else uses it), characters late (harde
 
 ### 05.6b — The golden crop
 
-- [ ] `assets/src/crops{tps}/wheat_0..3.png` — the first real occupant of the `crops` atlas group (`ASSETS.md §4`), 32×32, bottom-center growth (`PIXEL_GUIDE.md §2`), stages per `GAME_DESIGN.md §3.3`, filling the `crops:wheat_*` keys `crops.ts` already declares.
-- [ ] Production `item_wheat.png` (16×16, `ICON_GUIDE.md`) — plus the other three shipped item icons if the same painter honestly generalises; otherwise wheat only.
-- [ ] Provenance + attribution rows; contact sheet.
+- [x] `assets/src/crops{tps}/wheat_0..3.png` — the first real occupant of the `crops` atlas group (`ASSETS.md §4`), 32×32, bottom-center growth (`PIXEL_GUIDE.md §2`), stages per `GAME_DESIGN.md §3.3`, filling the `crops:wheat_*` keys `crops.ts` already declares.
+- [x] Production `item_wheat.png` (16×16, `ICON_GUIDE.md`) — plus the other three shipped item icons if the same painter honestly generalises; otherwise wheat only.
+- [x] Provenance + attribution rows; contact sheet.
+
+**05.6b delivered** — the golden crop plus all four production item icons (the painter generalised honestly), through the real pipeline: 39 sprites, **5 atlases** — the `crops` atlas now exists, born from the new `crops{tps}/` directory alone (the `{tps}` tag is the group boundary, `ASSETS.md §4`; zero config or code changes). `world-view.ts` loads atlases by explicit name, so the crops atlas is packed but unconsumed until phase-06 wires a crop renderer — exactly the pre-wired-seam pattern.
+
+- **`scripts/generate-crop-art.mjs`** — wheat's four stages tell the growth story by silhouette alone: sown mounds (fresh-turned Wood Base earth + Straw seed specks) → shoots rising from those same mounds (Leaf Highlight new growth) → a waist-high fan of blades (first Straw hints at two tips) → the full golden sheaf (massed-lobe silhouette — the 05.6a tree/bush shape language — Straw over Wood Light, kernel speckle, awn ticks, visible stalks to the ground). Mature wheat is Straw, the light end of the wood ramp (`COLOR_PALETTE.md §3.2`); **Reward Gold stays reserved** (`STYLE_LOCK.md R-09`).
+- **Item icons** (`ICON_GUIDE.md`): tied sheaf / pale round root with leafy crown / tapering carrot / squat ribbed pumpkin — four distinct silhouettes (`R-14`), full 1 px outline, upper-left light, hard alpha, comparable visual weight.
+- **Contact-sheet composer** gained `soil:` (crops judged over the game's own tilled tile — the ground they are planted on) and `ui:` (icons on the Parchment panel base) modes.
+- **Review iteration applied once:** mounds were invisible on the tilled tile (Tilled Soil on tilled soil — recoloured to fresh-turned Wood Base); stage 2's lobe mass read as a cabbage (redesigned as a blade fan); the icon sheaf's three heads merged (respaced with internal-outline gaps).
+- **Canon frictions recorded for the validation report:** the phase-05d turnip placeholder's `#D6C4E0` was **off-palette** (no table lists it); the palette has no turnip blush, so the production turnip is Parchment/Stone-bodied — palette-pure but colder than the vegetable's iconic read; the warm-produce accents have no shadow steps (the carrot shades with Pumpkin, the pumpkin lightens with Carrot Orange — in-family adjacency the palette never blesses); no doc says whether crops receive contact shadows (judgment: none while ground-level at stages 0–1, subtle at stages 2–3).
 
 ### 05.6c — Icons & UI
 

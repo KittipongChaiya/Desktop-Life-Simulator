@@ -6,13 +6,17 @@
  * - Terrain tiles are shown tiled 2×2 so seam errors are visible.
  * - Standing art is shown over Grass Base — the backdrop it must separate
  *   from in-game (COLOR_PALETTE §9's ≥3:1 rule).
+ * - Crops (`soil:` prefix) are shown over the game's own tilled tile — the
+ *   ground they are actually planted on.
+ * - UI icons (`ui:` prefix) sit on the sheet's Parchment — the panel base
+ *   they render on in the DOM UI (COLOR_PALETTE §6).
  * - The sheet itself goes to a temp/output path, never into `assets/src/`.
  *
  * Run: `node scripts/generate-contact-sheet.mjs <out.png> <src.png...>`
- *      (a `tile:` prefix on a source path renders it 2×2 tiled)
+ *      (prefixes: `tile:` 2×2 tiled · `soil:` over tilled · `ui:` on parchment)
  */
 
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 
 import {
   GRASS_BASE,
@@ -23,6 +27,8 @@ import {
   fill,
   writePng,
 } from './lib/pixel-art.mjs';
+
+const TILLED_TILE = join(import.meta.dirname, '..', 'assets', 'src', 'terrain{tps}', 'tilled.png');
 
 const SCALE = 4;
 const PAD = 12;
@@ -39,29 +45,34 @@ function main() {
    * @typedef {object} Cell
    * @property {string} name
    * @property {import('./lib/pixel-art.mjs').Canvas} source
-   * @property {boolean} tiled
+   * @property {'grass' | 'tile' | 'soil' | 'ui'} mode
    */
   /** @type {Cell[]} */
   const cells = sources.map((entry) => {
-    const tiled = entry.startsWith('tile:');
-    const path = tiled ? entry.slice(5) : entry;
+    const match = /^(tile|soil|ui):/.exec(entry);
+    const mode = match === null ? 'grass' : /** @type {'tile' | 'soil' | 'ui'} */ (match[1]);
+    const path = match === null ? entry : entry.slice(match[0].length);
     const source = decodePng(path);
-    return { name: basename(path), source, tiled };
+    return { name: basename(path), source, mode };
   });
 
   /** @param {Cell} cell @returns {number} */
-  const cellWidth = (cell) => (cell.tiled ? cell.source.width * 2 : cell.source.width) * SCALE;
+  const cellWidth = (cell) =>
+    (cell.mode === 'tile' ? cell.source.width * 2 : cell.source.width) * SCALE;
   /** @param {Cell} cell @returns {number} */
-  const cellHeight = (cell) => (cell.tiled ? cell.source.height * 2 : cell.source.height) * SCALE;
+  const cellHeight = (cell) =>
+    (cell.mode === 'tile' ? cell.source.height * 2 : cell.source.height) * SCALE;
   const rowHeight = Math.max(...cells.map(cellHeight));
   const sheetWidth = cells.reduce((sum, cell) => sum + cellWidth(cell) + PAD, PAD);
   const sheet = createCanvas(sheetWidth, rowHeight + PAD * 2);
   fill(sheet, () => PARCHMENT);
 
+  const tilled = decodePng(TILLED_TILE);
+
   let x = PAD;
   for (const cell of cells) {
     const y = PAD + rowHeight - cellHeight(cell); // bottom-align, like the world
-    if (cell.tiled) {
+    if (cell.mode === 'tile') {
       for (let ty = 0; ty < 2; ty += 1) {
         for (let tx = 0; tx < 2; tx += 1) {
           blitScaled(
@@ -73,6 +84,13 @@ function main() {
           );
         }
       }
+    } else if (cell.mode === 'soil') {
+      // Crops are judged over the tilled soil they are planted on in-game.
+      blitScaled(sheet, tilled, x, y, SCALE);
+      blitScaled(sheet, cell.source, x, y, SCALE);
+    } else if (cell.mode === 'ui') {
+      // Icons sit directly on the sheet's Parchment — the UI panel base.
+      blitScaled(sheet, cell.source, x, y, SCALE);
     } else {
       // Standing art is judged over the grass it must read against.
       const backdrop = createCanvas(cell.source.width, cell.source.height);
