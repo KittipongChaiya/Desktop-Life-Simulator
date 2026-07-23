@@ -1,0 +1,23 @@
+/**
+ * The migration chain. Phase-07b — ADR-002 §3, ADR-015 §3.
+ *
+ * ORDERED DATA, not re-exports — one of the repo's two sanctioned `index.ts`
+ * files (`PROJECT_STRUCTURE.md` §5.4), because the order IS the chain.
+ *
+ * Empty at version 1, and that is the point: the runner, its startup
+ * validation, and the golden fixtures all ship BEFORE the first real
+ * migration exists, so when v0.2 changes the persisted shape, the session
+ * writing that migration adds one entry here, one golden fixture at the
+ * previous version, and nothing else (`SAVE_FORMAT.md` §9).
+ *
+ * APPEND-ONLY once merged: saves at every prior state exist on real disks.
+ * A wrong migration is repaired by a new one after it, never by editing
+ * (ADR-015 §3).
+ */
+
+import type { Migration } from '../migrate';
+
+export const MIGRATIONS: readonly Migration[] = [
+  // v1 is the first shipped version — no links yet. The first entry arrives
+  // with the first persisted-shape change, as `./v1-to-v2.ts`.
+];

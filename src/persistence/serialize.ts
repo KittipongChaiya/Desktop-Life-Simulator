@@ -25,12 +25,14 @@ import type { World } from '../sim/world/world';
 import { encodeBytes, encodeUint32 } from './base64';
 import {
   CURRENT_SCHEMA_VERSION,
+  EMPTY_QUARANTINE,
   SAVE_MAGIC,
   type SaveBuilding,
   type SaveBuildingStorage,
   type SaveCrop,
   type SaveDocument,
   type SaveMeta,
+  type SaveQuarantine,
   type SaveStack,
   type SaveWorker,
   type SaveWorkerTask,
@@ -45,7 +47,18 @@ function byItemId(a: { readonly item: string }, b: { readonly item: string }): n
   return a.item < b.item ? -1 : a.item > b.item ? 1 : 0;
 }
 
-export function toSaveDocument(world: World, meta: SaveMeta): SaveDocument {
+/**
+ * `quarantine` is the session's held not-active data (`SAVE_FORMAT.md` §5.3)
+ * — loaded with the document, carried by the save orchestration, and written
+ * back on every save until the content it references returns. It is not on
+ * `World` because the sim never learns saves exist (ADR-014 §3's discipline,
+ * applied to persistence).
+ */
+export function toSaveDocument(
+  world: World,
+  meta: SaveMeta,
+  quarantine: SaveQuarantine = EMPTY_QUARANTINE,
+): SaveDocument {
   const crops: SaveCrop[] = [...world.crops.values()]
     .sort((a, b) => a.tile - b.tile)
     .map((crop) => ({ tile: crop.tile, cropId: crop.cropId, plantedTick: crop.plantedTick }));
@@ -136,6 +149,15 @@ export function toSaveDocument(world: World, meta: SaveMeta): SaveDocument {
         .sort(([a], [b]) => a - b)
         .map(([tile, cropId]) => ({ tile, cropId })),
       ids: { worker: allocator.worker, building: allocator.building },
+    },
+    quarantine: {
+      crops: quarantine.crops.map((crop) => ({ ...crop })),
+      buildings: quarantine.buildings.map((entry) => ({
+        building: { ...entry.building },
+        stacks: entry.stacks.map((stack) => ({ ...stack })),
+      })),
+      stacks: quarantine.stacks.map((entry) => ({ owner: entry.owner, stack: { ...entry.stack } })),
+      lastPlanted: quarantine.lastPlanted.map((entry) => ({ ...entry })),
     },
     plugins: {},
   };

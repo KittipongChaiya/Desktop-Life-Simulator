@@ -142,6 +142,31 @@ export interface SaveIds {
   readonly building: number;
 }
 
+/**
+ * Entities referencing content that is not currently registered — an
+ * uninstalled plugin, or removed core content (`SAVE_FORMAT.md` §5.3).
+ *
+ * QUARANTINED, NOT DELETED: removed from the active world, preserved here
+ * verbatim, written back on every save, and restored the moment the content
+ * returns. Uninstalling a mod must never destroy the farm built with it.
+ * Present-and-empty from version 1 so the first quarantined entity (v0.2)
+ * needs no migration — the `plugins: {}` reasoning (ADR-002 §5).
+ *
+ * The quarantine is SESSION state owned by the persistence orchestration,
+ * never a field on `World` — the sim must not learn saves exist.
+ */
+export interface SaveQuarantine {
+  readonly crops: readonly SaveCrop[];
+  /** A building and the storage container it owned, kept together. */
+  readonly buildings: readonly {
+    readonly building: SaveBuilding;
+    readonly stacks: readonly SaveStack[];
+  }[];
+  /** `owner`: `"inventory"`, `"worker:<id>"`, or `"building:<id>"`. */
+  readonly stacks: readonly { readonly owner: string; readonly stack: SaveStack }[];
+  readonly lastPlanted: readonly { readonly tile: number; readonly cropId: string }[];
+}
+
 export interface SaveWorld {
   readonly seed: number;
   readonly tick: number;
@@ -177,6 +202,16 @@ export interface SaveDocument {
   readonly magic: string;
   readonly meta: SaveMeta;
   readonly world: SaveWorld;
+  /** Not-active world data — preserved, never deleted (`SAVE_FORMAT.md` §5.3). */
+  readonly quarantine: SaveQuarantine;
   /** Reserved since version 1 so the v0.2 loader needs no migration (ADR-002 §5). */
   readonly plugins: Readonly<Record<string, unknown>>;
 }
+
+/** The empty quarantine every fresh session starts from. */
+export const EMPTY_QUARANTINE: SaveQuarantine = {
+  crops: [],
+  buildings: [],
+  stacks: [],
+  lastPlanted: [],
+};

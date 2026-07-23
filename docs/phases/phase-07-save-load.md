@@ -26,10 +26,18 @@ The cost of going last is that this phase touches every system built so far. Tha
 | #   | Milestone                              | Delivers                                                                                                                                                                                                                                      | Status        |
 | --- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 07a | The document & the round trip          | `schema.ts` (`SAVE_MAGIC`, `CURRENT_SCHEMA_VERSION`, `SaveDocument`), the pure base64 codec, explicit hand-written serialize/hydrate per store, blocked-bits recomputation; round-trip + byte-stability + continue-identically property tests | **Delivered** |
-| 07b | Migration chain & validation           | `Migration` interface + ordered runner with startup chain validation, synthetic two-step chain proof, golden fixtures (`v1-empty`, `v1-mature-farm`), structural + semantic validation with logged repairs, unknown-content quarantine        | —             |
+| 07b | Migration chain & validation           | `Migration` interface + ordered runner with startup chain validation, synthetic two-step chain proof, golden fixtures (`v1-empty`, `v1-mature-farm`), structural + semantic validation with logged repairs, unknown-content quarantine        | **Delivered** |
 | 07c | Disk & the load pipeline               | Main-process atomic six-step write, `.bak` fallback, `backups/` pruning, forward-version refusal, typed IPC save/load channels, crash-safety + corruption tests, E2E quit → relaunch exact                                                    | —             |
 | 07d | Offline progress                       | `catch-up.ts` orchestration; economy exact recovery, workers statistical (rounded down at every step), auto-sell, capacity bounds + blocker reporting, 8-hour cap, negative-time clamp, < 50 ms at cap; never-over-credit property            | —             |
 | 07e | Autosave, return summary & phase close | Autosave triggers + coalescing, failure notifications, manual save, the return summary (defers in work mode, ADR-014), kill-mid-save E2E, size guard, the full v0.1 release-gate run                                                          | —             |
+
+### Delivered (07b) — migration chain & validation
+
+- **The runner exists before anything to run** (the phase's stated point): `migrate.ts` is the ONE place `schemaVersion` is ever read (ADR-015 §2). `validateChain` rejects a malformed chain at startup — gaps, skips, wrong start, stopping short — as a thrown build failure, never a player-facing one; `runMigrations` returns typed results (`SaveFromNewerVersion` refused outright, no-link versions are `SaveCorrupt`, a throwing or version-lying link converts to `MigrationFailed` with the caller still holding the untouched original). The mechanism is proven with a **synthetic two-step chain** — add-a-field then rename-a-field — plus non-destructiveness and determinism tests. `migrations/index.ts` ships empty and validated at v1.
+- **Structural validation** (`parseSaveDocument`) proves the current shape field-by-field — header, meta, every store, quarantine, plugins — and **decodes the grid encodings**, so corrupt base64 is a typed validation error routed to `.bak`, never a hydration crash.
+- **Semantic validation** (`repairSaveDocument`, non-destructive) implements every §5.2 row with a named rule per repair: coins clamp, out-of-bounds crops dropped, lost workers reset to the plot center (computed from the owned bitfield), incoherent tasks cleared to idle, buildings on unowned/unwalkable ground kept-and-logged, **an over-capacity inventory keeps every item** (acceptance 11), duplicate entity IDs reassigned with the allocator bumped, behind-the-max allocator counters bumped (the ADR-015 §6 hazard as a repair rule), multipliers clamped into their band.
+- **Quarantine is real** (§5.3, acceptance 12): the document gains a top-level `quarantine` section — present-and-empty from version 1, the `plugins: {}` reasoning — holding crops, buildings _with their storage_, owner-tagged stacks, and seed-bin memory. The same pass restores held entries the moment their content returns and a safe home exists: crop to its free tile, stack to its owner or to the inventory when the owner is gone, building to its unoccupied tile. Unknown-item multipliers deliberately pass through — recovery is arithmetic that dereferences nothing.
+- **Golden fixtures committed**: `v1-empty.json` (a fresh world) and `v1-mature-farm.json` (16×16 plot, all four buildings, three workers, stocked containers, a depressed market — then **500 real simulation ticks**, so the fixture is a state the game actually reached). Each migrates through the real chain, validates with **zero repairs**, hydrates, and continues deterministically for 200 ticks. Append-only from this commit.
 
 ### Delivered (07a) — the document & the round trip
 
@@ -79,18 +87,18 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ### Migration infrastructure
 
-- [ ] `Migration` interface; linear ordered chain
-- [ ] Runner applying migrations sequentially, never skipping
-- [ ] `migrations/index.ts` — empty but functional and tested at v1
-- [ ] Golden fixtures: `v1-empty.json`, `v1-mature-farm.json`, committed to `tests/fixtures/saves/`
+- [x] `Migration` interface; linear ordered chain _(07b — `to === from + 1` enforced by `validateChain` at startup)_
+- [x] Runner applying migrations sequentially, never skipping _(07b — routing by version; a version-lying link is a typed `MigrationFailed`)_
+- [x] `migrations/index.ts` — empty but functional and tested at v1
+- [x] Golden fixtures: `v1-empty.json`, `v1-mature-farm.json`, committed to `tests/fixtures/saves/` _(07b — the mature farm is 500 real ticks of simulation, not a synthetic pose; both validate with zero repairs and continue deterministically)_
 
 ### Validation
 
-- [ ] Structural validation against the current schema
-- [ ] Semantic validation per `SAVE_FORMAT.md` §5.2
-- [ ] **Repair where unambiguous, drop where meaningless, never delete player value**
-- [ ] Every repair logged with context
-- [ ] Unknown content IDs **quarantined and preserved**, not deleted (§5.3)
+- [x] Structural validation against the current schema _(07b — including grid-encoding decode, so corrupt base64 is a typed error, never a hydration crash)_
+- [x] Semantic validation per `SAVE_FORMAT.md` §5.2 _(07b — every row, one named rule each)_
+- [x] **Repair where unambiguous, drop where meaningless, never delete player value** _(07b — acceptance 11's over-capacity inventory keeps every item, by test)_
+- [x] Every repair logged with context _(07b — returned as `{rule, detail}` records; the load pipeline logs them in 07c)_
+- [x] Unknown content IDs **quarantined and preserved**, not deleted (§5.3) _(07b — the document's `quarantine` section, with the restore pass proven both ways)_
 
 ### Offline progress
 
@@ -192,11 +200,11 @@ The cost of going last is that this phase touches every system built so far. Tha
 - [ ] Corruption: truncated, empty, malformed, wrong-type, missing-version
 - [ ] `.bak` fallback in each corruption case
 - [ ] Forward-version refusal (7)
-- [ ] Both golden fixtures load and validate (8)
-- [ ] Migration runner with an empty chain (9)
-- [ ] Migration runner with a synthetic two-step chain — proves the mechanism works before it is needed
-- [ ] Every semantic repair rule in `SAVE_FORMAT.md` §5.2
-- [ ] Unknown content quarantine and restoration (12)
+- [x] Both golden fixtures load and validate (8) _(07b — through the real chain, zero repairs, deterministic continuation)_
+- [x] Migration runner with an empty chain (9) _(07b)_
+- [x] Migration runner with a synthetic two-step chain — proves the mechanism works before it is needed _(07b — add-a-field then rename-a-field, plus mid-chain entry, non-destructiveness, determinism, and every failure mode typed)_
+- [x] Every semantic repair rule in `SAVE_FORMAT.md` §5.2 _(07b — one named rule per row, each with a dedicated test)_
+- [x] Unknown content quarantine and restoration (12) _(07b — crops, buildings with storage, owner-tagged stacks, seed-bin memory; restore defers rather than destroys when the home is occupied)_
 - [x] Determinism continues across save/load (13) _(07a — hydrated vs never-saved worlds stepped up to 300 ticks with workers, economy, and RNG live, compared byte-for-byte; the E2E half joins 07c)_
 - [ ] Catch-up: per-system accuracy against real ticks
 - [ ] Catch-up: never over-credits (14) — the critical property

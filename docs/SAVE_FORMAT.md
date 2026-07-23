@@ -96,6 +96,16 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     "ids": { "worker": 4, "building": 2 },
   },
 
+  "quarantine": {
+    // Not-active world data — §5.3. Present-and-empty from version 1, the
+    // `plugins: {}` reasoning: the first quarantined mod entity needs no
+    // migration.
+    "crops": [],
+    "buildings": [], // [{ building, stacks }] — a building and its storage, kept together
+    "stacks": [], // [{ owner: "inventory" | "worker:<id>" | "building:<id>", stack }]
+    "lastPlanted": [],
+  },
+
   "plugins": {},
 }
 ```
@@ -263,6 +273,8 @@ Every repair is logged. A save requiring repairs is a defect worth investigating
 A save may reference content that no longer exists — an uninstalled plugin, or removed core content.
 
 Unknown-content entities are **quarantined, not deleted**: removed from the active world, preserved verbatim in the save document, and restored if the content returns. Uninstalling a mod to try something else must not destroy the farm built with it.
+
+The mechanism (phase-07b): the document's top-level `quarantine` section (§2) is the home — crops, buildings (with their storage containers, kept together), owner-tagged item stacks (`inventory` / `worker:<id>` / `building:<id>`), and seed-bin memory. The quarantine is **session state owned by the persistence orchestration, never a field on `World`** — the sim must not learn saves exist — and it is written back on every save until its content returns. The same repair pass restores: a held entry whose content is registered again moves back the moment it can do so without destroying anything — a crop to its tile if the tile is free, a stack to its owner (or to the inventory when the owner is gone; over-capacity is tolerated and logged, never a reason to delete value), a building to its tile if unoccupied. What cannot be restored safely simply stays held. Unknown-item **price multipliers** deliberately pass through untouched: recovery is pure arithmetic that never dereferences a definition, so quarantining them would add machinery to protect nothing.
 
 ---
 

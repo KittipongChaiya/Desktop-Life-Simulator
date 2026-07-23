@@ -215,6 +215,38 @@ describe('the save document', () => {
     ).toBe(true);
   });
 
+  it('carries an empty quarantine from version 1, and writes a held one back verbatim', () => {
+    // The §5.3 home exists from the first shipped save, so introducing the
+    // first quarantined mod entity (v0.2) needs no migration — the same
+    // reasoning as `plugins: {}` (ADR-002 §5).
+    const world = createWorld(1);
+    expect(toSaveDocument(world, META).quarantine).toEqual({
+      crops: [],
+      buildings: [],
+      stacks: [],
+      lastPlanted: [],
+    });
+
+    // A session that loaded quarantined data carries it forward on every
+    // save until the content returns — uninstalling a mod must not destroy
+    // the farm built with it.
+    const held = {
+      crops: [{ tile: 9, cropId: 'mod:moon_melon', plantedTick: 5 }],
+      buildings: [
+        {
+          building: { id: 7, tile: 11, buildingId: 'mod:silo' },
+          stacks: [{ item: 'mod:moon_melon', qty: 12 }],
+        },
+      ],
+      stacks: [{ owner: 'inventory', stack: { item: 'mod:essence', qty: 3 } }],
+      lastPlanted: [{ tile: 9, cropId: 'mod:moon_melon' }],
+    };
+    const document = toSaveDocument(world, META, held);
+    expect(document.quarantine).toEqual(held);
+    const reparsed = JSON.parse(serializeSave(document)) as SaveDocument;
+    expect(reparsed.quarantine).toEqual(held);
+  });
+
   it('never persists derived or forbidden state', () => {
     const document = toSaveDocument(
       buildWorld(fc.sample(planArb, { numRuns: 1, seed: 7 })[0]!),

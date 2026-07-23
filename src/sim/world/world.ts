@@ -152,7 +152,7 @@ export interface World {
 }
 
 /** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
-const BASE_INVENTORY_SLOTS = 40;
+export const BASE_INVENTORY_SLOTS = 40;
 
 /**
  * Optional dependencies supplied when the world is built.
