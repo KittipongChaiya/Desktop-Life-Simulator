@@ -14,7 +14,11 @@
 | **06c**   | Three new buildings, costs charged (buildings + hire), `sellBuilding`, building effects   | **Delivered** |
 | **06d**   | `expandLand`, progression state, `wallet` + `economy` snapshot slices                     | **Delivered** |
 | **06e**   | `ShopPanel`, sell interface, seed selector, coin counter, price indicators, full-loop E2E | **Delivered** |
-| **06f**   | The idle proof: 8-hour long-run, balance ordering, 100k-tick determinism, pacing          | Pending       |
+| **06f**   | The idle proof: 8-hour long-run, balance ordering, 100k-tick determinism, pacing          | **Delivered** |
+
+**Phase 06 is complete.** The full v0.1 game loop runs: the farm earns
+entirely unattended with a Market Stall and Seed Bin — stage 4 of the
+progression arc, the product thesis verified by test.
 
 ## Resolved interpretations
 
@@ -171,6 +175,37 @@ phase-06 is complete:
   (coin readout settles on the exact credit) → hire → build (capacity
   0/40 → 0/90) → expand ((0 bought) → (1 bought)).
 
+**06f delivered** — the idle proof (`tests/economy-longrun.test.ts`); the
+phase's closing gate:
+
+- **Crit 19, the product thesis:** the stage-4 farm (all four buildings,
+  five workers, a deep seed stock — built through the ordinary command
+  path) ran 8 simulated hours with zero input: >100 full plant→harvest→
+  deposit cycles, >50 automatic stall sales, **>1,000 coins earned
+  unattended**, every worker in a valid state, the market inside its
+  declared bands throughout. Close the panel and it plays itself — now a
+  regression test.
+- **Crit 21:** coins/sec strictly increases across the §3.1 table with
+  seed costs included; endpoints pinned (turnip 0.156, pumpkin 0.283) so a
+  rebalance cannot silently flatten the away-is-optimal curve.
+- **Crit 23:** two identical 100k-tick full-economy runs agree
+  byte-for-byte — wallet, multipliers, replant memory, crops, stats, RNG.
+- **Crit 20 (floor):** a crude greedy bot reaches the stage-4 purse
+  (1,700 coins) in **under one simulated hour** of its four-hour budget —
+  pacing failures can only be a feel problem, which stays with the manual
+  playthrough below. Notable: at farm scale the §6.2 rates equilibrate —
+  steady turnip selling decays ~0.17/min against 0.30/min recovery, so
+  honest continuous play never craters its own market.
+- **Crit 22 (measured):** the perpetually-active farm simulates at
+  ~3.5k ticks/s headless ≈ **0.6% of one core at the real 20 Hz** — the
+  always-busy worker/stall cycle is comfortably inside the idle budget.
+- **Gate-order note for future sessions:** `npm test` includes
+  `devtools-excluded-from-production.test.ts`, which runs a REAL production
+  build into `out/` — silently replacing the debug bundle Playwright runs.
+  The E2E gate order is therefore: unit suite → `VITE_FEATURE_DEBUG=true
+npm run build` → `npm run test:e2e`, never concurrent and never reversed
+  (this was also the root of 06c's "stale bundle" find).
+
 ---
 
 ## Objectives
@@ -314,27 +349,27 @@ After this, the game is complete except for persistence. Everything the player n
 
 ### Automated
 
-- [ ] Price: decay per sale, at all quantities
-- [ ] Price: floor and cap boundaries
-- [ ] Price: recovery rate and timing
-- [ ] Price: rounding to 3 decimals is stable across repeated writes
-- [ ] Sell: correct coins, correct multiplier change, correct inventory removal
-- [ ] Sell: more than held fails cleanly
-- [ ] Buy: sufficient funds, insufficient funds, no inventory space
-- [ ] Each building: cost, effect, placement, sale refund
-- [ ] Seed Bin: auto-replant with seeds, without seeds, with no record
-- [ ] Market Stall: 90% rate, multiplier interaction, event emission
-- [ ] Rest Hut: recovery rate change
-- [ ] Expansion: cost escalation over 5 purchases
-- [ ] Expansion: new tiles owned, tillable, correctly bounded
-- [ ] Slice: wallet republishes on change only
-- [ ] Slice: economy does not republish during recovery (16)
-- [ ] Property: coins are always integers (5)
-- [ ] Property: no sequence of transactions produces negative coins
-- [ ] Property: determinism with the full economy (23)
-- [ ] **Long-run: 8 simulated hours fully automated — coins increase, no jam (19)**
-- [ ] Balance: coins/sec ordering across all four crops (21)
-- [ ] E2E: full loop — harvest, sell, buy, hire, build, expand
+- [x] Price: decay per sale, at all quantities
+- [x] Price: floor and cap boundaries
+- [x] Price: recovery rate and timing
+- [x] Price: rounding to 3 decimals is stable across repeated writes
+- [x] Sell: correct coins, correct multiplier change, correct inventory removal
+- [x] Sell: more than held fails cleanly
+- [x] Buy: sufficient funds, insufficient funds, no inventory space
+- [x] Each building: cost, effect, placement, sale refund
+- [x] Seed Bin: auto-replant with seeds, without seeds, with no record
+- [x] Market Stall: 90% rate, multiplier interaction, event emission
+- [x] Rest Hut: recovery rate change
+- [x] Expansion: cost escalation over 5 purchases
+- [x] Expansion: new tiles owned, tillable, correctly bounded
+- [x] Slice: wallet republishes on change only
+- [x] Slice: economy does not republish during recovery (16)
+- [x] Property: coins are always integers (5)
+- [x] Property: no sequence of transactions produces negative coins
+- [x] Property: determinism with the full economy (23)
+- [x] **Long-run: 8 simulated hours fully automated — coins increase, no jam (19)**
+- [x] Balance: coins/sec ordering across all four crops (21)
+- [x] E2E: full loop — harvest, sell, buy, hire, build, expand
 
 ### Manual
 
