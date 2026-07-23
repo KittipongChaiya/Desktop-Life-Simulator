@@ -78,11 +78,13 @@ Sized per `ASSETS.md §3` (16×16 or 24×24) and grouped in the `ui-world` atlas
 
 Item and resource icons keep the **established `item_<name>.png` form already shipped** in `ui-world{tps}/` (e.g. `item_wheat.png`, `scripts/generate-placeholder-item-building-art.mjs`) — do **not** rename these to an `icon_` prefix. Other UI-icon categories use `icon_<category>_<name>.png`:
 
-| Pattern                  | Example                  | Category source   |
-| ------------------------ | ------------------------ | ----------------- |
-| `item_<name>.png`        | `item_wheat.png`         | Items / resources |
-| `icon_tool_<name>.png`   | `icon_tool_hoe.png`      | Tools             |
-| `icon_status_<name>.png` | `icon_status_energy.png` | Status / HUD      |
+| Pattern                        | Example                         | Category source     |
+| ------------------------------ | ------------------------------- | ------------------- |
+| `item_<name>.png`              | `item_wheat.png`                | Items / resources   |
+| `icon_tool_<name>.png`         | `icon_tool_hoe.png`             | Tools               |
+| `icon_status_<name>.png`       | `icon_status_energy.png`        | Status / HUD        |
+| `icon_notification_<name>.png` | `icon_notification_success.png` | Notification glyphs |
+| `icon_ui_<name>.png`           | `icon_ui_settings.png`          | UI chrome           |
 
 Categories are enumerated in `ICON_GUIDE.md`; do not invent a category token not listed there.
 

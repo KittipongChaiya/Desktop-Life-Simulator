@@ -66,6 +66,8 @@ export const REWARD_GOLD = rgba('#F2C24C');
 export const GOLD_HIGHLIGHT = rgba('#FFE08A');
 export const CARROT_ORANGE = rgba('#E68436');
 export const PUMPKIN = rgba('#CE6C22');
+// §6 UI palette (values only; usage owned by UI_STYLE_GUIDE.md)
+export const WARNING_AMBER = rgba('#E0A93E');
 
 /** Contact shadow: Ink Shadow at a single flat alpha — one level, hard edge,
  * so the "soft, semi-transparent ellipse" of PIXEL_GUIDE.md §7 never becomes

@@ -64,7 +64,7 @@ Two standing reconciliations for script-authored art, recorded here once:
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | ------------- |
 | **05.6a** | Tooling lib + terrain set (grass, tilled, water, stone, path) + props (tree, rock, bush, flower) + buildings (storage shed, rest hut) + attribution/provenance + contact sheet | SCRIPT        | **Delivered** |
 | **05.6b** | The golden crop: `wheat_0..3` (new `crops` atlas) + production `item_*` icons                                                                                                  | SCRIPT        | **Delivered** |
-| **05.6c** | Icon set + UI set (panel, buttons, hotbar, tooltip, cursor, notification) per `UI_STYLE_GUIDE`                                                                                 | SCRIPT + SPEC | Pending       |
+| **05.6c** | Icon set + UI set (panel, buttons, hotbar, tooltip, cursor, notification) per `UI_STYLE_GUIDE`                                                                                 | SCRIPT + SPEC | **Delivered** |
 | **05.6d** | Characters: worker + player rigs (idle/walk/harvest), animation metadata; portraits                                                                                            | SCRIPT + SPEC | Pending       |
 | **05.6e** | Audio production specs + `ASSET_VALIDATION_REPORT.md` + final review; close the phase                                                                                          | SPEC + report | Pending       |
 
@@ -106,8 +106,42 @@ Execution order: tooling first (everything else uses it), characters late (harde
 
 ### 05.6c — Icons & UI
 
-- [ ] Icon set per `ICON_GUIDE.md` categories and `NAMING_CONVENTION.md §4.4` naming — the directive's corn/wood/stone/money/water/worker/inventory/settings translated to canon items and categories (money → the coin/Reward-Gold read; wood/stone tier-tagged as future-content icons).
-- [ ] UI set resolved against `UI_STYLE_GUIDE.md` + `ADR-005`: what the DOM styles with CSS tokens is **spec'd as tokens**, what needs bitmap art (9-slice frames, cursor, hotbar cells) is scripted. Inline-notification example follows `GAME_DESIGN.md §8.2`.
+- [x] Icon set per `ICON_GUIDE.md` categories and `NAMING_CONVENTION.md §4.4` naming — the directive's corn/wood/stone/money/water/worker/inventory/settings translated to canon items and categories (money → the coin/Reward-Gold read; wood/stone tier-tagged as future-content icons).
+- [x] UI set resolved against `UI_STYLE_GUIDE.md` + `ADR-005`: what the DOM styles with CSS tokens is **spec'd as tokens**, what needs bitmap art (9-slice frames, cursor, hotbar cells) is scripted. Inline-notification example follows `GAME_DESIGN.md §8.2`.
+
+**05.6c delivered** — twelve production icons (SCRIPT) and the UI set fully resolved (SPEC): 51 sprites, 5 atlases; typecheck/lint/556 tests green; zero `src/` changes.
+
+**The icons** (`scripts/generate-icon-art.mjs`, all in `ui-world{tps}/`):
+
+| Directive item | Delivered as                            | Notes                                                                                     |
+| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| corn           | `item_wheat.png`                        | Delivered in 05.6b                                                                        |
+| wood, stone    | `item_wood.png`, `item_stone.png`       | Tier-tagged future-content (no v0.1 item exists); stone reuses the rock prop's facet read |
+| money          | `icon_status_coin.png`                  | The one deliberate **Reward Gold** spend (`ICON_GUIDE.md §3`); Gold Highlight glint       |
+| water          | `icon_tool_can.png`                     | The `3` toolbar slot (`GAME_DESIGN.md §8.3` names the tool "can")                         |
+| worker         | `icon_status_worker.png`                | Earth-cloth tunic bust (`COLOR_PALETTE.md §3.5`)                                          |
+| inventory      | `icon_ui_inventory.png`                 | New **UI chrome** category (below)                                                        |
+| settings       | `icon_ui_settings.png`                  | Stone-ramp gear ("raw metal" role), punched hub                                           |
+| — (UI set)     | `icon_tool_hoe/seed/hand.png`           | Completing the `1`–`4` toolbar at 24×24                                                   |
+| — (UI set)     | `icon_notification_success/caution.png` | The `ICON_GUIDE.md §4` Notification glyphs: green tick, calm amber mark — never red       |
+
+**Canon fixed in this commit** (working method rule 5 — small fix in the owning doc): `NAMING_CONVENTION.md §4.4` forbids inventing category tokens and `ICON_GUIDE.md §4` enumerated no category for interface-chrome buttons — a real gap the moment a settings button exists. Added the **UI chrome** category row to `ICON_GUIDE.md §4` and the `icon_ui_<name>.png` + `icon_notification_<name>.png` rows to the `NAMING_CONVENTION.md §4.4` table.
+
+**The UI set, resolved (SPEC — no bitmap art needed anywhere):** the interface is DOM/React (`ADR-005`) and every directive UI item resolves to existing tokens — `COLOR_PALETTE.md §6` values applied per `UI_STYLE_GUIDE.md`:
+
+| UI item                         | Resolution                                                                                                                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Panel frame                     | CSS: Panel Base fill, 2 px Panel Edge border, Panel Shadow inset groove, small radius, no shadow/blur (`UI_STYLE_GUIDE.md §2`). No 9-slice bitmap — CSS achieves the look; `ui_<panel>.png` stays reserved.  |
+| Buttons                         | Parchment fill + dark edge; hover one step lighter, active Panel Shadow, disabled Panel Shadow + Text Muted + tooltip reason, focus 2 px Selection outline, primary trim Carrot Orange (`§3`)                |
+| Hotbar                          | CSS square cells on the 4 px rhythm, `icon_tool_*` sprites inside, slot number, active = pressed + accent trim (`§4`)                                                                                        |
+| Tooltip                         | Parchment chip, 1 px edge, Text Primary, no shadow (`§5`)                                                                                                                                                    |
+| Notification                    | Inline transient parchment toast (`GAME_DESIGN.md §8.2`, `§10.1` rule 1): `icon_notification_*` glyph + text, self-fading, positive may carry Positive green / Reward Gold, caution Warning Amber, never red |
+| Cursor                          | **No sprite.** OS pointer over UI; the in-world hover/selection affordance (shipped in phase-03.6) signals the tool (`UI_STYLE_GUIDE.md §8`); optional tool-tint stays deferred                              |
+| Mouse cursor sprite (directive) | **N/A** — resolved by the row above; a cursor is CSS/OS in this architecture                                                                                                                                 |
+
+**Canon friction recorded for the validation report:** `UI_STYLE_GUIDE.md §3` specifies hover as "one step lighter" than Panel Base, but `COLOR_PALETTE.md §6` defines no Panel Light token — the nearest value is Text Inverse `#F4EFE6`, a text colour. Recommend §6 add a dedicated hover/lift step.
+
+**Review iteration applied once:** the first hoe read as a hammer (symmetric head atop the handle); redrawn as the Γ profile — flat collar off the handle tip, thin blade sweeping down.
 
 ### 05.6d — Characters
 
