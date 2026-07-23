@@ -322,6 +322,20 @@ describe('repairSaveDocument (semantic, §5.2)', () => {
     expect(repairs.some((r) => r.rule === 'allocator-behind')).toBe(true);
   });
 
+  it('moves an orphaned storage container into quarantine — hydration must never crash', () => {
+    // A storage entry whose building does not exist would throw inside
+    // `hydrateWorld`; the repair pass converts it into held stacks, which the
+    // restore pass then lands in the inventory (owner gone, value preserved).
+    const doc = tampered((d: { world: { buildingStorage: unknown[] } }) => {
+      d.world.buildingStorage.push({ building: 777, stacks: [{ item: CORE_WHEAT, qty: 11 }] });
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.world.buildingStorage.some((s) => s.building === 777)).toBe(false);
+    expect(repairs.some((r) => r.rule === 'storage-orphaned')).toBe(true);
+    const inventory = document.world.inventory;
+    expect(inventory[inventory.length - 1]).toEqual({ item: CORE_WHEAT, qty: 11 });
+  });
+
   it('clamps a multiplier outside its band and drops one at the cap', () => {
     const doc = tampered(
       (d: { world: { economy: { multipliers: { item: string; multiplier: number }[] } } }) => {

@@ -5,14 +5,19 @@
  * validation. No game logic and no rendering ever happens here (ADR-003 §3).
  */
 
+import { join } from 'node:path';
+
 import { app, ipcMain, Menu, nativeImage, Tray, type BrowserWindow } from 'electron';
 
+import { serializeSave } from '../persistence/serialize';
+import { parseSaveDocument } from '../persistence/validate';
 import {
   EventChannel,
   InvokeChannel,
   SendChannel,
   type CompanionState,
   type OverlayState,
+  type SaveWriteOutcome,
 } from '../shared/ipc/contract';
 import { validateBoolean, validateNumber, validateVoid } from '../shared/ipc/schemas';
 import { DEFAULT_BINDINGS, ShortcutAction } from '../shared/shortcuts';
@@ -20,9 +25,15 @@ import { DEFAULT_BINDINGS, ShortcutAction } from '../shared/shortcuts';
 import { applyHidden, applyOpacity, globalShortcutRegistrar } from './desktop-companion';
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
+import { atomicWriteSave, readSavesForLoad } from './save-store';
 import { loadSettings, saveSettings } from './settings';
 import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type AppSettings } from './settings-schema';
 import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
+
+/** `userData/saves` — never hardcoded (`PROJECT_STRUCTURE.md` §7). */
+function savesDir(): string {
+  return join(app.getPath('userData'), 'saves');
+}
 
 let overlay: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -225,6 +236,33 @@ function registerIpc(): void {
   ipcMain.handle(InvokeChannel.ToggleWorkMode, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.ToggleWorkMode);
     return toggleWorkMode();
+  });
+
+  ipcMain.handle(InvokeChannel.SaveLoad, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.SaveLoad);
+    // Main's half of the load pipeline: bytes -> parsed JSON with .bak
+    // routing (SAVE_FORMAT.md 4.3 step 1). Migration, validation, and
+    // hydration run in the renderer (ARCHITECTURE.md 4.3).
+    return readSavesForLoad(savesDir());
+  });
+
+  ipcMain.handle(InvokeChannel.SaveWrite, (_event, payload: unknown): SaveWriteOutcome => {
+    // The renderer is untrusted (ADR-003 3): the document is validated
+    // STRUCTURALLY on receipt, and the canonical bytes are produced here in
+    // main from the validated value - never trusted as a pre-serialized blob.
+    const structural = parseSaveDocument(payload);
+    if (!structural.ok) {
+      return { ok: false, error: `rejected: ${structural.error.message}` };
+    }
+    try {
+      atomicWriteSave(savesDir(), serializeSave(structural.value), structural.value.world.tick);
+      return { ok: true };
+    } catch (thrown) {
+      // A failed save never crashes the game and never damages the existing
+      // save (SAVE_FORMAT.md 7.3) - the sequence's ordering guarantees the
+      // second half; this catch guarantees the first.
+      return { ok: false, error: thrown instanceof Error ? thrown.message : String(thrown) };
+    }
   });
 
   ipcMain.handle(InvokeChannel.Quit, (_event, payload: unknown) => {

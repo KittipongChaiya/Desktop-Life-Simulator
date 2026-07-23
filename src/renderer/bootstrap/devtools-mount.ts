@@ -38,6 +38,13 @@ export interface DevToolsMountOptions {
    */
   readonly commandRejection?: () => string | null;
   /**
+   * The load/save session log (phase-07c): how the world arrived (new game /
+   * loaded / from backup, migrations, repairs) and the last save failure.
+   * The player-facing surfaces arrive in 07e; this keeps the record visible
+   * rather than discarded meanwhile (`AI_RULES.md` §2.2).
+   */
+  readonly saveNote?: () => string | null;
+  /**
    * Submits a sim command through the ordinary player source (06c). Enables
    * console commands that act on the world — `money`, the declared dev-only
    * coin source — with no privileged write path (ADR-010 §6).
@@ -95,6 +102,17 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
       group: MetricGroup.Simulation,
       order: 10,
       read: () => commandRejection() ?? 'none',
+    });
+  }
+
+  const saveNote = options.saveNote;
+  if (saveNote !== undefined) {
+    host.metrics.register({
+      id: 'sim.saveNote',
+      label: 'Save/Load',
+      group: MetricGroup.Simulation,
+      order: 11,
+      read: () => saveNote() ?? 'none',
     });
   }
 

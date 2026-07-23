@@ -10,7 +10,10 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
-import { createWorld } from '@sim/world/world';
+import { loadWorld } from '@persistence/load';
+import { EMPTY_QUARANTINE, type SaveMeta, type SaveQuarantine } from '@persistence/schema';
+import { toSaveDocument } from '@persistence/serialize';
+import { createWorld, type World, type WorldOptions } from '@sim/world/world';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -55,18 +58,105 @@ let lastWorldError: string | null = null;
  */
 let lastCommandRejection: string | null = null;
 
+/**
+ * The session's save continuity (phase-07c): the loaded header fields that
+ * must carry across saves, plus the held quarantine (`SAVE_FORMAT.md` §5.3)
+ * — persistence-orchestration state, deliberately NOT on `World` (the sim
+ * never learns saves exist).
+ */
+interface SaveSession {
+  createdAtUnixMs: number;
+  saveCount: number;
+  quarantine: SaveQuarantine;
+}
+
+/** Load log, held for the devtools/return-summary surfaces (07e). */
+let lastLoadNote: string | null = null;
+
 export function startApplication(): void {
-  // Fixed seed until phase-07 introduces save/load.
-  //
+  // Loading is async (an IPC round trip), so the composition happens inside.
+  // A boot failure must be VISIBLE, not a blank overlay.
+  void bootApplication().catch((error: unknown) => {
+    renderFatalError(
+      'The game could not start.',
+      error instanceof Error ? error.message : String(error),
+    );
+  });
+}
+
+/**
+ * `SAVE_FORMAT.md` §4.3: read (main) → migrate → validate → hydrate (here) —
+ * or a new game, ONLY when no save file exists at all. A save that exists but
+ * cannot be loaded stops with a clear message; silently starting a new game
+ * over a broken farm is the forbidden outcome.
+ */
+async function bootApplication(): Promise<void> {
   // Execution-time command rejections are injected here, at the construction
   // boundary. The world reports a `Command` and an `AppError` and knows nothing
   // about a view; deciding that this becomes a log line is the composition
   // root's job, not the simulation's (ADR-010 §7).
-  const world = createWorld(1, {
+  const worldOptions: WorldOptions = {
     onExecutionRejected: (command, error) => {
       lastCommandRejection = `${command.type}: ${error.code}`;
     },
-  });
+  };
+
+  const saves = await window.desktopLife.save.load();
+  let world: World;
+  let session: SaveSession;
+
+  if (saves.missing) {
+    // A fresh farm. The seed only needs to be new here — it is authoritative
+    // (and deterministic) state from this moment on, carried by every save.
+    world = createWorld(Math.floor(Math.random() * 2_147_483_646) + 1, worldOptions);
+    session = { createdAtUnixMs: Date.now(), saveCount: 0, quarantine: EMPTY_QUARANTINE };
+    lastLoadNote = 'new game';
+  } else {
+    const loaded = loadWorld(saves.primary, saves.backup, worldOptions);
+    if (!loaded.ok) {
+      renderFatalError(
+        loaded.error.code === 'save_from_newer_version'
+          ? 'This save was written by a newer version of the game.'
+          : 'Your save could not be loaded, and the backup also failed.',
+        `${loaded.error.message} — your save files were left untouched.`,
+      );
+      return;
+    }
+    world = loaded.value.world;
+    session = {
+      createdAtUnixMs: loaded.value.meta.createdAtUnixMs,
+      saveCount: loaded.value.meta.saveCount,
+      quarantine: loaded.value.quarantine,
+    };
+    lastLoadNote = [
+      loaded.value.usedBackup ? 'loaded from backup' : 'loaded',
+      ...loaded.value.migrationsApplied,
+      ...loaded.value.repairs.map((repair) => `repair ${repair.rule}: ${repair.detail}`),
+    ].join('; ');
+  }
+
+  composeApplication(world, session);
+}
+
+/** A load/boot failure the player can actually read (ADR-015 §7). */
+function renderFatalError(headline: string, detail: string): void {
+  const container = document.getElementById('ui');
+  if (container === null) return;
+  const box = document.createElement('div');
+  box.setAttribute('role', 'alert');
+  box.style.cssText =
+    'position:absolute;inset:8px;display:flex;flex-direction:column;gap:4px;' +
+    'align-items:center;justify-content:center;text-align:center;color:#f3ead9;' +
+    'background:rgba(38,34,44,0.92);border-radius:8px;font:13px system-ui;padding:12px;';
+  const title = document.createElement('strong');
+  title.textContent = headline;
+  const message = document.createElement('span');
+  message.textContent = detail;
+  box.append(title, message);
+  container.append(box);
+}
+
+function composeApplication(world: World, session: SaveSession): void {
   const store = createSnapshotStore(world.snapshots);
   const overlay = createOverlayController(window.desktopLife.overlay);
   // Desktop-companion state (01.8a): app preferences behind main-process IPC —
@@ -208,6 +298,34 @@ export function startApplication(): void {
   });
   loop.start();
 
+  // The save path (phase-07c): main asks, the renderer answers — every
+  // trigger (quit, tray, the 07e autosave timers) arrives as this ONE
+  // request, so there is exactly one serialization site. Meta continuity:
+  // `createdAtUnixMs` is the loaded value forever; `saveCount` increments
+  // only on a successful write; the held quarantine writes back verbatim
+  // until its content returns (`SAVE_FORMAT.md` §5.3).
+  const performSave = async (): Promise<void> => {
+    const meta: SaveMeta = {
+      gameVersion: __APP_VERSION__,
+      createdAtUnixMs: session.createdAtUnixMs,
+      savedAtUnixMs: Date.now(),
+      playtimeTicks: world.tick,
+      saveCount: session.saveCount + 1,
+    };
+    const outcome = await window.desktopLife.save.write(
+      toSaveDocument(world, meta, session.quarantine),
+    );
+    if (outcome.ok) {
+      session.saveCount += 1;
+    } else {
+      // Recorded, not discarded — the player-facing notification is 07e's.
+      lastLoadNote = `save failed: ${outcome.error}`;
+    }
+  };
+  window.desktopLife.save.onSaveRequested(() => {
+    void performSave();
+  });
+
   // The world view exists only while expanded. Collapsing destroys the GPU
   // context entirely (ADR-001 §2).
   const syncWorldToOverlay = (): void => {
@@ -248,6 +366,7 @@ export function startApplication(): void {
     world: () => worldMount.current(),
     worldError: () => lastWorldError,
     commandRejection: () => lastCommandRejection,
+    saveNote: () => lastLoadNote,
     // The console's `money` command submits through the ordinary player
     // source — no privileged write path (ADR-010 §6).
     submitCommand: (command) => playerSource.submit(command),

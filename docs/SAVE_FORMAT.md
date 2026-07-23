@@ -362,6 +362,8 @@ Performed in the main process only (ADR-003 §3):
 
 At no point after step 1 does a single failure leave zero valid saves on disk.
 
+Step 6 is **best-effort on Windows** (phase-07c): directory handles cannot be `fsync`ed there, so the attempt is made and its failure tolerated — NTFS journals rename metadata, which is what makes step 5 atomic in the first place. Recorded here so no future session "fixes" the tolerated failure into a crash.
+
 ### 7.2 Autosave triggers
 
 | Trigger                   | Notes                                          |

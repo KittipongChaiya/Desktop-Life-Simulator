@@ -511,6 +511,18 @@ export function repairSaveDocument(
     return false;
   });
 
+  // Orphaned storage — a container whose building no longer exists — would
+  // throw inside hydration. Its stacks become held value; the restore pass
+  // below lands them in the inventory (owner gone, value preserved).
+  doc.world.buildingStorage = doc.world.buildingStorage.filter((storage) => {
+    if (doc.world.buildings.some((b) => b.id === storage.building)) return true;
+    log('storage-orphaned', `storage for missing building ${storage.building} — stacks held`);
+    for (const stack of storage.stacks) {
+      doc.quarantine.stacks.push({ owner: `building:${storage.building}`, stack });
+    }
+    return false;
+  });
+
   // Building storage: stacks with unknown items quarantined, owner-tagged.
   for (const storage of doc.world.buildingStorage) {
     storage.stacks = storage.stacks.filter((stack) => {

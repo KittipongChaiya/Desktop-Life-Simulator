@@ -27,9 +27,17 @@ The cost of going last is that this phase touches every system built so far. Tha
 | --- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 07a | The document & the round trip          | `schema.ts` (`SAVE_MAGIC`, `CURRENT_SCHEMA_VERSION`, `SaveDocument`), the pure base64 codec, explicit hand-written serialize/hydrate per store, blocked-bits recomputation; round-trip + byte-stability + continue-identically property tests | **Delivered** |
 | 07b | Migration chain & validation           | `Migration` interface + ordered runner with startup chain validation, synthetic two-step chain proof, golden fixtures (`v1-empty`, `v1-mature-farm`), structural + semantic validation with logged repairs, unknown-content quarantine        | **Delivered** |
-| 07c | Disk & the load pipeline               | Main-process atomic six-step write, `.bak` fallback, `backups/` pruning, forward-version refusal, typed IPC save/load channels, crash-safety + corruption tests, E2E quit → relaunch exact                                                    | —             |
+| 07c | Disk & the load pipeline               | Main-process atomic six-step write, `.bak` fallback, `backups/` pruning, forward-version refusal, typed IPC save/load channels, crash-safety + corruption tests, E2E quit → relaunch exact                                                    | **Delivered** |
 | 07d | Offline progress                       | `catch-up.ts` orchestration; economy exact recovery, workers statistical (rounded down at every step), auto-sell, capacity bounds + blocker reporting, 8-hour cap, negative-time clamp, < 50 ms at cap; never-over-credit property            | —             |
 | 07e | Autosave, return summary & phase close | Autosave triggers + coalescing, failure notifications, manual save, the return summary (defers in work mode, ADR-014), kill-mid-save E2E, size guard, the full v0.1 release-gate run                                                          | —             |
+
+### Delivered (07c) — disk & the load pipeline
+
+- **The atomic write is real** (`src/main/save-store.ts`, pure Node — no `electron` import, directory injected, so the sequence is testable against real temp directories): the exact §7.1 six steps, both `fsync`s included (the directory fsync is best-effort on Windows — directory handles cannot be fsynced there; NTFS journals rename metadata, which is why step 5 is already atomic — recorded honestly in code and in `SAVE_FORMAT.md`). Every successful save also rotates a copy into `backups/slot-0-<tick>.json`, pruned to the newest three.
+- **Crash safety by real interruption** (criterion 4, the phase-doc §Notes way): the write sequence executes against a real directory and stops dead after each step — five halt points — and an existing good save survives every one, loadable as one of the two real states, never a torn hybrid. A crash on the very first save leaves a clean `missing`, not corruption.
+- **The load split is exactly `ARCHITECTURE.md` §4.3**: main's half is bytes → parsed JSON with `.bak` routing (`readSavesForLoad` — both documents travel, because a structural failure discovered _after_ migration also falls back to `.bak` without a second round trip; `missing` is true only when _neither file exists_ — present-but-unreadable is never a new game). The renderer's half is the pure `loadWorld` pipeline (`src/persistence/load.ts`): migration → structural validation → semantic repair → hydration per candidate, with one deliberate exception — **a newer save refuses outright and never falls back** to an older backup (quietly loading it would discard the newer session's world). A hydration throw converts to a typed corrupt-save error; the app never crashes on save data.
+- **One save path** (forward-built for 07e): every trigger — quit, tray, autosave — arrives as main's `save:requested` event; the renderer serializes at its one site (meta continuity: `createdAtUnixMs` carried forever, `saveCount` increments only on success, the held quarantine written back verbatim) and invokes `save:write`; **main validates the document structurally on receipt** (the renderer is untrusted, ADR-003 §3) and produces the canonical bytes itself. Boot became async: missing → new game (random seed, authoritative thereafter); unloadable → a clear in-overlay error, **never a silent new game**; the load log (migrations, repairs, backup use) surfaces as a devtools metric until 07e's player-facing summary.
+- **E2E against the real app** (isolated userData): save → relaunch → the _same_ farm continues (seed and `createdAtUnixMs` identical, tick advanced, saveCount counted, `.bak` rotated — criterion 25's 07c half); and a hand-corrupted slot recovers from `.bak` with the world intact (criterion 5). Semantic repair found and closed a real gap during this milestone: an orphaned storage container (building gone) now becomes held stacks instead of a hydration crash.
 
 ### Delivered (07b) — migration chain & validation
 
@@ -73,17 +81,17 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ### Atomic writes (main process)
 
-- [ ] The exact six-step sequence in `SAVE_FORMAT.md` §7.1, including both `fsync` calls
-- [ ] `.bak` rotation preserving the previous good save
-- [ ] Three most recent autosaves in `backups/`, oldest pruned
-- [ ] **Disk I/O only in main** — the renderer sends a plain object over IPC
+- [x] The exact six-step sequence in `SAVE_FORMAT.md` §7.1, including both `fsync` calls _(07c — the directory fsync is best-effort on Windows, recorded honestly; NTFS journals rename metadata)_
+- [x] `.bak` rotation preserving the previous good save
+- [x] Three most recent autosaves in `backups/`, oldest pruned _(07c — a copy rotates on every successful write)_
+- [x] **Disk I/O only in main** — the renderer sends a plain object over IPC _(07c — and main validates it structurally on receipt, then produces the canonical bytes itself)_
 
 ### Load
 
-- [ ] The seven-step sequence in `SAVE_FORMAT.md` §4.3
-- [ ] Parse failure → automatic `.bak` fallback with a clear player message
-- [ ] **A higher `schemaVersion` is refused, never partially loaded**
-- [ ] Missing save → new game (the only case where that is correct)
+- [x] The seven-step sequence in `SAVE_FORMAT.md` §4.3 _(07c — steps 1 in main, 2–5 in the pure `loadWorld` pipeline; step 6 catch-up is 07d, step 7 summary is 07e)_
+- [x] Parse failure → automatic `.bak` fallback with a clear player message _(07c — E2E'd against a hand-corrupted slot)_
+- [x] **A higher `schemaVersion` is refused, never partially loaded** _(07c — and never quietly replaced by an older backup: the refusal deliberately does not fall back)_
+- [x] Missing save → new game (the only case where that is correct) _(07c — `missing` is true only when neither file exists; present-but-unreadable stops with a clear error instead)_
 
 ### Migration infrastructure
 
@@ -128,7 +136,7 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ### IPC
 
-- [ ] Save and load channels added to the typed contract, validated on receipt
+- [x] Save and load channels added to the typed contract, validated on receipt _(07c — `save:load`, `save:write`, and the `save:requested` event every future trigger rides)_
 
 ---
 
@@ -196,10 +204,10 @@ The cost of going last is that this phase touches every system built so far. Tha
 - [x] Every store: serialize and deserialize independently _(07a — collectively, via the round-trip property; the per-store pairs are named blocks inside `toSaveDocument`/`hydrateWorld`, and a mutation control confirmed a single dropped field fails the suite)_
 - [x] Grid: base64 typed-array round-trip _(07a — RFC 4648 vectors + arbitrary-bytes property + explicit little-endian pin)_
 - [x] Sparse stores: stable ordering _(07a — byte-stability is the assertion)_
-- [ ] Crash safety at each of the six write steps (4)
-- [ ] Corruption: truncated, empty, malformed, wrong-type, missing-version
-- [ ] `.bak` fallback in each corruption case
-- [ ] Forward-version refusal (7)
+- [x] Crash safety at each of the six write steps (4) _(07c — real filesystem operations halted after each step, never mocked failures; an existing good save survives every halt)_
+- [x] Corruption: truncated, empty, malformed, wrong-type, missing-version _(07c — disk-level cases in `save-store.test.ts`; missing/invalid version is the 07b runner's `SaveCorrupt` path)_
+- [x] `.bak` fallback in each corruption case _(07c — at the disk level and through the full pipeline, plus the live E2E)_
+- [x] Forward-version refusal (7) _(07b runner + 07c pipeline: refused outright, never falls back to an older backup)_
 - [x] Both golden fixtures load and validate (8) _(07b — through the real chain, zero repairs, deterministic continuation)_
 - [x] Migration runner with an empty chain (9) _(07b)_
 - [x] Migration runner with a synthetic two-step chain — proves the mechanism works before it is needed _(07b — add-a-field then rename-a-field, plus mid-chain entry, non-destructiveness, determinism, and every failure mode typed)_
@@ -213,7 +221,7 @@ The cost of going last is that this phase touches every system built so far. Tha
 - [ ] Catch-up: at exactly the 8-hour cap and beyond
 - [ ] Autosave: every trigger; coalescing under load
 - [ ] Save failure: disk full, permission denied, serialization throw
-- [ ] E2E: quit and relaunch preserves state (25)
+- [x] E2E: quit and relaunch preserves state (25) _(07c — save → relaunch → same seed, same `createdAtUnixMs`, tick advanced, `.bak` rotated. The automatic quit-save trigger joins in 07e)_
 - [ ] E2E: kill the process mid-save; verify recovery
 - [ ] Size guard on the reference save (23)
 

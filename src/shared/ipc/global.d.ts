@@ -6,7 +6,7 @@
  * it would let the two definitions drift silently.
  */
 
-import type { CompanionState, OverlayState } from './contract';
+import type { CompanionState, OverlayState, SavesOnDisk, SaveWriteOutcome } from './contract';
 
 declare global {
   interface Window {
@@ -24,6 +24,11 @@ declare global {
         toggleClickThrough(): Promise<CompanionState>;
         toggleWorkMode(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
+      };
+      readonly save: {
+        load(): Promise<SavesOnDisk>;
+        write(document: unknown): Promise<SaveWriteOutcome>;
+        onSaveRequested(listener: () => void): () => void;
       };
       readonly app: {
         quit(): Promise<void>;

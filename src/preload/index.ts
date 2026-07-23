@@ -14,6 +14,8 @@ import {
   SendChannel,
   type CompanionState,
   type OverlayState,
+  type SavesOnDisk,
+  type SaveWriteOutcome,
 } from '../shared/ipc/contract';
 
 export interface DesktopLifeApi {
@@ -36,6 +38,15 @@ export interface DesktopLifeApi {
     toggleWorkMode(): Promise<CompanionState>;
     /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
     onStateChanged(listener: (state: CompanionState) => void): () => void;
+  };
+  /** Save/load transport (phase-07c). Disk stays in main (ADR-003 §3). */
+  readonly save: {
+    /** Both save files, parsed, with `.bak` routing done (`SAVE_FORMAT.md` §4.3 step 1). */
+    load(): Promise<SavesOnDisk>;
+    /** Writes a document through the §7.1 atomic sequence. */
+    write(document: unknown): Promise<SaveWriteOutcome>;
+    /** Main asks for a save — quit, tray, autosave (07e). Returns teardown. */
+    onSaveRequested(listener: () => void): () => void;
   };
   readonly app: {
     quit(): Promise<void>;
@@ -90,6 +101,23 @@ const api: DesktopLifeApi = {
       ipcRenderer.on(EventChannel.CompanionStateChanged, handler);
       return () => {
         ipcRenderer.off(EventChannel.CompanionStateChanged, handler);
+      };
+    },
+  },
+
+  save: {
+    load: () => ipcRenderer.invoke(InvokeChannel.SaveLoad) as Promise<SavesOnDisk>,
+
+    write: (document) =>
+      ipcRenderer.invoke(InvokeChannel.SaveWrite, document) as Promise<SaveWriteOutcome>,
+
+    onSaveRequested: (listener) => {
+      const handler = (): void => {
+        listener();
+      };
+      ipcRenderer.on(EventChannel.SaveRequested, handler);
+      return () => {
+        ipcRenderer.off(EventChannel.SaveRequested, handler);
       };
     },
   },
