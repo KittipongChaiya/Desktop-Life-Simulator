@@ -318,7 +318,7 @@ docs/
 ├── ASSETS.md              Asset pipeline and conventions
 ├── TESTING.md             Strategy, tooling, coverage gates
 ├── CHANGELOG.md           Semantic-versioned change history
-├── decisions/             ADR-001 … ADR-012
+├── decisions/             ADR-001 … ADR-013
 └── phases/                phase-00 … phase-07
 ```
 
