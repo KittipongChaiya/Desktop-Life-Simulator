@@ -237,6 +237,21 @@ A test asserts each fixture migrates cleanly to the current version and produces
 
 Editing a fixture to make a test pass defeats the purpose completely. If a fixture no longer migrates, the _migration_ is wrong.
 
+### 4.5 Field-level compatibility
+
+Version-level compatibility (§4.1–4.2) governs whole documents. These rules govern individual fields, and were pinned as tests by the v0.1 compatibility gate (`fix/0.1/7.2.md`):
+
+| Case                 | Behaviour                                                  | Reason                                                                                      |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Missing field**    | Typed structural error → `.bak` fallback. Never a throw    | Validation runs before hydration precisely so a missing field cannot become a crash         |
+| **Unknown field**    | Accepted on read, ignored                                  | A reader that rejects fields it does not recognise rejects its own future                   |
+| **Additional field** | Accepted on read, **dropped by the next save**             | The writer rebuilds the document from live world state; it emits the fields it knows (§3.1) |
+| **Removed field**    | The migration chain's job — nothing to remove at version 1 | §4.2                                                                                        |
+
+**The dropping is deliberate and worth restating**: hand-written serialization is what keeps an internal refactor from becoming a silent schema change, and the price of that is that this build erases what it does not understand. It is not currently reachable in a way that loses player data — a genuinely newer save is refused before it gets here (§4.2), and adding a field without bumping `schemaVersion` is forbidden by ADR-015 §2.
+
+The full statement of what v0.1 guarantees, with the evidence for each claim, is `save-compatibility-report.md`.
+
 ---
 
 ## 5. Validation

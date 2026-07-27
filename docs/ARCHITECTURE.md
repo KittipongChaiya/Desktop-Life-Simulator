@@ -253,6 +253,8 @@ Load:  main: read + parse + fallback to .bak on failure
 
 Disk I/O never happens in the renderer (ADR-003 §3). Three authorities divide persistence: ADR-002 owns the **mechanism** (JSON, atomic writes, the linear chain), ADR-015 owns the **contract** (save identity, version separation, the compatibility matrix, migration governance, failure policy), and `SAVE_FORMAT.md` owns the field-by-field **schema**.
 
+What the delivered pipeline actually guarantees — the compatibility rules, the determinism evidence, the migration framework's properties, the failure matrix, the measured budgets, and the known limitations — is recorded in `save-compatibility-report.md`, verified by `tests/save-compatibility.test.ts`. It states behaviour rather than deciding it: the four documents above remain the authorities.
+
 ---
 
 ## 5. Rendering

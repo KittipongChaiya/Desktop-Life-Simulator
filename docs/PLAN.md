@@ -198,16 +198,16 @@ Multiplayer · cross-platform (macOS/Linux) · Steam release · cloud saves · m
 
 Binding at every version boundary. No exceptions, and none of these may be waived to hit a date — there are no dates (§Preamble).
 
-| Gate               | Requirement                                                                    |
-| ------------------ | ------------------------------------------------------------------------------ |
-| Save compatibility | Every prior version's golden fixture loads (`SAVE_FORMAT.md` §4.4, ADR-015 §4) |
-| Performance        | All ceilings measured on baseline hardware (`PERFORMANCE.md` §10)              |
-| Coverage           | All thresholds met (`TESTING.md` §4)                                           |
-| Boundaries         | `check:boundaries` and `check:cycles` clean                                    |
-| Docs               | `ARCHITECTURE.md`, `SAVE_FORMAT.md`, `CHANGELOG.md` current                    |
-| ADRs               | Every architectural change recorded                                            |
-| Data loss          | **Zero known defects. Blocking, always.**                                      |
-| Dead code          | None; no placeholders; no skipped tests                                        |
+| Gate               | Requirement                                                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save compatibility | Every prior version's golden fixture loads (`SAVE_FORMAT.md` §4.4, ADR-015 §4); the version's guarantees stated and evidenced in `save-compatibility-report.md` |
+| Performance        | All ceilings measured on baseline hardware (`PERFORMANCE.md` §10)                                                                                               |
+| Coverage           | All thresholds met (`TESTING.md` §4)                                                                                                                            |
+| Boundaries         | `check:boundaries` and `check:cycles` clean                                                                                                                     |
+| Docs               | `ARCHITECTURE.md`, `SAVE_FORMAT.md`, `CHANGELOG.md` current                                                                                                     |
+| ADRs               | Every architectural change recorded                                                                                                                             |
+| Data loss          | **Zero known defects. Blocking, always.**                                                                                                                       |
+| Dead code          | None; no placeholders; no skipped tests                                                                                                                         |
 
 ---
 
