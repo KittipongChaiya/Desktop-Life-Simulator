@@ -21,12 +21,14 @@ import { createRoot } from 'react-dom/client';
 
 import type { ContentId, TileIndex } from '../../shared/ids';
 import { App } from '../app/App';
+import { createSoundBus } from '../app/audio';
 import { createCompanionController } from '../app/companion-controller';
 import { createOverlayController } from '../app/overlay-controller';
 import { createPlacementController } from '../app/placement';
 import { createReturnSummary, type ReturnSummaryReport } from '../app/return-summary';
 import { createSaveController } from '../app/save-controller';
 import { createSeedSelection } from '../app/seed-selection';
+import { Sound } from '../app/sounds';
 import { AppProviders } from '../app/store-context';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createWorkerSelection } from '../app/worker-selection';
@@ -39,6 +41,7 @@ import { ghostFor } from './placement-preview';
 import { createPlayerInput } from './player-input';
 import { attachPointerActions, toHighlight } from './pointer-actions';
 import { createSnapshotStore } from './snapshot-store';
+import { createWebAudioPorts } from './web-audio';
 import { createWorldMount } from './world-mount';
 
 import '../app/global.css';
@@ -209,6 +212,16 @@ function composeApplication(world: World, session: SaveSession): void {
   // Desktop-companion state (01.8a): app preferences behind main-process IPC —
   // the one controller whose writes never touch the world (ADR-014 §3).
   const companion = createCompanionController(window.desktopLife.companion);
+
+  // Sound (07.5a, ADR-016). The bus reads the companion's dials at PLAY time,
+  // so a volume change or a work-mode toggle takes effect on the next sound
+  // without anything re-subscribing. Audio is presentation and reaches the
+  // simulation nowhere: the sim cannot know sound exists (ADR-007 §1).
+  const sound = createSoundBus(createWebAudioPorts(), {
+    volumePercent: () => companion.volumePercent(),
+    muted: () => companion.muted(),
+    workMode: () => companion.workMode(),
+  });
   // Worker selection is presentation state, shared by the renderer (which draws
   // the selection box) and React (which shows the selected worker's state/task).
   const selection = createWorkerSelection();
@@ -391,6 +404,50 @@ function composeApplication(world: World, session: SaveSession): void {
     save.requestSave();
   });
 
+  // SOUND WIRING (07.5a). Every trigger is something that ALREADY HAPPENED —
+  // a published event or a settled snapshot — never an intent, so a rejected
+  // command is silent and the farm never lies about what it did.
+  world.events.subscribe('cropHarvested', () => {
+    sound.play(Sound.Harvest);
+  });
+  world.events.subscribe('itemSold', () => {
+    sound.play(Sound.Coin);
+  });
+
+  // A deposit is the moment goods reach the player's holdings — which is
+  // exactly the inventory slice growing. Harvest fires at the crop and this
+  // fires at the shed, far enough apart that they never read as one doubled
+  // sound.
+  //
+  // Counted in QUANTITY, not slots: topping up a partial stack is a deposit
+  // the player watched happen, and `usedSlots` would not move for it.
+  const heldQuantity = (): number =>
+    store.get('inventory').stacks.reduce((total, stack) => total + stack.quantity, 0);
+  let held = heldQuantity();
+  store.subscribe('inventory', () => {
+    const now = heldQuantity();
+    if (now > held) sound.play(Sound.Deposit);
+    held = now;
+  });
+
+  // A building APPEARING — not a placement being attempted. The ghost paints
+  // amber for illegal tiles and the dispatch rejects them; neither makes noise.
+  let placedBuildings = store.get('buildings').length;
+  store.subscribe('buildings', () => {
+    const count = store.get('buildings').length;
+    if (count > placedBuildings) sound.play(Sound.Placement);
+    placedBuildings = count;
+  });
+
+  selection.subscribe(() => {
+    // Selecting, not clearing: Esc should be quiet.
+    if (selection.selected() !== null) sound.play(Sound.Selection);
+  });
+
+  save.subscribe(() => {
+    if (save.status().state === 'failed') sound.play(Sound.Error);
+  });
+
   // The world view exists only while expanded. Collapsing destroys the GPU
   // context entirely (ADR-001 §2).
   const syncWorldToOverlay = (): void => {
@@ -410,6 +467,10 @@ function composeApplication(world: World, session: SaveSession): void {
   // The §9.4 return summary. The controller applies the over-a-minute gate,
   // so a plain relaunch holds nothing and shows nothing.
   const returnSummary = createReturnSummary(lastSummary);
+  // The one sound that greets the player rather than answering them. It plays
+  // only when there is genuinely something to report — the controller has
+  // already applied the over-a-minute gate — so a plain relaunch is silent.
+  if (returnSummary.report() !== null) sound.play(Sound.Notification);
 
   const container = document.getElementById('ui');
   if (container === null) throw new Error('#ui root is missing from index.html');
@@ -426,6 +487,7 @@ function composeApplication(world: World, session: SaveSession): void {
         companion={companion}
         save={save}
         returnSummary={returnSummary}
+        sound={sound}
       >
         <App />
       </AppProviders>

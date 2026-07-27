@@ -32,3 +32,9 @@ declare module '*.png' {
   const url: string;
   export default url;
 }
+
+declare module '*.wav' {
+  /** Vite rewrites the import to a bundled URL. Phase-07.5a, ADR-016. */
+  const url: string;
+  export default url;
+}

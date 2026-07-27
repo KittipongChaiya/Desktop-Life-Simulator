@@ -30,6 +30,13 @@ export const InvokeChannel = {
   /** Work mode toggle (phase-01.8c) — the `F11` action's IPC input. */
   ToggleWorkMode: 'companion:toggle-work-mode',
   /**
+   * Sets the volume dial, in percent (phase-07.5a, ADR-016). The companion's
+   * audible presence dial, sanitized in main exactly like opacity.
+   */
+  SetVolume: 'companion:set-volume',
+  /** Mute toggle (phase-07.5a) — independent of the dial, so unmuting restores it. */
+  ToggleMuted: 'companion:toggle-muted',
+  /**
    * Reads both save files from disk, parsed (phase-07c). Main's half of the
    * load pipeline (`ARCHITECTURE.md` §4.3): bytes → JSON with `.bak` routing;
    * migration, validation, and hydration run in the renderer.
@@ -101,6 +108,16 @@ export interface CompanionState {
   readonly clickThrough: boolean;
   /** Whether the overlay is quick-hidden (01.8b). */
   readonly hidden: boolean;
+  /**
+   * The volume dial's position, 0–100 (phase-07.5a, ADR-016).
+   *
+   * Audio rides the companion state because volume IS a presence dial: opacity
+   * governs how much the overlay intrudes on the eye, volume how much it
+   * intrudes on the ear. Work mode overrides both by the same precedence.
+   */
+  readonly volumePercent: number;
+  /** Whether sound is muted. True by default — sound is opt-in (`VISION.md` §5.1). */
+  readonly muted: boolean;
 }
 
 /**
@@ -141,6 +158,8 @@ export interface IpcContract {
   [InvokeChannel.ToggleHidden]: { request: void; response: CompanionState };
   [InvokeChannel.ToggleClickThrough]: { request: void; response: CompanionState };
   [InvokeChannel.ToggleWorkMode]: { request: void; response: CompanionState };
+  [InvokeChannel.SetVolume]: { request: number; response: CompanionState };
+  [InvokeChannel.ToggleMuted]: { request: void; response: CompanionState };
   [InvokeChannel.SaveLoad]: { request: void; response: SavesOnDisk };
   [InvokeChannel.SaveWrite]: { request: unknown; response: SaveWriteOutcome };
   [InvokeChannel.Quit]: { request: void; response: void };

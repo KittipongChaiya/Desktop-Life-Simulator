@@ -28,7 +28,12 @@ import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-wi
 import { atomicWriteSave, readSavesForLoad, slotPath } from './save-store';
 import { createSaveCoordinator, type SaveCoordinator } from './save-triggers';
 import { loadSettings, saveSettings } from './settings';
-import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type AppSettings } from './settings-schema';
+import {
+  DEFAULT_SETTINGS,
+  sanitizeOpacityPercent,
+  sanitizeVolumePercent,
+  type AppSettings,
+} from './settings-schema';
 import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
 
 /** `userData/saves` — never hardcoded (`PROJECT_STRUCTURE.md` §7). */
@@ -88,7 +93,31 @@ function companionState(): CompanionState {
     workMode: settings.desktop.workMode,
     clickThrough: clickThroughMode,
     hidden,
+    volumePercent: settings.audio.volumePercent,
+    muted: settings.audio.muted,
   };
+}
+
+/**
+ * The volume dial (07.5a). Sanitized here for the same reason opacity is:
+ * the renderer is untrusted, and the dial's range is the schema's to enforce.
+ * Nothing plays in main — this only persists and broadcasts the preference.
+ */
+function applyVolumePercent(next: number): CompanionState {
+  settings = {
+    ...settings,
+    audio: { ...settings.audio, volumePercent: sanitizeVolumePercent(next) },
+  };
+  broadcastCompanionState();
+  saveSettings(settings);
+  return companionState();
+}
+
+function toggleMuted(): CompanionState {
+  settings = { ...settings, audio: { ...settings.audio, muted: !settings.audio.muted } };
+  broadcastCompanionState();
+  saveSettings(settings);
+  return companionState();
 }
 
 function broadcastCompanionState(): void {
@@ -258,6 +287,17 @@ function registerIpc(): void {
   ipcMain.handle(InvokeChannel.ToggleWorkMode, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.ToggleWorkMode);
     return toggleWorkMode();
+  });
+
+  ipcMain.handle(InvokeChannel.SetVolume, (_event, payload: unknown) => {
+    const parsed = validateNumber(payload, InvokeChannel.SetVolume);
+    if (!parsed.ok) return companionState();
+    return applyVolumePercent(parsed.value);
+  });
+
+  ipcMain.handle(InvokeChannel.ToggleMuted, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.ToggleMuted);
+    return toggleMuted();
   });
 
   ipcMain.handle(InvokeChannel.SaveLoad, (_event, payload: unknown) => {

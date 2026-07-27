@@ -36,6 +36,10 @@ export interface DesktopLifeApi {
     toggleClickThrough(): Promise<CompanionState>;
     /** Work mode — the same action `F11` drives. */
     toggleWorkMode(): Promise<CompanionState>;
+    /** The volume dial (07.5a) — the audible sibling of `setOpacity`. */
+    setVolume(percent: number): Promise<CompanionState>;
+    /** Mute toggle (07.5a). Independent of the dial. */
+    toggleMuted(): Promise<CompanionState>;
     /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
     onStateChanged(listener: (state: CompanionState) => void): () => void;
   };
@@ -93,6 +97,11 @@ const api: DesktopLifeApi = {
 
     toggleWorkMode: () =>
       ipcRenderer.invoke(InvokeChannel.ToggleWorkMode) as Promise<CompanionState>,
+
+    setVolume: (percent) =>
+      ipcRenderer.invoke(InvokeChannel.SetVolume, percent) as Promise<CompanionState>,
+
+    toggleMuted: () => ipcRenderer.invoke(InvokeChannel.ToggleMuted) as Promise<CompanionState>,
 
     onStateChanged: (listener) => {
       const handler = (_event: unknown, state: CompanionState): void => {

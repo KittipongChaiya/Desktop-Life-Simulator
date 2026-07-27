@@ -37,6 +37,8 @@ const state = (overrides: Partial<BridgeState> = {}): BridgeState => ({
   workMode: false,
   clickThrough: false,
   hidden: false,
+  volumePercent: 60,
+  muted: true,
   ...overrides,
 });
 

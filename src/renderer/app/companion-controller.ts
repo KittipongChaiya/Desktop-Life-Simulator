@@ -7,13 +7,19 @@
  * `electron` dependency (CODE_STYLE.md §8.1).
  */
 
-import { OPACITY_DEFAULT_PERCENT } from '../../shared/constants';
+import {
+  AUDIO_MUTED_BY_DEFAULT,
+  OPACITY_DEFAULT_PERCENT,
+  VOLUME_DEFAULT_PERCENT,
+} from '../../shared/constants';
 
 interface CompanionState {
   readonly opacityPercent: number;
   readonly workMode: boolean;
   readonly clickThrough: boolean;
   readonly hidden: boolean;
+  readonly volumePercent: number;
+  readonly muted: boolean;
 }
 
 export interface CompanionController {
@@ -24,12 +30,19 @@ export interface CompanionController {
   /** Click-through MODE (the `Ctrl+Shift+C` override), not per-region hit-testing. */
   clickThrough(): boolean;
   hidden(): boolean;
+  /** The volume dial's position, 0–100 (07.5a). NOT the effective loudness. */
+  volumePercent(): number;
+  setVolumePercent(value: number): void;
+  muted(): boolean;
+  toggleMuted(): void;
   /** Subscribes to companion state. Returns teardown. */
   subscribe(listener: () => void): () => void;
 }
 
 export interface CompanionBridge {
   setOpacity(percent: number): Promise<CompanionState>;
+  setVolume(percent: number): Promise<CompanionState>;
+  toggleMuted(): Promise<CompanionState>;
   getState(): Promise<CompanionState>;
   onStateChanged(listener: (state: CompanionState) => void): () => void;
 }
@@ -41,6 +54,8 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     workMode: false,
     clickThrough: false,
     hidden: false,
+    volumePercent: VOLUME_DEFAULT_PERCENT,
+    muted: AUDIO_MUTED_BY_DEFAULT,
   };
 
   const notify = (): void => {
@@ -52,7 +67,9 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
       state.opacityPercent === next.opacityPercent &&
       state.workMode === next.workMode &&
       state.clickThrough === next.clickThrough &&
-      state.hidden === next.hidden
+      state.hidden === next.hidden &&
+      state.volumePercent === next.volumePercent &&
+      state.muted === next.muted
     ) {
       return;
     }
@@ -70,6 +87,21 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     workMode: () => state.workMode,
     clickThrough: () => state.clickThrough,
     hidden: () => state.hidden,
+    volumePercent: () => state.volumePercent,
+    muted: () => state.muted,
+
+    setVolumePercent(value) {
+      // Optimistic, exactly like opacity: the dial answers instantly and the
+      // NEXT sound is already at the new level, because the bus reads this
+      // state at play time rather than caching it.
+      setLocal({ ...state, volumePercent: value });
+      void bridge.setVolume(value);
+    },
+
+    toggleMuted() {
+      setLocal({ ...state, muted: !state.muted });
+      void bridge.toggleMuted();
+    },
 
     setOpacityPercent(value) {
       // Optimistic: the readout answers immediately; main sanitizes and

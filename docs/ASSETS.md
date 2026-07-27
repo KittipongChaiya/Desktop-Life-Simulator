@@ -53,15 +53,19 @@ A shared palette is what makes plugin-contributed art blend with core art. It is
 
 ## 3. Formats
 
-| Kind          | Source (`assets/src/`)             | Output (`assets/dist/`)            |
-| ------------- | ---------------------------------- | ---------------------------------- |
-| Sprites       | `.png` (32-bit RGBA) + `.aseprite` | Packed into atlas `.png` + `.json` |
-| Tiles         | `.png`, exactly 32×32              | Terrain atlas                      |
-| UI icons      | `.png`, 16×16 or 24×24             | `ui-world` atlas or DOM `<img>`    |
-| Audio (v0.2+) | `.wav` 44.1 kHz                    | `.ogg`                             |
-| Fonts         | `.ttf` / bitmap font               | Bitmap font atlas                  |
+| Kind     | Source (`assets/src/`)             | Output (`assets/dist/`)            |
+| -------- | ---------------------------------- | ---------------------------------- |
+| Sprites  | `.png` (32-bit RGBA) + `.aseprite` | Packed into atlas `.png` + `.json` |
+| Tiles    | `.png`, exactly 32×32              | Terrain atlas                      |
+| UI icons | `.png`, 16×16 or 24×24             | `ui-world` atlas or DOM `<img>`    |
+| Audio    | `.wav` 44.1 kHz mono               | `.wav`, bundled by Vite            |
+| Fonts    | `.ttf` / bitmap font               | Bitmap font atlas                  |
 
 **PNG only for source art.** JPEG is lossy and destroys pixel-art edges; WebP source complicates Aseprite round-tripping. Compression is the pipeline's job.
+
+**Audio arrived in v0.1**, earlier than this table originally planned (ADR-016). The placeholder set is synthesised by `scripts/generate-audio.mjs` into the gitignored `assets/dist/audio/`, on the same scripted-asset provenance as the pixel art: the script is the editable source and its git history is the version (ADR-006 §2). The files stay `.wav` rather than transcoding to `.ogg` — eight short mono clips total well under 200 KB, so a transcode pipe would add a dependency to save nothing.
+
+**Replacing a placeholder is a file drop.** Put a real `assets/src/audio/<name>.wav` in the tree and the generator copies it through instead of synthesising. No renderer code changes, because the game names sounds and never learns which of the two it got.
 
 ---
 

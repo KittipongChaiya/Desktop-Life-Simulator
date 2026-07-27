@@ -35,6 +35,8 @@ const companionState = (workMode = false): BridgeState => ({
   workMode,
   clickThrough: false,
   hidden: false,
+  volumePercent: 60,
+  muted: true,
 });
 
 const report = (overrides: Partial<ReturnSummaryReport> = {}): ReturnSummaryReport => ({

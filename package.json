@@ -13,7 +13,7 @@
     "build": "npm run assets && npm run typecheck && electron-vite build",
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder --win --x64",
-    "assets": "assetpack --config .assetpack.js && node scripts/generate-sprite-manifest.mjs",
+    "assets": "assetpack --config .assetpack.js && node scripts/generate-sprite-manifest.mjs && node scripts/generate-audio.mjs",
     "assets:watch": "assetpack --config .assetpack.js --watch",
     "typecheck": "npm run typecheck:sim && npm run typecheck:main && npm run typecheck:renderer",
     "typecheck:sim": "tsc --noEmit -p tsconfig.sim.json",

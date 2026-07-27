@@ -23,6 +23,8 @@ declare global {
         toggleHidden(): Promise<CompanionState>;
         toggleClickThrough(): Promise<CompanionState>;
         toggleWorkMode(): Promise<CompanionState>;
+        setVolume(percent: number): Promise<CompanionState>;
+        toggleMuted(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
       };
       readonly save: {

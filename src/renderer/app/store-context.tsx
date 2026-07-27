@@ -10,6 +10,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
+import type { SoundBus } from './audio';
 import type { CompanionController } from './companion-controller';
 import type { OverlayController } from './overlay-controller';
 import type { PlacementController } from './placement';
@@ -35,6 +36,8 @@ interface AppServices {
   readonly save: SaveController;
   /** The offline-progress summary this session came back to (07e, §9.4). */
   readonly returnSummary: ReturnSummaryController;
+  /** The sound bus (07.5a, ADR-016). Audibility is decided inside it. */
+  readonly sound: SoundBus;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -49,6 +52,7 @@ export interface AppProvidersProps {
   readonly companion: CompanionController;
   readonly save: SaveController;
   readonly returnSummary: ReturnSummaryController;
+  readonly sound: SoundBus;
   readonly children: ReactNode;
 }
 
@@ -62,6 +66,7 @@ export function AppProviders({
   companion,
   save,
   returnSummary,
+  sound,
   children,
 }: AppProvidersProps): ReactNode {
   return (
@@ -76,6 +81,7 @@ export function AppProviders({
         companion,
         save,
         returnSummary,
+        sound,
       }}
     >
       {children}
@@ -125,4 +131,8 @@ export function useSave(): SaveController {
 
 export function useReturnSummary(): ReturnSummaryController {
   return useServices().returnSummary;
+}
+
+export function useSound(): SoundBus {
+  return useServices().sound;
 }

@@ -19,10 +19,15 @@
  */
 
 import {
+  AUDIO_MUTED_BY_DEFAULT,
   OPACITY_DEFAULT_PERCENT,
   OPACITY_MAX_PERCENT,
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
+  VOLUME_DEFAULT_PERCENT,
+  VOLUME_MAX_PERCENT,
+  VOLUME_MIN_PERCENT,
+  VOLUME_STEP_PERCENT,
 } from '../shared/constants';
 
 /** How the overlay window is arranged. */
@@ -38,14 +43,28 @@ export interface DesktopSettings {
   readonly workMode: boolean;
 }
 
+/**
+ * The audio family (phase-07.5a, ADR-016) — the category this schema's header
+ * anticipated. Preferences, never game state: a save may not carry them and
+ * loading one may not change them.
+ */
+export interface AudioSettings {
+  /** The volume dial's position, 0–100 in steps of 5. */
+  readonly volumePercent: number;
+  /** Mute, independent of the dial, so unmuting restores the chosen level. */
+  readonly muted: boolean;
+}
+
 export interface AppSettings {
   readonly overlay: OverlaySettings;
   readonly desktop: DesktopSettings;
+  readonly audio: AudioSettings;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   overlay: { collapsed: false },
   desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
+  audio: { volumePercent: VOLUME_DEFAULT_PERCENT, muted: AUDIO_MUTED_BY_DEFAULT },
 };
 
 /**
@@ -62,6 +81,14 @@ export function sanitizeOpacityPercent(value: unknown): number {
 
   const clamped = Math.min(OPACITY_MAX_PERCENT, Math.max(OPACITY_MIN_PERCENT, value));
   return Math.round(clamped / OPACITY_STEP_PERCENT) * OPACITY_STEP_PERCENT;
+}
+
+/** The same treatment for the volume dial, whose floor is silence. */
+export function sanitizeVolumePercent(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return VOLUME_DEFAULT_PERCENT;
+
+  const clamped = Math.min(VOLUME_MAX_PERCENT, Math.max(VOLUME_MIN_PERCENT, value));
+  return Math.round(clamped / VOLUME_STEP_PERCENT) * VOLUME_STEP_PERCENT;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -86,6 +113,10 @@ export function parseSettings(value: unknown): AppSettings {
 
   const overlay = asRecord(record['overlay']) ?? record;
   const desktop = asRecord(record['desktop']) ?? record;
+  // An absent audio category is the ordinary case for every settings file
+  // written before 07.5a: it falls back to the defaults, and the next write
+  // adds the category in place. That is the whole point of categorising.
+  const audio = asRecord(record['audio']) ?? {};
 
   return {
     overlay: {
@@ -94,6 +125,10 @@ export function parseSettings(value: unknown): AppSettings {
     desktop: {
       opacityPercent: sanitizeOpacityPercent(desktop['opacityPercent']),
       workMode: readBoolean(desktop['workMode'], DEFAULT_SETTINGS.desktop.workMode),
+    },
+    audio: {
+      volumePercent: sanitizeVolumePercent(audio['volumePercent']),
+      muted: readBoolean(audio['muted'], DEFAULT_SETTINGS.audio.muted),
     },
   };
 }

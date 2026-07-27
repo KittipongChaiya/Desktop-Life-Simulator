@@ -28,12 +28,24 @@ interface Harness {
   readonly setOpacityCalls: number[];
   /** Writes the manual save button actually caused. */
   readonly saveWrites: () => number;
+  /** Volume values the dial pushed to main (07.5a). */
+  readonly setVolumeCalls: number[];
+  readonly muteToggles: () => number;
 }
 
 function mount(
-  initial = { opacityPercent: 100, workMode: false, clickThrough: false, hidden: false },
+  initial = {
+    opacityPercent: 100,
+    workMode: false,
+    clickThrough: false,
+    hidden: false,
+    volumePercent: 60,
+    muted: true,
+  },
 ): Harness {
   const setOpacityCalls: number[] = [];
+  const setVolumeCalls: number[] = [];
+  let muteToggles = 0;
   // A real save controller over a counting write: the button must reach the
   // ONE save path, not a shortcut of its own (07e).
   let saveWrites = 0;
@@ -47,12 +59,15 @@ function mount(
   const bridge: CompanionBridge = {
     setOpacity(percent) {
       setOpacityCalls.push(percent);
-      return Promise.resolve({
-        opacityPercent: percent,
-        workMode: false,
-        clickThrough: false,
-        hidden: false,
-      });
+      return Promise.resolve({ ...initial, opacityPercent: percent });
+    },
+    setVolume(percent) {
+      setVolumeCalls.push(percent);
+      return Promise.resolve({ ...initial, volumePercent: percent });
+    },
+    toggleMuted() {
+      muteToggles += 1;
+      return Promise.resolve({ ...initial, muted: !initial.muted });
     },
     getState: () => Promise.resolve(initial),
     onStateChanged: () => () => undefined,
@@ -76,7 +91,12 @@ function mount(
     </StrictMode>,
   );
 
-  return { setOpacityCalls, saveWrites: () => saveWrites };
+  return {
+    setOpacityCalls,
+    saveWrites: () => saveWrites,
+    setVolumeCalls,
+    muteToggles: () => muteToggles,
+  };
 }
 
 const openPanel = (): void => {
@@ -173,5 +193,63 @@ describe('the manual save button (07e, `SAVE_FORMAT.md` §7.2)', () => {
 
     // One in flight plus its single follow-up — never one write per click.
     expect(harness.saveWrites()).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('the sound controls (07.5a, ADR-016)', () => {
+  it('ships muted — the dial is disabled until the player asks for sound', async () => {
+    // The default that matters: an overlay must not make noise unasked.
+    mount();
+    openPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('button', { name: 'Off' })).toBeDefined();
+    expect(screen.getByRole('slider', { name: 'Sound' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('the mute button reports state, not the action it would take', async () => {
+    // `aria-pressed` and the label must agree, or a screen reader and a glance
+    // tell the player opposite things.
+    mount();
+    openPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const button = screen.getByRole('button', { name: 'Off' });
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('toggling mute reaches main', async () => {
+    const harness = mount();
+    openPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Off' }));
+
+    expect(harness.muteToggles()).toBe(1);
+  });
+
+  it('a volume change updates the readout instantly and reaches main', async () => {
+    const harness = mount({
+      opacityPercent: 100,
+      workMode: false,
+      clickThrough: false,
+      hidden: false,
+      volumePercent: 60,
+      muted: false,
+    });
+    openPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Sound' }), { target: { value: '25' } });
+
+    expect(harness.setVolumeCalls).toEqual([25]);
   });
 });

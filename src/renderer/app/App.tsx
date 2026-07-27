@@ -22,11 +22,13 @@ import { ShopPanel } from './hud/ShopPanel';
 import { StatusBar } from './hud/StatusBar';
 import { WorkerInfo } from './hud/WorkerInfo';
 import { WorkerPanel } from './hud/WorkerPanel';
-import { useCompanion, useOverlay } from './store-context';
+import { Sound } from './sounds';
+import { useCompanion, useOverlay, useSound } from './store-context';
 
 export function App(): ReactNode {
   const overlay = useOverlay();
   const companion = useCompanion();
+  const sound = useSound();
 
   const collapsed = useSyncExternalStore(
     (listener) => overlay.subscribe(listener),
@@ -64,6 +66,24 @@ export function App(): ReactNode {
       window.removeEventListener('pointerleave', onPointerLeave);
     };
   }, [overlay]);
+
+  useEffect(() => {
+    // ONE delegated listener rather than a sound call in every button (07.5a).
+    // Buttons are added by every future panel, and a per-button call is a
+    // rule that gets forgotten; this cannot be. Bubble phase, so a handler
+    // that stops propagation has genuinely opted out.
+    const onClick = (event: MouseEvent): void => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('button') !== null) {
+        sound.play(Sound.UiClick);
+      }
+    };
+
+    window.addEventListener('click', onClick);
+    return () => {
+      window.removeEventListener('click', onClick);
+    };
+  }, [sound]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

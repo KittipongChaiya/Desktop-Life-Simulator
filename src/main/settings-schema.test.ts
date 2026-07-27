@@ -54,6 +54,7 @@ describe('parseSettings — the categorized application settings model', () => {
     const settings = {
       overlay: { collapsed: true },
       desktop: { opacityPercent: 60, workMode: true },
+      audio: { volumePercent: 40, muted: false },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
   });
@@ -69,6 +70,7 @@ describe('parseSettings — the categorized application settings model', () => {
     expect(parseSettings({ collapsed: true, opacityPercent: 60, workMode: true })).toEqual({
       overlay: { collapsed: true },
       desktop: { opacityPercent: 60, workMode: true },
+      audio: DEFAULT_SETTINGS.audio,
     });
   });
 
@@ -76,6 +78,7 @@ describe('parseSettings — the categorized application settings model', () => {
     expect(parseSettings({ collapsed: true })).toEqual({
       overlay: { collapsed: true },
       desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
+      audio: DEFAULT_SETTINGS.audio,
     });
   });
 
@@ -89,6 +92,7 @@ describe('parseSettings — the categorized application settings model', () => {
     ).toEqual({
       overlay: { collapsed: true }, // no overlay category — flat fallback applies
       desktop: { opacityPercent: 40, workMode: false },
+      audio: DEFAULT_SETTINGS.audio,
     });
   });
 
@@ -101,6 +105,7 @@ describe('parseSettings — the categorized application settings model', () => {
     ).toEqual({
       overlay: { collapsed: false },
       desktop: { opacityPercent: 60, workMode: false },
+      audio: DEFAULT_SETTINGS.audio,
     });
   });
 
@@ -109,9 +114,53 @@ describe('parseSettings — the categorized application settings model', () => {
       parseSettings({
         overlay: { collapsed: false },
         desktop: { opacityPercent: 100, workMode: false },
-        audio: { volume: 0.5 }, // a future category must never break parsing
+        graphics: { scale: 2 }, // a future category must never break parsing
       }),
     ).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+/**
+ * The audio category (phase-07.5a, ADR-016) — the family this schema's header
+ * anticipated, and the first proof that adding one is compatible.
+ */
+describe('the audio category', () => {
+  it('defaults to MUTED — sound is opt-in (`VISION.md` §5.1)', () => {
+    // Not a stub and not an oversight: an overlay that starts making noise
+    // unasked is the most intrusive thing this product could do.
+    expect(DEFAULT_SETTINGS.audio.muted).toBe(true);
+    expect(parseSettings({}).audio.muted).toBe(true);
+  });
+
+  it('round-trips a chosen volume and mute state', () => {
+    const parsed = parseSettings({ audio: { volumePercent: 35, muted: false } });
+
+    expect(parsed.audio).toEqual({ volumePercent: 35, muted: false });
+  });
+
+  it('an absent category upgrades in place — every file written before 07.5a', () => {
+    // The real migration case: settings.json on a player's disk today has no
+    // audio key at all, and must not be discarded or reset because of it.
+    const parsed = parseSettings({
+      overlay: { collapsed: true },
+      desktop: { opacityPercent: 45, workMode: true },
+    });
+
+    expect(parsed.desktop).toEqual({ opacityPercent: 45, workMode: true });
+    expect(parsed.audio).toEqual(DEFAULT_SETTINGS.audio);
+  });
+
+  it('clamps and snaps the dial, and keeps silence reachable', () => {
+    expect(parseSettings({ audio: { volumePercent: 999 } }).audio.volumePercent).toBe(100);
+    expect(parseSettings({ audio: { volumePercent: -50 } }).audio.volumePercent).toBe(0);
+    expect(parseSettings({ audio: { volumePercent: 37 } }).audio.volumePercent).toBe(35);
+  });
+
+  it('falls back per field — one bad value never discards its neighbour', () => {
+    const parsed = parseSettings({ audio: { volumePercent: 'loud', muted: false } });
+
+    expect(parsed.audio.volumePercent).toBe(DEFAULT_SETTINGS.audio.volumePercent);
+    expect(parsed.audio.muted).toBe(false);
   });
 });
 

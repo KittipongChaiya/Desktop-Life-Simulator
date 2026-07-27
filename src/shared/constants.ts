@@ -67,3 +67,26 @@ export const OPACITY_MIN_PERCENT = 30;
 export const OPACITY_MAX_PERCENT = 100;
 export const OPACITY_STEP_PERCENT = 5;
 export const OPACITY_DEFAULT_PERCENT = 100;
+
+/**
+ * The volume dial (phase-07.5a, ADR-016) — the companion's FIFTH presence
+ * dial, and the audible sibling of the opacity one above.
+ *
+ * Unlike opacity it reaches zero: silence is a position a player may want
+ * without reaching for the mute toggle.
+ */
+export const VOLUME_MIN_PERCENT = 0;
+export const VOLUME_MAX_PERCENT = 100;
+export const VOLUME_STEP_PERCENT = 5;
+export const VOLUME_DEFAULT_PERCENT = 60;
+
+/**
+ * Sound is OFF until asked for.
+ *
+ * An overlay that starts making noise the moment it launches — beside a call,
+ * a game, a focused hour — is the most intrusive thing this product could do
+ * (`VISION.md` §5.1: never a notification spammer). The bus is fully wired and
+ * one toggle away; nothing about this default is unfinished. Flipping it is a
+ * one-constant decision, deliberately recorded as such.
+ */
+export const AUDIO_MUTED_BY_DEFAULT = true;

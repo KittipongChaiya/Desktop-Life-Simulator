@@ -17,6 +17,9 @@ import {
   OPACITY_MAX_PERCENT,
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
+  VOLUME_MAX_PERCENT,
+  VOLUME_MIN_PERCENT,
+  VOLUME_STEP_PERCENT,
 } from '../../../shared/constants';
 import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
 import type { SaveState } from '../save-controller';
@@ -65,6 +68,18 @@ export function SettingsPanel(): ReactNode {
     () => save.status().state,
   );
 
+  const volume = useSyncExternalStore(
+    (listener) => companion.subscribe(listener),
+    () => companion.volumePercent(),
+    () => companion.volumePercent(),
+  );
+
+  const muted = useSyncExternalStore(
+    (listener) => companion.subscribe(listener),
+    () => companion.muted(),
+    () => companion.muted(),
+  );
+
   return (
     <div className={styles['container']} data-interactive data-testid="settings">
       <button
@@ -96,6 +111,43 @@ export function SettingsPanel(): ReactNode {
               }}
             />
             <span className={styles['value']}>{opacity}%</span>
+          </div>
+
+          {/* Sound (07.5a, ADR-016). The audible presence dial, sitting with
+              the visual one because they are the same kind of decision: how
+              much of your attention this thing may take. Muted by default —
+              an overlay that starts making noise unasked is the most
+              intrusive thing this product could do (`VISION.md` §5.1). */}
+          <div className={styles['row']}>
+            <label className={styles['name']} htmlFor="companion-volume">
+              Sound
+            </label>
+            <input
+              id="companion-volume"
+              className={styles['slider']}
+              type="range"
+              min={VOLUME_MIN_PERCENT}
+              max={VOLUME_MAX_PERCENT}
+              step={VOLUME_STEP_PERCENT}
+              value={volume}
+              disabled={muted}
+              onChange={(event) => {
+                companion.setVolumePercent(Number(event.target.value));
+              }}
+            />
+            <button
+              type="button"
+              className={styles['action']}
+              aria-pressed={muted}
+              // The label states the CURRENT state rather than the action, so
+              // a screen reader and a glance agree with `aria-pressed`.
+              title={muted ? 'Sound is off' : 'Sound is on'}
+              onClick={() => {
+                companion.toggleMuted();
+              }}
+            >
+              {muted ? 'Off' : 'On'}
+            </button>
           </div>
 
           {/* Manual save (`SAVE_FORMAT.md` §7.2, the last trigger). It rides
