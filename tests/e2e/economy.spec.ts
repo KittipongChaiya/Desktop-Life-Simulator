@@ -8,9 +8,13 @@
  * exercised as one continuous session.
  */
 
-import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { expect, test, type ElectronApplication } from '@playwright/test';
+
+import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
+/** The throwaway profile this spec runs on (07e — the app saves itself now). */
+let session: IsolatedSession;
 
 async function setCollapsed(collapsed: boolean): Promise<void> {
   const window = await app.firstWindow();
@@ -36,7 +40,8 @@ async function consoleCommand(command: string): Promise<void> {
 }
 
 test.beforeEach(async () => {
-  app = await electron.launch({ args: ['.'] });
+  session = await launchIsolated();
+  app = session.app;
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
   // Fund the session through the declared dev source — the loop's MECHANICS
@@ -45,7 +50,7 @@ test.beforeEach(async () => {
 });
 
 test.afterEach(async () => {
-  await app.close();
+  await session.dispose();
 });
 
 test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', async () => {

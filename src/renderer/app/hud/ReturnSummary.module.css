@@ -1,0 +1,67 @@
+/* Return summary. Phase-07e — GAME_DESIGN.md §9.4, §10.1. */
+
+.panel {
+  position: absolute;
+  top: 56px; /* under the status bar, clear of the toast slot's centre */
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 168px;
+  padding: 8px 10px;
+  background: rgba(20, 22, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #e8e8ec;
+  font:
+    12px/1.35 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+.headline {
+  font-weight: 600;
+}
+
+.figures {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+}
+
+.figure dt {
+  color: rgba(232, 232, 236, 0.62);
+  font-size: 11px;
+}
+
+.figure dd {
+  margin: 0;
+  /* The two numbers that matter, large enough to read peripherally (§10.1). */
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Not an error — a reason to build more storage. Amber, never red (§10.1). */
+.blocker {
+  color: #e3b341;
+}
+
+.dismiss {
+  align-self: flex-start;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dismiss:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

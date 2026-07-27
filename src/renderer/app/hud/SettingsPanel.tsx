@@ -19,7 +19,8 @@ import {
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
 import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
-import { useCompanion } from '../store-context';
+import type { SaveState } from '../save-controller';
+import { useCompanion, useSave } from '../store-context';
 
 import styles from './SettingsPanel.module.css';
 
@@ -35,14 +36,33 @@ const ACTION_LABELS: Readonly<Record<ShortcutAction, string>> = {
   [ShortcutAction.ClickThrough]: 'Click-through',
 };
 
+/**
+ * The manual save button's own label. The failure case deliberately does NOT
+ * appear here — a failure gets the `SaveNotice`, which carries the path and
+ * does not vanish when the panel is closed.
+ */
+const SAVE_LABELS: Readonly<Record<SaveState, string>> = {
+  idle: 'Save now',
+  saving: 'Saving…',
+  saved: 'Saved',
+  failed: 'Save now',
+};
+
 export function SettingsPanel(): ReactNode {
   const companion = useCompanion();
+  const save = useSave();
   const [open, setOpen] = useState(false);
 
   const opacity = useSyncExternalStore(
     (listener) => companion.subscribe(listener),
     () => companion.opacityPercent(),
     () => companion.opacityPercent(),
+  );
+
+  const saveState = useSyncExternalStore(
+    (listener) => save.subscribe(listener),
+    () => save.status().state,
+    () => save.status().state,
   );
 
   return (
@@ -76,6 +96,23 @@ export function SettingsPanel(): ReactNode {
               }}
             />
             <span className={styles['value']}>{opacity}%</span>
+          </div>
+
+          {/* Manual save (`SAVE_FORMAT.md` §7.2, the last trigger). It rides
+              the SAME controller every automatic trigger uses — one
+              serialization site, one coalescing rule, no privileged path. */}
+          <div className={styles['section']}>Game</div>
+          <div className={styles['row']}>
+            <span className={styles['name']}>Save</span>
+            <button
+              type="button"
+              className={styles['action']}
+              onClick={() => {
+                save.requestSave();
+              }}
+            >
+              {SAVE_LABELS[saveState]}
+            </button>
           </div>
 
           <div className={styles['section']}>Shortcuts</div>

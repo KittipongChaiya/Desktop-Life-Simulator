@@ -117,3 +117,75 @@ describe('atomicWriteSave / readSavesForLoad', () => {
     });
   });
 });
+
+/**
+ * Write failures — phase-07e, acceptance criterion 20 and `SAVE_FORMAT.md`
+ * §7.3: a failed save never crashes the game and never damages the existing
+ * save.
+ *
+ * Every case here is a REAL filesystem refusal, produced by putting something
+ * genuinely in the way, not by mocking `fs` — the phase doc's rule for the
+ * crash-safety tests applies just as much to the failure ones. What each
+ * asserts is the same pair: the call throws (so main can report it), and the
+ * good save already on disk is byte-for-byte untouched.
+ *
+ * DISK FULL is deliberately not simulated. ENOSPC arrives from the same
+ * `writeSync`/`renameSync` calls these cases already make throw, lands in the
+ * same `catch` in `index.ts`, and cannot be forced without filling a real
+ * volume. Claiming a mocked ENOSPC as coverage would be claiming a test of
+ * Node's error plumbing as a test of ours.
+ */
+describe('write failures leave the existing save intact (criterion 20)', () => {
+  /** A known-good save on disk, plus a reader that proves it survived. */
+  function goodSaveOnDisk(): () => unknown {
+    atomicWriteSave(dir, doc(100), 100);
+    return () => readSavesForLoad(dir).primary;
+  }
+
+  it('the temp file cannot be opened (step 2)', () => {
+    const survived = goodSaveOnDisk();
+    // A directory where the temp file must go: openSync refuses outright.
+    mkdirSync(join(dir, 'slot-0.json.tmp'), { recursive: true });
+
+    expect(() => atomicWriteSave(dir, doc(200), 200)).toThrow();
+    expect(survived()).toEqual({ schemaVersion: 1, tick: 100 });
+  });
+
+  it('the .bak rotation is refused (step 4)', () => {
+    const survived = goodSaveOnDisk();
+    // A directory where the backup must go: renameSync onto it is EPERM.
+    mkdirSync(join(dir, 'slot-0.json.bak'), { recursive: true });
+
+    expect(() => atomicWriteSave(dir, doc(200), 200)).toThrow();
+    // The slot is still the good save — the rotation failed BEFORE the
+    // publish, which is exactly why §7.1 orders it that way.
+    expect(survived()).toEqual({ schemaVersion: 1, tick: 100 });
+  });
+
+  it('the saves directory cannot exist at all (permission-denied shape)', () => {
+    // A FILE where the directory must be: mkdirSync fails with the same
+    // class of refusal a locked-down profile directory produces, before any
+    // save file is touched.
+    const blocked = join(dir, 'blocked');
+    writeFileSync(blocked, 'not a directory', 'utf8');
+
+    expect(() => atomicWriteSave(join(blocked, 'saves'), doc(200), 200)).toThrow();
+    // And the real saves directory, elsewhere, is untouched by the attempt.
+    expect(readSavesForLoad(dir).missing).toBe(true);
+  });
+
+  it('a failed write never leaves a torn slot behind', () => {
+    const survived = goodSaveOnDisk();
+    mkdirSync(join(dir, 'slot-0.json.bak'), { recursive: true });
+
+    try {
+      atomicWriteSave(dir, doc(200), 200);
+    } catch {
+      // The point of the test is what is on disk afterwards.
+    }
+
+    const saves = readSavesForLoad(dir);
+    expect(saves.missing).toBe(false);
+    expect(survived()).toEqual({ schemaVersion: 1, tick: 100 });
+  });
+});

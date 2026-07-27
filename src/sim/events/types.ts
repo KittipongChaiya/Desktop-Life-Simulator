@@ -1,10 +1,17 @@
 /**
  * Event definitions.
  *
- * ONLY events with a real producer AND a real consumer today. `WorldLoaded` and
- * `WorldSaved` arrive with the save system in phase-07, where they immediately
- * gain publishers, subscribers, and tests. Defining them now would create
- * unreachable types — the speculative-API pattern `AI_RULES.md` §1.6 forbids.
+ * ONLY events with a real producer AND a real consumer today.
+ *
+ * `WorldLoaded` and `WorldSaved` were expected to arrive with the save system.
+ * Phase-07 shipped complete WITHOUT them, and they are deliberately still
+ * absent: the sim never learns saves exist (`ARCHITECTURE.md` §2.1), so both
+ * would have a publisher outside it and no subscriber inside it. Load
+ * reporting reaches the player through the composition root's return summary
+ * and the devtools note; save reporting through the save controller's status.
+ * Adding the events anyway would be the unreachable-type pattern
+ * `AI_RULES.md` §1.6 forbids — the very thing this comment was written to
+ * prevent. They arrive if and when a SIMULATION system needs to react.
  *
  * Naming: PastTense, describing something that HAS HAPPENED. An event is a
  * statement of fact, never a request. `cropHarvested`, not `harvestCrop` — a

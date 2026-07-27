@@ -81,6 +81,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The manual save button (07e). Sized like a `.keys` chip so the Game row
+   lines up with the shortcut rows beneath it. */
+.action {
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  background: rgba(40, 44, 54, 0.8);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.action:hover {
+  background: rgba(56, 62, 74, 0.9);
+}
+
 .keys {
   padding: 1px 6px;
   border: 1px solid rgba(255, 255, 255, 0.18);

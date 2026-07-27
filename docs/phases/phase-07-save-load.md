@@ -29,7 +29,18 @@ The cost of going last is that this phase touches every system built so far. Tha
 | 07b | Migration chain & validation           | `Migration` interface + ordered runner with startup chain validation, synthetic two-step chain proof, golden fixtures (`v1-empty`, `v1-mature-farm`), structural + semantic validation with logged repairs, unknown-content quarantine        | **Delivered** |
 | 07c | Disk & the load pipeline               | Main-process atomic six-step write, `.bak` fallback, `backups/` pruning, forward-version refusal, typed IPC save/load channels, crash-safety + corruption tests, E2E quit → relaunch exact                                                    | **Delivered** |
 | 07d | Offline progress                       | `catch-up.ts` orchestration; economy exact recovery, workers statistical (rounded down at every step), auto-sell, capacity bounds + blocker reporting, 8-hour cap, negative-time clamp, < 50 ms at cap; never-over-credit property            | **Delivered** |
-| 07e | Autosave, return summary & phase close | Autosave triggers + coalescing, failure notifications, manual save, the return summary (defers in work mode, ADR-014), kill-mid-save E2E, size guard, the full v0.1 release-gate run                                                          | —             |
+| 07e | Autosave, return summary & phase close | Autosave triggers + coalescing, failure notifications, manual save, the return summary (defers in work mode, ADR-014), kill-mid-save E2E, size guard, the full v0.1 release-gate run                                                          | **Delivered** |
+
+### Delivered (07e) — autosave, the return summary & phase close
+
+- **Triggers in main, the document in the renderer** (`src/main/save-triggers.ts`, no `electron` import, every timer injected): the 60-second cadence derives its period from `AUTOSAVE_INTERVAL_TICKS` rather than restating "60 s", so the wall-clock timer main needs cannot drift from the tick constant the spec sets. Quit **blocks shutdown** through a rendezvous with the `save:write` handler — `before-quit` defers once, waits, then re-issues — and every exit from that handler settles the wait, so a save that FAILED releases shutdown just as surely as one that succeeded (a full disk must not become a hang). The wait is capped at 3 s: a wedged renderer can delay quit, never prevent it. Close-to-tray maps to quick hide, the one state where the window stops being present and the tray is the way back.
+- **Coalescing lives in exactly one place** (`save-controller.ts`), because only the renderer can see a write in flight. One write at a time, and however many triggers arrive during it they collapse to a **single** follow-up — collapsed, not dropped: the trigger that lands mid-write is often the quit save, the one save with no next chance. Serialization is deferred into a later task (`setTimeout(0)`, deliberately not a microtask, which would still run inside the frame that queued it), so the transaction trigger — which fires from a snapshot subscriber, inside `store.pump`, inside a frame — never spends a frame budget on JSON.
+- **The major-transaction trigger reads the snapshot, not the command stream** (`transaction-watch.ts`): a command can be submitted and rejected, but a slice only changes when the world did. Worker count, building count, and the expansion counter are monotone in v0.1, so a GROWTH test is the whole rule and a future shrink (firing a worker, v0.3) can never masquerade as a purchase.
+- **The return summary defers rather than vanishes** (ADR-014's stated requirement, and the reason work mode had to ship before phase-07): the controller holds the report, the component decides visibility, so work mode hides the summary without touching what is held, and leaving work mode shows the player what they never got to read. Only a dismissal clears it. The over-a-minute gate is `RETURN_SUMMARY_MIN_TICKS` — its own constant, not a reuse of the autosave interval it happens to equal, because one is a cadence and the other a threshold. The §9.4 blocker line converts the report's absolute `atTick` back to elapsed-relative time: "Storage full after 2h 14m".
+- **A save failure is survivable, and says where** (§7.3): `SaveWriteOutcome` carries the PATH on failure — only main knows it, and the renderer must never derive one (ADR-003 §3) — because "permission denied" is a shrug and the file name is something a player can act on. The notice persists instead of auto-dismissing (a missed mode toast is nothing; a missed save failure is trust in a save that is not there), clears itself when a later save succeeds, and shows **in work mode too**: withholding "your game is not being saved" to keep the desktop quiet is not quiet, it is misleading. It is the one place `GAME_DESIGN.md` §10.1's red is correct.
+- **Write failures are real refusals, not mocked ones** — a directory where the temp file must go, a directory where `.bak` must go, a file where the saves directory must be. Each asserts the same pair: the call throws so main can report it, and the good save already on disk is untouched. **Disk full is deliberately not simulated**: ENOSPC arrives from the same calls these cases already make throw and lands in the same `catch`, and mocking it would test Node's error plumbing rather than ours.
+- **Measured** (on the reference `v1-mature-farm` fixture): reference save **38,730 bytes** against a 2 MB ceiling (crit 23); serialization **0.64 ms** median against 100 ms (crit 21); load + catch-up at the full 8-hour cap **1.35 ms** median against 1.5 s (crit 22); memory growth over an accelerated 8-hour run **10,112 bytes** against 25 MB (crit 26) — essentially flat, which is the point: the gate exists to catch a collection that grows with PLAYTIME rather than world size (`SAVE_FORMAT.md` §3.4's named hazard), and 576,000 real ticks is long enough that any per-tick retention would be unmistakable. That run costs minutes, so it carries its own 300 s timeout rather than raising the suite's.
+- **E2E against the real app**: quitting saves by itself with nobody asking (crits 19, 25); the autosave cadence fires on the **real 60-second constant** with no test seam shortening it — an autosave that only fires when a test asks is not an autosave, which is why that test is slow and why it is worth being slow; a worker hire saves inside 10 s, far short of the cadence; and SIGKILL during a burst of writes still leaves a parseable save that relaunches into the same farm (crits 4, 25). **Every E2E spec now runs on a throwaway profile** (`isolated-profile.ts`): isolation was optional while nothing wrote saves, but an app that saves itself would otherwise write its test farm into the developer's real save and load it back on the next run.
 
 ### Delivered (07d) — offline progress
 
@@ -131,17 +142,17 @@ The cost of going last is that this phase touches every system built so far. Tha
 
 ### Autosave
 
-- [ ] Every 60 s, before quit, on close-to-tray, after major transactions, on manual request
-- [ ] Serialization off the render path
-- [ ] In-flight saves coalesce rather than queue
-- [ ] Failures notify and keep playing — **never crash, never damage the existing save**
+- [x] Every 60 s, before quit, on close-to-tray, after major transactions, on manual request _(07e — the cadence, quit, and hide in `save-triggers.ts`; transactions off the snapshot; manual through the same controller. Close-to-tray is quick hide, this app's only true absence)_
+- [x] Serialization off the render path _(07e — deferred to a later task, because the transaction trigger fires from inside a frame)_
+- [x] In-flight saves coalesce rather than queue _(07e — one in flight, one follow-up slot; collapsed, never dropped)_
+- [x] Failures notify and keep playing — **never crash, never damage the existing save** _(07e — status → notice; the throw path never reaches disk at all)_
 
 ### UI
 
-- [ ] Return summary after a gap over 60 s: time away, harvested, earned, and **what blocked progress**
-- [ ] Dismissible; never modal
-- [ ] Manual save button in settings
-- [ ] Save-failure notification with the path
+- [x] Return summary after a gap over 60 s: time away, harvested, earned, and **what blocked progress** _(07e — `RETURN_SUMMARY_MIN_TICKS`; the blocker line is elapsed-relative)_
+- [x] Dismissible; never modal _(07e — `role="status"`, focus untouched, the world runs behind it)_
+- [x] Manual save button in settings _(07e — reports its outcome on the button; no toast for a save that worked)_
+- [x] Save-failure notification with the path _(07e — the path travels on `SaveWriteOutcome`; only main knows it)_
 
 ### IPC
 
@@ -228,21 +239,64 @@ The cost of going last is that this phase touches every system built so far. Tha
 - [x] Catch-up: capacity bounds and blocker reporting _(07d)_
 - [x] Catch-up: clock moved backwards _(07d — clamped to zero, never a rewind)_
 - [x] Catch-up: at exactly the 8-hour cap and beyond _(07d — capped, and < 50 ms there)_
-- [ ] Autosave: every trigger; coalescing under load
-- [ ] Save failure: disk full, permission denied, serialization throw
-- [x] E2E: quit and relaunch preserves state (25) _(07c — save → relaunch → same seed, same `createdAtUnixMs`, tick advanced, `.bak` rotated. The automatic quit-save trigger joins in 07e)_
-- [ ] E2E: kill the process mid-save; verify recovery
-- [ ] Size guard on the reference save (23)
+- [x] Autosave: every trigger; coalescing under load _(07e — the cadence and quit rendezvous in `save-triggers.test.ts`, the transaction trigger in `transaction-watch.test.ts`, coalescing in `save-controller.test.ts`; the cadence and the transaction proven again live)_
+- [x] Save failure: disk full, permission denied, serialization throw _(07e — real filesystem refusals, each asserting the existing save is untouched; the serialization throw never reaches disk. Disk full is deliberately unmocked — same call, same `catch`; see the 07e notes)_
+- [x] E2E: quit and relaunch preserves state (25) _(07c — save → relaunch → same seed, same `createdAtUnixMs`, tick advanced, `.bak` rotated. 07e made it automatic: the test now asks for no save at all and closes the app)_
+- [x] E2E: kill the process mid-save; verify recovery _(07e — SIGKILL during a burst of writes; a parseable save survives and relaunches into the same farm)_
+- [x] Size guard on the reference save (23) _(07e — 38,730 bytes against the 2 MB ceiling, plus a re-serialization through the real path so the guard cannot go stale)_
 
 ### Manual
 
-- [ ] Play 30 minutes, quit, relaunch — verify everything is exactly as left
-- [ ] Close for 2 hours; verify the return summary is accurate and readable
-- [ ] Fill storage, close for 4 hours; confirm the summary reports the blocker
-- [ ] Kill the process during a save; confirm recovery
-- [ ] Corrupt the save by hand; confirm `.bak` recovery and messaging
-- [ ] Measure all `PERFORMANCE.md` budgets and record them
-- [ ] **Complete the v0.1 release-gate checklist** (`PLAN.md` §8)
+- [x] Kill the process during a save; confirm recovery _(07e — automated instead, and more harshly: SIGKILL lands during a burst of writes rather than a hand-timed one, then the app relaunches into the same farm. A human cannot reliably hit the window this test hits every run)_
+- [x] Corrupt the save by hand; confirm `.bak` recovery and messaging _(07c — automated E2E writes real garbage into `slot-0.json` between launches)_
+- [x] Measure the save-system budgets and record them _(07e — size, serialization, load + catch-up, and 8-hour memory growth, all recorded in `PERFORMANCE.md` §8.1)_
+
+**Outstanding — owner, on real hardware.** These need a human and a clock; nothing here can be honestly checked off by automation, and none is claimed:
+
+- [ ] Play 30 minutes, quit, relaunch — verify everything is exactly as left _(the automated equivalent proves continuity over seconds, not over a session a player would recognise)_
+- [ ] Close for 2 hours; verify the return summary is accurate and readable _(readability is criterion 24's "Manual" by design)_
+- [ ] Fill storage, close for 4 hours; confirm the summary reports the blocker _(the blocker path is unit- and component-tested; what a human is judging is whether the sentence tells them to build a shed)_
+- [ ] The remaining `PERFORMANCE.md` §10.2 manual items — collapsed and expanded CPU over 5 minutes, RSS in all three states, cold start to interactive, and the four §7.1 behaviors against a fullscreen video and a fullscreen game
+- [ ] **Complete the v0.1 release-gate checklist** (`PLAN.md` §8) — seven of eight gates pass; **coverage does not**, and the manual rows above remain. See the gate table below.
+
+---
+
+## v0.1 Release Gates (`PLAN.md` §8)
+
+Run at the 07e close. Every automated gate is green; the manual rows above are what remains before the version boundary.
+
+| Gate               | Status                                                                                                                                                                                                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save compatibility | **Pass** — both golden fixtures migrate through the real chain, validate with zero repairs, hydrate, and continue deterministically. Append-only from 07b.                                                                                                      |
+| Performance        | **Pass (automated)** — `PERFORMANCE.md` §8.1 records the four save-system budgets, all measured on the reference farm. The §10.2 manual observations remain outstanding.                                                                                        |
+| Coverage           | **FAIL — 67.36% lines / 64.30% branches against 80% / 75%.** See below. This is the one gate v0.1 does not clear, and it is a pre-existing shortfall, not a 07e regression.                                                                                     |
+| Boundaries         | **Pass** — `check:boundaries` clean; `check:cycles` clean over 167 modules / 530 dependencies. 07e's one violation was real and fixed rather than suppressed: the return summary now takes a view model instead of importing `CatchUpReport` into the UI layer. |
+| Docs               | **Pass** — `SAVE_FORMAT.md` §7.2/§7.3 carry the delivered decisions, `PERFORMANCE.md` §8.1 the measurements, `CHANGELOG.md` the entry, this document the milestone.                                                                                             |
+| ADRs               | **Pass** — 07e made no architectural decision ADR-002 and ADR-015 do not already settle. Trigger ownership, coalescing location, and the quit rendezvous implement §7.2; they are recorded there, not as a new ADR.                                             |
+| Data loss          | **Pass** — zero known defects. The write's failure modes are proven against real filesystem refusals with the existing save intact; SIGKILL mid-write still relaunches into the same farm.                                                                      |
+| Dead code          | **Pass** — no placeholders, no skipped unit tests (883 passing). The three skipped Playwright tests are GPU-gated and pre-date this milestone; they skip on hardware, not by annotation.                                                                        |
+
+### The coverage gate — what actually failed, and why nobody saw it
+
+`npm run test:coverage` had **never completed**. V8 instrumentation costs roughly 3.5×, which blew the 240 s timeout on the 8-hour behavioural long-run and the default budget on 07d's n = 50,000 never-over-credit property; the run died before the reporter ever printed, so the thresholds were never evaluated. Both timeouts are now raised, the memory gate runs uninstrumented, and the gate reports for the first time.
+
+Measured against `TESTING.md` §4:
+
+| Area                     | Required (line / branch) | Measured            | Verdict                      |
+| ------------------------ | ------------------------ | ------------------- | ---------------------------- |
+| `src/persistence/**`     | 95% / 90%                | 90.76% / 82.13%     | **under**                    |
+| `src/sim/**`             | 90% / 85%                | 97.37% / 84.60%     | branches **under** by 0.4 pt |
+| `src/shared/**`          | 85% / 80%                | 86.96% / 94.87%     | pass                         |
+| `src/renderer/app/**`    | 70% / 60%                | 83.29% / 71.35%     | pass                         |
+| `src/renderer/render/**` | 50% / 40%                | 21.05% / 17.91%     | **under**                    |
+| `src/main/**`            | 60% / 50%                | 29.87% / 34.33%     | **under**                    |
+| **Project total**        | **80% / 75%**            | **67.36% / 64.30%** | **under**                    |
+
+The shortfall sits almost entirely in code that has never had unit tests: `main/index.ts` (0%, 162 lines), `preload/index.ts` (0%, 28), `bootstrap/start.tsx` (0%, 120), `renderer/render` (21%), `devtools` (48%). Three of those — `devtools`, `preload`, and `bootstrap` — `TESTING.md` §4 never assigned a threshold to at all, while the coverage config counts them toward the total; that mismatch is itself worth resolving before chasing the number.
+
+07e's own code is not the cause: `save-triggers.ts`, `save-controller.ts`, `transaction-watch.ts`, and `return-summary.ts` are at 100% lines, and the three new components 85–89%.
+
+**This blocks criterion 27, and therefore the v0.1 boundary — not milestone 07e.** Closing it means testing the composition root, the preload bridge, the Electron entry, and the PixiJS view layer, which is a hardening pass of its own rather than a loose end of the save system. It is an owner scope call, and `PLAN.md` §8 is explicit that no gate may be waived.
 
 ---
 

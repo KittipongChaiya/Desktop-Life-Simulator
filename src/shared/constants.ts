@@ -29,6 +29,17 @@ export const AUTOSAVE_INTERVAL_TICKS = TICKS_PER_SECOND * 60;
 /** Offline progress is capped at 8 hours. GAME_DESIGN.md §9.3. */
 export const OFFLINE_CAP_TICKS = TICKS_PER_SECOND * 60 * 60 * 8;
 
+/**
+ * Shortest gap that earns a return summary. GAME_DESIGN.md §9.4.
+ *
+ * Below a minute there is nothing to report — a relaunch, an alt-tab, a
+ * crash-and-restart — and a summary for it would be exactly the interruption
+ * §10.1 forbids. Deliberately its own constant rather than a reuse of the
+ * autosave interval they happen to share: one is a cadence, the other a
+ * threshold, and they are free to diverge.
+ */
+export const RETURN_SUMMARY_MIN_TICKS = TICKS_PER_SECOND * 60;
+
 /** World grid dimensions. GAME_DESIGN.md §2.1. */
 export const WORLD_WIDTH = 64;
 export const WORLD_HEIGHT = 64;

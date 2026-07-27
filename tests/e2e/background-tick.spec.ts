@@ -11,18 +11,23 @@
  * If this test is deleted or skipped, ADR-003 §2 is unenforced.
  */
 
-import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { expect, test, type ElectronApplication } from '@playwright/test';
+
+import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 import { TICKS_PER_SECOND } from '../../src/shared/constants';
 
 let app: ElectronApplication;
+/** The throwaway profile this spec runs on (07e — the app saves itself now). */
+let session: IsolatedSession;
 
 test.beforeEach(async () => {
-  app = await electron.launch({ args: ['.'] });
+  session = await launchIsolated();
+  app = session.app;
 });
 
 test.afterEach(async () => {
-  await app.close();
+  await session.dispose();
 });
 
 /** Reads the simulation tick from the renderer's status slice. */

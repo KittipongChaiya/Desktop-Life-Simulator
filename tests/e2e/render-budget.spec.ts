@@ -18,9 +18,13 @@
  * everywhere.
  */
 
-import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { expect, test, type ElectronApplication } from '@playwright/test';
+
+import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
+/** The throwaway profile this spec runs on (07e — the app saves itself now). */
+let session: IsolatedSession;
 
 /**
  * Sets collapse state through the preload bridge.
@@ -47,7 +51,8 @@ async function hasDevTools(): Promise<boolean> {
 }
 
 test.beforeEach(async () => {
-  app = await electron.launch({ args: ['.'] });
+  session = await launchIsolated();
+  app = session.app;
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
 
@@ -66,7 +71,7 @@ test.beforeEach(async () => {
 });
 
 test.afterEach(async () => {
-  await app.close();
+  await session.dispose();
 });
 
 /** Reads a metric row from the F3 debug overlay. */

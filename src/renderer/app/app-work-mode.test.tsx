@@ -20,6 +20,8 @@ import { createSnapshotStore } from '../bootstrap/snapshot-store';
 import { App } from './App';
 import { createCompanionController, type CompanionBridge } from './companion-controller';
 import { createPlacementController } from './placement';
+import { createReturnSummary } from './return-summary';
+import { createSaveController } from './save-controller';
 import { createSeedSelection } from './seed-selection';
 import { AppProviders } from './store-context';
 
@@ -82,6 +84,11 @@ function mount(initial: BridgeState): { emit(next: BridgeState): void } {
         placement={createPlacementController()}
         seeds={createSeedSelection()}
         companion={createCompanionController(bridge)}
+        save={createSaveController({
+          write: () => Promise.resolve({ ok: true }),
+          defer: (run) => run(),
+        })}
+        returnSummary={createReturnSummary(null)}
       >
         <App />
       </AppProviders>

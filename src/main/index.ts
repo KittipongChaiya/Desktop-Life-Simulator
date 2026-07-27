@@ -25,7 +25,8 @@ import { DEFAULT_BINDINGS, ShortcutAction } from '../shared/shortcuts';
 import { applyHidden, applyOpacity, globalShortcutRegistrar } from './desktop-companion';
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
-import { atomicWriteSave, readSavesForLoad } from './save-store';
+import { atomicWriteSave, readSavesForLoad, slotPath } from './save-store';
+import { createSaveCoordinator, type SaveCoordinator } from './save-triggers';
 import { loadSettings, saveSettings } from './settings';
 import { DEFAULT_SETTINGS, sanitizeOpacityPercent, type AppSettings } from './settings-schema';
 import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
@@ -59,6 +60,22 @@ let hitTestClickThrough = true;
 let collapsedBeforeWorkMode: boolean | null = null;
 let shortcuts: ShortcutManager | null = null;
 let stopWatchingDisplays: (() => void) | null = null;
+let saves: SaveCoordinator | null = null;
+// Whether the quit-time save has already been awaited. `before-quit` runs
+// again after we re-issue the quit, and a second save there would be a write
+// with no world left to describe.
+let quitSaveSettled = false;
+
+/**
+ * How long shutdown waits for the quit save (07e, `SAVE_FORMAT.md` §7.2 —
+ * "blocks shutdown until complete").
+ *
+ * Generous next to a measured sub-100 ms write, and finite because a wedged
+ * renderer must never be able to prevent quit — the previous good save is
+ * already on disk, so the worst case is losing the last few seconds, not the
+ * farm.
+ */
+const QUIT_SAVE_TIMEOUT_MS = 3_000;
 
 function overlayState(): OverlayState {
   const bounds = dockedBounds(settings.overlay.collapsed);
@@ -87,6 +104,11 @@ function broadcastCompanionState(): void {
  */
 function toggleHidden(): CompanionState {
   hidden = !hidden;
+  // Close-to-tray, in the shape this app actually has: quick hide is the
+  // only state where the window stops being present and the tray becomes the
+  // way back (`SAVE_FORMAT.md` §7.2 "on window close to tray"). Fire and
+  // forget — hiding must feel instant, and the renderer coalesces.
+  if (hidden) saves?.fire();
   if (overlay !== null) applyHidden(overlay, hidden);
   // The renderer keeps running while hidden (backgroundThrottling: false), so
   // it receives this and can toast the restore when the window returns.
@@ -247,21 +269,33 @@ function registerIpc(): void {
   });
 
   ipcMain.handle(InvokeChannel.SaveWrite, (_event, payload: unknown): SaveWriteOutcome => {
-    // The renderer is untrusted (ADR-003 3): the document is validated
-    // STRUCTURALLY on receipt, and the canonical bytes are produced here in
-    // main from the validated value - never trusted as a pre-serialized blob.
-    const structural = parseSaveDocument(payload);
-    if (!structural.ok) {
-      return { ok: false, error: `rejected: ${structural.error.message}` };
-    }
+    const path = slotPath(savesDir());
+    // Every exit from this handler settles the quit rendezvous (07e): a
+    // shutdown must be released by a save that FAILED just as surely as by
+    // one that succeeded, or a full disk becomes a hang.
     try {
-      atomicWriteSave(savesDir(), serializeSave(structural.value), structural.value.world.tick);
-      return { ok: true };
-    } catch (thrown) {
-      // A failed save never crashes the game and never damages the existing
-      // save (SAVE_FORMAT.md 7.3) - the sequence's ordering guarantees the
-      // second half; this catch guarantees the first.
-      return { ok: false, error: thrown instanceof Error ? thrown.message : String(thrown) };
+      // The renderer is untrusted (ADR-003 3): the document is validated
+      // STRUCTURALLY on receipt, and the canonical bytes are produced here in
+      // main from the validated value - never trusted as a pre-serialized blob.
+      const structural = parseSaveDocument(payload);
+      if (!structural.ok) {
+        return { ok: false, error: `rejected: ${structural.error.message}`, path };
+      }
+      try {
+        atomicWriteSave(savesDir(), serializeSave(structural.value), structural.value.world.tick);
+        return { ok: true };
+      } catch (thrown) {
+        // A failed save never crashes the game and never damages the existing
+        // save (SAVE_FORMAT.md 7.3) - the sequence's ordering guarantees the
+        // second half; this catch guarantees the first.
+        return {
+          ok: false,
+          error: thrown instanceof Error ? thrown.message : String(thrown),
+          path,
+        };
+      }
+    } finally {
+      saves?.writeSettled();
     }
   });
 
@@ -299,6 +333,31 @@ function bootstrap(): void {
 
   createTray();
   registerIpc();
+
+  // Save triggers (07e). Wall-clock timers here rather than a tick count in
+  // the renderer, so the cadence keeps running when the render loop is
+  // throttled — and so serialization is never scheduled from inside a frame
+  // (`SAVE_FORMAT.md` §7.2, "off the render path").
+  saves = createSaveCoordinator({
+    request: () => {
+      if (overlay === null || overlay.isDestroyed()) return false;
+      overlay.webContents.send(EventChannel.SaveRequested);
+      return true;
+    },
+    startInterval: (handler, ms) => {
+      const handle = setInterval(handler, ms);
+      return () => {
+        clearInterval(handle);
+      };
+    },
+    startTimeout: (handler, ms) => {
+      const handle = setTimeout(handler, ms);
+      return () => {
+        clearTimeout(handle);
+      };
+    },
+  });
+  saves.start();
 
   // Global hotkeys, resolved through the one manager (fix/0.1/1.8a.md).
   // Failures are non-fatal by policy: the feature degrades and the tray
@@ -345,7 +404,23 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  // The quit save BLOCKS shutdown (`SAVE_FORMAT.md` §7.2). The renderer owns
+  // the world, so the only way to save it is to ask and wait — which means
+  // deferring the quit exactly once, then re-issuing it however the save
+  // turned out. `quitSaveSettled` is what makes the second pass fall through
+  // instead of asking a torn-down window to serialize.
+  if (!quitSaveSettled && saves !== null) {
+    event.preventDefault();
+    void saves.fireAndWait(QUIT_SAVE_TIMEOUT_MS).then(() => {
+      quitSaveSettled = true;
+      app.quit();
+    });
+    return;
+  }
+
+  saves?.stop();
+  saves = null;
   saveSettings(settings);
   tray?.destroy();
   tray = null;

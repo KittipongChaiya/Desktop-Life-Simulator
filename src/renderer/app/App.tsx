@@ -15,6 +15,8 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import styles from './App.module.css';
 import { CompanionToast } from './hud/CompanionToast';
 import { InventoryPanel } from './hud/InventoryPanel';
+import { ReturnSummary } from './hud/ReturnSummary';
+import { SaveNotice } from './hud/SaveNotice';
 import { SettingsPanel } from './hud/SettingsPanel';
 import { ShopPanel } from './hud/ShopPanel';
 import { StatusBar } from './hud/StatusBar';
@@ -108,6 +110,11 @@ export function App(): ReactNode {
           (resolved interpretation 6: the work-mode toast itself still shows). */}
       <CompanionToast />
 
+      {/* A save failure shows in EVERY presence mode, work mode included
+          (07e, `SAVE_FORMAT.md` §7.3): withholding "your game is not being
+          saved" to keep the desktop quiet is not quiet, it is misleading. */}
+      <SaveNotice />
+
       {/* The worker panel (count, hire, list), the shop, the selected-worker
           panel, the inventory, and settings show over the world when expanded. */}
       {!collapsed && !workMode && (
@@ -119,6 +126,13 @@ export function App(): ReactNode {
           <SettingsPanel />
         </>
       )}
+
+      {/* The return summary sits OUTSIDE the work-mode gate deliberately: its
+          mode rule is different from the HUD's. The HUD is hidden and gone;
+          the summary DEFERS (ADR-014 — "a summary suppressed by a hidden HUD
+          must defer, not vanish"), which only the component and its controller
+          can express, so they own that decision rather than this gate. */}
+      {!collapsed && <ReturnSummary />}
     </div>
   );
 }

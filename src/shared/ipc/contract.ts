@@ -122,9 +122,16 @@ export interface SavesOnDisk {
   readonly missing: boolean;
 }
 
-/** The write's outcome. A failure notifies and play continues (§7.3). */
+/**
+ * The write's outcome. A failure notifies and play continues (§7.3).
+ *
+ * The failure carries the PATH because that is what makes the notification
+ * actionable (07e): "permission denied" is a shrug, "permission denied —
+ * C:\...\saves\slot-0.json" is something a player can fix. Only main knows it;
+ * the renderer must never derive a filesystem path of its own (ADR-003 §3).
+ */
 export type SaveWriteOutcome =
-  { readonly ok: true } | { readonly ok: false; readonly error: string };
+  { readonly ok: true } | { readonly ok: false; readonly error: string; readonly path: string };
 
 export interface IpcContract {
   [InvokeChannel.SetCollapsed]: { request: boolean; response: OverlayState };

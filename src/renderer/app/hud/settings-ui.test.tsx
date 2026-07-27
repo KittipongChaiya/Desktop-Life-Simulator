@@ -9,7 +9,7 @@
  * `setOpacity` while the readout answers instantly.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -19,18 +19,31 @@ import {
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
+import { createSaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
 
 import { SettingsPanel } from './SettingsPanel';
 
 interface Harness {
   readonly setOpacityCalls: number[];
+  /** Writes the manual save button actually caused. */
+  readonly saveWrites: () => number;
 }
 
 function mount(
   initial = { opacityPercent: 100, workMode: false, clickThrough: false, hidden: false },
 ): Harness {
   const setOpacityCalls: number[] = [];
+  // A real save controller over a counting write: the button must reach the
+  // ONE save path, not a shortcut of its own (07e).
+  let saveWrites = 0;
+  const save = createSaveController({
+    write: () => {
+      saveWrites += 1;
+      return Promise.resolve({ ok: true });
+    },
+    defer: (run) => run(),
+  });
   const bridge: CompanionBridge = {
     setOpacity(percent) {
       setOpacityCalls.push(percent);
@@ -55,13 +68,15 @@ function mount(
         placement={undefined as never}
         seeds={undefined as never}
         companion={createCompanionController(bridge)}
+        save={save}
+        returnSummary={undefined as never}
       >
         <SettingsPanel />
       </AppProviders>
     </StrictMode>,
   );
 
-  return { setOpacityCalls };
+  return { setOpacityCalls, saveWrites: () => saveWrites };
 }
 
 const openPanel = (): void => {
@@ -114,5 +129,49 @@ describe('SettingsPanel', () => {
     expect(screen.getByText('Work mode')).toBeDefined();
     expect(screen.getByText('Quick hide')).toBeDefined();
     expect(screen.getByText('Click-through')).toBeDefined();
+  });
+});
+
+describe('the manual save button (07e, `SAVE_FORMAT.md` §7.2)', () => {
+  it('saves through the ordinary controller', async () => {
+    const harness = mount();
+    openPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save now' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(harness.saveWrites()).toBe(1);
+  });
+
+  it('reports the outcome on the button itself', async () => {
+    // Feedback belongs here, where the player asked; a toast for a save that
+    // worked would be exactly the noise `VISION.md` §5.1 forbids.
+    mount();
+    openPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save now' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeDefined();
+  });
+
+  it('coalesces a double click into one write', async () => {
+    const harness = mount();
+    openPanel();
+
+    const button = screen.getByRole('button', { name: 'Save now' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // One in flight plus its single follow-up — never one write per click.
+    expect(harness.saveWrites()).toBeLessThanOrEqual(2);
   });
 });

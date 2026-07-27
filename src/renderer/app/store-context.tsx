@@ -13,6 +13,8 @@ import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 import type { CompanionController } from './companion-controller';
 import type { OverlayController } from './overlay-controller';
 import type { PlacementController } from './placement';
+import type { ReturnSummaryController } from './return-summary';
+import type { SaveController } from './save-controller';
 import type { SeedSelection } from './seed-selection';
 import type { WorkerSelection } from './worker-selection';
 
@@ -29,6 +31,10 @@ interface AppServices {
   readonly seeds: SeedSelection;
   /** Desktop-companion state — opacity dial, work mode (01.8a, ADR-014). */
   readonly companion: CompanionController;
+  /** Manual save and the failure notification (07e, `SAVE_FORMAT.md` §7.2/§7.3). */
+  readonly save: SaveController;
+  /** The offline-progress summary this session came back to (07e, §9.4). */
+  readonly returnSummary: ReturnSummaryController;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -41,6 +47,8 @@ export interface AppProvidersProps {
   readonly placement: PlacementController;
   readonly seeds: SeedSelection;
   readonly companion: CompanionController;
+  readonly save: SaveController;
+  readonly returnSummary: ReturnSummaryController;
   readonly children: ReactNode;
 }
 
@@ -52,11 +60,23 @@ export function AppProviders({
   placement,
   seeds,
   companion,
+  save,
+  returnSummary,
   children,
 }: AppProvidersProps): ReactNode {
   return (
     <ServicesContext.Provider
-      value={{ store, overlay, player, selection, placement, seeds, companion }}
+      value={{
+        store,
+        overlay,
+        player,
+        selection,
+        placement,
+        seeds,
+        companion,
+        save,
+        returnSummary,
+      }}
     >
       {children}
     </ServicesContext.Provider>
@@ -97,4 +117,12 @@ export function useSeeds(): SeedSelection {
 
 export function useCompanion(): CompanionController {
   return useServices().companion;
+}
+
+export function useSave(): SaveController {
+  return useServices().save;
+}
+
+export function useReturnSummary(): ReturnSummaryController {
+  return useServices().returnSummary;
 }

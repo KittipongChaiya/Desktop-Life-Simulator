@@ -14,9 +14,13 @@
  * `src/renderer/render/worker-render.test.ts`.
  */
 
-import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { expect, test, type ElectronApplication } from '@playwright/test';
+
+import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
+/** The throwaway profile this spec runs on (07e — the app saves itself now). */
+let session: IsolatedSession;
 
 async function setCollapsed(collapsed: boolean): Promise<void> {
   const window = await app.firstWindow();
@@ -49,14 +53,15 @@ async function grantCoins(amount: number): Promise<void> {
 }
 
 test.beforeEach(async () => {
-  app = await electron.launch({ args: ['.'] });
+  session = await launchIsolated();
+  app = session.app;
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
   await grantCoins(5_000);
 });
 
 test.afterEach(async () => {
-  await app.close();
+  await session.dispose();
 });
 
 test('hiring a worker through the HUD raises the worker count', async () => {

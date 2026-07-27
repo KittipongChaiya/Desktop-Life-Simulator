@@ -14,6 +14,7 @@ import { catchUpWorld, computeElapsedTicks, type CatchUpReport } from '@persiste
 import { loadWorld } from '@persistence/load';
 import { EMPTY_QUARANTINE, type SaveMeta, type SaveQuarantine } from '@persistence/schema';
 import { toSaveDocument } from '@persistence/serialize';
+import type { SaveWriteOutcome } from '@shared/ipc/contract';
 import { createWorld, type World, type WorldOptions } from '@sim/world/world';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -23,8 +24,11 @@ import { App } from '../app/App';
 import { createCompanionController } from '../app/companion-controller';
 import { createOverlayController } from '../app/overlay-controller';
 import { createPlacementController } from '../app/placement';
+import { createReturnSummary, type ReturnSummaryReport } from '../app/return-summary';
+import { createSaveController } from '../app/save-controller';
 import { createSeedSelection } from '../app/seed-selection';
 import { AppProviders } from '../app/store-context';
+import { watchMajorTransactions } from '../app/transaction-watch';
 import { createWorkerSelection } from '../app/worker-selection';
 import { workerAtTile } from '../render/worker-render';
 
@@ -74,8 +78,19 @@ interface SaveSession {
 /** Load log, held for the devtools/return-summary surfaces (07e). */
 let lastLoadNote: string | null = null;
 
-/** The offline catch-up result, held for 07e's return summary. */
+/** The offline catch-up result, for the devtools load note. */
 let lastCatchUp: CatchUpReport | null = null;
+
+/**
+ * The same result as the §9.4 summary shows it (07e).
+ *
+ * Mapped HERE, at the composition root, because this is the only place that
+ * may see both sides: the UI layer cannot import persistence, and persistence
+ * has no business knowing a summary exists. The mapping also converts the
+ * blocker's absolute `atTick` into ticks-into-the-gap, which is the only form
+ * a view can render.
+ */
+let lastSummary: ReturnSummaryReport | null = null;
 
 export function startApplication(): void {
   // Loading is async (an IPC round trip), so the composition happens inside.
@@ -137,8 +152,20 @@ async function bootApplication(): Promise<void> {
     // computed closed-form, capped at 8 hours, never rewinding
     // (`SAVE_FORMAT.md` §6). Runs before the loop's first tick so the
     // player's first frame already shows the caught-up farm.
+    // Captured before the advance: the blocker's absolute `atTick` is only
+    // meaningful to a player relative to when the gap began.
+    const startTick = world.tick;
     const elapsed = computeElapsedTicks(loaded.value.meta.savedAtUnixMs, Date.now());
-    if (elapsed > 0) lastCatchUp = catchUpWorld(world, elapsed);
+    if (elapsed > 0) {
+      lastCatchUp = catchUpWorld(world, elapsed);
+      lastSummary = {
+        elapsedTicks: lastCatchUp.elapsedTicks,
+        harvests: lastCatchUp.harvests,
+        coinsEarned: lastCatchUp.coinsEarned,
+        blockedAfterTicks:
+          lastCatchUp.blocked === null ? null : Math.max(0, lastCatchUp.blocked.atTick - startTick),
+      };
+    }
 
     lastLoadNote = [
       loaded.value.usedBackup ? 'loaded from backup' : 'loaded',
@@ -319,12 +346,12 @@ function composeApplication(world: World, session: SaveSession): void {
   loop.start();
 
   // The save path (phase-07c): main asks, the renderer answers — every
-  // trigger (quit, tray, the 07e autosave timers) arrives as this ONE
-  // request, so there is exactly one serialization site. Meta continuity:
-  // `createdAtUnixMs` is the loaded value forever; `saveCount` increments
-  // only on a successful write; the held quarantine writes back verbatim
-  // until its content returns (`SAVE_FORMAT.md` §5.3).
-  const performSave = async (): Promise<void> => {
+  // trigger arrives at this ONE serialization site, so there is exactly one
+  // place a save document is built. Meta continuity: `createdAtUnixMs` is the
+  // loaded value forever; `saveCount` increments only on a successful write;
+  // the held quarantine writes back verbatim until its content returns
+  // (`SAVE_FORMAT.md` §5.3).
+  const writeSave = async (): Promise<SaveWriteOutcome> => {
     const meta: SaveMeta = {
       gameVersion: __APP_VERSION__,
       createdAtUnixMs: session.createdAtUnixMs,
@@ -335,15 +362,33 @@ function composeApplication(world: World, session: SaveSession): void {
     const outcome = await window.desktopLife.save.write(
       toSaveDocument(world, meta, session.quarantine),
     );
-    if (outcome.ok) {
-      session.saveCount += 1;
-    } else {
-      // Recorded, not discarded — the player-facing notification is 07e's.
-      lastLoadNote = `save failed: ${outcome.error}`;
-    }
+    if (outcome.ok) session.saveCount += 1;
+    return outcome;
   };
+
+  // The 07e orchestration: one write in flight, extra triggers coalesced,
+  // serialization deferred out of the frame that asked for it, failures kept
+  // as status for the notification (`SAVE_FORMAT.md` §7.2/§7.3).
+  const save = createSaveController({
+    write: writeSave,
+    // A macrotask, deliberately not a microtask: a microtask would still run
+    // inside the frame that queued it, which is exactly what "off the render
+    // path" forbids.
+    defer: (run) => {
+      setTimeout(run, 0);
+    },
+  });
+
+  // Trigger 1 — everything main owns: the 60-second cadence, quit,
+  // close-to-tray (`save-triggers.ts`).
   window.desktopLife.save.onSaveRequested(() => {
-    void performSave();
+    save.requestSave();
+  });
+
+  // Trigger 2 — major transactions, seen in the snapshot rather than guessed
+  // from commands, because a rejected purchase must not trigger a save.
+  watchMajorTransactions(store, () => {
+    save.requestSave();
   });
 
   // The world view exists only while expanded. Collapsing destroys the GPU
@@ -362,6 +407,10 @@ function composeApplication(world: World, session: SaveSession): void {
     worldMount.resize(window.innerWidth, window.innerHeight);
   });
 
+  // The §9.4 return summary. The controller applies the over-a-minute gate,
+  // so a plain relaunch holds nothing and shows nothing.
+  const returnSummary = createReturnSummary(lastSummary);
+
   const container = document.getElementById('ui');
   if (container === null) throw new Error('#ui root is missing from index.html');
 
@@ -375,6 +424,8 @@ function composeApplication(world: World, session: SaveSession): void {
         selection={selection}
         placement={placement}
         companion={companion}
+        save={save}
+        returnSummary={returnSummary}
       >
         <App />
       </AppProviders>

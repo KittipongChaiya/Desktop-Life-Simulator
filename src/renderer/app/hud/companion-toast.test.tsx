@@ -56,6 +56,8 @@ function mount(): { emit(next: BridgeState): void } {
         placement={undefined as never}
         seeds={undefined as never}
         companion={createCompanionController(bridge)}
+        save={undefined as never}
+        returnSummary={undefined as never}
       >
         <CompanionToast />
       </AppProviders>

@@ -376,6 +376,19 @@ Step 6 is **best-effort on Windows** (phase-07c): directory handles cannot be `f
 
 Serialization happens off the render path. If a save is already in flight, the next trigger is coalesced rather than queued.
 
+Delivered in phase-07e, recorded so no future session re-derives it:
+
+| Decision                                                                     | Why                                                                                                                                                            |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Triggers live in main; the document lives in the renderer**                | The renderer owns the world, so every trigger becomes the one `save:requested` event. Adding a trigger never touches serialization.                            |
+| The cadence is a **wall-clock** timer of `AUTOSAVE_INTERVAL_TICKS × TICK_MS` | Main has no tick. Deriving rather than restating "60 s" means the two can never drift.                                                                         |
+| **Close to tray = quick hide**                                               | This overlay has no closable window; quick hide is the only state where it stops being present and the tray is the way back.                                   |
+| **Coalescing lives only in the renderer**                                    | Only the renderer can see a write in flight. Suppressing in both places would drop the quit save queued behind an autosave — the one save with no next chance. |
+| Coalescing keeps **one** follow-up, never zero                               | Collapsed, not dropped: the state that changed after the in-flight write began still reaches disk.                                                             |
+| The quit save **blocks shutdown, with a 3 s cap**                            | A wedged renderer may delay quit, never prevent it. The previous good save is already on disk, so the worst case is the last few seconds, not the farm.        |
+| A **failed** write settles the quit wait too                                 | Otherwise a full disk becomes a hang.                                                                                                                          |
+| Major transactions are detected from the **snapshot**, not commands          | A command can be submitted and rejected; a slice only changes when the world did.                                                                              |
+
 ### 7.3 Failure handling
 
 | Failure              | Response                                                             |
@@ -385,6 +398,10 @@ Serialization happens off the render path. If a save is already in flight, the n
 | Serialization throws | Log with full context, keep playing, do **not** touch existing files |
 
 **A failed save never crashes the game and never damages the existing save.** The player keeps playing with in-memory state intact, which is the state that matters.
+
+The notification carries the **path** (phase-07e). Only the main process knows it — the renderer never derives a filesystem path (ADR-003 §3) — so it travels on the write's outcome. "Permission denied" is a shrug; the file name is something a player can act on. The notice persists rather than auto-dismissing, and clears itself when a later save succeeds, so a transient failure resolves without anyone clicking. It is shown in work mode too: withholding "your game is not being saved" to keep the desktop quiet would be misleading rather than quiet.
+
+Disk-full is **deliberately not simulated in tests**. ENOSPC arrives from the same `writeSync`/`renameSync` calls the delivered failure tests already make throw — with a directory in the way of the temp file, of `.bak`, and of the saves directory itself — and lands in the same `catch`. Mocking `fs` to produce an ENOSPC would test Node's error plumbing, not ours.
 
 ---
 

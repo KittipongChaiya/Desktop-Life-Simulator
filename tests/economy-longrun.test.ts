@@ -118,7 +118,12 @@ describe('full idle: 8 hours unattended (crit 19 — the product thesis)', () =>
     const multiplier = multiplierOf(world.economy, 'core:turnip' as never);
     expect(multiplier).toBeGreaterThanOrEqual(MULTIPLIER_FLOOR);
     expect(multiplier).toBeLessThanOrEqual(MULTIPLIER_CAP);
-  }, 240_000);
+    // 240 s covers the uninstrumented run with room to spare, but V8 coverage
+    // instrumentation costs roughly 3.5× on 576,000 ticks — which is how this
+    // gate failed only under `--coverage`, silently, until phase-07e ran the
+    // full v0.1 release-gate checklist. The budget is the runner's, not the
+    // game's: `PERFORMANCE.md` §10.1 measures the simulation uninstrumented.
+  }, 900_000);
 });
 
 describe('balance: longer crops are strictly better coins/sec (crit 21)', () => {

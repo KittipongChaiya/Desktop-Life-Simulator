@@ -27,7 +27,7 @@
     "check:cycles": "depcruise src --config .dependency-cruiser.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --config vitest.coverage.config.ts",
     "test:e2e": "playwright test",
     "prepare": "husky"
   },

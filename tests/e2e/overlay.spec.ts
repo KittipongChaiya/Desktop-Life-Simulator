@@ -6,21 +6,26 @@
  * real Electron process.
  */
 
-import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { expect, test, type ElectronApplication } from '@playwright/test';
+
+import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 import { OVERLAY_HEIGHT_COLLAPSED, OVERLAY_HEIGHT_EXPANDED } from '../../src/shared/constants';
 
 let app: ElectronApplication;
+/** The throwaway profile this spec runs on (07e — the app saves itself now). */
+let session: IsolatedSession;
 
 test.beforeEach(async () => {
-  app = await electron.launch({ args: ['.'] });
+  session = await launchIsolated();
+  app = session.app;
   // Wait for the window to exist before any evaluate(): otherwise
   // getAllWindows() is empty and assertions fail for the wrong reason.
   await app.firstWindow();
 });
 
 test.afterEach(async () => {
-  await app.close();
+  await session.dispose();
 });
 
 test('docks to the bottom of the work area, spanning its full width', async () => {

@@ -206,9 +206,14 @@ describe('catch-up never over-credits versus the real simulation (crit 14)', () 
     fc.assert(fc.property(farmArb, fc.constantFrom(100, 1_000), assertNeverOver), { numRuns: 24 });
   });
 
+  // Eight arbitrary farms, each stepped 50,000 real ticks for the comparison,
+  // comfortably inside the default budget uninstrumented — but V8 coverage
+  // instrumentation costs roughly 3.5×, which is how this passed `npm test`
+  // and failed `npm run test:coverage` unnoticed until phase-07e ran the full
+  // v0.1 release-gate checklist. The budget is the runner's, not the game's.
   it('holds at n = 50,000 across arbitrary farms', () => {
     fc.assert(fc.property(farmArb, fc.constant(50_000), assertNeverOver), { numRuns: 8 });
-  });
+  }, 600_000);
 });
 
 describe('accuracy at saturation (crit 15)', () => {

@@ -53,6 +53,16 @@ export const WRITE_STEPS = [
 export type WriteStep = (typeof WRITE_STEPS)[number];
 
 /**
+ * The save file a player would go looking for.
+ *
+ * Exported so the failure notification can name it (07e, §7.3 "notify with
+ * the path") without the renderer ever constructing a filesystem path.
+ */
+export function slotPath(savesDir: string): string {
+  return join(savesDir, SLOT);
+}
+
+/**
  * Writes a serialized save document atomically (§7.1).
  *
  * Step 1 (serialize in memory) is the caller's — this function receives the
