@@ -25,7 +25,76 @@
 | 07.5c | Camera polish                   | Eased follow, zoom limits, edge clamping, drag feel; player input always wins                                                               | **Delivered** |
 | 07.5d | UI & accessibility polish       | Spacing, hierarchy, typography, contrast, click targets, interaction states, colour-blind-safe indicators                                   | **Delivered** |
 | 07.5e | World presentation              | Terrain variation, ground decoration and props from the existing art, depth ordering, contact shadows                                       | **Delivered** |
-| 07.5f | QA, performance & the RC report | Extended validation, the measured budgets, doc synchronisation, the v0.1 Release Candidate report                                           | —             |
+| 07.5f | QA, performance & the RC report | Extended validation, the measured budgets, doc synchronisation, the v0.1 Release Candidate report                                           | **Delivered** |
+
+---
+
+## v0.1 Release Candidate report
+
+The deliverable `fix/0.1/7.5.md` asks for. Written at the close of 07.5f, against measurements taken on this machine.
+
+### Before and after
+
+|                      | Before phase-07.5              | After                                                                      |
+| -------------------- | ------------------------------ | -------------------------------------------------------------------------- |
+| Sound                | none                           | 8 event-triggered sounds, muted by default, silenced by work mode          |
+| Feedback on action   | the number changed             | harvest burst, placement ring, selection ring, coin popup, inventory flash |
+| Camera               | manual pan and zoom only       | eases to off-screen selections and placements; abandons instantly on input |
+| Keyboard focus       | one control had a visible ring | every control, from one global rule                                        |
+| Contrast             | unmeasured                     | every HUD pair asserted against WCAG AA, over the worst-case backdrop      |
+| Land beyond the farm | flat grass                     | deterministic trees, rocks, bushes, flowers                                |
+| Unit tests           | 928                            | **1,014**                                                                  |
+
+### What was improved
+
+- **Visual** — ground decoration outside the farm; effects that acknowledge harvests, placements, and selections; depth ordering shared across props, buildings, and workers so they interleave correctly.
+- **UX** — sound with an opt-in dial beside the opacity one; a camera that helps without hijacking; visible keyboard focus; 24 px minimum targets; `prefers-reduced-motion` honoured.
+- **Performance** — nothing regressed, which for this phase _is_ the achievement. Render-on-demand survived every addition: a static world still draws no frames. Audio elements are built on first play, so a muted session builds none.
+- **Bug fixes** — a real E2E flake traced to eager audio construction (07.5a); a coin popup polluting the coin readout's text and colliding with the toast's ARIA role (07.5b); an `NaN` contrast ratio from percentage-alpha colours, which had made three assertions pass against nothing (07.5d).
+
+### Measurements
+
+| Metric                            | Measured          | Ceiling         | Source                                  |
+| --------------------------------- | ----------------- | --------------- | --------------------------------------- |
+| Reference save                    | 38,730 bytes      | 2 MB            | `save-performance.test.ts`              |
+| Save serialization                | 0.64 ms           | 100 ms          | same                                    |
+| Load + catch-up at the 8-hour cap | 1.35 ms           | 1.5 s           | same                                    |
+| Large-world save / load           | 0.33 ms / 1.03 ms | 100 ms / 1.5 s  | `save-compatibility.test.ts`            |
+| Memory growth, accelerated 8 h    | 10,112 bytes      | 25 MB           | `memory-longrun.test.ts`                |
+| Renderer bundle                   | 1,575,449 bytes   | +10% per change | build output (+1.6% across all of 07.5) |
+| Placeholder audio, 8 sounds       | 131,770 bytes     | —               | `assets/dist/audio`                     |
+
+### Release readiness — the honest position
+
+**v0.1 is feature-complete and does not yet pass its own release gates.** Seven of the eight `PLAN.md` §8 gates are green. One is not, and it moved the wrong way during this phase:
+
+| Gate               | Status                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Save compatibility | **Pass** — golden fixtures load; `save-compatibility-report.md` states the guarantees                                     |
+| Performance        | **Pass (automated)**; the `PERFORMANCE.md` §10.2 manual observations remain                                               |
+| Coverage           | **FAIL — 65.55% lines / 64.10% branches against 80% / 75%**                                                               |
+| Boundaries         | **Pass** — `check:boundaries` and `check:cycles` clean                                                                    |
+| Docs               | **Pass** — ADR-016 added; `ASSETS.md`, `ARCHITECTURE.md`, `PROJECT_STRUCTURE.md`, `GAME_DESIGN.md`, `CHANGELOG.md` synced |
+| ADRs               | **Pass** — ADR-016 records the one architectural addition                                                                 |
+| Data loss          | **Pass** — zero known defects                                                                                             |
+| Dead code          | **Pass** — no placeholders, no skipped unit tests                                                                         |
+
+**Coverage fell from 67.36% to 65.55% during this phase, and the reason is worth stating precisely rather than excusing.** Polish is mostly view code. The pure halves this phase deliberately extracted are well covered — `renderer/app` rose 83.29% → 85.12% and `renderer/render` rose 21.05% → 25.77% — but the Pixi and device wrappers they were extracted _from_ are not, and cannot honestly be: `TESTING.md` §4.1 says so itself ("asserting on GPU output produces brittle tests that verify nothing"). The denominator grew by 334 lines and coverage grew by 152.
+
+That is the same structural mismatch flagged at the 07e close, now measurably worse: `TESTING.md` §4 sets `renderer/render` at 50%/40% and never assigns a threshold to `devtools`, `preload`, or `bootstrap` at all, yet the coverage config counts every one of them toward a single global 80%. **Resolving that mismatch — not writing tests against a GPU — is the work.** It is an owner decision, and `PLAN.md` §8 admits no waivers.
+
+### Remaining before v0.1 ships
+
+1. **Coverage.** Reconcile `TESTING.md` §4's per-area thresholds with the coverage config, then close whatever genuine gaps remain (`main/index.ts`, `preload`, `bootstrap/start.tsx` are the honest ones — they are wiring, and wiring is testable).
+2. **The manual checks**, on real hardware: the phase-07 list (30-minute session, 2- and 4-hour return summaries) and `PERFORMANCE.md` §10.2 (CPU over 5 minutes in each presence mode, RSS, cold start, behaviour against a fullscreen video and a fullscreen game).
+3. **The draw-call ceiling**, which is GPU-skipped on this machine. Decor batches with buildings by design; confirm it measured.
+4. **A first-time player check** — acceptance criterion 1 is Manual by nature, and nothing automated substitutes for watching someone meet the farm.
+
+### Roadmap to v0.2
+
+Deferred deliberately, with reasons recorded rather than rediscovered: continuous ambient motion and audio beds (behind a setting and a measured idle budget); real audio assets to replace the placeholders (a content task with no engineering in it, ADR-016 §6); weather, seasons, and day/night, for which layer 5 (`lighting`) is already reserved and still empty; the plugin loader, for which `plugins: {}` has been in the save format since version 1; and auto-update, deliberately sequenced after proven save integrity.
+
+---
 
 ### Delivered (07.5e) — world presentation
 

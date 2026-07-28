@@ -46,6 +46,7 @@ Ordering rationale — why each tier is a prerequisite rather than an arbitrary 
 | 06   | Economy                        | Coins, dynamic pricing, shop, land expansion, buildings                                                                                                                                                                 | **Stage 4 — full idle loop**        |
 | 01.8 | Desktop Companion              | Opacity dial, quick hide, click-through mode, work mode, z-order control (always-on-top since the 2026-07-23 livability verdict); rebindable-shortcut & categorized app-settings architecture — platform only (ADR-014) | The overlay coexists with real work |
 | 07   | Save/Load                      | Schema & save identity, atomic writes, migration chain, autosave, offline progress — under the ADR-015 versioning & compatibility contract                                                                              | The game persists                   |
+| 07.5 | Vertical Slice (v0.1 RC)       | Polish only, no new systems: audio (ADR-016), feedback effects, camera focus, accessibility, ground decoration, and the release-candidate report                                                                        | **v0.1 feels like one game**        |
 
 Phase order is dictated by dependency, not preference. Two orderings are worth stating explicitly:
 

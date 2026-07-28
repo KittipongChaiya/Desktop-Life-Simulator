@@ -394,6 +394,8 @@ On load after a gap over 60 seconds, a dismissible summary shows time away, crop
 4. **Readable at a glance.** High contrast, large numerals for the three numbers that matter. The player is reading peripherally while doing something else.
 5. **No timers counting down.** Progress is shown as a bar or a growth stage, never a ticking clock. Countdowns create urgency, and urgency is exactly what this product must not create.
 6. **No red.** Reserved for genuine errors, of which there are almost none. Nothing routine is ever alarming.
+7. **Silence is the default.** Sound acknowledges what the player did; it never announces, never loops, and never plays unasked. The game ships muted and work mode silences it outright (ADR-016) — an overlay that makes noise beside real work is the intrusion this product exists not to be. Added in phase-07.5a.
+8. **Motion is a reply, not a mood.** Every animation is triggered by something that happened and ends on its own. Nothing sways, pulses, or drifts while the world is at rest, because a companion that moves forever is a background game (ADR-001; phase-07.5's first decision).
 
 ### 10.2 Layout
 

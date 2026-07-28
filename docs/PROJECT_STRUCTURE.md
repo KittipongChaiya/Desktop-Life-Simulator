@@ -305,15 +305,18 @@ assets/
 │   ├── entities/
 │   ├── buildings/
 │   ├── ui-world/
-│   ├── audio/                  v0.2+
+│   ├── audio/                  OPTIONAL — real .wav files, when they exist
 │   └── ATTRIBUTION.md          Source, author, license for every asset
 └── dist/                       [gitignored — reproducible via npm run assets]
     ├── <atlas>.png
     ├── <atlas>.json
+    ├── audio/*.wav             GENERATED placeholder set (ADR-016)
     └── manifest.ts             GENERATED typed sprite keys
 ```
 
 Directory names under `src/` correspond to atlas groups (ADR-006 §3). Adding a directory means adding an atlas group — a decision with a draw-call cost, not a filing preference.
+
+`src/audio/` is the exception, and it is deliberately EMPTY today: it is not an atlas group but a drop box. `scripts/generate-audio.mjs` synthesises the placeholder set into `dist/audio/`, and copies a real file through instead whenever one appears here — which is how replacing a placeholder requires no code change (ADR-016 §6).
 
 Full pipeline: `ASSETS.md`.
 

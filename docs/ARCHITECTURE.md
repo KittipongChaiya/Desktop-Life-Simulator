@@ -53,7 +53,7 @@ This document describes _what the parts are and how they talk_. Every significan
 | `sim`             | The game. World state, systems, content, RNG, events     | **Yes**      | No          |
 | `persistence`     | Serialize, deserialize, migrate, catch-up orchestration  | No           | No          |
 | `renderer/render` | Draw the world with PixiJS                               | No           | **Yes**     |
-| `renderer/app`    | Draw the UI with React                                   | No           | **Yes**     |
+| `renderer/app`    | Draw the UI with React; own the sound bus (ADR-016)      | No           | **Yes**     |
 | `main`            | Window, overlay behavior, tray, disk I/O, IPC validation | No           | No          |
 | `preload`         | Typed bridge between renderer and main                   | No           | —           |
 | `devtools`        | Debug overlay, console, profiler, inspector, logger      | No           | **Yes**     |
@@ -288,7 +288,7 @@ The UI root is pointer-transparent except over actual controls, which combined w
 | Overlay window    | Frameless, transparent, **always-on-top** (`'floating'` level — restored by the 2026-07-23 livability verdict, ADR-014 amendment; still never focused), `skipTaskbar`, docked to `workArea` bottom edge                                                       |
 | Click-through     | `setIgnoreMouseEvents` toggled from renderer hit-testing; a companion **mode** (`Ctrl+Shift+C`) overrides hit-testing entirely (ADR-014 §2)                                                                                                                   |
 | Desktop companion | Global hotkeys via the centralized `ShortcutManager` — stable `ShortcutAction`s bound to a one-place default table (`shared/shortcuts.ts`, ADR-014 §5 amended); window opacity; quick hide; work mode broadcast. The simulation never learns any of it exists |
-| App settings      | Categorized application settings model (`settings-schema.ts`: `overlay`, `desktop`; future input/audio/graphics) in `settings.json` — never save data; the save system may never touch it (ADR-014 §4)                                                        |
+| App settings      | Categorized application settings model (`settings-schema.ts`: `overlay`, `desktop`, `audio`; future input/graphics) in `settings.json` — never save data; the save system may never touch it (ADR-014 §4)                                                     |
 | Display changes   | Re-dock on resolution, DPI, monitor add/remove                                                                                                                                                                                                                |
 | Tray              | Show/hide, collapse/expand, quit                                                                                                                                                                                                                              |
 | Single instance   | `requestSingleInstanceLock` — two instances would race on the save file                                                                                                                                                                                       |
