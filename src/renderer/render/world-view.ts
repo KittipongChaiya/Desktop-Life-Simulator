@@ -25,6 +25,7 @@ import terrainImage from '@assets/terrain.png';
 import { Spritesheet, Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
+import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
 import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
@@ -43,6 +44,7 @@ import {
   type CameraLimits,
   type CameraState,
 } from './camera';
+import { createCameraFocus, needsFocus, type CameraFocus } from './camera-focus';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
 import { createEffects, type Effects } from './effects';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
@@ -91,6 +93,14 @@ export interface WorldView {
    * timing and drops its animation lease the instant nothing is alive.
    */
   playEffect(kind: 'burst' | 'ring', tile: TileIndex): void;
+  /**
+   * Eases the camera to bring a tile into view (07.5c).
+   *
+   * Does NOTHING when the tile is already comfortably visible, and any pan or
+   * zoom abandons the glide instantly: `fix/0.1/7.5.md` §Camera's one hard
+   * rule is that focus never interrupts player control.
+   */
+  focusOnTile(tile: TileIndex): void;
   resize(width: number, height: number): void;
   /**
    * Attaches drag-to-pan and wheel-to-zoom to an element. Returns teardown.
@@ -179,15 +189,26 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // world is far taller than the short overlay, and the plot sits at its centre.
   // The camera stays gameplay-agnostic — it is handed a world-pixel focus only.
   const bounds = ownedBounds(options.world.tiles);
-  const focus =
+  const focusPoint =
     bounds === null
       ? undefined
       : {
           x: ((bounds.min.x + bounds.max.x + 1) / 2) * TILE_SIZE,
           y: ((bounds.min.y + bounds.max.y + 1) / 2) * TILE_SIZE,
         };
-  let camera = createCamera(limits, focus);
+  let camera = createCamera(limits, focusPoint);
   let chunkRedraws = 0;
+
+  // The eased focus glide (07.5c). `createCamera` above already frames the
+  // owned plot at construction, which is the directive's "focus on loading a
+  // save" — done geometrically, with no movement to watch.
+  const focus: CameraFocus = createCameraFocus();
+  let releaseFocusAnimation: (() => void) | null = null;
+
+  const endFocus = (): void => {
+    releaseFocusAnimation?.();
+    releaseFocusAnimation = null;
+  };
 
   const terrain: TerrainRenderer = createTerrainRenderer({
     renderer: app.app.renderer,
@@ -199,6 +220,8 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   });
 
   const doPan = (deltaX: number): void => {
+    // The player moved the camera, so whatever it was doing on its own stops.
+    focus.cancel();
     const next = panCamera(camera, deltaX, limits);
     if (next === camera) return;
     camera = next;
@@ -207,6 +230,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   };
 
   const doZoom = (nextZoom: number): void => {
+    focus.cancel();
     const updated = zoomCamera(camera, nextZoom, limits);
     if (updated === camera) return;
     camera = updated;
@@ -269,7 +293,40 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       else effects.ring(tile, now);
     },
 
+    focusOnTile(tile) {
+      const position = toPosition(tile);
+      // Cosmetic: a bad index must never take down a frame.
+      if (!position.ok) return;
+
+      const centreWorldX = (position.value.x + 0.5) * TILE_SIZE;
+      // Already on screen? Then the player is looking at it, and moving the
+      // camera would be disruption rather than help.
+      if (!needsFocus(centreWorldX, camera, limits)) return;
+
+      const targetX = clampCameraX(
+        centreWorldX * camera.zoom - limits.viewportWidth / 2,
+        limits,
+        camera.zoom,
+      );
+      if (targetX === camera.x) return;
+
+      focus.start(camera.x, targetX, performance.now());
+      // Held only while gliding, and released the frame it finishes — the
+      // same lease discipline the effects follow (ADR-001 §1).
+      releaseFocusAnimation ??= gate.acquireAnimation();
+    },
+
     renderFrame(alpha = 0, tick = 0) {
+      // The glide, before anything reads the camera this frame.
+      const glidedX = focus.sample(performance.now());
+      if (glidedX !== null) {
+        camera = { ...camera, x: clampCameraX(glidedX, limits, camera.zoom) };
+        applyCamera();
+        gate.markDirty();
+      } else if (releaseFocusAnimation !== null) {
+        endFocus();
+      }
+
       const range = visibleTileRange(camera, limits);
       // Chunk re-renders are themselves a scene change, so they must happen
       // before the gate is consulted.
@@ -408,6 +465,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       buildings.destroy();
       ghost.destroy();
       highlight.destroy();
+      // A glide's lease must not outlive the view that owns it.
+      focus.cancel();
+      endFocus();
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).
       effects.destroy();

@@ -449,6 +449,10 @@ function composeApplication(world: World, session: SaveSession): void {
     for (const building of arrived) {
       worldMount.current()?.playEffect('ring', asTileIndex(building.tile));
     }
+    // Focus the FIRST arrival only. Placing several at once is possible; a
+    // camera that then chases each in turn is motion sickness, not help.
+    const first = arrived[0];
+    if (first !== undefined) worldMount.current()?.focusOnTile(asTileIndex(first.tile));
   });
 
   selection.subscribe(() => {
@@ -458,7 +462,14 @@ function composeApplication(world: World, session: SaveSession): void {
 
     sound.play(Sound.Selection);
     const worker = store.get('workers').find((candidate) => candidate.id === selected);
-    if (worker !== undefined) worldMount.current()?.playEffect('ring', asTileIndex(worker.tile));
+    if (worker === undefined) return;
+
+    worldMount.current()?.playEffect('ring', asTileIndex(worker.tile));
+    // The view declines to move when the worker is already on screen, which is
+    // the common case for a worker the player just clicked. It matters for the
+    // other route in: selecting from the worker PANEL, where the worker may be
+    // anywhere (`fix/0.1/7.5.md` §Camera — focus when a worker is selected).
+    worldMount.current()?.focusOnTile(asTileIndex(worker.tile));
   });
 
   save.subscribe(() => {

@@ -22,10 +22,19 @@
 | ----- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 07.5a | Audio foundation                | ADR-016; scripted placeholder `.wav` set; the renderer's sound bus wired to real events; volume/mute as app preferences; work mode silences | **Delivered** |
 | 07.5b | Feedback effects                | Coin popup, harvest burst, placement confirm, selection pulse, inventory flash — event-driven, render-on-demand intact                      | **Delivered** |
-| 07.5c | Camera polish                   | Eased follow, zoom limits, edge clamping, drag feel; player input always wins                                                               | —             |
+| 07.5c | Camera polish                   | Eased follow, zoom limits, edge clamping, drag feel; player input always wins                                                               | **Delivered** |
 | 07.5d | UI & accessibility polish       | Spacing, hierarchy, typography, contrast, click targets, interaction states, colour-blind-safe indicators                                   | —             |
 | 07.5e | World presentation              | Terrain variation, ground decoration and props from the existing art, depth ordering, contact shadows                                       | —             |
 | 07.5f | QA, performance & the RC report | Extended validation, the measured budgets, doc synchronisation, the v0.1 Release Candidate report                                           | —             |
+
+### Delivered (07.5c) — camera
+
+- **What this milestone mostly did was decline to move the camera.** `fix/0.1/7.5.md` §Camera asks for optional focus on selection, placement, harvest, and load, and then states the constraint that governs all of it: _never interrupt player control_. Two rules follow, and they are the milestone: a glide happens **only when the target cannot already be seen** (moving to show something the player is already looking at is pure disruption), and **any pan or zoom abandons it instantly** — mid-flight, no easing out, no resumption. A camera that keeps drifting after you grab it is worse than one that never moved.
+- **`needsFocus` carries a margin.** A worker one pixel inside the viewport is technically visible and practically not, so the test asks whether the target sits comfortably inside — about a tile and a half — rather than merely inside.
+- **A glide lands exactly on its target.** The frame that reaches the end returns the destination and finishes, so the camera can never stop a fraction short of where it promised to go. It holds an animation lease only while running, released the frame it completes and unconditionally on teardown — the discipline 07.5b established.
+- **Focus on placement moves for the FIRST arrival only.** Several buildings can appear at once; a camera chasing each in turn is motion sickness, not help.
+- **Two of the directive's four focus triggers were declined, deliberately.** _Loading a save_ is already done, geometrically: `createCamera` frames the owned plot at construction, with no movement to watch. _Harvest completed_ is refused outright — harvests fire several times a minute on a mature farm, and a camera that chases them would make the overlay unusable as a companion. The burst already marks the spot.
+- **Zoom limits and edge clamping were examined and left alone.** Clamping already pins correctly when the world is narrower than the viewport, and zoom is already integer-only with the viewport centre preserved across changes — non-integer zoom resamples pixel art (`ASSETS.md` §8). Changing settled, correct numbers because a directive lists the topic is churn, not polish.
 
 ### Delivered (07.5b) — feedback effects
 
