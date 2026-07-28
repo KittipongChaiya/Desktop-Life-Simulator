@@ -44,6 +44,7 @@ import {
   type CameraState,
 } from './camera';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
+import { createEffects, type Effects } from './effects';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
@@ -81,6 +82,15 @@ export interface WorldView {
    * whether it may go there; this only paints the result.
    */
   setGhost(state: GhostState | null): void;
+  /**
+   * Plays a one-shot acknowledgement at a tile (07.5b) — a harvest burst, or
+   * a ring confirming a placement or a selection.
+   *
+   * Triggered by the composition root from things that ALREADY HAPPENED, so
+   * the world never celebrates an action it rejected. The view owns the
+   * timing and drops its animation lease the instant nothing is alive.
+   */
+  playEffect(kind: 'burst' | 'ring', tile: TileIndex): void;
   resize(width: number, height: number): void;
   /**
    * Attaches drag-to-pan and wheel-to-zoom to an element. Returns teardown.
@@ -236,6 +246,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // hover box on the same tile.
   const ghost: BuildingGhost = createBuildingGhost({ layer: app.layers.worldUi, textureFor });
 
+  // Layer 4, which `layers.ts` reserved and left empty for exactly this.
+  const effects: Effects = createEffects(app.layers.effects, gate);
+
   return {
     gate,
     backend: app.backend,
@@ -248,6 +261,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     setGhost(state) {
       ghost.update(state);
       gate.markDirty();
+    },
+
+    playEffect(kind, tile) {
+      const now = performance.now();
+      if (kind === 'burst') effects.burst(tile, now);
+      else effects.ring(tile, now);
     },
 
     renderFrame(alpha = 0, tick = 0) {
@@ -268,6 +287,11 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         lastColumn: range.last,
       });
       buildings.update(options.world.snapshots.buildings.value);
+      // Effects animate in REAL time, not simulation time: they acknowledge
+      // an event to a person, so they must not stretch when the sim is
+      // time-scaled in devtools. This also releases the animation lease the
+      // moment the last one expires.
+      effects.update(performance.now());
 
       if (!gate.shouldRender()) return false;
 
@@ -384,6 +408,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       buildings.destroy();
       ghost.destroy();
       highlight.destroy();
+      // Before the gate goes: a lease outliving its view is a permanent frame
+      // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).
+      effects.destroy();
       terrain.destroy();
       app.destroy();
     },

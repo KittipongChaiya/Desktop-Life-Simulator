@@ -134,3 +134,25 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Goods arrived (07.5b). A one-shot brightening of the button's own border —
+   no new colour, no motion that could pull the eye off real work. `forwards`
+   so it settles rather than looping; a looping flash would draw forever. */
+.toggle[data-arrived] {
+  animation: arrived-flash 1400ms ease-out forwards;
+}
+
+@keyframes arrived-flash {
+  0% {
+    border-color: rgba(242, 194, 76, 0.9);
+  }
+  100% {
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle[data-arrived] {
+    animation: none;
+  }
+}

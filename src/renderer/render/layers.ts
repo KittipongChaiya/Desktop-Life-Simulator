@@ -5,10 +5,14 @@
  * `addChild` call order scattered across files. Implied ordering is how a
  * renderer ends up with a draw order nobody can predict or change safely.
  *
- * Layers 4 (`effects`) and 5 (`lighting`) are created and left EMPTY in v0.1.
- * That costs two container allocations and avoids a re-layering migration when
- * particles, weather, and day/night arrive in v0.2. Do not put anything in them
- * before then — that would be scope inflation (AI_RULES.md §8).
+ * Layer 4 (`effects`) was created and left empty through v0.1's build-out, and
+ * phase-07.5b claimed it exactly as intended: the harvest burst and the
+ * confirmation ring draw there, with no re-layering migration required. That
+ * is what reserving it bought.
+ *
+ * Layer 5 (`lighting`) is still EMPTY and stays that way until day/night and
+ * weather arrive in v0.2. Do not put anything in it before then — that would
+ * be the scope inflation `AI_RULES.md` §8 forbids.
  */
 
 import { Container } from 'pixi.js';

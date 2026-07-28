@@ -19,7 +19,7 @@ import { createWorld, type World, type WorldOptions } from '@sim/world/world';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import type { ContentId, TileIndex } from '../../shared/ids';
+import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
 import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
 import { createCompanionController } from '../app/companion-controller';
@@ -407,8 +407,12 @@ function composeApplication(world: World, session: SaveSession): void {
   // SOUND WIRING (07.5a). Every trigger is something that ALREADY HAPPENED —
   // a published event or a settled snapshot — never an intent, so a rejected
   // command is silent and the farm never lies about what it did.
-  world.events.subscribe('cropHarvested', () => {
+  world.events.subscribe('cropHarvested', (event) => {
     sound.play(Sound.Harvest);
+    // The burst lands on the tile that was actually harvested — the event
+    // carries it, so the acknowledgement is never guessed from a selection or
+    // a cursor position.
+    worldMount.current()?.playEffect('burst', asTileIndex(event.tile));
   });
   world.events.subscribe('itemSold', () => {
     sound.play(Sound.Coin);
@@ -432,16 +436,29 @@ function composeApplication(world: World, session: SaveSession): void {
 
   // A building APPEARING — not a placement being attempted. The ghost paints
   // amber for illegal tiles and the dispatch rejects them; neither makes noise.
-  let placedBuildings = store.get('buildings').length;
+  let knownBuildings = new Set(store.get('buildings').map((building) => building.id));
   store.subscribe('buildings', () => {
-    const count = store.get('buildings').length;
-    if (count > placedBuildings) sound.play(Sound.Placement);
-    placedBuildings = count;
+    const current = store.get('buildings');
+    // Diffed by ID rather than counted, so the ring lands on the building
+    // that actually appeared rather than on the last one in the list.
+    const arrived = current.filter((building) => !knownBuildings.has(building.id));
+    knownBuildings = new Set(current.map((building) => building.id));
+    if (arrived.length === 0) return;
+
+    sound.play(Sound.Placement);
+    for (const building of arrived) {
+      worldMount.current()?.playEffect('ring', asTileIndex(building.tile));
+    }
   });
 
   selection.subscribe(() => {
-    // Selecting, not clearing: Esc should be quiet.
-    if (selection.selected() !== null) sound.play(Sound.Selection);
+    // Selecting, not clearing: Esc should be quiet and unmarked.
+    const selected = selection.selected();
+    if (selected === null) return;
+
+    sound.play(Sound.Selection);
+    const worker = store.get('workers').find((candidate) => candidate.id === selected);
+    if (worker !== undefined) worldMount.current()?.playEffect('ring', asTileIndex(worker.tile));
   });
 
   save.subscribe(() => {

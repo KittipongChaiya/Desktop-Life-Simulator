@@ -7,6 +7,9 @@
  */
 
 .bar {
+  /* The positioning context for the coin gain popup, which is a sibling of the
+     coin readout rather than a child (see CoinCounter). */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -54,6 +57,51 @@
 .coinValue {
   min-width: 3ch;
   font-variant-numeric: tabular-nums;
+}
+
+/* The coin gain popup (07.5b). Absolutely positioned so it cannot reflow the
+   status bar as it appears and disappears, and pointer-transparent so it can
+   never intercept a click on the bar it floats over. */
+.coinGain {
+  position: absolute;
+  top: 2px;
+  /* Sits above the coin readout, which follows the uptime and tick columns. */
+  left: 190px;
+  pointer-events: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #f2c24c;
+  /* Rises and fades once, then holds — a single acknowledgement, not a loop.
+     `forwards` matters: a looping popup would draw forever, which is the
+     whole thing this phase refuses to spend (ADR-001). */
+  animation: coin-rise 1400ms ease-out forwards;
+}
+
+@keyframes coin-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+}
+
+/* A player who has asked for less motion gets the value without the movement:
+   the number still appears, it simply does not travel (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  .coinGain {
+    animation: none;
+  }
 }
 
 .toggle {

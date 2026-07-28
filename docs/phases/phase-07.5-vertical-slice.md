@@ -21,11 +21,21 @@
 | #     | Milestone                       | Delivers                                                                                                                                    | Status        |
 | ----- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 07.5a | Audio foundation                | ADR-016; scripted placeholder `.wav` set; the renderer's sound bus wired to real events; volume/mute as app preferences; work mode silences | **Delivered** |
-| 07.5b | Feedback effects                | Coin popup, harvest burst, placement confirm, selection pulse, inventory flash — event-driven, render-on-demand intact                      | —             |
+| 07.5b | Feedback effects                | Coin popup, harvest burst, placement confirm, selection pulse, inventory flash — event-driven, render-on-demand intact                      | **Delivered** |
 | 07.5c | Camera polish                   | Eased follow, zoom limits, edge clamping, drag feel; player input always wins                                                               | —             |
 | 07.5d | UI & accessibility polish       | Spacing, hierarchy, typography, contrast, click targets, interaction states, colour-blind-safe indicators                                   | —             |
 | 07.5e | World presentation              | Terrain variation, ground decoration and props from the existing art, depth ordering, contact shadows                                       | —             |
 | 07.5f | QA, performance & the RC report | Extended validation, the measured budgets, doc synchronisation, the v0.1 Release Candidate report                                           | —             |
+
+### Delivered (07.5b) — feedback effects
+
+- **The state is separate from the drawing, because only one half can be tested.** `effect-state.ts` is pure — spawn, progress, expiry — and carries the property the overlay actually depends on: the queue reliably becomes EMPTY. The Pixi half is deliberately thin, since asserting on GPU output produces brittle tests that verify nothing (`TESTING.md` §4.1).
+- **The animation lease is the dangerous part, and it is the tested part.** Effects hold the dirty gate's animation lease while alive and drop it on the first empty update; `destroy()` releases unconditionally, because collapsing the overlay tears down the whole scene (ADR-001 §2) and a lease outliving its view is a permanent frame cost that looks exactly like normal operation. The E2E gate confirms the result: **a static world still draws no frames.**
+- **Layer 4 was claimed exactly as reserved.** `layers.ts` created `effects` and left it empty specifically so this could arrive without a re-layering migration. It did. Layer 5 (`lighting`) stays empty until v0.2.
+- **Capped at 12 concurrent, oldest dropped first.** An offline catch-up credits hundreds of harvests at the load boundary; uncapped, the farm would flash like an alarm on every return — the same failure the audio bus coalesces away, and the same answer.
+- **Everything is triggered by what already happened**, and located from the event rather than guessed: the burst lands on the tile `cropHarvested` names, and the placement ring is diffed by building ID so it marks the building that actually appeared. Fixed particle diagonals rather than random offsets — an effect that looks different every time it fires reads as noise.
+- **The HUD half shares one primitive.** `useGain` answers "how much did this just increase, and is it still recent?" once, for both the coin popup and the inventory-arrival flash. Decreases are deliberately silent: spending was the player's own decision, and this feedback exists for value arriving while they looked elsewhere. Both CSS animations are one-shot, and both are disabled under `prefers-reduced-motion`.
+- **Two real regressions, caught by E2E, fixed rather than worked around.** The coin popup began as a child of the coin readout carrying `role="status"`. Nested, its text joined the balance — the economy spec read `1,240+12` — and its role collided with the companion toast's, breaking a `getByRole('status')` locator. It is now a sibling and `aria-hidden`, which is also simply correct: it echoes a number already on screen and already updating, so announcing the delta again is duplicate chatter.
 
 ### Delivered (07.5a) — audio
 

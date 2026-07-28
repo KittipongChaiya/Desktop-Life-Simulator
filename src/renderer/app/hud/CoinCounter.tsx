@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 
+import { useGain } from '../hooks/use-gain';
 import { useSlice } from '../hooks/use-slice';
 
 import { AtlasSprite } from './ItemIcon';
@@ -21,6 +22,10 @@ const TWEEN_MS = 400;
 
 export function CoinCounter(): ReactNode {
   const wallet = useSlice('wallet');
+  // The §7.5 coin popup: sales happen while the player is looking elsewhere,
+  // so the amount is worth stating once rather than leaving them to infer it
+  // from a balance that quietly moved.
+  const gain = useGain(wallet.coins);
   const readout = useRef<HTMLSpanElement>(null);
   /** The value currently painted, which the next tween starts from. */
   const shown = useRef(wallet.coins);
@@ -51,11 +56,32 @@ export function CoinCounter(): ReactNode {
   }, [wallet.coins]);
 
   return (
-    <span className={styles['coins']} title="Coins">
-      <AtlasSprite frameName="icon_status_coin.png" size={16} />
-      <span ref={readout} className={styles['coinValue']}>
-        {shown.current.toLocaleString()}
+    <>
+      <span className={styles['coins']} title="Coins">
+        <AtlasSprite frameName="icon_status_coin.png" size={16} />
+        <span ref={readout} className={styles['coinValue']}>
+          {shown.current.toLocaleString()}
+        </span>
       </span>
-    </span>
+      {/*
+        A SIBLING of the readout, not a child of it, for two reasons that both
+        turned up as real failures:
+
+        - Nested, its text joined the coin element's, so anything reading the
+          balance saw "1,240+12".
+        - It is a visual echo of a number already on screen and already
+          updating, so `aria-hidden` is correct — announcing the delta as well
+          is duplicate chatter, and it collided with the companion toast's
+          own `role="status"`.
+
+        Absolutely positioned and pointer-transparent, so it can neither
+        reflow the bar nor intercept a click on it.
+      */}
+      {gain > 0 && (
+        <span className={styles['coinGain']} aria-hidden="true" data-testid="coin-gain">
+          +{gain.toLocaleString()}
+        </span>
+      )}
+    </>
   );
 }

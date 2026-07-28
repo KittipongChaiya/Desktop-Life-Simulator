@@ -18,6 +18,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 
+import { useGain } from '../hooks/use-gain';
 import { useSlice } from '../hooks/use-slice';
 import { usePlayer } from '../store-context';
 
@@ -36,6 +37,10 @@ function label(item: string): string {
 export function InventoryPanel(): ReactNode {
   const inventory = useSlice('inventory');
   const economy = useSlice('economy');
+  // Goods arriving is the one inventory change the player did not initiate —
+  // a worker deposited while they were reading something else. The button
+  // flashes so the panel does not have to be open to notice (07.5b).
+  const arrived = useGain(inventory.stacks.reduce((total, stack) => total + stack.quantity, 0));
   const player = usePlayer();
   const [open, setOpen] = useState(false);
   const [sort, setSort] = useState<SortMode>('name');
@@ -52,6 +57,7 @@ export function InventoryPanel(): ReactNode {
       <button
         type="button"
         className={styles['toggle']}
+        data-arrived={arrived > 0 || undefined}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
