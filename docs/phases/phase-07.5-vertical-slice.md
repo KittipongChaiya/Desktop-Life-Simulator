@@ -23,9 +23,17 @@
 | 07.5a | Audio foundation                | ADR-016; scripted placeholder `.wav` set; the renderer's sound bus wired to real events; volume/mute as app preferences; work mode silences | **Delivered** |
 | 07.5b | Feedback effects                | Coin popup, harvest burst, placement confirm, selection pulse, inventory flash — event-driven, render-on-demand intact                      | **Delivered** |
 | 07.5c | Camera polish                   | Eased follow, zoom limits, edge clamping, drag feel; player input always wins                                                               | **Delivered** |
-| 07.5d | UI & accessibility polish       | Spacing, hierarchy, typography, contrast, click targets, interaction states, colour-blind-safe indicators                                   | —             |
+| 07.5d | UI & accessibility polish       | Spacing, hierarchy, typography, contrast, click targets, interaction states, colour-blind-safe indicators                                   | **Delivered** |
 | 07.5e | World presentation              | Terrain variation, ground decoration and props from the existing art, depth ordering, contact shadows                                       | —             |
 | 07.5f | QA, performance & the RC report | Extended validation, the measured budgets, doc synchronisation, the v0.1 Release Candidate report                                           | —             |
+
+### Delivered (07.5d) — UI & accessibility
+
+- **Contrast became a measurement instead of an opinion.** `hud/contrast.ts` implements WCAG 2.2's relative-luminance and ratio formulas directly (eight lines of arithmetic, no dependency shipped to players), and `contrast.test.ts` asserts every colour pair the HUD actually uses. Ratios are measured **over a white backdrop** — the least favourable desktop behind a translucent overlay — so passing means passing on any wallpaper. Every pair already met AA; the value is that it is now pinned, and the helper's own arithmetic is checked against WCAG's stated values so it cannot pass vacuously.
+- **The suite caught a real bug in itself on the first run.** `Number('88%')` is `NaN`, so the status bar's `rgb(18 20 26 / 88%)` produced an `NaN` alpha, an `NaN` ratio, and three assertions that passed against nothing. Fixed in the parser, which now refuses a notation it does not understand rather than guessing — silently returning black would make every ratio look excellent. There is a regression test for exactly this.
+- **Keyboard focus was almost entirely missing, and is now global.** Precisely one control in the HUD had a focus style: the status bar's collapse toggle. A keyboard user tabbing through Settings, Shop, Inventory, Hire, Save, mute, or Dismiss could not see where they were. One `:focus-visible` rule in `global.css` now covers every control and every control added later — a per-component rule is one that gets forgotten. `:focus-visible` rather than `:focus`, so a mouse click leaves no ring behind.
+- **Minimum target size** (WCAG 2.2 §2.5.8, 24×24 px) applied to buttons. A real constraint on a 220 px overlay rather than a formality: several controls were 15–18 px tall to fit, which is accurate enough with a mouse and hostile with a trackpad.
+- **Motion respects `prefers-reduced-motion`** across the HUD animations introduced in 07.5b — the value still appears, it simply does not travel.
 
 ### Delivered (07.5c) — camera
 

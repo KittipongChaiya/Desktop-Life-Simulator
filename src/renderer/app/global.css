@@ -27,3 +27,38 @@ body {
 *::after {
   box-sizing: border-box;
 }
+
+/*
+ * Keyboard focus. Phase-07.5d — WCAG 2.2 §2.4.11, `fix/0.1/7.5.md`
+ * §Accessibility ("clear interaction states").
+ *
+ * Declared ONCE, globally, rather than per panel. Before this, exactly one
+ * control in the whole HUD had a focus style — the status bar's collapse
+ * toggle — so a keyboard user tabbing through Settings, Shop, Inventory, Hire,
+ * Save, or Dismiss could not see where they were. A per-component rule is a
+ * rule that gets forgotten as panels are added; this cannot be, and every
+ * future control inherits it for free.
+ *
+ * `:focus-visible` rather than `:focus`, so a mouse click does not leave a
+ * ring behind on a control the player is looking straight at.
+ *
+ * The colour is the one the collapse toggle already used, kept rather than
+ * replaced so the HUD has one focus colour; its 3:1 contrast against the
+ * panels is asserted in `hud/contrast.test.ts`.
+ */
+:focus-visible {
+  outline: 2px solid #6ea8fe;
+  outline-offset: 1px;
+}
+
+/*
+ * Minimum target size. WCAG 2.2 §2.5.8 asks for 24x24 CSS pixels.
+ *
+ * The overlay is 220px tall expanded, so this is a real constraint rather than
+ * a formality: several controls were 15-18px tall to fit, which is accurate
+ * enough with a mouse and hostile with a trackpad. Applied to buttons rather
+ * than universally — a `<kbd>` legend is not a target.
+ */
+button {
+  min-height: 24px;
+}
