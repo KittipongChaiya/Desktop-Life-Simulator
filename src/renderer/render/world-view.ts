@@ -27,6 +27,7 @@ import { Spritesheet, Texture } from 'pixi.js';
 import { TILE_SIZE } from '../../shared/constants';
 import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
+import { CORE_GRASS } from '../../sim/content/tile-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
@@ -45,6 +46,8 @@ import {
   type CameraState,
 } from './camera';
 import { createCameraFocus, needsFocus, type CameraFocus } from './camera-focus';
+import { planDecor } from './decor';
+import { createDecorRenderer, type DecorRenderer } from './decor-view';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
 import { createEffects, type Effects } from './effects';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
@@ -273,6 +276,23 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // Layer 4, which `layers.ts` reserved and left empty for exactly this.
   const effects: Effects = createEffects(app.layers.effects, gate);
 
+  // Ground decoration (07.5e). Shares the y-sorted `objects` layer with
+  // buildings so props, buildings, and workers interleave correctly by depth.
+  const decor: DecorRenderer = createDecorRenderer({ layer: app.layers.objects, textureFor });
+
+  // Grass is the only decorated kind; its dense index is resolved once here
+  // rather than assumed, since registration order is content's business.
+  const grassKindIndex = options.world.tileKinds.indexOf(CORE_GRASS);
+
+  /** Expansion count the decor was last planned against — see `renderFrame`. */
+  let decorOwnedRevision = -1;
+
+  const replanDecor = (): void => {
+    if (grassKindIndex < 0) return;
+    decor.set(planDecor(options.world.tiles, options.world.seed, grassKindIndex));
+    gate.markDirty();
+  };
+
   return {
     gate,
     backend: app.backend,
@@ -344,6 +364,15 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         lastColumn: range.last,
       });
       buildings.update(options.world.snapshots.buildings.value);
+
+      // Decor is static until the plot grows, so it is re-planned only when
+      // the expansion counter moves — never per frame. A tile that becomes
+      // the player's loses its tree.
+      const expansions = options.world.economy.expansionsPurchased;
+      if (expansions !== decorOwnedRevision) {
+        decorOwnedRevision = expansions;
+        replanDecor();
+      }
       // Effects animate in REAL time, not simulation time: they acknowledge
       // an event to a person, so they must not stretch when the sim is
       // time-scaled in devtools. This also releases the animation lease the
@@ -468,6 +497,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // A glide's lease must not outlive the view that owns it.
       focus.cancel();
       endFocus();
+      decor.destroy();
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).
       effects.destroy();

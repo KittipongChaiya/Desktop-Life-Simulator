@@ -24,8 +24,20 @@
 | 07.5b | Feedback effects                | Coin popup, harvest burst, placement confirm, selection pulse, inventory flash — event-driven, render-on-demand intact                      | **Delivered** |
 | 07.5c | Camera polish                   | Eased follow, zoom limits, edge clamping, drag feel; player input always wins                                                               | **Delivered** |
 | 07.5d | UI & accessibility polish       | Spacing, hierarchy, typography, contrast, click targets, interaction states, colour-blind-safe indicators                                   | **Delivered** |
-| 07.5e | World presentation              | Terrain variation, ground decoration and props from the existing art, depth ordering, contact shadows                                       | —             |
+| 07.5e | World presentation              | Terrain variation, ground decoration and props from the existing art, depth ordering, contact shadows                                       | **Delivered** |
 | 07.5f | QA, performance & the RC report | Extended validation, the measured budgets, doc synchronisation, the v0.1 Release Candidate report                                           | —             |
+
+### Delivered (07.5e) — world presentation
+
+- **The world stopped being undifferentiated grass.** Trees, rocks, bushes, and flowers now scatter the land outside the farm, using art that already shipped with the phase-05.5 world set — no new assets, which is what "polish on what exists" means.
+- **Three rules make a cosmetic system safe**, and each is a test:
+  1. **It touches nothing.** Decor is not a building, not an entity, and not in the save. It never blocks a tile, never costs a move, and never appears in a snapshot — a worker walks straight through a bush, because as far as the simulation is concerned the bush does not exist. Anything else would be new gameplay, which this phase forbids.
+  2. **It is derived, never rolled.** Placement is a pure hash of the world seed and tile index, deliberately **not** `world.rng`: drawing from the simulation's generator would advance the stream a saved game resumes from and desynchronise every future tick (ADR-007). A test asserts the generator is byte-identical across a full plan.
+  3. **It stays off the farm.** Only unowned, unblocked grass is eligible, and a tile that becomes the player's loses its tree on the next plan — which is how land expansion reclaims scenery.
+- **Static by construction.** Props are built once and re-planned only when the expansion counter moves — a handful of times in a session — so they cost nothing per frame and hold no animation lease. Render-on-demand is untouched.
+- **Depth ordering is shared, not parallel.** Decor draws into the same y-sorted `objects` layer as buildings, with the same sort key, so props, buildings, and workers interleave correctly: a worker below a tree draws in front of it. A separate layer would have left props floating in a plane of their own.
+- **Contact shadows were already there.** The standing-object art grammar (1 px outline, upper-left light, contact shadow) was set in phase-05.5 and the props inherit it; nothing was needed here beyond using them.
+- **Caveat, stated rather than assumed:** all four props come from the `buildings` atlas, so they batch into the same draw call as buildings by design. The E2E draw-call ceiling gate (`PERFORMANCE.md` §10.1, criterion 8) is **GPU-skipped on this machine**, so that batching is reasoned rather than measured here. It belongs on the 07.5f list to confirm on hardware with a working GPU path.
 
 ### Delivered (07.5d) — UI & accessibility
 
