@@ -24,40 +24,17 @@
 import type { ContentId, TileIndex } from '../../shared/ids';
 import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { Command, CommandResult } from '../../sim/commands/types';
+import type { ToolSelection } from '../app/tool-selection';
+import { Tool } from '../app/tools';
 
-/**
- * The tools a player can hold. `GAME_DESIGN.md` §8.3 also lists a watering can
- * on key `3`; it is absent here because no water command exists in v0.1, and a
- * tool that silently does nothing is worse than a tool that is not offered.
+/*
+ * The tool vocabulary moved to `app/tools.ts` in 07.5h so the UI layer could
+ * reach it: `app` may not import `bootstrap` (`CODE_STYLE.md` §8.1), which is
+ * why the tool bar `GAME_DESIGN.md` §10.2 specifies could not be built here.
+ * Re-exported so existing call sites and tests keep one import path.
  */
-export const Tool = {
-  Hoe: 'hoe',
-  Seed: 'seed',
-  Hand: 'hand',
-} as const;
+export { Tool, toolForKey, TOOLS, type ToolInfo } from '../app/tools';
 
-export type Tool = (typeof Tool)[keyof typeof Tool];
-
-/** Keys `1`–`4` select tools (`GAME_DESIGN.md` §8.3). `3` is unbound in v0.1. */
-export function toolForKey(key: string): Tool | null {
-  switch (key) {
-    case '1':
-      return Tool.Hoe;
-    case '2':
-      return Tool.Seed;
-    case '4':
-      return Tool.Hand;
-    default:
-      return null;
-  }
-}
-
-/**
- * Maps intent to a command.
- *
- * Pure and total: every tool yields a command for any tile. Legality is the
- * validator's answer, not this function's — see the module note.
- */
 export function commandFor(tool: Tool, tile: TileIndex, seed: ContentId): Command {
   switch (tool) {
     case Tool.Hoe:
@@ -99,12 +76,23 @@ export interface PlayerInputOptions {
    * change between clicks. Presentation state end to end (ADR-007 §1).
    */
   readonly seed: () => ContentId;
+  /**
+   * The held tool. A SHARED store (07.5h), not private state: the tool bar
+   * displays and sets the same value this mapping reads, so there is exactly
+   * one answer to "what am I holding".
+   */
+  readonly tools: ToolSelection;
   /** Notified whenever presentation state changes, so the view can redraw. */
   readonly onChange?: (state: InteractionState) => void;
 }
 
 export function createPlayerInput(options: PlayerInputOptions): PlayerInput {
-  let state: InteractionState = { tool: null, hovered: null, selected: null, rejected: null };
+  let state: InteractionState = {
+    tool: options.tools.selected(),
+    hovered: null,
+    selected: null,
+    rejected: null,
+  };
 
   const update = (next: Partial<InteractionState>): void => {
     const merged = { ...state, ...next };
@@ -123,14 +111,21 @@ export function createPlayerInput(options: PlayerInputOptions): PlayerInput {
     options.onChange?.(state);
   };
 
+  // The store is the owner, so a change from the TOOL BAR reaches the world
+  // view's highlight exactly as a keypress does — one path, not two.
+  options.tools.subscribe(() => {
+    const tool = options.tools.selected();
+    // Clearing the tool also clears the selection: `Esc` means "deselect"
+    // (`GAME_DESIGN.md` §8.3), and a lingering highlight with no tool implies
+    // an action that is no longer available.
+    update(tool === null ? { tool: null, selected: null, rejected: null } : { tool });
+  });
+
   return {
     state: () => state,
 
     selectTool(tool) {
-      // Clearing the tool also clears the selection: `Esc` means "deselect"
-      // (`GAME_DESIGN.md` §8.3), and a lingering highlight with no tool implies
-      // an action that is no longer available.
-      update(tool === null ? { tool: null, selected: null, rejected: null } : { tool });
+      options.tools.select(tool);
     },
 
     hover(tile) {

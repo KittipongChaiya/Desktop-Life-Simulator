@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_BINDINGS, ShortcutAction } from '../../../shared/shortcuts';
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
 import { AppProviders } from '../store-context';
+import { createToolSelection } from '../tool-selection';
 
 import { CompanionToast } from './CompanionToast';
 
@@ -51,6 +52,7 @@ function mount(): { emit(next: BridgeState): void } {
   render(
     <StrictMode>
       <AppProviders
+        tools={createToolSelection()}
         store={undefined as never}
         overlay={undefined as never}
         player={undefined as never}

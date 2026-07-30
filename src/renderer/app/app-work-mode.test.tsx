@@ -24,6 +24,7 @@ import { createReturnSummary } from './return-summary';
 import { createSaveController } from './save-controller';
 import { createSeedSelection } from './seed-selection';
 import { AppProviders } from './store-context';
+import { createToolSelection } from './tool-selection';
 
 interface BridgeState {
   readonly opacityPercent: number;
@@ -61,6 +62,7 @@ function mount(initial: BridgeState): { emit(next: BridgeState): void } {
   render(
     <StrictMode>
       <AppProviders
+        tools={createToolSelection()}
         store={createSnapshotStore(world.snapshots)}
         overlay={
           {

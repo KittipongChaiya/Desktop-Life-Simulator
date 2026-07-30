@@ -1,0 +1,56 @@
+/*
+ * Tool bar. Phase-07.5h — GAME_DESIGN.md §10.2's `[tools]` slot.
+ *
+ * Sits inside the status bar, which is already pointer-interactive, so this
+ * needs no `pointer-events` opt-in of its own.
+ *
+ * The armed state is carried by BOTH a border and a fill, never by hue alone:
+ * fix/0.1/7.5.md asks for colour-blind-friendly indicators where practical, and
+ * "which tool am I holding" is the one piece of state a wrong guess makes the
+ * player act on the wrong tile.
+ */
+
+.bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px; /* WCAG 2.2 §2.5.8, applied globally but stated here too */
+  padding: 3px 8px;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 6px;
+  color: #e8ecf4;
+  font:
+    600 12px/1 system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+/* Armed: brighter fill, a solid border, and a lifted label. Three signals for
+   one state, so it survives both colour blindness and a dim laptop panel. */
+.tool[data-armed] {
+  background: rgb(120 180 120 / 30%);
+  border-color: rgb(140 200 140 / 90%);
+  color: #fff;
+}
+
+.key {
+  padding: 0 4px;
+  background: rgb(0 0 0 / 30%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 3px;
+  font:
+    500 10px/1.4 ui-monospace,
+    monospace;
+  opacity: 0.85;
+}

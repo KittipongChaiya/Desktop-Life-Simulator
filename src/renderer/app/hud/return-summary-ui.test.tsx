@@ -19,6 +19,7 @@ import { createCompanionController, type CompanionBridge } from '../companion-co
 import { createReturnSummary, type ReturnSummaryReport } from '../return-summary';
 import { createSaveController, type SaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
+import { createToolSelection } from '../tool-selection';
 
 import { ReturnSummary } from './ReturnSummary';
 import { SaveNotice } from './SaveNotice';
@@ -76,6 +77,7 @@ function mount(options: {
   render(
     <StrictMode>
       <AppProviders
+        tools={createToolSelection()}
         store={undefined as never}
         overlay={undefined as never}
         player={undefined as never}

@@ -30,6 +30,7 @@ import { createSaveController } from '../app/save-controller';
 import { createSeedSelection } from '../app/seed-selection';
 import { Sound } from '../app/sounds';
 import { AppProviders } from '../app/store-context';
+import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createWorkerSelection } from '../app/worker-selection';
 import { workerAtTile } from '../render/worker-render';
@@ -266,9 +267,12 @@ function composeApplication(world: World, session: SaveSession): void {
   // Which crop the seed tool plants — presentation state shared between the
   // shop panel's selector and the click mapping (06e).
   const seeds = createSeedSelection();
+  // The held tool, shared between the tool bar and the click mapping (07.5h).
+  const tools = createToolSelection();
   const playerInput = createPlayerInput({
     source: playerSource,
     seed: () => seeds.selected(),
+    tools,
     onChange: (state) => worldMount.current()?.setHighlight(toHighlight(state)),
   });
 
@@ -516,6 +520,7 @@ function composeApplication(world: World, session: SaveSession): void {
         save={save}
         returnSummary={returnSummary}
         sound={sound}
+        tools={tools}
       >
         <App />
       </AppProviders>

@@ -116,3 +116,26 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
 
   await window.screenshot({ path: 'test-results/economy-full-loop.png' });
 });
+
+test('the tool bar arms a tool with the mouse, and planting works (07.5h regression)', async () => {
+  // THE DEFECT THIS GUARDS. Clicking the ground does nothing unless a tool is
+  // armed, and arming one used to be possible only by pressing `1`, `2`, or `4`
+  // — stated in no interface anywhere. A player who bought seeds, saw them in
+  // the inventory, and clicked the ground got silence with no clue what was
+  // missing (reported from a real session, twice).
+  const window = await app.firstWindow();
+  await window.locator('[title="Simulation uptime"]').waitFor();
+
+  const plant = window.getByRole('button', { name: /Plant/ });
+  await expect(plant).toBeVisible();
+  // The key is on the button, so the keyboard route is discoverable too.
+  await expect(plant).toContainText('2');
+
+  await expect(plant).toHaveAttribute('aria-pressed', 'false');
+  await plant.click();
+  await expect(plant).toHaveAttribute('aria-pressed', 'true');
+
+  // Clicking it again disarms: the mouse can undo what the mouse did.
+  await plant.click();
+  await expect(plant).toHaveAttribute('aria-pressed', 'false');
+});

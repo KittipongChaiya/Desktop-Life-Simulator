@@ -17,6 +17,7 @@ import type { PlacementController } from './placement';
 import type { ReturnSummaryController } from './return-summary';
 import type { SaveController } from './save-controller';
 import type { SeedSelection } from './seed-selection';
+import type { ToolSelection } from './tool-selection';
 import type { WorkerSelection } from './worker-selection';
 
 interface AppServices {
@@ -38,6 +39,8 @@ interface AppServices {
   readonly returnSummary: ReturnSummaryController;
   /** The sound bus (07.5a, ADR-016). Audibility is decided inside it. */
   readonly sound: SoundBus;
+  /** The held tool — shared with the click mapping (07.5h). */
+  readonly tools: ToolSelection;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -53,6 +56,7 @@ export interface AppProvidersProps {
   readonly save: SaveController;
   readonly returnSummary: ReturnSummaryController;
   readonly sound: SoundBus;
+  readonly tools: ToolSelection;
   readonly children: ReactNode;
 }
 
@@ -67,6 +71,7 @@ export function AppProviders({
   save,
   returnSummary,
   sound,
+  tools,
   children,
 }: AppProvidersProps): ReactNode {
   return (
@@ -82,6 +87,7 @@ export function AppProviders({
         save,
         returnSummary,
         sound,
+        tools,
       }}
     >
       {children}
@@ -135,4 +141,8 @@ export function useReturnSummary(): ReturnSummaryController {
 
 export function useSound(): SoundBus {
   return useServices().sound;
+}
+
+export function useToolSelection(): ToolSelection {
+  return useServices().tools;
 }

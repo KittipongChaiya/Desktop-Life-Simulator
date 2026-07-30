@@ -19,6 +19,7 @@ import { createWorld } from '../../../sim/world/world';
 import { createSnapshotStore, type SnapshotStore } from '../../bootstrap/snapshot-store';
 import type { OverlayController } from '../overlay-controller';
 import { AppProviders } from '../store-context';
+import { createToolSelection } from '../tool-selection';
 
 import { StatusBar } from './StatusBar';
 
@@ -43,7 +44,7 @@ function stubOverlay(collapsed = true): OverlayController {
 function mount(store: SnapshotStore, onRender: () => void, overlay = stubOverlay()): void {
   render(
     <StrictMode>
-      <AppProviders store={store} overlay={overlay}>
+      <AppProviders tools={createToolSelection()} store={store} overlay={overlay}>
         <Profiler id="status" onRender={onRender}>
           <StatusBar />
         </Profiler>

@@ -21,6 +21,7 @@ import {
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
 import { createSaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
+import { createToolSelection } from '../tool-selection';
 
 import { SettingsPanel } from './SettingsPanel';
 
@@ -76,6 +77,7 @@ function mount(
   render(
     <StrictMode>
       <AppProviders
+        tools={createToolSelection()}
         store={undefined as never}
         overlay={undefined as never}
         player={undefined as never}

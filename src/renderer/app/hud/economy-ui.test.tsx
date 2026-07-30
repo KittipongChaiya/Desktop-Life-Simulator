@@ -24,6 +24,7 @@ import { createSnapshotStore } from '../../bootstrap/snapshot-store';
 import { createPlacementController } from '../placement';
 import { createSeedSelection, type SeedSelection } from '../seed-selection';
 import { AppProviders } from '../store-context';
+import { createToolSelection } from '../tool-selection';
 
 import { InventoryPanel } from './InventoryPanel';
 import { ShopPanel } from './ShopPanel';
@@ -44,6 +45,7 @@ function mount(world: World, element: React.ReactNode): Harness {
   render(
     <StrictMode>
       <AppProviders
+        tools={createToolSelection()}
         store={store}
         overlay={
           {

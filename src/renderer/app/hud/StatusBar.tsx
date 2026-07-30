@@ -17,6 +17,7 @@ import { useOverlay } from '../store-context';
 
 import { CoinCounter } from './CoinCounter';
 import styles from './StatusBar.module.css';
+import { ToolBar } from './ToolBar';
 
 function formatUptime(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
@@ -46,6 +47,11 @@ export function StatusBar(): ReactNode {
       </span>
 
       <CoinCounter />
+
+      {/* GAME_DESIGN.md §10.2's `[tools]` slot (07.5h). Inside the status bar,
+          which is already pointer-interactive, and before the collapse toggle
+          so the toggle stays the rightmost control. */}
+      <ToolBar />
 
       <span className={styles['muted']} title="Workers hired">
         {workers.length} {workers.length === 1 ? 'worker' : 'workers'}

@@ -21,6 +21,7 @@ import { DEFAULT_STACK_SIZE } from '../../sim/content/items';
 import { stepSimulation } from '../../sim/tick';
 import { addItems } from '../../sim/world/container';
 import { createWorld, type World } from '../../sim/world/world';
+import { createToolSelection } from '../app/tool-selection';
 
 import { createPlayerInputSource } from './command-dispatch';
 import { commandFor, createPlayerInput, Tool, toolForKey, type PlayerInput } from './player-input';
@@ -30,6 +31,7 @@ const OUTSIDE = toIndexUnchecked(2, 2);
 
 function inputFor(world: World): PlayerInput {
   return createPlayerInput({
+    tools: createToolSelection(),
     source: createPlayerInputSource(world.commands),
     seed: () => CORE_WHEAT,
   });
