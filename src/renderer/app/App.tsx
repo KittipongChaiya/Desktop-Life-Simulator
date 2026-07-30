@@ -5,14 +5,21 @@
  * (ADR-005 §1) — React never renders game entities and PixiJS never renders
  * controls.
  *
- * Hit-testing lives here because click-through depends on it: the overlay must
- * pass clicks through to whatever is underneath EXCEPT over real controls. The
- * root is pointer-transparent; individual controls opt back in via CSS.
+ * Hit-testing lives here because click-through depends on it. The DECISION
+ * itself lives in `hit-test.ts` — this file only supplies the DOM half of the
+ * question ("is the pointer over a `data-interactive` element?") and applies
+ * the answer.
+ *
+ * That split was made in 07.5g, when asking only the DOM half turned out to be
+ * the whole bug: the world is not a `data-interactive` element, so an expanded
+ * overlay passed every click on a tile through to the desktop and the game
+ * could not be played with a mouse at all.
  */
 
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
+import { shouldCaptureMouse } from './hit-test';
 import { CompanionToast } from './hud/CompanionToast';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { ReturnSummary } from './hud/ReturnSummary';
@@ -46,17 +53,31 @@ export function App(): ReactNode {
   );
 
   useEffect(() => {
-    // Report whether the pointer sits over interactive UI. The controller
-    // de-duplicates, so pointer movement does not spam IPC.
-    const onPointerMove = (event: PointerEvent): void => {
-      const target = event.target;
-      const overUi = target instanceof Element && target.closest('[data-interactive]') !== null;
-      overlay.setPointerOverUi(overUi);
+    // Whether the overlay KEEPS the mouse, by the `hit-test.ts` rule. The
+    // controller de-duplicates, so pointer movement does not spam IPC.
+    //
+    // The rule is not "over a control": an expanded world is the interface,
+    // and asking only about `data-interactive` is what made every click on a
+    // tile go to the desktop instead of the game (07.5g).
+    const apply = (overInteractiveElement: boolean): void => {
+      overlay.setPointerOverUi(shouldCaptureMouse({ overInteractiveElement, collapsed, workMode }));
     };
 
+    const onPointerMove = (event: PointerEvent): void => {
+      const target = event.target;
+      apply(target instanceof Element && target.closest('[data-interactive]') !== null);
+    };
+
+    // The pointer has left the window entirely: nothing here wants the mouse,
+    // whatever mode the overlay is in.
     const onPointerLeave = (): void => {
       overlay.setPointerOverUi(false);
     };
+
+    // Collapsing, expanding, or toggling work mode changes the answer for a
+    // pointer that has not moved. Without this, collapsing while hovering the
+    // world would leave the overlay holding the mouse over a status bar.
+    apply(false);
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerleave', onPointerLeave);
@@ -65,7 +86,7 @@ export function App(): ReactNode {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerleave', onPointerLeave);
     };
-  }, [overlay]);
+  }, [overlay, collapsed, workMode]);
 
   useEffect(() => {
     // ONE delegated listener rather than a sound call in every button (07.5a).

@@ -4,6 +4,12 @@
   position: absolute;
   top: 56px; /* under the status bar, clear of the toast slot's centre */
   right: 8px;
+  /* Opt back in over the pointer-transparent root (App.module.css). Without
+     this the panel carries `data-interactive` but is not a hit target, so its
+     Dismiss button cannot be clicked at all — the summary becomes permanent
+     furniture. Every interactive panel must declare BOTH; a source-level test
+     now enforces the pair. */
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;

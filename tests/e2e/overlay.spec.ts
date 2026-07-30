@@ -124,3 +124,52 @@ test('renders the status bar', async () => {
   await expect(window.locator('[title="Simulation uptime"]')).toBeVisible();
   await expect(window.getByRole('button', { name: /overlay$/ })).toBeVisible();
 });
+
+test('the expanded world KEEPS the mouse, so clicks reach the game (07.5g regression)', async () => {
+  // THE BUG THIS GUARDS. Hit-testing used to ask only "is the pointer over a
+  // `data-interactive` element?", and the world is not one — so an expanded
+  // overlay asked main for click-through and every click on a tile went to the
+  // desktop. Tilling, planting and harvesting were impossible with a mouse.
+  //
+  // Observed in MAIN, at the receiving end of the IPC. The renderer cannot be
+  // instrumented from the page — `contextBridge` exposes a frozen proxy, so a
+  // spy on `window.desktopLife` silently fails to install (found trying). And
+  // the OS half is unobservable either way: Playwright's synthetic events never
+  // travel through the window manager, which is precisely why neither suite
+  // caught this bug. What IS observable, and what actually broke, is the value
+  // the renderer asks main for.
+  const window = await app.firstWindow();
+  await window.locator('[title="Simulation uptime"]').waitFor();
+
+  await app.evaluate(({ ipcMain }) => {
+    const store = globalThis as { clickThroughRequests?: boolean[] };
+    store.clickThroughRequests = [];
+    // An additional listener; the real handler keeps running beside it.
+    ipcMain.on('overlay:set-click-through', (_event, enabled: unknown) => {
+      if (typeof enabled === 'boolean') store.clickThroughRequests?.push(enabled);
+    });
+  });
+
+  await window.evaluate(() => {
+    // The controller de-duplicates, and with the fix the overlay ALREADY holds
+    // the mouse while expanded — so a move over the world alone produces no
+    // call at all. Force the opposite state first: a pointerleave hands the
+    // mouse away unconditionally, whatever the mode.
+    globalThis.dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+    globalThis.dispatchEvent(
+      new PointerEvent('pointermove', {
+        clientX: globalThis.innerWidth / 2,
+        clientY: globalThis.innerHeight - 20,
+        bubbles: true,
+      }),
+    );
+  });
+
+  const requests = await app.evaluate(
+    () => (globalThis as { clickThroughRequests?: boolean[] }).clickThroughRequests ?? [],
+  );
+
+  // Handed away on leave, then TAKEN BACK the moment the pointer is over the
+  // world. Before the fix the second value was `true` and stayed there.
+  expect(requests).toEqual([true, false]);
+});
