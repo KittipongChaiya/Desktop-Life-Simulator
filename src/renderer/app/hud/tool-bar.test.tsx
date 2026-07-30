@@ -16,6 +16,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createActionFeedback } from '../action-feedback';
 import { AppProviders } from '../store-context';
 import { createToolSelection, type ToolSelection } from '../tool-selection';
 import { Tool, TOOLS } from '../tools';
@@ -27,6 +28,7 @@ function mount(): ToolSelection {
   render(
     <StrictMode>
       <AppProviders
+        actionFeedback={createActionFeedback()}
         store={undefined as never}
         overlay={undefined as never}
         player={undefined as never}

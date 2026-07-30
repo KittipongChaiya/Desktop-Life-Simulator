@@ -20,6 +20,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 
 import styles from './App.module.css';
 import { shouldCaptureMouse } from './hit-test';
+import { ActionNotice } from './hud/ActionNotice';
 import { CompanionToast } from './hud/CompanionToast';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { ReturnSummary } from './hud/ReturnSummary';
@@ -155,6 +156,10 @@ export function App(): ReactNode {
           (07e, `SAVE_FORMAT.md` §7.3): withholding "your game is not being
           saved" to keep the desktop quiet is not quiet, it is misleading. */}
       <SaveNotice />
+
+      {/* Why the last action was refused (07.5i). Before this, a rejected
+          click produced only a brief tile outline and read as a dead click. */}
+      <ActionNotice />
 
       {/* The worker panel (count, hire, list), the shop, the selected-worker
           panel, the inventory, and settings show over the world when expanded. */}

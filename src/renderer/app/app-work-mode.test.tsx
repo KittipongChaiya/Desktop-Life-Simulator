@@ -17,6 +17,7 @@ import { stepSimulation } from '../../sim/tick';
 import { createWorld } from '../../sim/world/world';
 import { createSnapshotStore } from '../bootstrap/snapshot-store';
 
+import { createActionFeedback } from './action-feedback';
 import { App } from './App';
 import { createCompanionController, type CompanionBridge } from './companion-controller';
 import { createPlacementController } from './placement';
@@ -62,6 +63,7 @@ function mount(initial: BridgeState): { emit(next: BridgeState): void } {
   render(
     <StrictMode>
       <AppProviders
+        actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={createSnapshotStore(world.snapshots)}
         overlay={

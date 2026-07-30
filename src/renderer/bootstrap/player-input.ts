@@ -21,6 +21,7 @@
  * translates events into these calls.
  */
 
+import type { AppError } from '../../shared/errors';
 import type { ContentId, TileIndex } from '../../shared/ids';
 import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { Command, CommandResult } from '../../sim/commands/types';
@@ -84,6 +85,13 @@ export interface PlayerInputOptions {
   readonly tools: ToolSelection;
   /** Notified whenever presentation state changes, so the view can redraw. */
   readonly onChange?: (state: InteractionState) => void;
+  /**
+   * Notified when a click was REFUSED at dispatch (07.5i).
+   *
+   * The tile outline alone was the only signal, and it read as a click that
+   * never registered. The reason belongs to the player, not just the view.
+   */
+  readonly onRejected?: (error: AppError) => void;
 }
 
 export function createPlayerInput(options: PlayerInputOptions): PlayerInput {
@@ -138,6 +146,7 @@ export function createPlayerInput(options: PlayerInputOptions): PlayerInput {
 
       const result = options.source.submit(commandFor(tool, tile, options.seed()));
       update({ selected: tile, rejected: result.ok ? null : tile });
+      if (!result.ok) options.onRejected?.(result.error);
       return result;
     },
   };

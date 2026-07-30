@@ -17,6 +17,7 @@ import { TICKS_PER_SECOND } from '../../../shared/constants';
 import { stepSimulationBy } from '../../../sim/tick';
 import { createWorld } from '../../../sim/world/world';
 import { createSnapshotStore, type SnapshotStore } from '../../bootstrap/snapshot-store';
+import { createActionFeedback } from '../action-feedback';
 import type { OverlayController } from '../overlay-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
@@ -44,7 +45,12 @@ function stubOverlay(collapsed = true): OverlayController {
 function mount(store: SnapshotStore, onRender: () => void, overlay = stubOverlay()): void {
   render(
     <StrictMode>
-      <AppProviders tools={createToolSelection()} store={store} overlay={overlay}>
+      <AppProviders
+        actionFeedback={createActionFeedback()}
+        tools={createToolSelection()}
+        store={store}
+        overlay={overlay}
+      >
         <Profiler id="status" onRender={onRender}>
           <StatusBar />
         </Profiler>

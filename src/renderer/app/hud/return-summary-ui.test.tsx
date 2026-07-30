@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { TICKS_PER_SECOND } from '../../../shared/constants';
 import type { SaveWriteOutcome } from '../../../shared/ipc/contract';
+import { createActionFeedback } from '../action-feedback';
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
 import { createReturnSummary, type ReturnSummaryReport } from '../return-summary';
 import { createSaveController, type SaveController } from '../save-controller';
@@ -77,6 +78,7 @@ function mount(options: {
   render(
     <StrictMode>
       <AppProviders
+        actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={undefined as never}
         overlay={undefined as never}

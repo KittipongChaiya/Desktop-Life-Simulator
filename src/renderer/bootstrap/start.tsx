@@ -20,6 +20,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
+import { createActionFeedback } from '../app/action-feedback';
 import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
 import { createCompanionController } from '../app/companion-controller';
@@ -113,6 +114,13 @@ export function startApplication(): void {
  * cannot be loaded stops with a clear message; silently starting a new game
  * over a broken farm is the forbidden outcome.
  */
+/**
+ * Why the last action was refused (07.5i). Created at module scope because
+ * `worldOptions` closes over it before the composition root runs — execution
+ * rejections can arrive from the very first tick.
+ */
+const actionFeedback = createActionFeedback();
+
 async function bootApplication(): Promise<void> {
   // Execution-time command rejections are injected here, at the construction
   // boundary. The world reports a `Command` and an `AppError` and knows nothing
@@ -121,6 +129,12 @@ async function bootApplication(): Promise<void> {
   const worldOptions: WorldOptions = {
     onExecutionRejected: (command, error) => {
       lastCommandRejection = `${command.type}: ${error.code}`;
+      // AND tell the player (07.5i). This callback previously only fed a
+      // devtools metric, under a comment admitting these had "nowhere to
+      // surface until the HUD arrives in phase-05". The HUD arrived; they
+      // never surfaced, so a command that failed a tick after the click
+      // looked exactly like a dead click.
+      actionFeedback.report(error);
     },
   };
 
@@ -273,6 +287,10 @@ function composeApplication(world: World, session: SaveSession): void {
     source: playerSource,
     seed: () => seeds.selected(),
     tools,
+    // Rejected at dispatch: the tile outline alone read as a dead click.
+    onRejected: (error) => {
+      actionFeedback.report(error);
+    },
     onChange: (state) => worldMount.current()?.setHighlight(toHighlight(state)),
   });
 
@@ -521,6 +539,7 @@ function composeApplication(world: World, session: SaveSession): void {
         returnSummary={returnSummary}
         sound={sound}
         tools={tools}
+        actionFeedback={actionFeedback}
       >
         <App />
       </AppProviders>

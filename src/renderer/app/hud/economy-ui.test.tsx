@@ -21,6 +21,7 @@ import { addItems } from '../../../sim/world/container';
 import { addCoins } from '../../../sim/world/wallet';
 import { createWorld, type World } from '../../../sim/world/world';
 import { createSnapshotStore } from '../../bootstrap/snapshot-store';
+import { createActionFeedback } from '../action-feedback';
 import { createPlacementController } from '../placement';
 import { createSeedSelection, type SeedSelection } from '../seed-selection';
 import { AppProviders } from '../store-context';
@@ -45,6 +46,7 @@ function mount(world: World, element: React.ReactNode): Harness {
   render(
     <StrictMode>
       <AppProviders
+        actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={store}
         overlay={

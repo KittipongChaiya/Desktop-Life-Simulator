@@ -33,6 +33,8 @@ export interface ToolInfo {
   /** The keyboard shortcut (`GAME_DESIGN.md` §8.3). */
   readonly key: string;
   readonly hint: string;
+  /** Atlas frame from the `ui-world` set, generated in phase-05.5. */
+  readonly icon: string;
 }
 
 /**
@@ -43,9 +45,27 @@ export interface ToolInfo {
  * later without moving every other key under the player's fingers.
  */
 export const TOOLS: readonly ToolInfo[] = [
-  { tool: Tool.Hoe, label: 'Till', key: '1', hint: 'Till owned ground so it can be planted' },
-  { tool: Tool.Seed, label: 'Plant', key: '2', hint: 'Plant the selected seed on tilled ground' },
-  { tool: Tool.Hand, label: 'Harvest', key: '4', hint: 'Harvest a grown crop by hand' },
+  {
+    tool: Tool.Hoe,
+    label: 'Till',
+    key: '1',
+    hint: 'Till owned ground so it can be planted',
+    icon: 'icon_tool_hoe.png',
+  },
+  {
+    tool: Tool.Seed,
+    label: 'Plant',
+    key: '2',
+    hint: 'Plant the selected seed on tilled ground',
+    icon: 'icon_tool_seed.png',
+  },
+  {
+    tool: Tool.Hand,
+    label: 'Harvest',
+    key: '4',
+    hint: 'Harvest a grown crop by hand',
+    icon: 'icon_tool_hand.png',
+  },
 ];
 
 /** The tool a number key arms, or null for anything else. */

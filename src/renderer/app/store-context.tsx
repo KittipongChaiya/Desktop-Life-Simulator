@@ -10,6 +10,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 import type { PlayerInputSource } from '../../sim/commands/sources';
 import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 
+import type { ActionFeedback } from './action-feedback';
 import type { SoundBus } from './audio';
 import type { CompanionController } from './companion-controller';
 import type { OverlayController } from './overlay-controller';
@@ -41,6 +42,8 @@ interface AppServices {
   readonly sound: SoundBus;
   /** The held tool — shared with the click mapping (07.5h). */
   readonly tools: ToolSelection;
+  /** Why the last action was refused (07.5i). Silence was the bug. */
+  readonly actionFeedback: ActionFeedback;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -57,6 +60,7 @@ export interface AppProvidersProps {
   readonly returnSummary: ReturnSummaryController;
   readonly sound: SoundBus;
   readonly tools: ToolSelection;
+  readonly actionFeedback: ActionFeedback;
   readonly children: ReactNode;
 }
 
@@ -72,6 +76,7 @@ export function AppProviders({
   returnSummary,
   sound,
   tools,
+  actionFeedback,
   children,
 }: AppProvidersProps): ReactNode {
   return (
@@ -88,6 +93,7 @@ export function AppProviders({
         returnSummary,
         sound,
         tools,
+        actionFeedback,
       }}
     >
       {children}
@@ -145,4 +151,8 @@ export function useSound(): SoundBus {
 
 export function useToolSelection(): ToolSelection {
   return useServices().tools;
+}
+
+export function useActionFeedback(): ActionFeedback {
+  return useServices().actionFeedback;
 }

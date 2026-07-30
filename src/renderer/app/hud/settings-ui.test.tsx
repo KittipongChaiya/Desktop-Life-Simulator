@@ -18,6 +18,7 @@ import {
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
+import { createActionFeedback } from '../action-feedback';
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
 import { createSaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
@@ -77,6 +78,7 @@ function mount(
   render(
     <StrictMode>
       <AppProviders
+        actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={undefined as never}
         overlay={undefined as never}

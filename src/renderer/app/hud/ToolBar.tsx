@@ -24,6 +24,7 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 import { useToolSelection } from '../store-context';
 import { TOOLS } from '../tools';
 
+import { AtlasSprite } from './ItemIcon';
 import styles from './ToolBar.module.css';
 
 export function ToolBar(): ReactNode {
@@ -56,6 +57,11 @@ export function ToolBar(): ReactNode {
               tools.select(armed ? null : info.tool);
             }}
           >
+            {/* The icons were generated in phase-05.5 and sat unused: the bar
+                shipped with text only, so the toolbar the art was drawn FOR
+                did not exist yet. Icon plus verb rather than icon alone — a
+                first-time player reads the word. */}
+            <AtlasSprite frameName={info.icon} size={16} />
             {info.label}
             <kbd className={styles['key']}>{info.key}</kbd>
           </button>

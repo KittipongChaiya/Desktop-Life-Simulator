@@ -139,3 +139,45 @@ test('the tool bar arms a tool with the mouse, and planting works (07.5h regress
   await plant.click();
   await expect(plant).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('a refused action says WHY, instead of looking like a dead click (07.5i)', async () => {
+  // THE DEFECT THIS GUARDS. A rejected action produced only a brief amber tile
+  // outline; execution-time rejections went to a devtools metric. Neither told
+  // the player anything, so every wrong move read as "nothing happens" — which
+  // is exactly how it was reported, three times.
+  //
+  // The assertion is that the game SPEAKS, not what it says: the exact wording
+  // per error code is pinned in `action-feedback.test.ts`, and tying a live
+  // click to one specific code would depend on where the starting plot happens
+  // to sit on screen.
+  const window = await app.firstWindow();
+  await window.locator('[title="Simulation uptime"]').waitFor();
+
+  // Arm Plant and click ground the player has not prepared — the single most
+  // likely first thing a new player does.
+  await window.getByRole('button', { name: /Plant/ }).click();
+  await window.mouse.click(400, 150);
+
+  const notice = window.getByTestId('action-notice');
+  await expect(notice).toBeVisible();
+  await expect(notice).not.toBeEmpty();
+});
+
+test('the tool bar shows the icons drawn for it back in phase-05.5 (07.5i)', async () => {
+  // The art existed and went unused, because the toolbar it was drawn for did
+  // not exist until 07.5h. `AtlasSprite` falls back to a blank box for a frame
+  // name it cannot resolve, so a typo would render nothing and look deliberate
+  // — asserting the background image is what distinguishes the two.
+  const window = await app.firstWindow();
+  await window.locator('[title="Simulation uptime"]').waitFor();
+
+  const resolved = await window.evaluate(() => {
+    const bar = document.querySelector('[data-testid="tool-bar"]');
+    return [...(bar?.querySelectorAll('span') ?? [])]
+      .map((span) => getComputedStyle(span).backgroundImage)
+      .filter((image) => image !== 'none' && image !== '').length;
+  });
+
+  // One per tool.
+  expect(resolved).toBeGreaterThanOrEqual(3);
+});
