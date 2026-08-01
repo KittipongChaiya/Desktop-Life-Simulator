@@ -367,20 +367,20 @@ This milestone's job is accounting, so it reports rather than claims.
 | 2   | Byte-identical save                                              | **Met** — `save-round-trip`, `save-compatibility`                                              |
 | 3   | Every fixture still migrates                                     | **Met** — `save-fixtures`                                                                      |
 | 4   | No `sim` → `renderer` import; no animation state reaches the sim | **Met** — `check:boundaries`, `check:cycles` clean                                             |
-| 5   | p99 tick unchanged                                               | **NOT MEASURED**                                                                               |
+| 5   | p99 tick unchanged                                               | **PASS (measured 07.7M)** — 0.100 ms vs 3 ms budget                                            |
 | 6   | Every animation releases its lease                               | **Met in unit** — `animation-lease`, and every pool asserts it empties                         |
 | 7   | Ambient off (the default): zero frames on a static world         | **Met** — `render-budget.spec.ts`                                                              |
-| 8   | Ambient ON + pointer idle: zero frames                           | **Unit only** — `ambient-presence.test.ts`. Not assertable end-to-end yet; see the gap below   |
+| 8   | Ambient ON + pointer idle: zero frames                           | **PASS (measured 07.7M)** — 0 FPS, 0 leases after 14 s                                         |
 | 9   | 20 collapse/expand cycles, no retained growth                    | **Met** — `render-budget.spec.ts` criterion 18, still passing with every new pool              |
 | 10  | Pools never allocate after construction                          | **Met** — `particle-pool`, `floating-number-state`                                             |
-| 11  | 30-minute run at maximum effect density within the heap ceiling  | **NOT MEASURED**                                                                               |
+| 11  | 30-minute run at maximum effect density within the heap ceiling  | **PASS (measured 07.7M)** — 3.2 MB vs 25 MB ceiling                                            |
 | 12  | Each setting suppresses exactly its own class                    | **Met in unit** — but not reachable by a player; see the gap                                   |
 | 13  | Reduced Motion overrides without overwriting                     | **Met in unit** — same                                                                         |
 | 14  | Settings in `settings.json`, never in a save                     | **Met** — `settings-schema`                                                                    |
 | 15  | Identical animation choices from the same seed                   | **Met** — `presentation-rng` and `worker-personality` statelessness tests                      |
 | 16  | `world.rng` untouched by any renderer path                       | **Met** — nothing under `renderer/render` imports it; `decor`'s generator-position test passes |
 
-**Eleven met, two met only in unit, three not done.**
+**Fourteen met (three measured in 07.7M), two met only in unit.** The two remaining — criteria 12 and 13 — were closed by 07.7L, which made the settings reachable, and are asserted end-to-end in `companion.spec.ts`.
 
 #### The gap that matters most — CLOSED in 07.7L
 
@@ -417,6 +417,74 @@ Every control carries a title, a description, its current value, and a tooltip. 
 A second partial-fixture crash surfaced on the way — `storedMotion()` threw on a payload without a `motion` key, taking the whole panel down. The controller already tolerated absence in `sameMotion` for exactly this reason; the getter now matches. A settings panel that throws on a malformed payload is worse than one showing defaults.
 
 Gates: typecheck · lint · cycles clean. Unit **100 files / 1283 tests**. E2E **36 passed, 3 skipped** (two new).
+
+### 07.7M — Performance validation · Delivered
+
+Instrumentation, then harness, then measurement, in that order. **Every figure is read from a running window and has a file behind it in `docs/perf/`.**
+
+#### The three open criteria, now measured
+
+| #   | Criterion                                 | Result                                                                           | Evidence                                  |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
+| 5   | p99 simulation tick                       | **PASS** — 0.100 ms against a 3 ms budget, 1,287 batches                         | `docs/perf/criterion-5-tick.json`         |
+| 8   | Ambient motion returns to zero-frame idle | **PASS** — 100 FPS / 1 lease while watched, **0 FPS / 0 leases** after 14 s idle | `docs/perf/criterion-8-ambient-idle.json` |
+| 11  | Heap under sustained effect density       | **PASS** — 3.2 MB growth over 30 min at 99.7% active, against a 25 MB ceiling    | `docs/perf/criterion-11-heap.json`        |
+
+Criterion 8 is the one that matters most: it is ADR-017 §2 condition 4 proven rather than argued, and it is what makes the ambient-motion exception legitimate instead of a hole in ADR-001. It could not be measured until 07.7L made the setting reachable.
+
+#### M1 — what was missing
+
+The tick budget is stated as a **p99** and nothing could measure one. The loop reported a rolling ticks-per-second, which is an average and hides exactly the tail a p99 exists to expose — so "p99 tick unchanged" had never been checkable.
+
+The histogram keeps a ring of the last 4,096 samples rather than bucketed counts: buckets answer with a bucket edge, and this decides whether a budget was met, where _"somewhere between 2.5 and 3 ms"_ is not an answer. Recording is one float write into a pre-allocated array; reading sorts a copy — the right way round when writes happen 20×/second forever and reads happen when someone opens a panel.
+
+It is **absent from production by construction**. `FEATURE_PROFILER` is a compile-time literal, so a release build takes the loop's un-instrumented branch — no clock reads, no call, one comparison — and Rollup drops the module.
+
+#### The first soak was invalid, and that is the useful part
+
+The initial 30-minute run reported a confident **0.00 MB growth**. It was wrong. It moved the pointer once per 5 s sample, and the four IPC metric reads per iteration pushed the gap past the 8 s presence timeout — so **66% of the run was idle** and it measured the cheap state the test exists to avoid.
+
+Nothing about the output looked suspicious. It was caught by checking the `anim` column rather than trusting the number, which is the only reason the corrected run happened. The harness now reports `activeShare` and asserts it exceeds 0.8, so the same mistake fails loudly instead of passing quietly, and the bad run is kept as `criterion-11-heap.INVALID-33pc-active.json`.
+
+The corrected run reached **99.7% active** and told a different story: 3.2 MB of growth rather than none.
+
+#### What the heap number does and does not show
+
+```
+11.3 MB ── flat for 20.0 min (198 samples)
+            └─ one step at t=19.99 min
+14.5 MB ── flat for 10.0 min (100 samples)
+```
+
+**One step, then flat — not a trend.** A per-frame or per-effect leak grows progressively. Extrapolating 3.2 MB linearly to eight hours gives ~51 MB and would breach the ceiling; that extrapolation would be **wrong**, because the data shows it is not linear.
+
+`performance.memory.usedJSHeapSize` reported exactly **two distinct values across 298 samples**. Chromium coarsens it deliberately, so the measurement bounds growth below its bucket size but cannot show byte-level stability, and cannot separate a real 3.2 MB allocation from one bucket crossing. The improvement — CDP `Runtime.getHeapUsage` — is recorded in `PERFORMANCE.md` §11 as the thing to do before this figure is trusted more finely than "well under 25 MB".
+
+#### Coverage moved the wrong way, and that is worth stating
+
+**65.37% → 63.41% lines, 64.28% → 63.24% branches**, measured at the phase close against gates of 80% / 75%.
+
+The cause is structural rather than neglectful, and it is the same one recorded at the 07.5f close: a game-feel phase is mostly **view** code, and the Pixi wrappers cannot honestly be unit-tested — `TESTING.md` §4.1 says so, and assigns `renderer/render` a 50% bar precisely because asserting on GPU output in a unit test produces brittle tests that verify nothing.
+
+This phase added roughly a thousand lines of exactly that: `particle-view`, `floating-numbers`, the animated half of `crop-view`, the worker-view transforms, and the settings markup. The pure halves it extracted alongside them — `crop-anim`, `presentation-rng`, `particle-pool`, `floating-number-state`, `worker-personality`, `camera-shake`, `ambient-presence`, `animation-lease`, `histogram` — are all well covered and account for most of the 190 tests added.
+
+The denominator grew faster than the numerator. That is the honest description, and the underlying mismatch is unchanged from 07e and 07.5f: `TESTING.md` §4 sets per-area thresholds and assigns none to devtools, preload, or bootstrap, while the config counts them all toward a single global 80%. Reconciling that is an owner decision, not something a polish phase should quietly work around by writing assertion-free tests to move a number.
+
+#### M4 — no optimisation performed
+
+Nothing exceeded a budget, so nothing was optimised. The brief's rule and the project's own: never optimise speculative code.
+
+#### A pre-existing E2E flake, attributed rather than assumed
+
+`save.spec.ts` "autosave fires on its own cadence" failed during final validation, asserting >1,080 simulated ticks after 60 s and getting 272. It is **not a 07.7M regression**, and that was established by measurement rather than argument:
+
+| Build                                      | Ticks observed |
+| ------------------------------------------ | -------------- |
+| 07.7M, profiler on                         | 272            |
+| 07.7M, profiler off                        | 24             |
+| **07.7L (`a29a72b`), before any M change** | **61**         |
+
+It fails identically before the phase, and the spread across runs shows it is sensitive to machine load rather than deterministic — those runs all followed two consecutive 30-minute soaks. **It passed on the final full-suite run**, once the machine had settled, which is the same conclusion from the other direction. The test assumes an unthrottled window sustains ~20 ticks/s for a full minute, which a loaded machine does not guarantee. Logged as a known flake; not chased here, because chasing it inside a performance phase would mean changing test code to make a number look better.
 
 ### Remaining
 

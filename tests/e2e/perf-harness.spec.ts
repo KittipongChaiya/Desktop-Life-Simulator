@@ -219,6 +219,14 @@ test('criterion 8: ambient motion returns to a zero-frame idle', async () => {
  * GC that has not run yet is not a leak.
  */
 test('criterion 11: heap stays flat under sustained effect density', async () => {
+  // Opt-in. At its 2-minute default this still added four minutes to every
+  // full E2E run, and the acceptance figure is a THIRTY-minute soak — neither
+  // belongs in a suite people run before a commit. Set PERF_SOAK_MINUTES to
+  // run it; `PERF_SOAK_MINUTES=30` is the number quoted in PERFORMANCE.md §11.
+  test.skip(
+    process.env['PERF_SOAK_MINUTES'] === undefined,
+    'OPT-IN: set PERF_SOAK_MINUTES to run the heap soak (30 for the acceptance figure).',
+  );
   test.setTimeout(SOAK_MS + 180_000);
   const window = await app.firstWindow();
   await openWorld();
