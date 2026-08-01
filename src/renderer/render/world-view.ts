@@ -35,6 +35,7 @@ import { CORE_GRASS } from '../../sim/content/tile-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
+import { createAmbientPresence, type AmbientPresence } from './ambient-presence';
 import { bindAnimationLease, type AnimationLease } from './animation-lease';
 import { createRenderApp, type RenderApp, type RenderBackend } from './app';
 import { createBuildingGhost, type BuildingGhost, type GhostState } from './building-ghost';
@@ -188,6 +189,13 @@ export interface WorldViewOptions {
   readonly creaturesEnabled?: (() => boolean) | undefined;
   /** Whether the camera may shake at all (ADR-017 §7). Absent means no. */
   readonly shakeEnabled?: (() => boolean) | undefined;
+  /**
+   * Whether ambient environment motion may run (ADR-017 §2).
+   *
+   * Already resolved for Reduced Motion and work mode by `effectiveMotion`;
+   * this view adds the presence condition. Absent means no.
+   */
+  readonly environmentEnabled?: (() => boolean) | undefined;
 }
 
 /**
@@ -404,6 +412,19 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // buildings so props, buildings, and workers interleave correctly by depth.
   const decor: DecorRenderer = createDecorRenderer({ layer: app.layers.objects, textureFor });
 
+  // AMBIENT MOTION (07.7j, ADR-017 §2). Its lease is the one thing in this
+  // file that could be held indefinitely, so all four conditions are resolved
+  // in one place, every frame, and the answer drives both the drawing and the
+  // lease together.
+  const presence: AmbientPresence = createAmbientPresence();
+  const ambientLease: AnimationLease = bindAnimationLease(gate);
+
+  const ambientAllowed = (nowMs: number): boolean =>
+    // Condition 1 and 3 (off by default, never in work mode) arrive resolved
+    // in this flag; condition 2 is structural, since collapsing destroys this
+    // whole view; condition 4 is presence.
+    options.environmentEnabled?.() === true && presence.isPresent(nowMs);
+
   // Grass is the only decorated kind; its dense index is resolved once here
   // rather than assumed, since registration order is content's business.
   const grassKindIndex = options.world.tileKinds.indexOf(CORE_GRASS);
@@ -527,6 +548,14 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         decorOwnedRevision = expansions;
         replanDecor();
       }
+      // Ambient motion, and the lease that pays for it. Both come from one
+      // answer so they can never disagree — a swaying world with no lease
+      // would stutter, and a lease with no sway would be a permanent cost.
+      const ambientNow = performance.now();
+      const ambient = ambientAllowed(ambientNow);
+      decor.sway(ambientNow, ambient);
+      ambientLease.sync(ambient);
+
       // Effects animate in REAL time, not simulation time: they acknowledge
       // an event to a person, so they must not stretch when the sim is
       // time-scaled in devtools. This also releases the animation lease the
@@ -591,12 +620,18 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         ) {
           return;
         }
+        presence.touch(performance.now());
         dragging = true;
         lastX = event.clientX;
         target.setPointerCapture(event.pointerId);
       };
 
       const onPointerMove = (event: PointerEvent): void => {
+        // Any pointer activity is presence (07.7j) — including a move that
+        // does not drag, which is the ordinary case for someone glancing at
+        // the farm.
+        presence.touch(performance.now());
+        gate.markDirty();
         if (!dragging) return;
         // Drag right moves the world right, i.e. the camera left.
         doPan(lastX - event.clientX);
@@ -669,6 +704,8 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       focus.cancel();
       endFocus();
       shakeLease.release();
+      ambientLease.release();
+      presence.clear();
       decor.destroy();
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).

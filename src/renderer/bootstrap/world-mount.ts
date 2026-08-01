@@ -43,6 +43,8 @@ export interface WorldMountOptions {
   readonly creaturesEnabled: () => boolean;
   /** Whether the camera may shake (ADR-017 §7). */
   readonly shakeEnabled: () => boolean;
+  /** Whether ambient environment motion may run (ADR-017 §2). */
+  readonly environmentEnabled: () => boolean;
   readonly onError?: (error: unknown) => void;
 }
 
@@ -68,6 +70,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         particlesEnabled: options.particlesEnabled,
         creaturesEnabled: options.creaturesEnabled,
         shakeEnabled: options.shakeEnabled,
+        environmentEnabled: options.environmentEnabled,
       });
       detachInput = view.attachInput(options.inputTarget);
     } catch (error) {

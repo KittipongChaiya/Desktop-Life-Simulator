@@ -56,7 +56,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Delivered** |
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Delivered** |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Delivered** |
-| 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Pending**   |
+| 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Delivered** |
 | 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Pending**   |
 
 ---
@@ -327,6 +327,32 @@ The `SOUND_URL` map is exhaustive by type, so adding a catalogue entry without a
 **A stronger version of the E2E build finding, found here.** `npm test` _itself_ leaves `out/` production-built: `devtools-excluded-from-production.test.ts` runs `npm run build` in its `beforeAll`, because the only honest way to prove devtools are stripped from a release is to inspect a real artifact. So the unit gate and the build gate BOTH clear the debug build away, and the E2E rebuild must be the last thing before `npm run test:e2e`. The 07.7 work surfaced this by accident and the global-setup guard caught it cleanly, naming the fix. `TESTING.md` and the project memory now record it.
 
 Gates: typecheck · lint clean. Unit **99 files / 1256 tests**. E2E **34 passed, 3 skipped**.
+
+### 07.7j — Ambient life · Delivered
+
+`ambient-presence.ts` (+ tests), sway in `decor-view.ts`, the four conditions resolved in `world-view.ts`.
+
+**The presence mechanism is the milestone.** Every other effect in this phase is finite — it runs and releases its lease. Ambient motion never finishes, so it would hold the frame loop open for as long as it is enabled, on a window that sits on someone's screen for eight hours. Presence is the answer ADR-017 §2 condition 4 promised: motion runs for 8 s after any pointer activity and then **stops**, dropping its lease and leaving the world still. The next mouse movement wakes it.
+
+That restates ADR-001's invariant rather than repealing it — _when the world is static and the player is absent, no frame is drawn_ — which is the difference between an amendment and a hole. Its tests are written around exactly that: the load-bearing case is that presence **goes absent on its own** and stays absent for the rest of the session.
+
+All four conditions are resolved in **one expression, every frame**, and the same answer drives both the drawing and the lease. They cannot disagree: a swaying world with no lease would stutter, and a lease with no sway would be a permanent cost for nothing.
+
+**What the art allowed, and what it did not.** §3 and §10 between them name eleven ambient effects. Two were built.
+
+| Asked for                                | Built  | Why                                                                                                                                                                                                                 |
+| ---------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flower / bush / tree sway                | yes    | they are individually-addressable sprites in the `objects` layer                                                                                                                                                    |
+| Wind gusts                               | yes    | the same sway, phase-derived per tile so a hedgerow ripples rather than pulsing as one block                                                                                                                        |
+| **Grass sway**                           | **no** | terrain is baked into 16×16-tile chunk `RenderTexture`s. Swaying it means re-rendering chunks every frame — the exact budget catastrophe ADR-001 exists to prevent, and far worse than the lease it would also hold |
+| Windmill, chimney smoke, flags           | **no** | no windmill, no chimney, and no flag exists in the building set. `storage_shed`, `rest_hut`, `seed_bin`, `market_stall`, `tree`, `rock`, `bush`, `flower` — that is all of it                                       |
+| Butterflies, bird shadows, cloud shadows | **no** | no art, and a tinted 2 px speck is not a butterfly                                                                                                                                                                  |
+
+Rocks do not sway, which is the whole of the rule for what does.
+
+The disabled path restores upright **exactly once** and then costs nothing — without that guard it would write a rotation to every plant on every frame of a still world, which is the defect the milestone exists to avoid.
+
+Gates: typecheck · lint · cycles clean. Unit **100 files / 1270 tests**. E2E **34 passed, 3 skipped**.
 
 ### Remaining
 

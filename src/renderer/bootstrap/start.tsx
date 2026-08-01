@@ -278,6 +278,7 @@ function composeApplication(world: World, session: SaveSession): void {
     particlesEnabled: () => companion.motion().particles,
     creaturesEnabled: () => companion.motion().decorativeCreatures,
     shakeEnabled: () => companion.motion().cameraShake,
+    environmentEnabled: () => companion.motion().environmental,
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,
