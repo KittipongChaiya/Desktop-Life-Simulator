@@ -170,6 +170,13 @@ export interface WorldViewOptions {
    * miss it. Absent means enabled.
    */
   readonly particlesEnabled?: (() => boolean) | undefined;
+  /**
+   * Whether living things move on their own — idle worker breathing now, the
+   * 07.7f fidgets and the 07.7j creatures later (ADR-017 §2).
+   *
+   * UNBOUNDED, so absent means no.
+   */
+  readonly creaturesEnabled?: (() => boolean) | undefined;
 }
 
 /**
@@ -311,6 +318,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     textureFor,
     gate,
     selectedId: options.selectedWorkerId,
+    breathing: options.creaturesEnabled,
   });
 
   const buildings: BuildingRenderer = createBuildingRenderer({

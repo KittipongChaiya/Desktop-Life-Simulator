@@ -13,6 +13,8 @@ import { WorkerState } from '../../sim/world/worker';
 
 import {
   currentFrame,
+  easedApproach,
+  idleBob,
   interpolatedPosition,
   isColumnCulled,
   selectAnimation,
@@ -67,8 +69,12 @@ describe('selectAnimation', () => {
   });
 
   it('idles in the facing direction otherwise', () => {
-    expect(selectAnimation(WorkerState.Working, Direction.South)).toBe('idle_s');
+    // `Working` moved out of this case in 07.7e — see the working-animation
+    // block below. It asserted `idle_s` here, which was accurate while nothing
+    // selected the swing animation and is the defect now that something does.
     expect(selectAnimation(WorkerState.Idle, Direction.West)).toBe('idle_w');
+    expect(selectAnimation(WorkerState.Rest, Direction.South)).toBe('idle_s');
+    expect(selectAnimation(WorkerState.SeekingRest, Direction.North)).toBe('idle_n');
   });
 });
 
@@ -120,5 +126,80 @@ describe('workerAtTile', () => {
 
   it('returns null when no worker is on the tile', () => {
     expect(workerAtTile(workers, tile(10, 10))).toBeNull();
+  });
+});
+
+/**
+ * 07.7e — the animation polish additions.
+ *
+ * The first block is the one that mattered: `Working` fell through to `idle`,
+ * so a worker tilling, planting, or harvesting stood perfectly still while a
+ * six-frame swing animation sat unused in the atlas since phase-05.5.
+ */
+describe('working selects the swing that already existed', () => {
+  it('animates a working worker instead of standing them still', () => {
+    expect(selectAnimation(WorkerState.Working, Direction.South)).toBe('harvest');
+  });
+
+  it('uses one motion for every task, because that is the art there is', () => {
+    for (const facing of [Direction.North, Direction.East, Direction.South, Direction.West]) {
+      expect(selectAnimation(WorkerState.Working, facing)).toBe('harvest');
+    }
+  });
+
+  it('leaves walking and idling exactly as they were', () => {
+    expect(selectAnimation(WorkerState.Moving, Direction.North)).toBe('walk_n');
+    expect(selectAnimation(WorkerState.Idle, Direction.West)).toBe('idle_w');
+    expect(selectAnimation(WorkerState.Rest, Direction.East)).toBe('idle_e');
+  });
+});
+
+describe('arrival easing', () => {
+  it('pins both ends, so a step never overshoots its tile', () => {
+    expect(easedApproach(0)).toBeCloseTo(0, 6);
+    expect(easedApproach(1)).toBeCloseTo(1, 6);
+  });
+
+  it('runs ahead of linear, then settles — a step placed, not a slide', () => {
+    expect(easedApproach(0.5)).toBeGreaterThan(0.5);
+    for (let i = 1; i < 10; i += 1) expect(easedApproach(i / 10)).toBeGreaterThan(i / 10);
+  });
+
+  it('never reverses', () => {
+    let previous = -1;
+    for (let i = 0; i <= 20; i += 1) {
+      const value = easedApproach(i / 20);
+      expect(value).toBeGreaterThanOrEqual(previous);
+      previous = value;
+    }
+  });
+
+  it('clamps a late or malformed frame rather than flinging the sprite', () => {
+    expect(easedApproach(-1)).toBe(0);
+    expect(easedApproach(4)).toBe(1);
+    expect(easedApproach(Number.NaN)).toBe(1);
+  });
+});
+
+describe('idle breathing', () => {
+  it('stays within its amplitude', () => {
+    for (let tick = 0; tick < 400; tick += 1) {
+      expect(Math.abs(idleBob(tick, 1))).toBeLessThanOrEqual(1.0001);
+    }
+  });
+
+  it('is derived, so the same worker breathes the same on every launch', () => {
+    expect(idleBob(137, 4)).toBe(idleBob(137, 4));
+  });
+
+  it('puts workers out of phase, so a row does not pulse in lockstep', () => {
+    const atTick = (id: number): number => idleBob(50, id);
+    expect(atTick(1)).not.toBeCloseTo(atTick(2), 3);
+    expect(atTick(2)).not.toBeCloseTo(atTick(3), 3);
+  });
+
+  it('actually moves over a cycle', () => {
+    const samples = Array.from({ length: 60 }, (_, tick) => idleBob(tick, 7));
+    expect(Math.max(...samples) - Math.min(...samples)).toBeGreaterThan(1);
   });
 });

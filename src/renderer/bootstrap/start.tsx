@@ -269,6 +269,7 @@ function composeApplication(world: World, session: SaveSession): void {
     // Reduced Motion takes effect on the next frame without a remount.
     motionIntensity: () => intensityScale(companion.motion().intensity),
     particlesEnabled: () => companion.motion().particles,
+    creaturesEnabled: () => companion.motion().decorativeCreatures,
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,

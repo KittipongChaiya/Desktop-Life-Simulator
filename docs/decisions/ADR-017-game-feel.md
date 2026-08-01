@@ -42,10 +42,10 @@ This keeps every §1–§8 effect — worker animation, crop pops, harvest burst
 
 ### 2. Motion is one of two classes, and they have different rights
 
-| Class                     | Examples                                                                                                                     | Lease                                         | Default |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------- |
-| **Event-driven** (finite) | till puff, plant bounce, stage-change pulse, harvest pop, coin fly, deposit, worker task transitions, camera shake, UI press | held for the effect's duration, then released | **on**  |
-| **Ambient** (unbounded)   | windmill rotation, chimney smoke, flag/grass/flower sway, butterflies, bird and cloud shadows, wind gusts                    | would be held forever                         | **off** |
+| Class                     | Examples                                                                                                                                         | Lease                                         | Default |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- | ------- |
+| **Event-driven** (finite) | till puff, plant bounce, stage-change pulse, harvest pop, coin fly, deposit, worker task transitions, camera shake, UI press                     | held for the effect's duration, then released | **on**  |
+| **Ambient** (unbounded)   | windmill rotation, chimney smoke, flag/grass/flower sway, butterflies, bird and cloud shadows, wind gusts, **idle worker breathing and fidgets** | would be held forever                         | **off** |
 
 **Event-driven motion is unrestricted** (subject to §4 pooling). It is the overwhelming majority of what the phase asks for, and it is free at idle by construction: no event, no lease, no frame.
 
@@ -55,6 +55,8 @@ This keeps every §1–§8 effect — worker animation, crop pops, harvest burst
 2. **Never while collapsed.** Collapsed mode destroys the renderer entirely (ADR-001 §2); ambient motion must not resurrect it.
 3. **Never in work mode.** Work mode is the player telling us they are busy (ADR-014). Motion is the first thing to go.
 4. **Surrendered on idle.** Ambient motion stops when the overlay has had no pointer input for `AMBIENT_IDLE_TIMEOUT_MS`, and resumes on the next input. A player looking at the farm gets a living world; a player who alt-tabbed away gets a still one, and the frame loop stops.
+
+**Idle worker motion is ambient, and it is not obvious.** The brief lists breathing and fidgets under §1 (Animation Polish) beside the finite effects, but an idle worker never stops being idle — so breathing holds the frame loop open for as long as one is on screen, which is most of the time on a farm that runs itself. It is therefore governed by this section, not by §1, and gated on **Decorative Creatures**: that setting means "living things move on their own", which covers a butterfly and a breathing worker equally. It also puts 07.7f's fidgets under the same switch, where they belong.
 
 Condition 4 is what makes this an amendment rather than a hole. The zero-rAF invariant is restated, not repealed: **when the world is static AND the player is not present, no frame is drawn.** Presence, not decoration, is what buys the frames.
 

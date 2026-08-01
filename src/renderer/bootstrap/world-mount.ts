@@ -39,6 +39,8 @@ export interface WorldMountOptions {
   readonly motionIntensity: () => number;
   /** Whether particles may be thrown (ADR-017 §7). */
   readonly particlesEnabled: () => boolean;
+  /** Whether living things move on their own (ADR-017 §2). */
+  readonly creaturesEnabled: () => boolean;
   readonly onError?: (error: unknown) => void;
 }
 
@@ -62,6 +64,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         selectedWorkerId: options.selectedWorkerId,
         motionIntensity: options.motionIntensity,
         particlesEnabled: options.particlesEnabled,
+        creaturesEnabled: options.creaturesEnabled,
       });
       detachInput = view.attachInput(options.inputTarget);
     } catch (error) {

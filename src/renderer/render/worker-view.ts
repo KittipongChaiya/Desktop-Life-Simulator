@@ -22,10 +22,13 @@ import { Graphics, Sprite, type Container, type Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
 import type { WorkerView } from '../../sim/snapshot/workers-slice';
+import { WorkerState } from '../../sim/world/worker';
 
 import type { DirtyGate } from './dirty-gate';
 import {
   currentFrame,
+  easedApproach,
+  idleBob,
   interpolatedPosition,
   isColumnCulled,
   selectAnimation,
@@ -66,6 +69,13 @@ export interface WorkerRendererOptions {
   readonly worldUi: Container;
   readonly textureFor: (spriteKey: string) => Texture;
   readonly gate: DirtyGate;
+  /**
+   * Whether idle workers breathe (ADR-017 §2, gated on decorative creatures).
+   *
+   * Absent means no — breathing never ends, so it holds the frame loop open
+   * for as long as a worker is idle and on screen.
+   */
+  readonly breathing?: (() => boolean) | undefined;
   /** The selected worker id, or null. Read each frame so the box follows it. */
   readonly selectedId: () => number | null;
 }
@@ -76,7 +86,7 @@ const SELECTION_WIDTH = 2;
 const SELECTION_ALPHA = 0.9;
 
 export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRenderer {
-  const { layer, worldUi, textureFor, gate, selectedId } = options;
+  const { layer, worldUi, textureFor, gate, selectedId, breathing } = options;
   const tracked = new Map<number, Tracked>();
   const selectionBox = new Graphics();
   worldUi.addChild(selectionBox);
@@ -97,16 +107,30 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
     }
     entry.sprite.visible = true;
 
-    const position = interpolatedPosition(entry.prev, entry.current, update.alpha);
+    // Eased BETWEEN snapshots only (07.7e). The simulation still steps at a
+    // constant rate; this shapes where the sprite is drawn on the way, never
+    // when it arrives (ADR-007 §5).
+    const position = interpolatedPosition(entry.prev, entry.current, easedApproach(update.alpha));
     entry.sprite.x = position.x + TILE_SIZE / 2; // anchor is bottom-centre
-    entry.sprite.y = position.y + TILE_SIZE;
+
+    // Breathing, when the player has opted into living things moving on their
+    // own. UNBOUNDED motion (ADR-017 §2): it never finishes, so it is off by
+    // default and gated here rather than assumed.
+    const bob =
+      entry.current.state === WorkerState.Idle && breathing?.() === true
+        ? idleBob(update.tick, entry.current.id)
+        : 0;
+
+    entry.sprite.y = position.y + TILE_SIZE + bob;
     entry.sprite.zIndex = position.y; // lower on screen draws in front
 
     const def = ANIMATIONS[selectAnimation(entry.current.state, entry.current.facing)];
     if (def === undefined) return;
     entry.sprite.texture = textureFor(currentFrame(def, update.tick));
 
-    const animating = def.frameTicks > 0 && def.frames.length > 1;
+    // A breathing worker is animating too — without this the bob would be
+    // computed and never drawn, because nothing would ask for the frame.
+    const animating = (def.frameTicks > 0 && def.frames.length > 1) || bob !== 0;
     if (animating && entry.release === null) entry.release = gate.acquireAnimation();
     else if (!animating) releaseHold(entry);
   };

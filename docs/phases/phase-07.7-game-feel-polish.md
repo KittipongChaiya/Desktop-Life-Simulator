@@ -51,7 +51,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7b | Motion foundation                | Pooled particle manager (dust, leaves, sparkle, coin burst, splash); presentation PRNG; the lease made structural                          | **Delivered** |
 | 07.7c | Floating numbers                 | Pooled `+coins` / `+items` risers — fade, drift up, auto-release. XP hook shape only, no XP system                                         | **Delivered** |
 | 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Delivered** |
-| 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Pending**   |
+| 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Delivered** |
 | 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Pending**   |
 | 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Pending**   |
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Pending**   |
@@ -234,6 +234,22 @@ Two things this surfaced:
 Gates: typecheck · lint · cycles clean. Unit **96 files / 1201 tests**. E2E **34 passed, 3 skipped**.
 
 **Noted, not a regression:** `tests/catch-up.test.ts`'s 50,000-tick property failed once on a full-suite run at 388 s, and passed both in isolation and on a clean re-run. It is CPU-heavy and runs alongside 95 other files; this is a load-dependent timeout, not a behavioural failure. Recorded so the next sighting starts from here.
+
+### 07.7e — Worker animation · Delivered
+
+**The find: a six-frame `harvest` swing shipped with the phase-05.5 character set and nothing ever selected it.** `selectAnimation` mapped `Working` straight through to `idle`, so a worker tilling, planting, or harvesting stood perfectly still for the entire task. Same defect class as the crops — art in the atlas, no code path to it — and the brief's opening complaint that workers "teleport between states" was literally true for the one state where work happens.
+
+One motion covers all three tasks deliberately. The art is a generic work-the-ground swing; inventing a distinct pose per task would mean art that does not exist.
+
+**Arrival easing shapes drawing, never timing.** The simulation still steps a worker at a constant rate; `easedApproach` shapes only where the sprite sits between two snapshots (ADR-007 §5). A linear lerp reads as a slide; easing the tail reads as a step being placed.
+
+**Idle breathing turned out to be ambient, which the brief does not say.** It is listed under §1 beside the finite effects, but an idle worker never stops being idle — so breathing holds the frame loop open for as long as one is on screen, which on a self-running farm is most of the time. It is gated on **Decorative Creatures** and off by default; ADR-017 §2 now records the reasoning and the setting choice, which also puts 07.7f's fidgets under the same switch.
+
+Phase is derived from the worker id so a row does not breathe in lockstep, and derived rather than rolled so the same farm breathes the same way on every launch.
+
+**One existing test asserted the defect.** `selectAnimation(Working, South)` expected `idle_s` under a case named "idles in the facing direction otherwise" — accurate while nothing selected the swing, and wrong the moment something did. Updated rather than worked around, with a note saying why.
+
+Gates: typecheck · lint clean. Unit **96 files / 1212 tests**.
 
 ### Remaining
 
