@@ -14,6 +14,7 @@
  */
 
 import { FEATURE_DEBUG } from '@devtools/flags';
+import type { DurationHistogram } from '@devtools/metrics/histogram';
 import { MetricGroup } from '@devtools/metrics/registry';
 import type { WorldView } from '@render/world-view';
 
@@ -50,6 +51,13 @@ export interface DevToolsMountOptions {
    * coin source — with no privileged write path (ADR-010 §6).
    */
   readonly submitCommand?: (command: Command) => CommandResult;
+  /**
+   * Tick durations, when the build is profiling (07.7M1).
+   *
+   * Supplied only behind `FEATURE_PROFILER`, so a release build has neither
+   * the histogram nor the clock reads that feed it.
+   */
+  readonly tickHistogram?: DurationHistogram;
 }
 
 /** Resolves once tooling is mounted, or immediately when the build has none. */
@@ -93,6 +101,40 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
       },
     });
   }
+
+  // TICK TIMING (07.7M1). The budget in `PERFORMANCE.md` is stated as a p99,
+  // and until this the loop only reported a rolling average — which hides
+  // precisely the tail a p99 exists to expose.
+  const histogram = options.tickHistogram;
+  if (histogram !== undefined) {
+    const ms = (value: number): string => `${value.toFixed(3)} ms`;
+
+    for (const [id, label, order, read] of [
+      ['sim.tickP50', 'Tick p50', 20, () => ms(histogram.percentile(50))],
+      ['sim.tickP95', 'Tick p95', 21, () => ms(histogram.percentile(95))],
+      ['sim.tickP99', 'Tick p99', 22, () => ms(histogram.percentile(99))],
+      ['sim.tickAvg', 'Tick avg', 23, () => ms(histogram.average())],
+      ['sim.tickMax', 'Tick max', 24, () => ms(histogram.max())],
+      ['sim.tickSamples', 'Tick samples', 25, () => String(histogram.total())],
+    ] as const) {
+      host.metrics.register({ id, label, group: MetricGroup.Simulation, order, read });
+    }
+  }
+
+  // HEAP (07.7M1). Chromium-only and deliberately unguarded elsewhere: this is
+  // devtools, and a missing `memory` field reports as unavailable rather than
+  // pretending to a number.
+  host.metrics.register({
+    id: 'render.heap',
+    label: 'Heap',
+    group: MetricGroup.Render,
+    order: 30,
+    read: () => {
+      const memory = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+      if (memory === undefined) return 'unavailable';
+      return `${(memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`;
+    },
+  });
 
   const commandRejection = options.commandRejection;
   if (commandRejection !== undefined) {

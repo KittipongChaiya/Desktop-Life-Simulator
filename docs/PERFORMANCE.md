@@ -311,3 +311,69 @@ Documented so no future session tries to "fix" a deliberate decision:
 | Memory growth over ceiling                           | Heap snapshot at 0 h and 8 h; diff retained objects. Suspect Pixi objects first          |
 | Draw calls over ceiling                              | Atlas grouping is wrong (ADR-006 §3) — sprites drawn together are in different atlases   |
 | Memory ceiling unreachable after honest optimization | Escalate to ADR-003's Tauri exit criteria. This is a decision, not an implementation fix |
+
+---
+
+## 11. Phase-07.7 game-feel measurements
+
+Taken 2026-08-01 with the harness in `tests/e2e/perf-harness.spec.ts`, which
+writes each result to `test-results/perf/*.json`. **Every number below was read
+from a running window.** Nothing here is estimated, and a criterion with no
+measurement says so.
+
+### Environment
+
+|        |                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------- |
+| CPU    | Intel Core i7-14700F, 28 logical cores                                                                  |
+| Memory | 31.8 GB                                                                                                 |
+| OS     | Windows 11 Pro (10.0.22000)                                                                             |
+| Node   | v22.21.0                                                                                                |
+| Build  | `VITE_FEATURE_DEBUG=true npm run build` — a debug build, since every metric is read from the F3 overlay |
+
+A fast desktop. These figures are a **ceiling check, not a floor**: they show
+the budgets are not being approached, and they do not tell you what a 2018
+laptop does. The budgets themselves are unchanged.
+
+### Criterion 5 — p99 simulation tick
+
+`test-results/perf/criterion-5-tick.json`, 1,287 tick batches over 60 s.
+
+| Statistic | Measured     | Budget     |
+| --------- | ------------ | ---------- |
+| p50       | 0.000 ms     | —          |
+| p95       | 0.100 ms     | —          |
+| **p99**   | **0.100 ms** | **< 3 ms** |
+| mean      | 0.024 ms     | —          |
+| max       | 0.500 ms     | —          |
+
+**PASS**, roughly thirty times inside budget.
+
+**Read the p50 honestly:** `performance.now()` is coarsened to 0.1 ms in this
+build, so `0.000 ms` means _below the clock's resolution_, not _instant_. The
+resolution floor is 0.1 ms, which is also why p95 and p99 report the same
+value — the distribution is compressed against the floor rather than flat.
+A finer measurement would need a different clock, and there is no reason to
+want one while the budget has this much room.
+
+### Criterion 8 — ambient motion returns to a zero-frame idle
+
+`test-results/perf/criterion-8-ambient-idle.json`. Ambient animation switched
+on through the real settings bridge, pointer moved, then left alone for 14 s
+(`AMBIENT_IDLE_TIMEOUT_MS` is 8 s).
+
+| State                         | FPS   | Animation leases |
+| ----------------------------- | ----- | ---------------- |
+| Ambient on, pointer active    | 100   | 1                |
+| Ambient on, pointer idle 14 s | **0** | **0**            |
+
+**PASS.** This is ADR-017 §2 condition 4 proven end to end rather than argued:
+the frame loop genuinely stops, the lease is genuinely released, and the
+overlay returns to drawing nothing while the setting stays on. It is the
+measurement that makes the ambient-motion exception legitimate rather than a
+hole in ADR-001, and it could not be taken until 07.7L made the setting
+reachable.
+
+### Criterion 11 — heap stability under sustained effect density
+
+See the phase document for the soak result and its conditions.

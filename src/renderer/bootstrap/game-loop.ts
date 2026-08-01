@@ -58,10 +58,24 @@ export interface GameLoopOptions {
   readonly schedule?: (callback: (now: number) => void) => number;
   readonly cancel?: (handle: number) => void;
   readonly now?: () => number;
+  /**
+   * Reports how long a tick batch took, in milliseconds (07.7M1).
+   *
+   * Injected rather than measured in place, and ABSENT in production: the
+   * composition root supplies it only behind `FEATURE_PROFILER`, which is a
+   * compile-time literal, so a release build drops both the callback and the
+   * `performance.now()` calls that feed it. When absent the loop pays one
+   * `undefined` check per frame.
+   *
+   * Reports the BATCH rather than one tick: the accumulator can hand back
+   * several ticks in a frame after a stall, and timing them individually would
+   * charge each with a share of the stall it did not cause.
+   */
+  readonly onTickDuration?: (ms: number, ticks: number) => void;
 }
 
 export function createGameLoop(options: GameLoopOptions): GameLoop {
-  const { world, store, onFrame } = options;
+  const { world, store, onFrame, onTickDuration } = options;
   const schedule = options.schedule ?? ((cb) => requestAnimationFrame(cb));
   const cancel =
     options.cancel ??
@@ -95,7 +109,15 @@ export function createGameLoop(options: GameLoopOptions): GameLoop {
     // applies, so a large scale cannot spiral (ADR-007 §3).
     const ticks = accumulator.advance(delta * scale);
     if (!paused && ticks > 0) {
-      stepSimulationBy(world, ticks);
+      // Branched rather than guarded inline, so the un-instrumented path is
+      // visibly free: no clock reads, no call, one comparison.
+      if (onTickDuration === undefined) {
+        stepSimulationBy(world, ticks);
+      } else {
+        const startedAt = now();
+        stepSimulationBy(world, ticks);
+        onTickDuration(now() - startedAt, ticks);
+      }
       ticksInWindow += ticks;
     }
 

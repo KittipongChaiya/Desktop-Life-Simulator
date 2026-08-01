@@ -10,6 +10,8 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
+import { FEATURE_PROFILER } from '@devtools/flags';
+import { createDurationHistogram } from '@devtools/metrics/histogram';
 import { catchUpWorld, computeElapsedTicks, type CatchUpReport } from '@persistence/catch-up';
 import { loadWorld } from '@persistence/load';
 import { EMPTY_QUARANTINE, type SaveMeta, type SaveQuarantine } from '@persistence/schema';
@@ -389,12 +391,25 @@ function composeApplication(world: World, session: SaveSession): void {
     playerInput.selectTool(null);
   });
 
+  // TICK INSTRUMENTATION (07.7M1). `FEATURE_PROFILER` is a compile-time
+  // literal, so in a release build this is `null`, the loop takes its
+  // un-instrumented branch, and Rollup drops the histogram module entirely.
+  const tickHistogram = FEATURE_PROFILER ? createDurationHistogram() : null;
+
   const loop = createGameLoop({
     world,
     store,
     // Returning false when nothing was drawn keeps the FPS metric honest: a
     // static world reads 0 fps, which is the intended behaviour, not a stall.
     onFrame: (alpha, tick) => worldMount.current()?.renderFrame(alpha, tick) ?? false,
+    // Absent in a release build, which is what keeps the loop's fast path free.
+    ...(tickHistogram === null
+      ? {}
+      : {
+          onTickDuration: (ms: number) => {
+            tickHistogram.record(ms);
+          },
+        }),
   });
   loop.start();
 
@@ -657,6 +672,7 @@ function composeApplication(world: World, session: SaveSession): void {
     // The console's `money` command submits through the ordinary player
     // source — no privileged write path (ADR-010 §6).
     submitCommand: (command) => playerSource.submit(command),
+    ...(tickHistogram === null ? {} : { tickHistogram }),
     appVersion: __APP_VERSION__,
     reload: () => {
       window.location.reload();
