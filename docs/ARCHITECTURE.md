@@ -377,3 +377,56 @@ First-party content registers through the **public plugin API** but is staticall
 | Save schema drift        | Persisted shape changed without a migration  | Golden-fixture tests fail (ADR-002)                                     |
 
 Each risk has a mechanical detector. That is deliberate — architectural invariants that rely on vigilance decay, and the ones here have to survive a hundred sessions.
+
+---
+
+## 12. The motion layer (phase-07.7, ADR-017)
+
+Game feel is presentation, and it lives entirely inside `src/renderer/render`.
+The simulation gained nothing in phase-07.7 — no field, no system, no event it
+did not already have — and `check:boundaries` enforces that rather than trusting
+it.
+
+### Two classes of motion, and only two
+
+| Class       | Holds a lease                              | Default | Examples                                                                                                                              |
+| ----------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Finite**  | for its own duration, then releases        | on      | till puff, seed bounce, stage pulse, harvest pop, coin burst, floating numbers, worker swing, arrival easing, camera shake, HUD press |
+| **Ambient** | indefinitely, so it is bounded another way | **off** | plant sway, worker breathing and fidgets                                                                                              |
+
+Finite motion is free at idle by construction: no event, no lease, no frame.
+
+Ambient motion cannot be, because it never finishes. It is permitted only under
+four conditions — off by default, never while collapsed, never in work mode, and
+**surrendered when the pointer has been idle for `AMBIENT_IDLE_TIMEOUT_MS`**.
+That last condition is the mechanism (`ambient-presence.ts`) that makes the
+exception an amendment to ADR-001 rather than a hole in it: when the world is
+static _and_ the player is absent, no frame is drawn. It is measured, not
+asserted — see `PERFORMANCE.md` §11, criterion 8.
+
+### Four rules the layer holds itself to
+
+1. **Every moving thing takes a lease through `bindAnimationLease`.** The gate's
+   animation count is what keeps render-on-demand honest, and `dirty-gate.ts`
+   calls it "the fragile half". Two call sites once carried that bookkeeping by
+   hand; the binding owns the transitions so no call site can forget.
+2. **Everything visual is pooled and allocates nothing after construction.**
+   Particles, floating numbers, and digit sprites come from fixed-capacity
+   pools; a full pool recycles its oldest entry rather than growing.
+3. **Randomness is derived, never rolled.** Scatter, drift, fidget choice and
+   sway phase all hash presentation inputs through `presentation-rng.ts`.
+   Consuming `world.rng` would advance the stream a saved game resumes from and
+   desynchronise every future tick — a decorative particle corrupting
+   determinism.
+4. **Animation reads snapshots and real time, and writes neither back.** The
+   renderer interpolates between the last two snapshots (ADR-007 §5); nothing it
+   computes re-enters the simulation.
+
+### Where the settings live
+
+The six accessibility controls are application preferences under the ADR-014 §4
+model: `settings.json`, never a save, resolved once through `effectiveMotion`
+and carried to the renderer over `CompanionState`. Reduced Motion and work mode
+**override without overwriting**, so a toggle never destroys what the player
+chose. The resolved state also reaches CSS through a root attribute, because the
+HUD's own feel is CSS transitions rather than React state.

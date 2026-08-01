@@ -147,6 +147,17 @@ src/
 │   │   ├── terrain-chunks.ts   Chunk index maths (pure, GPU-free)
 │   │   ├── layers.ts           The 7 named layers
 │   │   ├── highlight.ts        Hover/selection boxes in worldUi (layer 6)
+│   │   ├── animation-lease.ts  Lease binding — the ADR-017 §1 rule, made structural
+│   │   ├── ambient-presence.ts Is anyone watching? (ADR-017 §2 condition 4)
+│   │   ├── presentation-rng.ts Derived, never rolled (ADR-017 §5)
+│   │   ├── particle-pool.ts    Fixed-capacity particle state (pure)
+│   │   ├── particle-view.ts    Pooled sprites over Texture.WHITE
+│   │   ├── floating-number-state.ts  Pooled `+n` risers (pure)
+│   │   ├── floating-numbers.ts Per-digit glyph sprites — never Pixi `Text`
+│   │   ├── crop-anim.ts        Spawn / pulse / depart curves (pure)
+│   │   ├── camera-shake.ts     Shake curve; returns exactly to zero (pure)
+│   │   ├── worker-personality.ts  Stateless idle fidgets (pure)
+│   │   ├── terrain-tiles.ts    Tile sprite choice, incl. tilled (pure)
 │   │   ├── camera.ts
 │   │   ├── terrain-chunks.ts   RenderTexture chunk cache
 │   │   ├── sprites/

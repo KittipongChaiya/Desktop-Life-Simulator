@@ -3,6 +3,7 @@
 > **Delivers:** The first full game-feel pass. Every action the player takes, and every action a worker takes, is acknowledged with motion.
 > **Runnable at completion:** The same game, playing identically, that feels responsive instead of correct-but-inert.
 > **Governing decision:** **ADR-017** (game feel — motion classes, the lease rule, pooling, derived randomness). Bound by ADR-001, ADR-005, ADR-007, ADR-008, ADR-014, ADR-016.
+> **Status:** **COMPLETE** — closed 2026-08-01 (07.7N). 16 of 16 acceptance criteria PASS.
 > **Hard constraint:** **No new gameplay mechanics.** Presentation layer only. A tick's outcome, a save's bytes, and a replay's result are byte-identical before and after this phase — §13 proves it.
 
 ---
@@ -57,8 +58,10 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Delivered** |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Delivered** |
 | 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Delivered** |
+| 07.7M | Performance validation           | Tick histogram and heap metric; a repeatable harness; criteria 5, 8 and 11 measured with evidence files                                    | **Delivered** |
+| 07.7N | Documentation sync & closure     | Eight documents synchronised, the acceptance audit, the technical-debt register, and this report                                           | **Delivered** |
 | 07.7L | Accessibility settings UI        | The six controls exposed in the settings panel, bound to the existing model; `SetMotion` IPC; restart-persistence E2E                      | **Delivered** |
-| 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Partial**   |
+| 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Delivered** |
 
 ---
 
@@ -355,7 +358,14 @@ The disabled path restores upright **exactly once** and then costs nothing — w
 
 Gates: typecheck · lint · cycles clean. Unit **100 files / 1270 tests**. E2E **34 passed, 3 skipped**.
 
-### 07.7k — Measurement, invariants and docs · Partial
+### 07.7k — Measurement, invariants and docs · Delivered (interim accounting)
+
+> **Superseded by 07.7L, 07.7M and 07.7N.** This section is kept as written
+> because it is the record of what was true at the time: three criteria
+> unmeasured, six settings unreachable, four documents unsynchronised. All of
+> it is now closed — the final position is the acceptance table at the end of
+> this document, not this section. The strikethrough below marks the gap 07.7L
+> filled.
 
 This milestone's job is accounting, so it reports rather than claims.
 
@@ -486,8 +496,212 @@ Nothing exceeded a budget, so nothing was optimised. The brief's rule and the pr
 
 It fails identically before the phase, and the spread across runs shows it is sensitive to machine load rather than deterministic — those runs all followed two consecutive 30-minute soaks. **It passed on the final full-suite run**, once the machine had settled, which is the same conclusion from the other direction. The test assumes an unthrottled window sustains ~20 ticks/s for a full minute, which a loaded machine does not guarantee. Logged as a known flake; not chased here, because chasing it inside a performance phase would mean changing test code to make a number look better.
 
-### Remaining
+---
 
-07.7e–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
+## Phase 07.7 Completion Report
 
-Budgets are measured and recorded in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
+**Status: COMPLETE.** Closed 2026-08-01 at `ab70ddf` + this commit.
+
+### Overview
+
+A presentation-only pass over a game that was correct and inert. Seventeen
+commits across twelve milestones, adding no gameplay mechanic, no simulation
+field, and no event the simulation did not already need.
+
+The through-line was not the effects. It was **finding art and code that
+already existed and had never been connected** — three separate instances, each
+shipped and invisible:
+
+| Found                                           | Since      | Effect                                        |
+| ----------------------------------------------- | ---------- | --------------------------------------------- |
+| `tilled.png` never read by the terrain renderer | phase-05.5 | tilling produced no visual change at all      |
+| The `crops` atlas never loaded by `world-view`  | phase-05.6 | every crop sprite resolved to `Texture.EMPTY` |
+| A six-frame `harvest` swing never selected      | phase-05.5 | workers stood still through every task        |
+
+`WorkerView.invalidateTile` had also existed since phase-02 with **zero callers
+in the entire codebase**. The fourth instance arrived during this phase and was
+caught before commit: a `.slot` CSS rule for a class the inventory panel does
+not have.
+
+### Architecture impact
+
+**One new decision: ADR-017**, numbered 017 rather than the 016 the brief asked
+for, because ADR-016 is Audio and this phase depends on it.
+
+It exists because the brief contradicted itself: §12 forbids violating
+render-on-demand while §3 and §10 ask for a rotating windmill, drifting clouds,
+and swaying grass — all unbounded. The resolution splits motion into finite
+(free at idle, on by default) and ambient (off by default, and **surrendering
+the frame loop when the pointer goes idle**), which restates ADR-001's invariant
+rather than repealing it.
+
+ADR-017 amends ADR-001 §1 and extends ADR-016 §6. ADR-001 through ADR-011 are
+frozen (ADR-012), so amending ADR-001 by successor ADR is the sanctioned path
+and was taken deliberately rather than by editing a frozen document.
+
+Everything else is additive and confined to `src/renderer/render` plus the
+settings model. `check:boundaries` and `check:cycles` are clean.
+
+### Accessibility
+
+Six controls, all reachable, all persisted, all gating real behaviour:
+
+| Control           | Type          | Default | Governs                             |
+| ----------------- | ------------- | ------- | ----------------------------------- |
+| Reduced motion    | toggle        | off     | master switch over the five below   |
+| Animation         | slider 0–100% | 100%    | how far every finite curve travels  |
+| Particles         | toggle        | on      | dust, leaves, sparkles, coin bursts |
+| Camera shake      | toggle        | **off** | large harvests and placements       |
+| Ambient animation | toggle        | **off** | plant sway                          |
+| Living details    | toggle        | **off** | worker breathing and fidgets        |
+
+Reduced Motion and work mode **override without overwriting**: the stored values
+survive, so clearing either returns exactly what the player chose. That property
+is asserted in unit and end-to-end.
+
+The three unbounded classes default off because they hold the frame loop open —
+the accessibility default and the performance default are the same decision.
+
+### Game feel
+
+Till, plant, grow, harvest and sell each acknowledge themselves; workers swing,
+ease, hop and fidget; the HUD lifts and presses. Full inventory in
+`GAME_DESIGN.md` §Game feel and `VISUAL_REFERENCE.md` §Motion vocabulary.
+
+### Performance validation
+
+Measured, never estimated. Evidence in `docs/perf/*.json`, methodology and
+caveats in `PERFORMANCE.md` §11.
+
+| Criterion                              | Result                                 |
+| -------------------------------------- | -------------------------------------- |
+| 5 — p99 tick                           | **PASS** 0.100 ms vs 3 ms              |
+| 8 — ambient returns to zero-frame idle | **PASS** 0 FPS, 0 leases after 14 s    |
+| 11 — heap under load                   | **PASS** 3.2 MB vs 25 MB, 99.7% active |
+
+No optimisation was performed: nothing exceeded a budget.
+
+### Documentation changed
+
+`PLAN.md`, `ARCHITECTURE.md` (§12, the motion layer), `GAME_DESIGN.md`,
+`PERFORMANCE.md` (§4.2 corrected, §11 added), `PROJECT_STRUCTURE.md`,
+`VISUAL_REFERENCE.md`, `TECHNICAL_ASSET_SPEC.md`, `CHANGELOG.md`, this phase
+document, and `ADR-017`.
+
+---
+
+## Final acceptance table
+
+Nothing here is ambiguous.
+
+| #   | Criterion                                               | Verdict  | Evidence                                    |
+| --- | ------------------------------------------------------- | -------- | ------------------------------------------- |
+| 1   | Byte-identical world from seed + commands               | **PASS** | existing determinism properties             |
+| 2   | Byte-identical save                                     | **PASS** | `save-round-trip`, `save-compatibility`     |
+| 3   | Every fixture migrates                                  | **PASS** | `save-fixtures`                             |
+| 4   | No sim→renderer import; sim cannot read animation state | **PASS** | `check:boundaries`, `check:cycles`          |
+| 5   | p99 tick unchanged                                      | **PASS** | `docs/perf/criterion-5-tick.json`           |
+| 6   | Every animation releases its lease                      | **PASS** | `animation-lease`, per-pool emptiness tests |
+| 7   | Ambient off: zero frames on a static world              | **PASS** | `render-budget.spec.ts`                     |
+| 8   | Ambient on + idle: zero frames                          | **PASS** | `docs/perf/criterion-8-ambient-idle.json`   |
+| 9   | 20 collapse/expand cycles, no retained growth           | **PASS** | `render-budget.spec.ts` crit 18             |
+| 10  | Pools never allocate after construction                 | **PASS** | `particle-pool`, `floating-number-state`    |
+| 11  | 30-min run at max density within ceiling                | **PASS** | `docs/perf/criterion-11-heap.json`          |
+| 12  | Each setting suppresses its own class                   | **PASS** | `settings-ui`, `companion.spec.ts`          |
+| 13  | Reduced Motion overrides without overwriting            | **PASS** | `companion.spec.ts`                         |
+| 14  | Settings in `settings.json`, never a save               | **PASS** | `settings-schema`, `companion.spec.ts`      |
+| 15  | Identical animation choices from the same seed          | **PASS** | `presentation-rng`, `worker-personality`    |
+| 16  | `world.rng` untouched by any renderer path              | **PASS** | boundary + `decor` generator-position test  |
+
+**16 PASS · 0 BLOCKED · 0 N/A.**
+
+---
+
+## Technical debt register
+
+Recorded, not fixed — this phase fixes nothing.
+
+| #   | Item                                                                           | Reason                                                                                                                                                    | Impact                                                                                | Recommended action                                                                                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Coverage 63.41% / 63.24% vs 80% / 75%**, down from 65.37% at phase start     | A game-feel phase is mostly view code that `TESTING.md` §4.1 states cannot honestly be unit-tested; the denominator outgrew the numerator                 | Blocks the v0.1 release gate. Unchanged in kind since 07e and 07.5f                   | Owner decision: `TESTING.md` §4 sets per-area thresholds and assigns none to devtools, preload, or bootstrap, yet the config counts them toward one global 80%. Reconcile the config with the policy — **not** by adding assertion-free tests |
+| 2   | **`performance.memory` is quantised** — two distinct values across 298 samples | Chromium coarsens `usedJSHeapSize` deliberately                                                                                                           | Criterion 11 bounds growth below the bucket size but cannot show byte-level stability | Re-measure with CDP `Runtime.getHeapUsage` before trusting the figure more finely than "well under 25 MB"                                                                                                                                     |
+| 3   | **Performance figures come from one 28-core desktop**                          | Only hardware available                                                                                                                                   | A ceiling check, not a floor; says nothing about a low-end laptop                     | Re-run the harness on the lowest target spec before v0.1 ships                                                                                                                                                                                |
+| 4   | **`save.spec.ts` autosave-cadence flake**                                      | Assumes an unthrottled window sustains ~20 ticks/s for 60 s; a loaded machine does not guarantee it. Fails identically at the pre-phase commit (61 ticks) | Intermittent red on a loaded machine                                                  | Replace the wall-clock assumption with a tick-count wait, or mark it load-sensitive                                                                                                                                                           |
+| 5   | **`companion.spec.ts` opacity-slider flake**                                   | Observed once in one of two full runs during 07.6; passes in isolation 8/8                                                                                | Rare intermittent                                                                     | Investigate on next sighting; note carried since 07.6                                                                                                                                                                                         |
+| 6   | **Scratch-head and sit fidgets not built**                                     | Need pose art that does not exist; a transform fake reads as a rendering defect                                                                           | Two of five suggested idle behaviours absent                                          | Art request: four poses (× four facings for sit)                                                                                                                                                                                              |
+| 7   | **Windmill, chimney smoke, flags not built**                                   | No such buildings exist — the set is shed, hut, seed bin, market stall, tree, rock, bush, flower                                                          | §3 of the brief is unbuilt                                                            | Art request, gated on those buildings existing                                                                                                                                                                                                |
+| 8   | **Butterflies, bird and cloud shadows not built**                              | No art; a tinted 2 px speck is not a butterfly                                                                                                            | Part of §10 absent                                                                    | Art request                                                                                                                                                                                                                                   |
+| 9   | **Grass sway not built**                                                       | Terrain is baked into 16×16 chunk `RenderTexture`s; swaying it means re-rendering chunks every frame                                                      | The most-requested ambient effect is absent                                           | **Architectural**, not art: needs a different terrain renderer, and would trade away what makes the overlay cheap. Do not attempt as polish                                                                                                   |
+| 10  | **Worker-step and button-hover sounds refused**                                | A footstep is an ambient bed with extra steps; a hover is not an action and fires while the player reaches for another window                             | Two of four requested hooks absent                                                    | Revisit only if a focus mode or single-worker follow makes them appropriate                                                                                                                                                                   |
+| 11  | **XP floating numbers are shape-only**                                         | No XP system exists                                                                                                                                       | `FloatingKind.Xp` has no producer                                                     | Wire when an XP system lands; the call site is the only change                                                                                                                                                                                |
+| 12  | **GC frequency and CPU% not measured**                                         | No instrumentation exists; both need CDP traces                                                                                                           | Two of 07.7M's requested metrics unmeasured                                           | Add via CDP if a budget is ever written against them — none currently is                                                                                                                                                                      |
+
+---
+
+## Quality summary
+
+| Gate                            | Result                                              |
+| ------------------------------- | --------------------------------------------------- |
+| Typecheck (sim, main, renderer) | clean                                               |
+| Lint (`--max-warnings 0`)       | clean                                               |
+| Boundaries                      | clean                                               |
+| Cycles                          | no violations (212 modules)                         |
+| Unit                            | **101 files / 1,299 tests**, 0 skipped              |
+| E2E                             | **38 passed, 4 skipped**                            |
+| Build                           | clean, production and debug                         |
+| Coverage                        | **63.41% / 63.24%** against 80% / 75% — see debt #1 |
+
+Unit suite grew from 89 files / 1,093 tests at phase start: **+12 files, +206
+tests.**
+
+**Known skips**, all deliberate and all self-explaining: three E2E cases need a
+GPU adapter this environment lacks, and the heap soak is opt-in behind
+`PERF_SOAK_MINUTES` because a thirty-minute run does not belong in a pre-commit
+suite.
+
+**Known flakes:** debt items 4 and 5.
+
+---
+
+## Lessons
+
+**The recurring defect in this codebase is not broken code — it is finished code
+with no path to it.** Four instances in one phase: tilled soil, the crops atlas,
+the worker swing, and a CSS rule for a class that does not exist. Each looked
+complete from every angle except the one where a player stands. The cheap check
+that catches all four is _"what actually reads this?"_ — asked of the consumer,
+not the producer.
+
+**A measurement that looks clean can be measuring the wrong thing.** The first
+30-minute soak reported a confident 0.00 MB growth and had spent 66% of its run
+idle. Nothing about the output was suspicious. It was caught by checking a
+column nobody was asserting on, which is now asserted (`activeShare > 0.8`).
+
+**Refusing is part of delivering.** Fourteen named effects were not built, each
+with a stated reason. A speculative `×` glyph that reads as a block, a scratch
+pose faked with a jitter, or a footstep that never stops would each have been
+worse than the absence — and a phase that quietly built them would have looked
+more complete while being less honest.
+
+**Write the off-switch first.** 07.7a shipped the accessibility settings before
+any effect existed. Every milestone after it was gated by construction rather
+than retrofitted — and the one thing that was retrofitted (reaching the settings
+from the UI) is exactly the thing that went missing for four milestones.
+
+---
+
+## Recommendations for the next phase
+
+The brief asks for "recommendations for Phase 07.5", which is already closed
+(the v0.1 RC, 2026-07-27). Reading that as _the next phase_:
+
+1. **Reconcile the coverage gate before anything else.** It is the only gate
+   still red, it has now moved the wrong way twice in a row for the same
+   structural reason, and no feature work will fix it. It is an owner decision
+   about what the threshold should measure.
+2. **Re-measure on the lowest target hardware.** Every performance figure here
+   comes from a 28-core desktop.
+3. **Do not attempt grass sway as polish.** It is a terrain-renderer
+   architecture change (debt #9).
+4. **The art requests (debt #6–8) are the cheapest remaining visual wins**, and
+   all three are blocked on assets rather than code.

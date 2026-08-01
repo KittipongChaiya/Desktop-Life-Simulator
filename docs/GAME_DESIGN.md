@@ -460,3 +460,33 @@ Where each future system attaches. **Designed for, not built** (`VISION.md` §4.
 3. **Keep escalating sinks ahead of linear sources** (§6.4), or progression terminates.
 4. **Never introduce a decay that destroys player value.** Tilled soil reverting is the only permitted decay, and it costs seconds of work, not goods.
 5. **Test balance changes against the stage table in §1.1.** If stage 4 moves past ~4 hours of play, it will not be discovered.
+
+---
+
+## Game feel (phase-07.7)
+
+What each action gives back. All of it is presentation — none of it changes a
+tick, a yield, or a price.
+
+| The player does   | The farm answers                                                                |
+| ----------------- | ------------------------------------------------------------------------------- |
+| Tills             | dust off the hoe, soil turns brown, a low scrape                                |
+| Plants            | the crop presses in from small with an overshoot, soil disturbed, a soft tap    |
+| Waits             | the crop swells once and sparkles at each of its four growth stages             |
+| Harvests          | the crop lifts and fades, leaves scatter, `+n` rises, a burst on the tile       |
+| Sells             | gold bursts at the market stall with `+coins`                                   |
+| Watches a worker  | it swings while working, eases into its steps, and hops when it finishes a task |
+| Places a building | a confirmation ring, the camera eases to it, and one rattle for the batch       |
+| Uses the HUD      | buttons lift on hover and press _below_ resting size                            |
+
+Three rules govern all of it:
+
+- **Nothing is announced that did not happen.** Every effect fires from a
+  published event or a settled snapshot, never from an intent, so a rejected
+  command is silent.
+- **A farm at rest is still.** Finite effects end and stop costing frames.
+  Motion that never ends — swaying plants, breathing workers — is off by
+  default and stops on its own when nobody is watching.
+- **The player can turn any of it off.** Six controls in Settings →
+  Accessibility, with Reduced Motion as a master switch that overrides the
+  other five without erasing them.

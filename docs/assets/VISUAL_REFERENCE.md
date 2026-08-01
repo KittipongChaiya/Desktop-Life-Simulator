@@ -181,3 +181,37 @@ Every future asset answers six questions. The review that enforces them is `QUAL
 | `UI_STYLE_GUIDE.md` / `ICON_GUIDE.md` / `ANIMATION_GUIDE.md` | Domain guides sharing this shape/feel vocabulary |
 | `PROMPT_LIBRARY.md`                                          | Encodes this language into generation prompts    |
 | `VISION.md`                                                  | The product intent behind every keyword in §1    |
+
+---
+
+## Motion vocabulary (phase-07.7, ADR-017)
+
+Durations are real milliseconds, not ticks: these acknowledge something to a
+person, so they must not stretch when the simulation is time-scaled.
+
+| Motion          | Duration            | Shape                                                              |
+| --------------- | ------------------- | ------------------------------------------------------------------ |
+| Crop spawn      | 280 ms              | from 0.4×, overshooting to ~1.12×, settling on 1                   |
+| Crop pulse      | 240 ms              | one half-sine to 1.18×, ending where it started                    |
+| Crop depart     | 300 ms              | swells to 1.25× while lifting 0.35 tile and fading                 |
+| Dust            | 300 ms              | shortest — it fires on every till and footfall                     |
+| Sparkle         | 380 ms              | a growth stage reached                                             |
+| Splash          | 360 ms              | water                                                              |
+| Burst           | 420 ms              | the existing harvest acknowledgement (07.5b)                       |
+| Coin burst      | 440 ms              | a sale                                                             |
+| Leaves          | 460 ms              | longest — foliage settles slowest                                  |
+| Floating number | 900 ms              | full opacity for the first half, then fades while rising 0.75 tile |
+| Camera shake    | 260 ms / 320 ms     | 3 px at 24 Hz; 4 px at 20 Hz for a placement                       |
+| Worker hop      | 420 ms              | two bounces, the second smaller                                    |
+| Worker fidget   | ~1.2 s, every ~12 s | look-around or stretch                                             |
+| Worker breath   | ~3 s cycle          | ±1 px, phase derived per worker                                    |
+| Plant sway      | 3.4 s cycle         | ±0.035 rad, phase derived per tile                                 |
+
+**Every curve returns to its resting value.** A spawn that ended at 1.04×, a
+fidget that left a sprite a pixel high, or a shake that ended a fraction off
+would accumulate — after an hour the farm would be visibly wrong with nothing
+in the code to point at. Each is asserted at its endpoint rather than trusted.
+
+**Two colours are reserved and used once each:** Reward Gold for the coin burst
+and coin numbers (the currency accent, `STYLE_LOCK.md` R-09), and Leaf Highlight
+for the growth sparkle.
