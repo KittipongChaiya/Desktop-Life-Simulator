@@ -49,7 +49,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | ----- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
 | 07.7a | Accessibility settings           | The six controls of §11 in `settings.json` under the ADR-014 §4 model; Reduced Motion as a master switch; every later milestone reads them | **Delivered** |
 | 07.7b | Motion foundation                | Pooled particle manager (dust, leaves, sparkle, coin burst, splash); presentation PRNG; the lease made structural                          | **Delivered** |
-| 07.7c | Floating numbers                 | Pooled `+coins` / `+items` risers — fade, drift up, auto-release. XP hook shape only, no XP system                                         | **Pending**   |
+| 07.7c | Floating numbers                 | Pooled `+coins` / `+items` risers — fade, drift up, auto-release. XP hook shape only, no XP system                                         | **Delivered** |
 | 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Pending**   |
 | 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Pending**   |
 | 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Pending**   |
@@ -82,7 +82,7 @@ A criterion is met when a test proves it and would fail if it broke (`AI_RULES.m
 
 ### Pooling holds
 
-10. Particle and floating-number pools **never allocate after construction**. Exhausting a pool drops the newest effect and does not grow.
+10. Particle and floating-number pools **never allocate after construction**. A full pool recycles its OLDEST entry and does not grow.
 11. A 30-minute run at maximum effect density shows heap growth within the `PERFORMANCE.md` ceiling.
 
 ### Accessibility works
