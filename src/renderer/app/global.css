@@ -62,3 +62,74 @@ body {
 button {
   min-height: 24px;
 }
+
+/*
+ * MOTION POLISH. Phase-07.7h, ADR-017 §7.
+ *
+ * The HUD's feel lives here rather than in React state, deliberately: a CSS
+ * transition runs in the compositor and causes no render at all, which is how
+ * the brief's "no React re-render every frame" is satisfied — by making the
+ * frame loop not React's business in the first place.
+ *
+ * Applied to `button` generally so every control the HUD has, and every one it
+ * grows, is covered without each panel remembering to opt in. Only `transform`
+ * and `opacity` are animated: both are compositor properties, so none of this
+ * triggers layout or paint.
+ */
+button {
+  transition:
+    transform 90ms ease-out,
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+button:hover:not(:disabled) {
+  transform: scale(1.04);
+}
+
+/* Presses go BELOW resting size — a button that grows under the finger reads
+   as a hover that got stuck. */
+button:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 40ms;
+}
+
+/*
+ * REDUCED MOTION, from two sources.
+ *
+ * The operating-system preference was already honoured in a couple of panels.
+ * The game's OWN Reduced Motion switch was not visible to CSS at all, so a
+ * player who set it in the settings panel got a still world and a HUD that
+ * carried on animating. `motion-attribute.ts` publishes it to the root.
+ *
+ * Not `animation: none`: cancelling an animation outright can strand an
+ * element on its first frame. A near-zero duration lets every animation run to
+ * its final state instantly, which is the accessible behaviour rather than
+ * merely the still one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Subtle keeps the feedback and halves the travel. */
+:root[data-motion='subtle'] button:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+:root[data-motion='subtle'] button:active:not(:disabled) {
+  transform: scale(0.98);
+}

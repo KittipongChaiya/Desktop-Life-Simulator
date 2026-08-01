@@ -156,3 +156,18 @@
     animation: none;
   }
 }
+
+/*
+ * Slot highlight on hover. Phase-07.7h.
+ *
+ * Background only, not transform: a row is full-width, and scaling one would
+ * push it past the panel's edge. The existing `arrived-flash` above stays as
+ * it is — this is the resting interaction, that is the event.
+ */
+.sellRow {
+  transition: background-color 120ms ease-out;
+}
+
+.sellRow:hover {
+  background: rgb(255 255 255 / 8%);
+}

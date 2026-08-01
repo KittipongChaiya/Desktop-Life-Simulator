@@ -54,7 +54,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Delivered** |
 | 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Delivered** |
 | 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Delivered** |
-| 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Pending**   |
+| 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Delivered** |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Pending**   |
 | 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Pending**   |
 | 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Pending**   |
@@ -290,6 +290,22 @@ That test caught a real one. At zero strength the maths returned **`-0`** on the
 **What counts as "large" is the interesting decision.** A single crop is the routine case and must stay silent; the camera reacts only when **four harvests land within 700 ms**, which in practice means a mature farm ripening together or an offline catch-up settling. A placement shakes once for the whole batch, not once per building — shaking per arrival would turn a multi-placement into an earthquake.
 
 Gates: typecheck · lint · cycles clean. Unit **98 files / 1246 tests**. E2E **34 passed, 3 skipped**.
+
+### 07.7h — UI feel · Delivered
+
+`motion-attribute.ts` (+ tests), and CSS in `global.css`, `ToolBar.module.css`, `InventoryPanel.module.css`.
+
+**The brief's "no React re-render every frame" is satisfied by making the frame loop not React's business.** Every HUD effect here is a CSS transition on `transform` or `opacity` — both compositor properties, so none of it triggers layout, paint, or a render. React is not involved in the animation at all.
+
+**The gap this closed:** the overlay already honoured the operating system's `prefers-reduced-motion` in two panels, but the game's OWN Reduced Motion switch was invisible to CSS. A player who set it in the settings panel got a still world and a HUD that carried on animating. `motion-attribute.ts` publishes the resolved setting to a root attribute, written only when the value changes — a per-frame attribute write would invalidate style every frame, which is a per-frame render wearing a different hat.
+
+Reduced motion uses a **near-zero duration, not `animation: none`.** Cancelling an animation outright can strand an element on its first frame; a 0.01 ms duration lets it run to its final state instantly, which is the accessible behaviour rather than merely the still one.
+
+**A dead-CSS mistake, caught before commit.** The first pass styled `.slot` for the inventory highlight. There is no `.slot` class — the panel uses `.sellRow` — so the rules would have shipped looking complete and doing nothing. Retargeted, and the transform dropped in favour of background alone, because a full-width row scaled up pushes past the panel edge.
+
+Buttons press to **below** resting size: one that grows under the finger reads as a hover that got stuck.
+
+Gates: typecheck · lint · cycles clean. Unit **99 files / 1256 tests**. E2E **34 passed, 3 skipped**.
 
 ### Remaining
 

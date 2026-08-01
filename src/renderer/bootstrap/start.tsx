@@ -25,6 +25,7 @@ import { createActionFeedback } from '../app/action-feedback';
 import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
 import { createCompanionController } from '../app/companion-controller';
+import { applyMotionAttribute } from '../app/motion-attribute';
 import { createOverlayController } from '../app/overlay-controller';
 import { createPlacementController } from '../app/placement';
 import { createReturnSummary, type ReturnSummaryReport } from '../app/return-summary';
@@ -564,6 +565,16 @@ function composeApplication(world: World, session: SaveSession): void {
     // a multi-placement into an earthquake.
     worldMount.current()?.shakeCamera(PLACEMENT_SHAKE, first.tile);
   });
+
+  // The HUD's polish lives in CSS, so the motion setting has to reach CSS
+  // (07.7h). Published on change only — a per-frame attribute write would
+  // invalidate style every frame, which is a per-frame render wearing a
+  // different hat.
+  const publishMotion = (): void => {
+    applyMotionAttribute(document.documentElement, companion.motion());
+  };
+  publishMotion();
+  companion.subscribe(publishMotion);
 
   selection.subscribe(() => {
     // Selecting, not clearing: Esc should be quiet and unmarked.

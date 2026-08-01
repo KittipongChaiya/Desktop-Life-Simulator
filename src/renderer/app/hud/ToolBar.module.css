@@ -54,3 +54,43 @@
     monospace;
   opacity: 0.85;
 }
+
+/*
+ * The armed tool pulses once when it becomes armed. Phase-07.7h.
+ *
+ * `forwards` and a single iteration: this acknowledges a selection, it does
+ * not advertise it. A looping pulse on a bar that is always on screen is the
+ * unbounded motion ADR-017 §2 keeps off by default, and there is no reason to
+ * spend that here — the armed state already carries three static signals.
+ */
+.tool[data-armed] {
+  animation: tool-armed 220ms ease-out 1;
+}
+
+@keyframes tool-armed {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The hotkey legend fades up when its tool is armed, so the hint is loudest
+   exactly when the player is using the tool it belongs to. */
+.key {
+  transition: opacity 140ms ease-out;
+}
+
+.tool[data-armed] .key {
+  opacity: 1;
+}
+
+.tool:hover .key {
+  opacity: 0.95;
+}
