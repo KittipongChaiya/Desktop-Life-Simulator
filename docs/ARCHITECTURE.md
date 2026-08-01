@@ -430,3 +430,50 @@ and carried to the renderer over `CompanionState`. Reduced Motion and work mode
 **override without overwriting**, so a toggle never destroys what the player
 chose. The resolved state also reaches CSS through a root attribute, because the
 HUD's own feel is CSS transitions rather than React state.
+
+---
+
+## 13. Developer tooling (ADR-018)
+
+Tooling is **diagnostic instrumentation, not a feature**. It lives entirely in
+`src/devtools` and the renderer, and it is compiled out of production builds
+rather than disabled in them.
+
+### The boundary
+
+| May import                                                           | May not import            |
+| -------------------------------------------------------------------- | ------------------------- |
+| `src/devtools` → `src/shared`, and `src/sim` **types and snapshots** | anything → `src/devtools` |
+
+`src/sim`, `src/persistence`, and `src/main` never reference tooling. The
+boundary linter enforces this, because v0.2 runs plugin code in the renderer
+(ADR-003 §6) and a plugin-contributed panel is untrusted by construction.
+
+### Four rules that are easy to break by accident
+
+1. **Nothing debug mutates the world directly.** Every gameplay mutation — spawn,
+   remove, reset, grant — submits a command through the ordinary player source
+   and is validated and rejectable like any other (ADR-010 §6). The console's
+   `money` command is the existing model. The payoff is that a debug action is
+   replayable, rejectable, and indistinguishable from a player's downstream, so
+   a bug reproduced with debug tools is a real reproduction.
+2. **Metrics are pull-based, read-only snapshots.** A metric is a function the
+   registry calls; it caches nothing into simulation state and mutates nothing
+   to compute itself. Observation must not perturb the observed.
+3. **Tooling consumes events and never produces them.** A debug-produced event
+   would make the event graph differ between builds — so a bug that depends on
+   event ordering would stop reproducing in the only build equipped to diagnose
+   it. Recording is subscription; replay (future) goes through the dispatcher.
+4. **Debug rendering obeys render-on-demand.** A closed overlay costs nothing;
+   an open one takes an animation lease like anything else that moves
+   (ADR-017 §1). Live graphs are the trap: a 60-second history repainting at
+   60 Hz makes the thing it measures worse and its own readings untrustworthy.
+
+### The gate
+
+`FEATURE_DEBUG` is a Vite-injected **literal**, so `if (FEATURE_DEBUG)` folds to
+`if (false)` and Rollup drops the branch and everything reachable only through
+it. Sub-flags (`FEATURE_PROFILER`, `FEATURE_CONSOLE`, `FEATURE_INSPECTOR`) may
+refine a debug build but are all false whenever `FEATURE_DEBUG` is, and none can
+re-enable tooling in a release. Removal is asserted against a real built
+artifact by `tests/devtools-excluded-from-production.test.ts`.
