@@ -86,13 +86,12 @@ These are the mechanisms that make the collapsed and idle budgets achievable. Bo
 > named file would have found nothing and reasonably concluded the invariants
 > were unguarded.
 >
-> **The third row is the gap ADR-017 opened and this phase has not closed.**
-> Ambient motion is the one thing that can hold the frame loop open, and its
-> surrender-on-idle behaviour is unit-tested in `ambient-presence.test.ts` but
-> not asserted end-to-end against a real window. It cannot be, yet: enabling
-> ambient motion requires a settings control that does not exist (see the
-> phase-07.7 doc). Until both land, condition 4 is an enforced promise in the
-> unit suite and an unenforced one in the app.
+> **The third row was closed in 07.7M.** Ambient motion is the one thing that
+> can hold the frame loop open, and its surrender-on-idle behaviour is now
+> asserted end-to-end against a real window as well as in
+> `ambient-presence.test.ts`: 100 FPS with one animation lease while the
+> pointer is active, and 0 FPS with 0 leases after 14 s untouched. It could not
+> be measured until 07.7L made the setting reachable.
 
 A tick over a sleeping world should iterate almost nothing (ADR-004) and publish nothing. When both hold, idle cost approaches the tick alone.
 
@@ -374,6 +373,56 @@ measurement that makes the ambient-motion exception legitimate rather than a
 hole in ADR-001, and it could not be taken until 07.7L made the setting
 reachable.
 
-### Criterion 11 — heap stability under sustained effect density
+### Criterion 11 — heap under sustained effect density
 
-See the phase document for the soak result and its conditions.
+`docs/perf/criterion-11-heap.json`. 30 minutes, 298 samples at 5 s, every motion
+setting on including both unbounded classes, with the pointer nudged every
+1.5 s so ambient motion stayed alive throughout.
+
+|                             | Measured   |
+| --------------------------- | ---------- |
+| Soak length                 | 30 min     |
+| Samples with motion running | **99.7%**  |
+| Heap, first quarter         | 11.3 MB    |
+| Heap, last quarter          | 14.5 MB    |
+| **Growth**                  | **3.2 MB** |
+| Peak                        | 14.5 MB    |
+| Ceiling                     | 25 MB      |
+
+**PASS against the ceiling**, with the shape recorded because the shape is the
+actual finding:
+
+```
+11.3 MB ── flat for 20.0 min (198 samples)
+            └─ one step at t=19.99 min
+14.5 MB ── flat for 10.0 min (100 samples)
+```
+
+**One step, then flat — not a trend.** A per-frame or per-effect leak produces
+progressive growth; twenty minutes flat, a single step, then ten minutes flat is
+the signature of a one-time allocation, a V8 heap-growth heuristic, or the
+quantised reading crossing a bucket boundary. Extrapolating the 3.2 MB linearly
+to eight hours would give ~51 MB and breach the ceiling, and that extrapolation
+would be **wrong**: the data shows it is not linear.
+
+#### Two limitations, stated rather than smoothed over
+
+**The instrument is quantised.** `performance.memory.usedJSHeapSize` reported
+exactly two distinct values across 298 samples (11.3 and 14.5). Chromium
+deliberately coarsens this figure, so the measurement can bound growth below its
+bucket size but cannot demonstrate byte-level stability, and cannot distinguish a
+real 3.2 MB allocation from a single bucket crossing. `tests/memory-longrun.test.ts`
+measures the SIMULATION heap byte-precisely with `process.memoryUsage()`; the
+renderer has no equivalent in-page. The better instrument is CDP
+`Runtime.getHeapUsage` through a Playwright session, and that is the improvement
+to make before this number is trusted more finely than "well under 25 MB".
+
+**The first attempt at this soak was invalid, and is kept.** It moved the pointer
+once per 5 s sample, and the four IPC metric reads in each iteration pushed the
+gap past the 8 s presence timeout — so **66% of that run was idle** and it
+measured the cheap state the test exists to avoid, while still reporting a
+confident 0.00 MB. It is preserved as
+`criterion-11-heap.INVALID-33pc-active.json` because a measurement that looked
+clean and measured the wrong thing is worth more as a warning than as a deleted
+file. The harness now reports `activeShare` and asserts it exceeds 0.8, so the
+same mistake fails loudly instead of passing quietly.

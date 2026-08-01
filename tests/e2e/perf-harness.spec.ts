@@ -11,8 +11,8 @@
  * | 11        | Does the heap stay flat under sustained effect density?      |
  *
  * EVERY NUMBER HERE IS READ, NEVER ESTIMATED. Each test writes what it
- * measured to `test-results/perf/` as JSON, so the values quoted in
- * `PERFORMANCE.md` have a file behind them rather than a memory of a run.
+ * measured to `docs/perf/` as JSON, so the values quoted in `PERFORMANCE.md`
+ * have a file behind them rather than a memory of a run.
  *
  * The long-run duration is configurable so the same harness serves a 30-minute
  * acceptance run and a fast pre-commit check:
@@ -38,7 +38,15 @@ const SOAK_MS = SOAK_MINUTES * 60_000;
 /** How often the soak samples. Frequent enough to see a trend, not a spike. */
 const SAMPLE_INTERVAL_MS = 5_000;
 
-const REPORT_DIR = join(import.meta.dirname, '..', '..', 'test-results', 'perf');
+/**
+ * Where measurements are kept.
+ *
+ * NOT under `test-results/`: Playwright empties that directory at the start of
+ * every run, so the first soak silently deleted the two measurements taken
+ * before it. Evidence for a documented number has to outlive the next test
+ * run, or it is not evidence.
+ */
+const REPORT_DIR = join(import.meta.dirname, '..', '..', 'docs', 'perf');
 
 /** Writes a measurement so a documented number has a file behind it. */
 function report(name: string, data: unknown): void {
@@ -229,17 +237,26 @@ test('criterion 11: heap stays flat under sustained effect density', async () =>
   const samples: { atMs: number; heapMb: number; anim: string }[] = [];
   const startedAt = Date.now();
 
-  while (Date.now() - startedAt < SOAK_MS) {
-    // Keep the world working: pointer activity holds ambient motion alive, so
-    // the soak measures the EXPENSIVE state rather than an idle one.
-    await window.mouse.move(150 + (samples.length % 40), 90 + (samples.length % 20));
+  // Presence expires 8 s after the last pointer event, and reading four
+  // metrics over IPC is not instant — a first version moved the mouse once per
+  // 5 s sample and spent TWO THIRDS of the soak idle, measuring the cheap state
+  // it was written to avoid. The pointer is now nudged on a tighter inner loop
+  // than the sampling interval, and `activeShare` below reports what actually
+  // happened rather than what was intended.
+  const NUDGE_INTERVAL_MS = 1_500;
 
+  while (Date.now() - startedAt < SOAK_MS) {
     samples.push({
       atMs: Date.now() - startedAt,
       heapMb: await metricNumber('Heap'),
       anim: await metric('Dirty'),
     });
-    await new Promise((resolve) => setTimeout(resolve, SAMPLE_INTERVAL_MS));
+
+    const until = Date.now() + SAMPLE_INTERVAL_MS;
+    while (Date.now() < until) {
+      await window.mouse.move(150 + (samples.length % 40), 90 + (samples.length % 20));
+      await new Promise((resolve) => setTimeout(resolve, NUDGE_INTERVAL_MS));
+    }
   }
 
   const heaps = samples.map((s) => s.heapMb).filter((h) => Number.isFinite(h));
@@ -251,9 +268,15 @@ test('criterion 11: heap stays flat under sustained effect density', async () =>
   const firstQuarter = mean(heaps.slice(0, quarter));
   const lastQuarter = mean(heaps.slice(-quarter));
 
+  // What fraction of the soak actually had motion running. A soak that idled
+  // is not evidence about a farm under load, so this is reported beside the
+  // heap rather than assumed.
+  const active = samples.filter((sample) => !sample.anim.includes('0 anim')).length;
+
   const measured = {
     soakMinutes: SOAK_MINUTES,
     sampleCount: heaps.length,
+    activeShare: Number((active / samples.length).toFixed(3)),
     firstQuarterMeanMb: Number(firstQuarter.toFixed(2)),
     lastQuarterMeanMb: Number(lastQuarter.toFixed(2)),
     growthMb: Number((lastQuarter - firstQuarter).toFixed(2)),
@@ -263,6 +286,8 @@ test('criterion 11: heap stays flat under sustained effect density', async () =>
   };
   report('criterion-11-heap', measured);
 
+  // The soak has to have been under load for the heap figure to mean anything.
+  expect(measured.activeShare).toBeGreaterThan(0.8);
   // PERFORMANCE.md's growth ceiling is 25 MB over an 8-hour run; a soak this
   // short must be far inside it, so the assertion is deliberately tighter.
   expect(measured.growthMb).toBeLessThan(25);

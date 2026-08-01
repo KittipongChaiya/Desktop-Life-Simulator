@@ -1,0 +1,10 @@
+{
+  "whileWatched": {
+    "fps": 100,
+    "dirty": "no · 1 anim"
+  },
+  "whenAway": {
+    "fps": 0,
+    "dirty": "no · 0 anim"
+  }
+}
