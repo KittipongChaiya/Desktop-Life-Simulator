@@ -34,6 +34,7 @@ import { AppProviders } from '../app/store-context';
 import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createWorkerSelection } from '../app/worker-selection';
+import { FloatingKind } from '../render/floating-number-state';
 import { workerAtTile } from '../render/worker-render';
 
 import { createPlayerInputSource } from './command-dispatch';
@@ -443,6 +444,12 @@ function composeApplication(world: World, session: SaveSession): void {
     // carries it, so the acknowledgement is never guessed from a selection or
     // a cursor position.
     worldMount.current()?.playEffect('burst', asTileIndex(event.tile));
+
+    // What the harvest actually yielded, over the tile it came from (07.7c).
+    // The event carries both, so the number is never guessed from a selection
+    // — and a harvest the player did not cause still shows where it happened.
+    const gained = event.yields.reduce((total, stack) => total + stack.quantity, 0);
+    worldMount.current()?.showNumber(FloatingKind.Item, asTileIndex(event.tile), gained);
   });
   world.events.subscribe('itemSold', () => {
     sound.play(Sound.Coin);

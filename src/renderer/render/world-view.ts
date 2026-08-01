@@ -24,6 +24,8 @@ import entitiesData from '@assets/entities.json';
 import entitiesImage from '@assets/entities.png';
 import terrainData from '@assets/terrain.json';
 import terrainImage from '@assets/terrain.png';
+import uiWorldData from '@assets/ui-world.json';
+import uiWorldImage from '@assets/ui-world.png';
 import { Spritesheet, Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
@@ -54,6 +56,8 @@ import { planDecor } from './decor';
 import { createDecorRenderer, type DecorRenderer } from './decor-view';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
 import { createEffects, type Effects } from './effects';
+import { createFloatingNumberPool, type FloatingKind } from './floating-number-state';
+import { createFloatingNumberRenderer, type FloatingNumberRenderer } from './floating-numbers';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
@@ -100,6 +104,13 @@ export interface WorldView {
    * timing and drops its animation lease the instant nothing is alive.
    */
   playEffect(kind: 'burst' | 'ring', tile: TileIndex): void;
+  /**
+   * Raises a `+n` over a tile (07.7c) — coins earned, items gained.
+   *
+   * Like `playEffect`, driven by the composition root from things that HAVE
+   * HAPPENED, so a rejected sale never shows a number.
+   */
+  showNumber(kind: FloatingKind, tile: TileIndex, amount: number): void;
   /**
    * Eases the camera to bring a tile into view (07.5c).
    *
@@ -179,6 +190,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     entities: await parseSheet(entitiesImage, entitiesData),
     buildings: await parseSheet(buildingsImage, buildingsData),
     crops: await parseSheet(cropsImage, cropsData),
+    // Loaded for the numeric glyphs the floating numbers compose (07.7c); the
+    // item and tool icons in this atlas are drawn by the DOM HUD, not here.
+    'ui-world': await parseSheet(uiWorldImage, uiWorldData),
   };
 
   const textureFor = (spriteKey: string): Texture => {
@@ -294,6 +308,16 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // Layer 4, which `layers.ts` reserved and left empty for exactly this.
   const effects: Effects = createEffects(app.layers.effects, gate);
 
+  // Numbers share the effects layer: both are transient acknowledgements that
+  // belong above the world and below the HUD.
+  const numbers = createFloatingNumberPool();
+  const numberRenderer: FloatingNumberRenderer = createFloatingNumberRenderer({
+    layer: app.layers.effects,
+    pool: numbers,
+    textureFor,
+    gate,
+  });
+
   // Ground decoration (07.5e). Shares the y-sorted `objects` layer with
   // buildings so props, buildings, and workers interleave correctly by depth.
   const decor: DecorRenderer = createDecorRenderer({ layer: app.layers.objects, textureFor });
@@ -329,6 +353,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       const now = performance.now();
       if (kind === 'burst') effects.burst(tile, now);
       else effects.ring(tile, now);
+    },
+
+    showNumber(kind, tile, amount) {
+      numbers.emit(kind, tile, amount, performance.now());
     },
 
     focusOnTile(tile) {
@@ -400,6 +428,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // time-scaled in devtools. This also releases the animation lease the
       // moment the last one expires.
       effects.update(performance.now());
+      numberRenderer.update(performance.now());
 
       if (!gate.shouldRender()) return false;
 
@@ -523,6 +552,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       decor.destroy();
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).
+      numberRenderer.destroy();
       effects.destroy();
       terrain.destroy();
       app.destroy();

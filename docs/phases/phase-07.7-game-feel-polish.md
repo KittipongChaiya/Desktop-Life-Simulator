@@ -181,8 +181,25 @@ ADR-017 §4 was corrected during this milestone: it said a full pool "drops the 
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit suite **93 files / 1150 tests** (from 90 / 1110). E2E **34 passed, 3 skipped** — run because the lease change touches the camera path the idle invariant depends on.
 
+### 07.7c — Floating numbers · Delivered
+
+`floating-number-state.ts` (+ tests), `floating-numbers.ts`, `scripts/generate-glyph-art.mjs`, eleven glyphs, and the harvest consumer in `start.tsx`.
+
+**The obvious route was a trap.** Pixi's `Text` rasterises a texture per distinct string, so `+12` and `+13` are separate GPU allocations — on the most frequent effect in the game, against ADR-017 §4. Instead: eleven glyph textures, composed into pooled per-digit sprites that are repositioned and retinted rather than created. Painted Parchment and tinted at draw time, so coins and items share one set.
+
+The pool adds an obligation the particle pool does not have: **the text is formatted once at emission, never per frame.** A number that formatted itself in `activeAt` would allocate a string per number per frame — the same defect one level down, and harder to see. A test reads the same number across 400 frames and asserts the identical string instance comes back.
+
+Two art decisions made by looking rather than by reasoning:
+
+- A **3×5 core was drawn first and rejected on sight** — with the canon 1 px outline the border is as thick as the strokes, so `+` collapsed into a blob and the digits read only barely. The outline is canon, so the core grew to 5×7.
+- A **`×` glyph was drawn and cut.** Its diagonals sit one pixel apart, so the outline closes them into a solid block. Nothing needed it — items and coins both read as `+n` — and a speculative glyph is not worth an illegible one.
+
+**Scope held deliberately:** the wired consumer is `cropHarvested` → `+n` over the harvested tile, which the event already carries. Coins are _not_ wired here — `ItemSold` carries no tile, and "coins fly to the wallet" is 07.7d's stated deliverable. One real consumer proves the system; inventing an anchor for the second would have pre-empted the next milestone.
+
+Gates: typecheck · lint · cycles clean. Unit **94 files / 1166 tests**. E2E **34 passed, 3 skipped**.
+
 ### Remaining
 
-07.7c–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
+07.7d–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
 
 Budgets are measured and recorded in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
