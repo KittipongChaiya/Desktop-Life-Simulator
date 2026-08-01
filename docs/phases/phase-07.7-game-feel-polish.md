@@ -55,7 +55,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Delivered** |
 | 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Delivered** |
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Delivered** |
-| 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Pending**   |
+| 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Delivered** |
 | 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Pending**   |
 | 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Pending**   |
 
@@ -306,6 +306,27 @@ Reduced motion uses a **near-zero duration, not `animation: none`.** Cancelling 
 Buttons press to **below** resting size: one that grows under the finger reads as a hover that got stuck.
 
 Gates: typecheck · lint · cycles clean. Unit **99 files / 1256 tests**. E2E **34 passed, 3 skipped**.
+
+### 07.7i — Sound hooks · Delivered
+
+**Two of the brief's four were added. Two were refused, on this catalogue's own stated policy.**
+
+`sounds.ts` already carried the rule: _"a catalogue entry with no trigger would be exactly the unreachable code `AI_RULES.md` Rule 6 forbids — every sound must have a producer."_ It had also already rejected ambient beds, because _"a desktop companion that hums to itself beside real work is a background game, not a companion."_ Both refusals follow directly.
+
+| Asked for    | Added  | Why                                                                                                                                                                                                                                                                                       |
+| ------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Till         | yes    | a discrete thing the player did                                                                                                                                                                                                                                                           |
+| Plant        | yes    | likewise                                                                                                                                                                                                                                                                                  |
+| Worker step  | **no** | a farm exists to run itself, so its workers walk essentially always — a step sound is an ambient bed with extra steps. Coalescing does not save it; suppressing repeats of a sound that should not play at all just makes it intermittent                                                 |
+| Button hover | **no** | a hover is not an action. The overlay sits at the bottom of the screen and the pointer crosses it on the way to other windows, so the sound would fire while the player is doing something else — the intrusion `VISION.md` §5.1 forbids. A click is an intent, and already has `UiClick` |
+
+Gains put till and plant **below** the harvest that rewards them: the loop should get quieter as it gets more frequent, not louder.
+
+The `SOUND_URL` map is exhaustive by type, so adding a catalogue entry without a file fails the build rather than playing silence — it caught both new sounds immediately.
+
+**A stronger version of the E2E build finding, found here.** `npm test` _itself_ leaves `out/` production-built: `devtools-excluded-from-production.test.ts` runs `npm run build` in its `beforeAll`, because the only honest way to prove devtools are stripped from a release is to inspect a real artifact. So the unit gate and the build gate BOTH clear the debug build away, and the E2E rebuild must be the last thing before `npm run test:e2e`. The 07.7 work surfaced this by accident and the global-setup guard caught it cleanly, naming the fix. `TESTING.md` and the project memory now record it.
+
+Gates: typecheck · lint clean. Unit **99 files / 1256 tests**. E2E **34 passed, 3 skipped**.
 
 ### Remaining
 

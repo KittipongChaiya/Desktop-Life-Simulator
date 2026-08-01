@@ -130,6 +130,22 @@ const RECIPES = {
     tone(buffer, { freq: 1319, ms: 150, atMs: 70, gain: 0.4, decay: 5, wave: 'triangle' });
     return buffer;
   },
+  // A hoe breaking ground: a short scrape with a low body under it. Noise-led
+  // because earth has no pitch.
+  till: () => {
+    const buffer = new Float32Array(seconds(150));
+    noise(buffer, { ms: 110, gain: 0.3, decay: 11, smoothing: 0.7, seed: 21 });
+    tone(buffer, { freq: 150, ms: 90, gain: 0.35, decay: 12 });
+    return buffer;
+  },
+  // A seed going in: one soft, low tap. The quietest thing in the catalogue,
+  // because it is the action the player repeats most.
+  plant: () => {
+    const buffer = new Float32Array(seconds(120));
+    tone(buffer, { freq: 320, ms: 70, gain: 0.3, decay: 14, wave: 'triangle' });
+    noise(buffer, { ms: 40, gain: 0.1, decay: 18, smoothing: 0.8, seed: 33 });
+    return buffer;
+  },
   // A wooden set-down: low thunk plus a short tap.
   placement: () => {
     const buffer = new Float32Array(seconds(200));

@@ -23,7 +23,9 @@ import errorUrl from '@assets/audio/error.wav';
 import harvestUrl from '@assets/audio/harvest.wav';
 import notificationUrl from '@assets/audio/notification.wav';
 import placementUrl from '@assets/audio/placement.wav';
+import plantUrl from '@assets/audio/plant.wav';
 import selectionUrl from '@assets/audio/selection.wav';
+import tillUrl from '@assets/audio/till.wav';
 import uiClickUrl from '@assets/audio/ui-click.wav';
 
 import type { AudioPorts } from '../app/audio';
@@ -43,6 +45,8 @@ const SOUND_URL: Readonly<Record<Sound, string>> = {
   [Sound.Selection]: selectionUrl,
   [Sound.UiClick]: uiClickUrl,
   [Sound.Notification]: notificationUrl,
+  [Sound.Till]: tillUrl,
+  [Sound.Plant]: plantUrl,
   [Sound.Error]: errorUrl,
 };
 

@@ -466,6 +466,7 @@ function composeApplication(world: World, session: SaveSession): void {
   // application called `invalidateTile`, which is why tilling produced no
   // visual change at all. One till costs one chunk redraw, as designed.
   world.events.subscribe('tileTilled', (event) => {
+    sound.play(Sound.Till);
     worldMount.current()?.invalidateTile(asTileIndex(event.tile));
     // Turned earth (07.7d). The soil changing colour is the result; the puff
     // is the moment, and it is what makes a hoe feel like it struck something.
@@ -475,6 +476,7 @@ function composeApplication(world: World, session: SaveSession): void {
   // A seed going in. The crop's own sprite presses in from small (crop-view's
   // spawn curve); this is the soil it disturbed on the way.
   world.events.subscribe('cropPlanted', (event) => {
+    sound.play(Sound.Plant);
     emitParticles(EffectKind.Dust, asTileIndex(event.tile), 3);
   });
 

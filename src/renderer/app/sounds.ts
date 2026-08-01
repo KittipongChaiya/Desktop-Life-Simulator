@@ -32,7 +32,33 @@ export const Sound = {
   Notification: 'notification',
   /** A genuine error. Rare by design (`GAME_DESIGN.md` §10.1 rule 6). */
   Error: 'error',
+  /** A hoe breaking ground. Phase-07.7i. */
+  Till: 'till',
+  /** A seed going in. Phase-07.7i. */
+  Plant: 'plant',
 } as const;
+
+/*
+ * DELIBERATELY ABSENT (07.7i): worker footsteps and button hover, both of
+ * which the phase-07.7 brief §7 names.
+ *
+ * A FOOTSTEP IS AN AMBIENT BED WEARING A DIFFERENT NAME. A farm exists to run
+ * itself, so its workers are walking essentially always; a step sound is
+ * therefore continuous sound with extra steps, and this catalogue already
+ * rejected continuous sound for the reason below. Coalescing does not save it
+ * either — suppressing repeats of a sound that should not be playing at all
+ * just makes it intermittent.
+ *
+ * A HOVER IS NOT AN ACTION. The overlay sits at the bottom of the screen and
+ * the pointer crosses it on the way to other windows, so a hover sound fires
+ * while the player is doing something else entirely — the precise intrusion
+ * `VISION.md` §5.1 forbids. A click is an intent and already has `UiClick`.
+ *
+ * Both are hooks that could be added the moment something makes them
+ * appropriate — a single worker the player is following, a deliberate focus
+ * mode. Neither is appropriate now, and a catalogue entry with no honest
+ * trigger is the unreachable code Rule 6 forbids.
+ */
 
 /*
  * DELIBERATELY ABSENT: the ambient beds (wind, birds, grass) `fix/0.1/7.5.md`
@@ -71,4 +97,9 @@ export const SOUND_GAIN: Readonly<Record<Sound, number>> = {
   [Sound.UiClick]: 0.2,
   [Sound.Notification]: 0.5,
   [Sound.Error]: 0.6,
+  // Tilling and planting are the actions a player repeats most, so they sit
+  // BELOW the harvest that rewards them — the loop should get quieter as it
+  // gets more frequent, not louder.
+  [Sound.Till]: 0.28,
+  [Sound.Plant]: 0.22,
 };
