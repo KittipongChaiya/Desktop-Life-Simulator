@@ -51,6 +51,7 @@ import {
   type CameraState,
 } from './camera';
 import { createCameraFocus, needsFocus, type CameraFocus } from './camera-focus';
+import { isShakeFinished, shakeOffset, type ShakeConfig } from './camera-shake';
 import { createCropRenderer, type CropRenderer } from './crop-view';
 import { planDecor } from './decor';
 import { createDecorRenderer, type DecorRenderer } from './decor-view';
@@ -107,6 +108,14 @@ export interface WorldView {
    * timing and drops its animation lease the instant nothing is alive.
    */
   playEffect(kind: 'burst' | 'ring', tile: TileIndex): void;
+  /**
+   * Rattles the camera (07.7g). Ignored unless the player opted in.
+   *
+   * The offset is applied to the STAGE, never to `camera` — a shake that moved
+   * the camera itself would fight the clamp, survive into the next pan, and
+   * drift the view permanently.
+   */
+  shakeCamera(config: ShakeConfig, seed: number): void;
   /**
    * Raises a `+n` over a tile (07.7c) — coins earned, items gained.
    *
@@ -177,6 +186,8 @@ export interface WorldViewOptions {
    * UNBOUNDED, so absent means no.
    */
   readonly creaturesEnabled?: (() => boolean) | undefined;
+  /** Whether the camera may shake at all (ADR-017 §7). Absent means no. */
+  readonly shakeEnabled?: (() => boolean) | undefined;
 }
 
 /**
@@ -301,11 +312,25 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     gate.markDirty();
   };
 
+  /** The active shake, or null. Presentation-only; never part of `camera`. */
+  let shake: { config: ShakeConfig; startedAt: number; seed: number } | null = null;
+  const shakeLease: AnimationLease = bindAnimationLease(gate);
+
   const applyCamera = (): void => {
     // The whole stage shifts; individual layers never track the camera
     // separately, which would let them drift out of alignment.
-    app.app.stage.x = -camera.x;
-    app.app.stage.y = -camera.y;
+    const offset =
+      shake === null
+        ? { x: 0, y: 0 }
+        : shakeOffset(
+            shake.config,
+            performance.now() - shake.startedAt,
+            shake.seed,
+            options.motionIntensity?.() ?? 1,
+          );
+
+    app.app.stage.x = -camera.x + offset.x;
+    app.app.stage.y = -camera.y + offset.y;
     app.app.stage.scale.set(camera.zoom);
   };
   applyCamera();
@@ -406,6 +431,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       gate.markDirty();
     },
 
+    shakeCamera(config, seed) {
+      if (options.shakeEnabled?.() !== true) return;
+      shake = { config, startedAt: performance.now(), seed };
+      shakeLease.sync(true);
+    },
+
     playEffect(kind, tile) {
       const now = performance.now();
       if (kind === 'burst') effects.burst(tile, now);
@@ -453,6 +484,17 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       } else {
         // Idempotent, so calling it on every non-gliding frame is free.
         focusLease.sync(false);
+      }
+
+      // The shake, before anything reads the stage this frame. It ends by
+      // restoring the stage to the unshaken camera position exactly once.
+      if (shake !== null) {
+        if (isShakeFinished(shake.config, shake.startedAt, performance.now())) {
+          shake = null;
+          shakeLease.sync(false);
+        }
+        applyCamera();
+        gate.markDirty();
       }
 
       const range = visibleTileRange(camera, limits);
@@ -601,6 +643,17 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     lastChunkRedraws: () => chunkRedraws,
 
     visibleTileCount() {
+      // The shake, before anything reads the stage this frame. It ends by
+      // restoring the stage to the unshaken camera position exactly once.
+      if (shake !== null) {
+        if (isShakeFinished(shake.config, shake.startedAt, performance.now())) {
+          shake = null;
+          shakeLease.sync(false);
+        }
+        applyCamera();
+        gate.markDirty();
+      }
+
       const range = visibleTileRange(camera, limits);
       return (range.last - range.first + 1) * options.world.tiles.height;
     },
@@ -615,6 +668,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // A glide's lease must not outlive the view that owns it.
       focus.cancel();
       endFocus();
+      shakeLease.release();
       decor.destroy();
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).

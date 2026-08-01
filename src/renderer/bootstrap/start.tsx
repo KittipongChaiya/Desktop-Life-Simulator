@@ -35,6 +35,12 @@ import { AppProviders } from '../app/store-context';
 import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createWorkerSelection } from '../app/worker-selection';
+import {
+  DEFAULT_SHAKE,
+  HARVEST_BURST_MS,
+  LARGE_HARVEST_COUNT,
+  PLACEMENT_SHAKE,
+} from '../render/camera-shake';
 import { EffectKind } from '../render/effect-state';
 import { FloatingKind } from '../render/floating-number-state';
 import { workerAtTile } from '../render/worker-render';
@@ -270,6 +276,7 @@ function composeApplication(world: World, session: SaveSession): void {
     motionIntensity: () => intensityScale(companion.motion().intensity),
     particlesEnabled: () => companion.motion().particles,
     creaturesEnabled: () => companion.motion().decorativeCreatures,
+    shakeEnabled: () => companion.motion().cameraShake,
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,
@@ -445,6 +452,10 @@ function composeApplication(world: World, session: SaveSession): void {
    * stage-change sparkle is raised inside it and a caller-side check would
    * silently miss that one.
    */
+  /** Harvests seen inside the current burst window (07.7g). */
+  let harvestBurstCount = 0;
+  let harvestBurstStartedAt = 0;
+
   const emitParticles = (kind: EffectKind, tile: TileIndex, count: number): void => {
     worldMount.current()?.emitParticles(kind, tile, count);
   };
@@ -480,6 +491,20 @@ function composeApplication(world: World, session: SaveSession): void {
     worldMount.current()?.showNumber(FloatingKind.Item, asTileIndex(event.tile), gained);
     // Foliage disturbed by the pick, on top of the existing burst.
     emitParticles(EffectKind.Leaves, asTileIndex(event.tile), 6);
+
+    // A LARGE harvest shakes the camera — several landing together, which in
+    // practice means a mature farm ripening at once or an offline catch-up
+    // settling. A single crop is the routine case and must stay silent: a farm
+    // that jolts every few seconds is unusable as a companion.
+    const now = performance.now();
+    if (now - harvestBurstStartedAt > HARVEST_BURST_MS) {
+      harvestBurstStartedAt = now;
+      harvestBurstCount = 0;
+    }
+    harvestBurstCount += 1;
+    if (harvestBurstCount === LARGE_HARVEST_COUNT) {
+      worldMount.current()?.shakeCamera(DEFAULT_SHAKE, event.tile);
+    }
   });
   world.events.subscribe('itemSold', (event) => {
     sound.play(Sound.Coin);
@@ -531,7 +556,13 @@ function composeApplication(world: World, session: SaveSession): void {
     // Focus the FIRST arrival only. Placing several at once is possible; a
     // camera that then chases each in turn is motion sickness, not help.
     const first = arrived[0];
-    if (first !== undefined) worldMount.current()?.focusOnTile(asTileIndex(first.tile));
+    if (first === undefined) return;
+
+    worldMount.current()?.focusOnTile(asTileIndex(first.tile));
+    // And one rattle for the batch (07.7g) — a building landing is the
+    // heaviest thing the player does, and shaking once per arrival would turn
+    // a multi-placement into an earthquake.
+    worldMount.current()?.shakeCamera(PLACEMENT_SHAKE, first.tile);
   });
 
   selection.subscribe(() => {

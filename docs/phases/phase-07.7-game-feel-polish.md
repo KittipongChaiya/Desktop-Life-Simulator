@@ -53,7 +53,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Delivered** |
 | 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Delivered** |
 | 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Delivered** |
-| 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Pending**   |
+| 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Delivered** |
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Pending**   |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Pending**   |
 | 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Pending**   |
@@ -274,6 +274,22 @@ The two omissions are not deferred work — they are an **art request**. Neither
 **The hop is finite, so it is not gated on creatures.** It fires on the Working → not-Working transition — which the view can see because it keeps both snapshots — costs nothing at rest, and is therefore in the finite class alongside the crop curves. The recurring fidgets and the breathing are ambient and stay behind Decorative Creatures.
 
 Gates: typecheck · lint · cycles clean. Unit **97 files / 1229 tests**. E2E **34 passed, 3 skipped**.
+
+### 07.7g — Camera shake · Delivered
+
+`camera-shake.ts` (+ tests), applied in `world-view`, triggered from `start.tsx`.
+
+**The default matters more here than anywhere else in the phase.** Every other effect stays inside the overlay's own bounds; a shake moves the whole world under a window sitting at the bottom of someone's screen while they work. It ships **off**, and the values are small enough — 260 ms, 3 px — that a player who turns it on is not punished for it.
+
+**It must return exactly to zero.** A shake ending a fraction of a pixel off leaves the camera permanently displaced, and every later shake displaces it further: a drift accumulating across a session with no single frame to blame. The endpoint is asserted rather than trusted, including a test that runs a hundred shakes to completion and sums their final offsets.
+
+That test caught a real one. At zero strength the maths returned **`-0`** on the negative half of the wave — arithmetically harmless, but it made "returns exactly zero" a matter of interpretation. Zero strength now short-circuits, which is both honest and cheaper.
+
+**The offset is applied to the stage, never to `camera`.** A shake that moved the camera itself would fight the clamp, survive into the next pan, and drift the view permanently — the same class of bug as the accumulating offset, arriving by a different route.
+
+**What counts as "large" is the interesting decision.** A single crop is the routine case and must stay silent; the camera reacts only when **four harvests land within 700 ms**, which in practice means a mature farm ripening together or an offline catch-up settling. A placement shakes once for the whole batch, not once per building — shaking per arrival would turn a multi-placement into an earthquake.
+
+Gates: typecheck · lint · cycles clean. Unit **98 files / 1246 tests**. E2E **34 passed, 3 skipped**.
 
 ### Remaining
 
