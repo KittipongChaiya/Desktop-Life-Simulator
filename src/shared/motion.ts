@@ -17,28 +17,48 @@
  * free at idle and defaults ON. Unbounded motion is not, and defaults OFF.
  */
 
-/** How much movement each finite effect carries. */
-export const MotionIntensity = {
-  /** The full pass — every easing, bounce, and follow-through. */
-  Full: 'full',
-  /** Shortened and shallower: the acknowledgement without the flourish. */
-  Subtle: 'subtle',
-  /** A state change, near-instant. What Reduced Motion forces. */
-  Minimal: 'minimal',
-} as const;
+/**
+ * How much movement each finite effect carries, as a percentage.
+ *
+ * A CONTINUOUS DIAL, not a set of levels. 07.7a modelled this as a three-value
+ * enum, which threw away expressiveness the renderer already had: every curve
+ * is damped by multiplication (`1 + (curve - 1) * strength`), so any value in
+ * between was always going to work. The enum only ever limited the UI.
+ *
+ * The same range and step as the opacity and volume dials, because it is the
+ * same kind of control and a player should not have to learn a second one.
+ */
+export const MOTION_INTENSITY_MIN_PERCENT = 0;
+export const MOTION_INTENSITY_MAX_PERCENT = 100;
+export const MOTION_INTENSITY_STEP_PERCENT = 5;
+export const MOTION_INTENSITY_DEFAULT_PERCENT = 100;
 
-export type MotionIntensity = (typeof MotionIntensity)[keyof typeof MotionIntensity];
+/**
+ * Below this, motion reads as "off" rather than "small".
+ *
+ * Used for the CSS accessibility state and for anything that has to make a
+ * binary call about whether the interface is animating at all.
+ */
+export const MOTION_STILL_THRESHOLD_PERCENT = 10;
 
-const INTENSITIES: readonly string[] = [
-  MotionIntensity.Full,
-  MotionIntensity.Subtle,
-  MotionIntensity.Minimal,
-];
+/**
+ * The levels 07.7a stored, and what they mean as percentages.
+ *
+ * A settings file written before this change holds one of these strings. A
+ * player who chose `minimal` must land on 0 rather than silently jumping to
+ * full motion — which is what a bare fallback-to-default would have done, and
+ * is the reason this map exists rather than letting the sanitizer shrug.
+ */
+const LEGACY_INTENSITY: Readonly<Record<string, number>> = {
+  full: 100,
+  subtle: 50,
+  minimal: 0,
+};
 
 /** The six controls of the accessibility panel, as stored. */
 export interface MotionSettings {
-  /** Scale applied to finite effects. */
-  readonly intensity: MotionIntensity;
+  /** Scale applied to finite effects, 0–100. */
+  readonly intensityPercent: number;
   /** Dust, leaves, sparkles, coin bursts, splashes. Finite; event-driven. */
   readonly particles: boolean;
   /** Screen shake on large harvests and placements. Finite. */
@@ -59,7 +79,7 @@ export interface MotionSettings {
  * which is the trade `VISION.md` §2.1 makes on their behalf.
  */
 export const DEFAULT_MOTION_SETTINGS: MotionSettings = {
-  intensity: MotionIntensity.Full,
+  intensityPercent: MOTION_INTENSITY_DEFAULT_PERCENT,
   particles: true,
   cameraShake: false,
   decorativeCreatures: false,
@@ -69,7 +89,7 @@ export const DEFAULT_MOTION_SETTINGS: MotionSettings = {
 
 /** The motion actually in force, with the stored settings left untouched. */
 export interface EffectiveMotion {
-  readonly intensity: MotionIntensity;
+  readonly intensityPercent: number;
   readonly particles: boolean;
   readonly cameraShake: boolean;
   readonly decorativeCreatures: boolean;
@@ -96,7 +116,7 @@ export function effectiveMotion(
 ): EffectiveMotion {
   if (settings.reducedMotion) {
     return {
-      intensity: MotionIntensity.Minimal,
+      intensityPercent: MOTION_INTENSITY_MIN_PERCENT,
       particles: false,
       cameraShake: false,
       decorativeCreatures: false,
@@ -110,7 +130,7 @@ export function effectiveMotion(
   const ambientAllowed = !modes.workMode;
 
   return {
-    intensity: settings.intensity,
+    intensityPercent: settings.intensityPercent,
     particles: settings.particles,
     cameraShake: settings.cameraShake,
     decorativeCreatures: settings.decorativeCreatures && ambientAllowed,
@@ -119,21 +139,36 @@ export function effectiveMotion(
 }
 
 /**
- * An intensity level as a multiplier the renderer can apply directly.
+ * The dial as a multiplier the renderer applies directly.
  *
  * Every finite curve is damped TOWARD its resting value by this number rather
- * than skipped, so a level changed mid-animation cannot strand a sprite at the
+ * than skipped, so a value changed mid-animation cannot strand a sprite at the
  * wrong size — at 0 the sprite simply sits where it belongs, and no code path
  * is disabled.
  */
-export function intensityScale(intensity: MotionIntensity): number {
-  if (intensity === MotionIntensity.Minimal) return 0;
-  return intensity === MotionIntensity.Subtle ? 0.5 : 1;
+export function intensityScale(percent: number): number {
+  if (!Number.isFinite(percent)) return 1;
+  return Math.min(100, Math.max(0, percent)) / 100;
 }
 
-/** Settings files are untrusted input; anything unrecognised takes the default. */
-export function sanitizeMotionIntensity(value: unknown): MotionIntensity {
-  return typeof value === 'string' && INTENSITIES.includes(value)
-    ? (value as MotionIntensity)
-    : DEFAULT_MOTION_SETTINGS.intensity;
+/**
+ * Clamps to the dial's range and snaps to its step.
+ *
+ * Accepts the 07.7a level strings and maps them (see `LEGACY_INTENSITY`), so a
+ * settings file written before the dial existed upgrades in place instead of
+ * discarding what the player chose. Anything else takes the default.
+ */
+export function sanitizeMotionIntensity(value: unknown): number {
+  if (typeof value === 'string') {
+    return LEGACY_INTENSITY[value] ?? MOTION_INTENSITY_DEFAULT_PERCENT;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return MOTION_INTENSITY_DEFAULT_PERCENT;
+  }
+
+  const clamped = Math.min(
+    MOTION_INTENSITY_MAX_PERCENT,
+    Math.max(MOTION_INTENSITY_MIN_PERCENT, value),
+  );
+  return Math.round(clamped / MOTION_INTENSITY_STEP_PERCENT) * MOTION_INTENSITY_STEP_PERCENT;
 }

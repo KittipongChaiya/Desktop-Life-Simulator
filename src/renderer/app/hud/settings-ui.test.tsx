@@ -19,6 +19,13 @@ import {
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
+import {
+  DEFAULT_MOTION_SETTINGS,
+  MOTION_INTENSITY_MAX_PERCENT,
+  MOTION_INTENSITY_MIN_PERCENT,
+  MOTION_INTENSITY_STEP_PERCENT,
+  type MotionSettings,
+} from '../../../shared/motion';
 import { createActionFeedback } from '../action-feedback';
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
 import { createSaveController } from '../save-controller';
@@ -34,6 +41,8 @@ interface Harness {
   /** Volume values the dial pushed to main (07.5a). */
   readonly setVolumeCalls: number[];
   readonly muteToggles: () => number;
+  /** Motion patches the accessibility controls pushed to main (07.7L). */
+  readonly setMotionCalls: Partial<MotionSettings>[];
 }
 
 function mount(
@@ -44,10 +53,12 @@ function mount(
     hidden: false,
     volumePercent: 60,
     muted: true,
+    motion: DEFAULT_MOTION_SETTINGS,
   },
 ): Harness {
   const setOpacityCalls: number[] = [];
   const setVolumeCalls: number[] = [];
+  const setMotionCalls: Partial<MotionSettings>[] = [];
   let muteToggles = 0;
   // A real save controller over a counting write: the button must reach the
   // ONE save path, not a shortcut of its own (07e).
@@ -71,6 +82,10 @@ function mount(
     toggleMuted() {
       muteToggles += 1;
       return Promise.resolve({ ...initial, muted: !initial.muted });
+    },
+    setMotion(patch) {
+      setMotionCalls.push(patch);
+      return Promise.resolve({ ...initial, motion: { ...initial.motion, ...patch } });
     },
     getState: () => Promise.resolve(initial),
     onStateChanged: () => () => undefined,
@@ -101,6 +116,7 @@ function mount(
     saveWrites: () => saveWrites,
     setVolumeCalls,
     muteToggles: () => muteToggles,
+    setMotionCalls,
   };
 }
 
@@ -124,7 +140,15 @@ describe('SettingsPanel', () => {
   });
 
   it('hydrates the slider from the companion state in main', async () => {
-    mount({ opacityPercent: 60, workMode: false, clickThrough: false, hidden: false });
+    mount({
+      opacityPercent: 60,
+      workMode: false,
+      clickThrough: false,
+      hidden: false,
+      volumePercent: 60,
+      muted: true,
+      motion: DEFAULT_MOTION_SETTINGS,
+    });
     openPanel();
 
     expect(await screen.findByText('60%')).toBeDefined();
@@ -257,5 +281,126 @@ describe('the sound controls (07.5a, ADR-016)', () => {
     fireEvent.change(screen.getByRole('slider', { name: 'Sound' }), { target: { value: '25' } });
 
     expect(harness.setVolumeCalls).toEqual([25]);
+  });
+});
+
+/**
+ * The Accessibility section. Phase-07.7L.
+ *
+ * These six settings existed and gated real effects from 07.7a onward, and
+ * until this phase nothing in the application could reach them — a player
+ * could only change them by hand-editing `settings.json`. So the assertions
+ * here are deliberately about REACHABILITY and BINDING: that each control is
+ * present, shows the stored value, and pushes a patch to main.
+ */
+describe('the accessibility controls (07.7L, ADR-017 §7)', () => {
+  it('shows all six controls', () => {
+    mount();
+    openPanel();
+
+    expect(screen.getByRole('slider', { name: 'Animation' })).toBeDefined();
+    for (const name of [
+      'Particles',
+      'Camera shake',
+      'Ambient animation',
+      'Living details',
+      'Reduced motion',
+    ]) {
+      expect(screen.getByLabelText(name)).toBeDefined();
+    }
+  });
+
+  it('renders the animation dial on the shared bounds with a live readout', () => {
+    mount();
+    openPanel();
+
+    const slider = screen.getByRole('slider', { name: 'Animation' });
+    expect(slider.min).toBe(String(MOTION_INTENSITY_MIN_PERCENT));
+    expect(slider.max).toBe(String(MOTION_INTENSITY_MAX_PERCENT));
+    expect(slider.step).toBe(String(MOTION_INTENSITY_STEP_PERCENT));
+    expect(screen.getByText('100%')).toBeDefined();
+  });
+
+  it('pushes a dial change to main and updates the readout at once', () => {
+    const { setMotionCalls } = mount();
+    openPanel();
+
+    fireEvent.change(screen.getByRole('slider', { name: 'Animation' }), {
+      target: { value: '40' },
+    });
+
+    expect(screen.getByText('40%')).toBeDefined();
+    expect(setMotionCalls).toEqual([{ intensityPercent: 40 }]);
+  });
+
+  it('sends a PARTIAL patch, so one control cannot overwrite another', () => {
+    // Six independent controls: sending the whole object from each would let
+    // two rapid toggles race, the second carrying a stale copy of the first.
+    const { setMotionCalls } = mount();
+    openPanel();
+
+    fireEvent.click(screen.getByLabelText('Particles'));
+    expect(setMotionCalls).toEqual([{ particles: false }]);
+  });
+
+  it('shows the current state of each toggle, not the action it would take', () => {
+    mount();
+    openPanel();
+
+    // Defaults: particles on, the rest off (ADR-017 §2 — unbounded motion and
+    // camera shake are opt-in).
+    expect(screen.getByLabelText('Particles').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText('Ambient animation').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByLabelText('Camera shake').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByLabelText('Living details').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('every control carries a tooltip and a description', () => {
+    mount();
+    openPanel();
+
+    expect(screen.getByLabelText('Ambient animation').getAttribute('title')).toBeTruthy();
+    expect(screen.getByRole('slider', { name: 'Animation' }).getAttribute('title')).toBeTruthy();
+    // The description the brief asks for, beside the control rather than in it.
+    expect(screen.getByText(/stops when you are away/i)).toBeDefined();
+  });
+
+  it('Reduced Motion disables the other five without erasing them', async () => {
+    // The master-switch property: the controls grey out, but the stored values
+    // are untouched, so clearing it restores exactly what the player chose.
+    mount({
+      opacityPercent: 100,
+      workMode: false,
+      clickThrough: false,
+      hidden: false,
+      volumePercent: 60,
+      muted: true,
+      motion: { ...DEFAULT_MOTION_SETTINGS, reducedMotion: true, particles: true },
+    });
+    openPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('slider', { name: 'Animation' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByLabelText('Particles').hasAttribute('disabled')).toBe(true);
+    // Still ON underneath — the switch overrides, it does not overwrite.
+    expect(screen.getByLabelText('Particles').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('hydrates from what main already had stored', async () => {
+    mount({
+      opacityPercent: 100,
+      workMode: false,
+      clickThrough: false,
+      hidden: false,
+      volumePercent: 60,
+      muted: true,
+      motion: { ...DEFAULT_MOTION_SETTINGS, intensityPercent: 55, environmental: true },
+    });
+    openPanel();
+
+    expect(await screen.findByText('55%')).toBeDefined();
+    expect(screen.getByLabelText('Ambient animation').getAttribute('aria-pressed')).toBe('true');
   });
 });

@@ -45,6 +45,16 @@ export interface CompanionController {
    * (ADR-017 §7). Resolved here so no consumer re-derives the precedence.
    */
   motion(): EffectiveMotion;
+  /** The motion settings AS STORED, for the controls that edit them. */
+  storedMotion(): MotionSettings;
+  /**
+   * Patches motion preferences. Applied optimistically, then confirmed.
+   *
+   * PARTIAL, so six independent controls cannot overwrite each other: sending
+   * the whole object from each one would let two rapid toggles race, the
+   * second carrying a stale copy of the first's field.
+   */
+  setMotion(patch: Partial<MotionSettings>): void;
   setVolumePercent(value: number): void;
   muted(): boolean;
   toggleMuted(): void;
@@ -56,6 +66,7 @@ export interface CompanionBridge {
   setOpacity(percent: number): Promise<CompanionState>;
   setVolume(percent: number): Promise<CompanionState>;
   toggleMuted(): Promise<CompanionState>;
+  setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
   getState(): Promise<CompanionState>;
   onStateChanged(listener: (state: CompanionState) => void): () => void;
 }
@@ -74,7 +85,7 @@ function sameMotion(a: MotionSettings | undefined, b: MotionSettings | undefined
   if (a === b) return true;
   if (a === undefined || b === undefined) return false;
   return (
-    a.intensity === b.intensity &&
+    a.intensityPercent === b.intensityPercent &&
     a.particles === b.particles &&
     a.cameraShake === b.cameraShake &&
     a.decorativeCreatures === b.decorativeCreatures &&
@@ -128,6 +139,19 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     volumePercent: () => state.volumePercent,
 
     motion: () => effectiveMotion(state.motion, { workMode: state.workMode }),
+
+    // Defaulted rather than asserted. The same reason `sameMotion` tolerates
+    // absence: this state crosses a process boundary, and a settings panel
+    // that throws on a malformed payload is worse than one showing defaults.
+    storedMotion: () => state.motion ?? DEFAULT_MOTION_SETTINGS,
+
+    setMotion(patch) {
+      // Optimistic, exactly like `setOpacityPercent`: the control has to move
+      // under the finger, not after an IPC round trip. Main re-sanitizes and
+      // broadcasts, and `setLocal` reconciles if it disagreed.
+      setLocal({ ...state, motion: { ...state.motion, ...patch } });
+      void bridge.setMotion(patch).then(setLocal);
+    },
     muted: () => state.muted,
 
     setVolumePercent(value) {

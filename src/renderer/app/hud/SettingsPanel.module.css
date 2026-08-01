@@ -106,3 +106,20 @@
   font: inherit;
   font-size: 11px;
 }
+
+/*
+ * Per-control description. Phase-07.7L.
+ *
+ * The accessibility controls each carry one, because "Ambient animation: On"
+ * tells a player nothing about what it costs or when it runs. Indented under
+ * its row and dimmed, so scanning the panel still reads as a list of controls
+ * rather than as prose.
+ */
+.hint {
+  margin: -2px 0 6px 0;
+  padding-left: 2px;
+  color: rgb(232 236 244 / 62%);
+  font:
+    400 10px/1.35 system-ui,
+    sans-serif;
+}

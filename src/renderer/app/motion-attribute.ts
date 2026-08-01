@@ -18,7 +18,7 @@
  * a different hat.
  */
 
-import { MotionIntensity, type EffectiveMotion } from '../../shared/motion';
+import { MOTION_STILL_THRESHOLD_PERCENT, type EffectiveMotion } from '../../shared/motion';
 
 /** The attribute stylesheets key off. */
 export const MOTION_ATTRIBUTE = 'data-motion';
@@ -35,14 +35,16 @@ export type MotionAttributeValue = (typeof MotionAttributeValue)[keyof typeof Mo
 /**
  * The attribute value for the motion in force.
  *
- * `Minimal` becomes `reduced` rather than `minimal` so the stylesheet reads as
- * what it means — this is the accessibility state, not a third speed.
+ * The dial is continuous but CSS needs a small set of states, so this bands it.
+ * A dial at or below the still threshold reads as `reduced` rather than as a
+ * very small `full` — the stylesheet is expressing the accessibility state, not
+ * the number.
  */
 export function motionAttributeValue(motion: EffectiveMotion): MotionAttributeValue {
-  if (motion.intensity === MotionIntensity.Minimal) return MotionAttributeValue.Reduced;
-  return motion.intensity === MotionIntensity.Subtle
-    ? MotionAttributeValue.Subtle
-    : MotionAttributeValue.Full;
+  if (motion.intensityPercent <= MOTION_STILL_THRESHOLD_PERCENT) {
+    return MotionAttributeValue.Reduced;
+  }
+  return motion.intensityPercent < 75 ? MotionAttributeValue.Subtle : MotionAttributeValue.Full;
 }
 
 /**

@@ -141,7 +141,7 @@ export function parseSettings(value: unknown): AppSettings {
       muted: readBoolean(audio['muted'], DEFAULT_SETTINGS.audio.muted),
     },
     motion: {
-      intensity: sanitizeMotionIntensity(motion['intensity']),
+      intensityPercent: sanitizeMotionIntensity(motion['intensityPercent'] ?? motion['intensity']),
       particles: readBoolean(motion['particles'], DEFAULT_MOTION_SETTINGS.particles),
       cameraShake: readBoolean(motion['cameraShake'], DEFAULT_MOTION_SETTINGS.cameraShake),
       decorativeCreatures: readBoolean(

@@ -12,7 +12,7 @@ import {
   OPACITY_MAX_PERCENT,
   OPACITY_MIN_PERCENT,
 } from '../shared/constants';
-import { DEFAULT_MOTION_SETTINGS, MotionIntensity } from '../shared/motion';
+import { DEFAULT_MOTION_SETTINGS } from '../shared/motion';
 
 import {
   DEFAULT_SETTINGS,
@@ -195,7 +195,7 @@ describe('the motion category', () => {
 
   it('reads a stored category back', () => {
     const stored = {
-      intensity: MotionIntensity.Subtle,
+      intensityPercent: 50,
       particles: false,
       cameraShake: true,
       decorativeCreatures: true,
@@ -208,10 +208,10 @@ describe('the motion category', () => {
 
   it('falls back per field — one bad value never discards its neighbour', () => {
     const parsed = parseSettings({
-      motion: { intensity: 'cinematic', particles: false, environmental: 'yes' },
+      motion: { intensityPercent: 'cinematic', particles: false, environmental: 'yes' },
     });
 
-    expect(parsed.motion.intensity).toBe(DEFAULT_MOTION_SETTINGS.intensity);
+    expect(parsed.motion.intensityPercent).toBe(DEFAULT_MOTION_SETTINGS.intensityPercent);
     expect(parsed.motion.particles).toBe(false); // the good neighbour survives
     expect(parsed.motion.environmental).toBe(DEFAULT_MOTION_SETTINGS.environmental);
   });

@@ -6,6 +6,8 @@
  * it would let the two definitions drift silently.
  */
 
+import type { MotionSettings } from '../motion';
+
 import type { CompanionState, OverlayState, SavesOnDisk, SaveWriteOutcome } from './contract';
 
 declare global {
@@ -24,6 +26,8 @@ declare global {
         toggleClickThrough(): Promise<CompanionState>;
         toggleWorkMode(): Promise<CompanionState>;
         setVolume(percent: number): Promise<CompanionState>;
+        /** Patches motion preferences (phase-07.7L). Partial by design. */
+        setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
         toggleMuted(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
       };

@@ -36,6 +36,14 @@ export const InvokeChannel = {
    * audible presence dial, sanitized in main exactly like opacity.
    */
   SetVolume: 'companion:set-volume',
+  /**
+   * Sets one or more motion preferences (phase-07.7L, ADR-017 §7).
+   *
+   * A PARTIAL patch rather than the whole object: the accessibility panel has
+   * six independent controls, and sending the full set from each one would let
+   * two rapid toggles overwrite each other with a stale sibling value.
+   */
+  SetMotion: 'companion:set-motion',
   /** Mute toggle (phase-07.5a) — independent of the dial, so unmuting restores it. */
   ToggleMuted: 'companion:toggle-muted',
   /**
@@ -171,6 +179,7 @@ export interface IpcContract {
   [InvokeChannel.ToggleClickThrough]: { request: void; response: CompanionState };
   [InvokeChannel.ToggleWorkMode]: { request: void; response: CompanionState };
   [InvokeChannel.SetVolume]: { request: number; response: CompanionState };
+  [InvokeChannel.SetMotion]: { request: Partial<MotionSettings>; response: CompanionState };
   [InvokeChannel.ToggleMuted]: { request: void; response: CompanionState };
   [InvokeChannel.SaveLoad]: { request: void; response: SavesOnDisk };
   [InvokeChannel.SaveWrite]: { request: unknown; response: SaveWriteOutcome };

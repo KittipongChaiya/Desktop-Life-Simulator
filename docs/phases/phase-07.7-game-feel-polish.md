@@ -57,6 +57,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Delivered** |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Delivered** |
 | 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Delivered** |
+| 07.7L | Accessibility settings UI        | The six controls exposed in the settings panel, bound to the existing model; `SetMotion` IPC; restart-persistence E2E                      | **Delivered** |
 | 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Partial**   |
 
 ---
@@ -381,9 +382,9 @@ This milestone's job is accounting, so it reports rather than claims.
 
 **Eleven met, two met only in unit, three not done.**
 
-#### The gap that matters most
+#### The gap that matters most — CLOSED in 07.7L
 
-**The six accessibility settings have no user interface.** They are stored, parsed, defaulted, carried across `CompanionState`, resolved through `effectiveMotion`, and they genuinely gate every effect in this phase — but `SettingsPanel` has no controls for them and there is no IPC setter. A player can only change them by hand-editing `settings.json`.
+~~**The six accessibility settings have no user interface.**~~ They are stored, parsed, defaulted, carried across `CompanionState`, resolved through `effectiveMotion`, and they genuinely gate every effect in this phase — but `SettingsPanel` has no controls for them and there is no IPC setter. A player can only change them by hand-editing `settings.json`.
 
 That is the same failure shape this phase kept finding in older code — a complete mechanism with no path to it — and it deserves naming plainly rather than filing under polish. It also blocks criterion 8 end to end: the invariant test needs ambient motion switched on, and nothing can switch it on.
 
@@ -398,6 +399,24 @@ Scope to close it: an `InvokeChannel` setter, a main handler beside `applyVolume
 #### What this phase refused, gathered in one place
 
 Fourteen named effects were not built, each for a stated reason rather than by omission: scratch-head and sit (no pose art); worker-step and button-hover sounds (an ambient bed, and a non-action); grass sway (terrain is baked into chunk textures, so it would mean re-rendering them every frame); windmill, chimney smoke and flags (no such buildings exist); butterflies, bird and cloud shadows (no art); XP floating numbers (no XP system); and the `×` glyph (illegible at this size).
+
+### 07.7L — Accessibility settings UI · Delivered
+
+The gap 07.7k named. Six controls in the settings panel, an Accessibility section, and the `SetMotion` IPC channel that never existed.
+
+**One model change, made deliberately.** The brief asks for Animation Intensity as a **0–100% slider**; 07.7a had modelled it as a three-value enum. That was my choice at the time and it was the wrong one — every curve is damped by multiplication, so any value in between always worked, and the enum only ever limited the UI. It is now a percent dial on the same range and step as opacity and volume, so a player does not have to learn a second kind of control.
+
+That needed a migration, and the migration has a trap worth naming: a bare fallback-to-default would have taken a player who chose `minimal` and jumped them to **full** motion. `LEGACY_INTENSITY` maps the three stored strings onto the dial instead, and a test pins `minimal → 0` specifically.
+
+**The IPC patch is partial by design.** Six independent controls sending the whole object would let two rapid toggles race, the second carrying a stale copy of the first's field. Main merges then re-parses through the same schema the settings _file_ goes through, so a renderer — untrusted by ADR-003 §3, and literally untrusted once v0.2 runs plugin code — cannot write a value a hand-edited file would have been refused.
+
+**Reduced Motion is first in the section and disables the other five**, because it is a master switch rather than a seventh option. The E2E case asserts the property that makes it safe: the controls grey out while their stored values stay put, so clearing it gives the player back exactly what they had.
+
+Every control carries a title, a description, its current value, and a tooltip. The toggles label their **current state** rather than the action they would take, so a screen reader and a glance agree with `aria-pressed`.
+
+A second partial-fixture crash surfaced on the way — `storedMotion()` threw on a payload without a `motion` key, taking the whole panel down. The controller already tolerated absence in `sameMotion` for exactly this reason; the getter now matches. A settings panel that throws on a malformed payload is worse than one showing defaults.
+
+Gates: typecheck · lint · cycles clean. Unit **100 files / 1283 tests**. E2E **36 passed, 3 skipped** (two new).
 
 ### Remaining
 

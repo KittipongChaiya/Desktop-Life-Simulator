@@ -17,6 +17,7 @@ import {
   type SavesOnDisk,
   type SaveWriteOutcome,
 } from '../shared/ipc/contract';
+import type { MotionSettings } from '../shared/motion';
 
 export interface DesktopLifeApi {
   readonly overlay: {
@@ -38,6 +39,8 @@ export interface DesktopLifeApi {
     toggleWorkMode(): Promise<CompanionState>;
     /** The volume dial (07.5a) — the audible sibling of `setOpacity`. */
     setVolume(percent: number): Promise<CompanionState>;
+    /** Motion preferences (07.7L). A PARTIAL patch — see the channel's note. */
+    setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
     /** Mute toggle (07.5a). Independent of the dial. */
     toggleMuted(): Promise<CompanionState>;
     /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
@@ -100,6 +103,9 @@ const api: DesktopLifeApi = {
 
     setVolume: (percent) =>
       ipcRenderer.invoke(InvokeChannel.SetVolume, percent) as Promise<CompanionState>,
+
+    setMotion: (patch) =>
+      ipcRenderer.invoke(InvokeChannel.SetMotion, patch) as Promise<CompanionState>,
 
     toggleMuted: () => ipcRenderer.invoke(InvokeChannel.ToggleMuted) as Promise<CompanionState>,
 

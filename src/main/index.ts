@@ -30,6 +30,7 @@ import { createSaveCoordinator, type SaveCoordinator } from './save-triggers';
 import { loadSettings, saveSettings } from './settings';
 import {
   DEFAULT_SETTINGS,
+  parseSettings,
   sanitizeOpacityPercent,
   sanitizeVolumePercent,
   type AppSettings,
@@ -109,6 +110,22 @@ function applyVolumePercent(next: number): CompanionState {
     ...settings,
     audio: { ...settings.audio, volumePercent: sanitizeVolumePercent(next) },
   };
+  broadcastCompanionState();
+  saveSettings(settings);
+  return companionState();
+}
+
+/**
+ * Applies a partial motion patch, re-sanitizing the merged result.
+ *
+ * Merged then parsed, rather than parsed then merged: a patch carrying one
+ * field must not reset its five siblings to defaults, and re-parsing the whole
+ * category is what guarantees a renderer cannot smuggle a value past the
+ * bounds the file itself is held to.
+ */
+function applyMotion(patch: Record<string, unknown>): CompanionState {
+  const merged = parseSettings({ ...settings, motion: { ...settings.motion, ...patch } });
+  settings = { ...settings, motion: merged.motion };
   broadcastCompanionState();
   saveSettings(settings);
   return companionState();
@@ -294,6 +311,15 @@ function registerIpc(): void {
     const parsed = validateNumber(payload, InvokeChannel.SetVolume);
     if (!parsed.ok) return companionState();
     return applyVolumePercent(parsed.value);
+  });
+
+  ipcMain.handle(InvokeChannel.SetMotion, (_event, payload: unknown) => {
+    // Sanitized through the same schema the settings FILE goes through, so a
+    // renderer — which ADR-003 §3 treats as untrusted, and which literally
+    // becomes untrusted when v0.2 runs plugin code there — cannot write a
+    // value that a hand-edited file would have been refused.
+    if (typeof payload !== 'object' || payload === null) return companionState();
+    return applyMotion(payload as Record<string, unknown>);
   });
 
   ipcMain.handle(InvokeChannel.ToggleMuted, (_event, payload: unknown) => {

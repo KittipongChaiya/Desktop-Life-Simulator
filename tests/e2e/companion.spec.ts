@@ -274,3 +274,61 @@ test('work mode from collapsed expands, and leaving restores the prior presence'
   await toggleViaBridge(window, 'toggleWorkMode');
   await expect.poll(height).toBe(OVERLAY_HEIGHT_COLLAPSED);
 });
+
+/**
+ * The Accessibility section. Phase-07.7L.
+ *
+ * Unit tests cover the binding; this covers the two things only a real app can
+ * show — that a toggle survives a RESTART, and that it lands in
+ * `settings.json` rather than in a save.
+ */
+test('accessibility settings persist across a restart and live in settings.json', async () => {
+  const window = await app.firstWindow();
+  await window.getByRole('button', { name: 'Settings' }).click();
+
+  // Ambient animation is off by default (ADR-017 §2 condition 1), which is
+  // itself worth asserting before changing it.
+  const ambient = window.getByLabel('Ambient animation');
+  await expect(ambient).toHaveAttribute('aria-pressed', 'false');
+
+  await ambient.click();
+  await expect(ambient).toHaveAttribute('aria-pressed', 'true');
+
+  // It reaches the preferences file, and never a save (ADR-014 §4).
+  await expect
+    .poll(() => {
+      try {
+        const parsed = JSON.parse(readFileSync(join(userData, 'settings.json'), 'utf8')) as {
+          motion?: { environmental?: boolean };
+        };
+        return parsed.motion?.environmental;
+      } catch {
+        return undefined;
+      }
+    })
+    .toBe(true);
+
+  // Relaunch on the same profile: the choice is still there.
+  await app.close();
+  app = await launch();
+  const reopened = await app.firstWindow();
+  await reopened.getByRole('button', { name: 'Settings' }).click();
+  await expect(reopened.getByLabel('Ambient animation')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('reduced motion disables the other controls without erasing them', async () => {
+  const window = await app.firstWindow();
+  await window.getByRole('button', { name: 'Settings' }).click();
+
+  // Particles start ON; Reduced Motion must grey them out while leaving the
+  // stored choice alone, so clearing it gives the player back what they had.
+  await expect(window.getByLabel('Particles')).toHaveAttribute('aria-pressed', 'true');
+
+  await window.getByLabel('Reduced motion').click();
+  await expect(window.getByLabel('Particles')).toBeDisabled();
+  await expect(window.getByLabel('Particles')).toHaveAttribute('aria-pressed', 'true');
+
+  await window.getByLabel('Reduced motion').click();
+  await expect(window.getByLabel('Particles')).toBeEnabled();
+  await expect(window.getByLabel('Particles')).toHaveAttribute('aria-pressed', 'true');
+});

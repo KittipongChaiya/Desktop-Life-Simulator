@@ -13,7 +13,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_MOTION_SETTINGS,
-  MotionIntensity,
+  MOTION_INTENSITY_DEFAULT_PERCENT,
+  MOTION_INTENSITY_MAX_PERCENT,
+  MOTION_INTENSITY_MIN_PERCENT,
   effectiveMotion,
   intensityScale,
   sanitizeMotionIntensity,
@@ -22,7 +24,7 @@ import {
 
 /** Every class of motion switched on — a player who opted into everything. */
 const ALL_ON: MotionSettings = {
-  intensity: MotionIntensity.Full,
+  intensityPercent: MOTION_INTENSITY_MAX_PERCENT,
   particles: true,
   cameraShake: true,
   decorativeCreatures: true,
@@ -34,7 +36,7 @@ describe('motion defaults', () => {
   it('leaves event-driven motion on — it costs nothing at idle', () => {
     // Finite effects hold an animation lease only while they run (ADR-017 §1),
     // so a still world still draws no frames with these enabled.
-    expect(DEFAULT_MOTION_SETTINGS.intensity).toBe(MotionIntensity.Full);
+    expect(DEFAULT_MOTION_SETTINGS.intensityPercent).toBe(MOTION_INTENSITY_MAX_PERCENT);
     expect(DEFAULT_MOTION_SETTINGS.particles).toBe(true);
   });
 
@@ -59,7 +61,7 @@ describe('reduced motion — the master switch', () => {
     const effective = effectiveMotion({ ...ALL_ON, reducedMotion: true }, { workMode: false });
 
     expect(effective).toEqual({
-      intensity: MotionIntensity.Minimal,
+      intensityPercent: MOTION_INTENSITY_MIN_PERCENT,
       particles: false,
       cameraShake: false,
       decorativeCreatures: false,
@@ -75,9 +77,9 @@ describe('reduced motion — the master switch', () => {
 
     expect(stored.particles).toBe(true);
     expect(stored.environmental).toBe(true);
-    expect(stored.intensity).toBe(MotionIntensity.Full);
+    expect(stored.intensityPercent).toBe(MOTION_INTENSITY_MAX_PERCENT);
     expect(effectiveMotion({ ...stored, reducedMotion: false }, { workMode: false })).toEqual({
-      intensity: MotionIntensity.Full,
+      intensityPercent: MOTION_INTENSITY_MAX_PERCENT,
       particles: true,
       cameraShake: true,
       decorativeCreatures: true,
@@ -101,7 +103,7 @@ describe('work mode — ADR-017 §2 condition 3', () => {
     const effective = effectiveMotion(ALL_ON, { workMode: true });
 
     expect(effective.particles).toBe(true);
-    expect(effective.intensity).toBe(MotionIntensity.Full);
+    expect(effective.intensityPercent).toBe(MOTION_INTENSITY_MAX_PERCENT);
   });
 
   it('does not overwrite the stored settings either', () => {
@@ -114,53 +116,78 @@ describe('work mode — ADR-017 §2 condition 3', () => {
 
   it('lets reduced motion win where the two overlap', () => {
     const effective = effectiveMotion({ ...ALL_ON, reducedMotion: true }, { workMode: true });
-    expect(effective.intensity).toBe(MotionIntensity.Minimal);
+    expect(effective.intensityPercent).toBe(MOTION_INTENSITY_MIN_PERCENT);
     expect(effective.particles).toBe(false);
   });
 });
 
 describe('intensity as a multiplier', () => {
-  it('maps full to unchanged motion', () => {
-    expect(intensityScale(MotionIntensity.Full)).toBe(1);
+  it('maps the top of the dial to unchanged motion', () => {
+    expect(intensityScale(100)).toBe(1);
   });
 
-  it('maps minimal to no motion at all', () => {
+  it('maps the bottom to no motion at all', () => {
     // Not "a very small amount": Reduced Motion has to mean STILL.
-    expect(intensityScale(MotionIntensity.Minimal)).toBe(0);
+    expect(intensityScale(0)).toBe(0);
   });
 
-  it('places subtle strictly between the two', () => {
-    const subtle = intensityScale(MotionIntensity.Subtle);
-    expect(subtle).toBeGreaterThan(0);
-    expect(subtle).toBeLessThan(1);
+  it('is proportional in between — the dial is continuous', () => {
+    expect(intensityScale(50)).toBeCloseTo(0.5, 6);
+    expect(intensityScale(25)).toBeCloseTo(0.25, 6);
   });
 
-  it('stays inside [0, 1], so a curve can only ever be damped', () => {
-    for (const level of [MotionIntensity.Full, MotionIntensity.Subtle, MotionIntensity.Minimal]) {
-      const scale = intensityScale(level);
-      expect(scale).toBeGreaterThanOrEqual(0);
-      expect(scale).toBeLessThanOrEqual(1);
-    }
+  it('clamps out-of-range values so a curve can only ever be damped', () => {
+    expect(intensityScale(-40)).toBe(0);
+    expect(intensityScale(400)).toBe(1);
   });
 
-  it('reaches 0 through reduced motion, whatever the stored level', () => {
-    // The end-to-end shape the renderer relies on.
+  it('treats a malformed value as full rather than as still', () => {
+    // Losing motion silently is worse than keeping it: the player can see
+    // motion they did not ask for, and cannot see motion that vanished.
+    expect(intensityScale(Number.NaN)).toBe(1);
+  });
+
+  it('reaches 0 through reduced motion, whatever the stored dial', () => {
     const stored: MotionSettings = { ...ALL_ON, reducedMotion: true };
-    expect(intensityScale(effectiveMotion(stored).intensity)).toBe(0);
+    expect(intensityScale(effectiveMotion(stored).intensityPercent)).toBe(0);
   });
 });
 
-describe('intensity parsing', () => {
-  it('accepts each declared level', () => {
-    for (const level of [MotionIntensity.Full, MotionIntensity.Subtle, MotionIntensity.Minimal]) {
-      expect(sanitizeMotionIntensity(level)).toBe(level);
-    }
+describe('the dial parses like the others', () => {
+  it('passes through values already on the dial', () => {
+    expect(sanitizeMotionIntensity(0)).toBe(0);
+    expect(sanitizeMotionIntensity(50)).toBe(50);
+    expect(sanitizeMotionIntensity(100)).toBe(100);
   });
 
-  it('falls back to the default for anything else', () => {
-    // Settings files are untrusted input like any other boundary.
-    for (const bad of ['', 'FULL', 'off', 0, null, undefined, {}, []]) {
-      expect(sanitizeMotionIntensity(bad)).toBe(DEFAULT_MOTION_SETTINGS.intensity);
+  it('clamps to range and snaps to the step', () => {
+    expect(sanitizeMotionIntensity(-30)).toBe(MOTION_INTENSITY_MIN_PERCENT);
+    expect(sanitizeMotionIntensity(250)).toBe(MOTION_INTENSITY_MAX_PERCENT);
+    expect(sanitizeMotionIntensity(47)).toBe(45);
+    expect(sanitizeMotionIntensity(48)).toBe(50);
+  });
+
+  it('falls back for anything that is not a finite number', () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, null, undefined, {}, []]) {
+      expect(sanitizeMotionIntensity(bad)).toBe(MOTION_INTENSITY_DEFAULT_PERCENT);
     }
+  });
+});
+
+describe('migrating the 07.7a levels', () => {
+  it('keeps a player who chose minimal at zero', () => {
+    // The failure this exists to prevent: a bare fallback-to-default would
+    // have jumped someone who asked for stillness straight to full motion.
+    expect(sanitizeMotionIntensity('minimal')).toBe(0);
+  });
+
+  it('maps the other two levels onto the dial', () => {
+    expect(sanitizeMotionIntensity('full')).toBe(100);
+    expect(sanitizeMotionIntensity('subtle')).toBe(50);
+  });
+
+  it('still refuses a string that was never a level', () => {
+    expect(sanitizeMotionIntensity('cinematic')).toBe(MOTION_INTENSITY_DEFAULT_PERCENT);
+    expect(sanitizeMotionIntensity('')).toBe(MOTION_INTENSITY_DEFAULT_PERCENT);
   });
 });

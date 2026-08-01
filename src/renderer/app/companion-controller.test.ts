@@ -9,7 +9,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { OPACITY_DEFAULT_PERCENT } from '../../shared/constants';
-import { DEFAULT_MOTION_SETTINGS, MotionIntensity, type MotionSettings } from '../../shared/motion';
+import { DEFAULT_MOTION_SETTINGS, type MotionSettings } from '../../shared/motion';
 
 import { createCompanionController, type CompanionBridge } from './companion-controller';
 
@@ -165,16 +165,16 @@ describe('createCompanionController', () => {
     const bridge = stubBridge(
       state({
         workMode: false,
-        motion: { ...DEFAULT_MOTION_SETTINGS, intensity: MotionIntensity.Full, particles: true },
+        motion: { ...DEFAULT_MOTION_SETTINGS, intensityPercent: 100, particles: true },
       }),
     );
     const controller = createCompanionController(bridge);
     await settle();
 
-    expect(controller.motion().intensity).toBe(MotionIntensity.Full);
+    expect(controller.motion().intensityPercent).toBe(100);
 
     bridge.emit(state({ motion: { ...DEFAULT_MOTION_SETTINGS, reducedMotion: true } }));
-    expect(controller.motion().intensity).toBe(MotionIntensity.Minimal);
+    expect(controller.motion().intensityPercent).toBe(0);
     expect(controller.motion().particles).toBe(false);
   });
 

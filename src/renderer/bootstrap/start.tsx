@@ -274,7 +274,7 @@ function composeApplication(world: World, session: SaveSession): void {
     // The accessibility settings, finally reaching the thing they govern
     // (07.7d-bis). Read per animation rather than captured, so toggling
     // Reduced Motion takes effect on the next frame without a remount.
-    motionIntensity: () => intensityScale(companion.motion().intensity),
+    motionIntensity: () => intensityScale(companion.motion().intensityPercent),
     particlesEnabled: () => companion.motion().particles,
     creaturesEnabled: () => companion.motion().decorativeCreatures,
     shakeEnabled: () => companion.motion().cameraShake,
