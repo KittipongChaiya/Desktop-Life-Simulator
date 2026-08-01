@@ -45,16 +45,18 @@ test.afterEach(async () => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-test('defaults to 100% and the slider changes the window instantly (crit 1)', async () => {
+test('defaults to the dial floor and the slider changes the window instantly (crit 1)', async () => {
   expect(await windowOpacity()).toBeCloseTo(OPACITY_DEFAULT_PERCENT / 100, 5);
 
   const window = await app.firstWindow();
   await window.getByRole('button', { name: 'Settings' }).click();
 
   const slider = window.getByRole('slider', { name: 'Opacity' });
-  await slider.press('ArrowLeft'); // one step down the dial
+  // UP the dial: the default now sits ON the floor, so there is no step below
+  // it — pressing ArrowLeft would assert that nothing happened.
+  await slider.press('ArrowRight');
 
-  const expected = OPACITY_DEFAULT_PERCENT - OPACITY_STEP_PERCENT;
+  const expected = OPACITY_DEFAULT_PERCENT + OPACITY_STEP_PERCENT;
   await expect(window.getByText(`${String(expected)}%`)).toBeVisible();
   await expect.poll(windowOpacity).toBeCloseTo(expected / 100, 5);
 });
@@ -63,11 +65,11 @@ test('persists between launches and lands in settings.json, not a save (crit 2)'
   const window = await app.firstWindow();
   await window.getByRole('button', { name: 'Settings' }).click();
 
-  // 100 → 70: six 5%-steps down the dial.
+  // 30 → 60: six 5%-steps UP the dial, away from the floor it now rests on.
   const slider = window.getByRole('slider', { name: 'Opacity' });
-  for (let i = 0; i < 6; i += 1) await slider.press('ArrowLeft');
-  await expect(window.getByText('70%')).toBeVisible();
-  await expect.poll(windowOpacity).toBeCloseTo(0.7, 5);
+  for (let i = 0; i < 6; i += 1) await slider.press('ArrowRight');
+  await expect(window.getByText('60%')).toBeVisible();
+  await expect.poll(windowOpacity).toBeCloseTo(0.6, 5);
 
   // The preference lives in settings.json under the categorized application
   // settings model (fix/0.1/1.8a.md) — app preferences, never game state
@@ -83,16 +85,16 @@ test('persists between launches and lands in settings.json, not a save (crit 2)'
         return undefined;
       }
     })
-    .toBe(70);
+    .toBe(60);
 
-  // Relaunch on the same profile: the window opens at 70% before any UI runs.
+  // Relaunch on the same profile: the window opens at 60% before any UI runs.
   await app.close();
   app = await launch();
-  expect(await windowOpacity()).toBeCloseTo(0.7, 5);
+  expect(await windowOpacity()).toBeCloseTo(0.6, 5);
 
   const reopened = await app.firstWindow();
   await reopened.getByRole('button', { name: 'Settings' }).click();
-  await expect(reopened.getByText('70%')).toBeVisible();
+  await expect(reopened.getByText('60%')).toBeVisible();
 });
 
 test('the settings panel documents the three companion shortcuts (ADR-014 §5)', async () => {
@@ -239,9 +241,10 @@ test('work mode: strips the HUD to the living world, and its state persists (cri
   const reopened = await app.firstWindow();
   await expect(reopened.getByRole('button', { name: 'Shop' })).toHaveCount(0);
 
-  // Leaving work mode restores the player's own dial (100% default here).
+  // Leaving work mode restores the player's own dial — the 30% default here,
+  // one 5% notch above work mode's 25%.
   await toggleViaBridge(reopened, 'toggleWorkMode');
-  await expect.poll(windowOpacity).toBeCloseTo(1.0, 5);
+  await expect.poll(windowOpacity).toBeCloseTo(OPACITY_DEFAULT_PERCENT / 100, 5);
   await expect(reopened.getByRole('button', { name: 'Shop' })).toBeVisible();
   await expect(reopened.locator('[title="Simulation uptime"]')).toBeVisible();
 });

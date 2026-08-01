@@ -9,6 +9,10 @@ import { defineConfig } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
+  // Refuses to start against a build with no devtools, rather than letting the
+  // console-driven specs each time out for 30 s explaining nothing. See the
+  // file's header — this exact failure was misdiagnosed as spec-ordering.
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: false, // a single-instance-locked desktop app
   workers: 1,
   retries: 0, // a flaky overlay test is a real bug (TESTING.md §6.4)

@@ -202,7 +202,12 @@ export function tillTile(world: CommandWorld, tile: TileIndex): Result<void> {
   // Clamped to 1: `tilledAt === 0` MEANS "never tilled", and a world begins at
   // tick 0, so tilling before the first tick would otherwise record 0 and read
   // back as untilled. Found by the first plant test.
-  world.tiles.tilledAt[tile] = Math.max(1, world.tick);
+  const tilledAt = Math.max(1, world.tick);
+  world.tiles.tilledAt[tile] = tilledAt;
+  // Published so the renderer can invalidate the tile's terrain chunk — tilled
+  // soil is the first visible result of the first action a player takes, and
+  // `tilledAt` reaches no snapshot slice.
+  world.events.publish('tileTilled', { tile, tick: tilledAt });
   return ok();
 }
 

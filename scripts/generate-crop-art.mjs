@@ -80,12 +80,14 @@ function lobes(canvas, list, colour, dx = 0, dy = 0, shrink = 1) {
  * @param {number} groundY
  * @param {number} rx
  */
-function sownMound(canvas, cx, groundY, rx) {
+function sownMound(canvas, cx, groundY, rx, accent = STRAW) {
   ellipse(canvas, cx, groundY - 0.5, rx, 1.9, SOIL_DARK, 0.2);
   ellipse(canvas, cx - 0.5, groundY - 1, rx - 0.6, 1.2, WOOD_BASE, 0.2);
-  // Seed specks catch the upper-left light.
-  set(canvas, cx - 1, groundY - 2, STRAW);
-  set(canvas, cx, groundY - 2, STRAW);
+  // Seed specks catch the upper-left light. The accent names the crop at the
+  // one stage where nothing else can — a seed in soil is a seed in soil.
+  // Defaulted to Straw so wheat's committed art stays byte-identical.
+  set(canvas, cx - 1, groundY - 2, accent);
+  set(canvas, cx, groundY - 2, accent);
   set(canvas, cx + 1, groundY - 1, WOOD_LIGHT);
 }
 
@@ -230,6 +232,258 @@ function wheatMature() {
   set(canvas, 24, 9, STRAW);
   outlineSilhouette(canvas);
   contactShadow(canvas, 16, 29.5, 10, 1.7);
+  return canvas;
+}
+
+// ── Turnip growth stages (root: low leafy rosette, pale shoulder) ────────────
+
+/** Stage 0 — seed: sown mounds, pale specks. @returns {Canvas} */
+function turnipSeed() {
+  const canvas = createCanvas(32, 32);
+  sownMound(canvas, 9, 29, 2.6, PARCHMENT);
+  sownMound(canvas, 16, 29, 3, PARCHMENT);
+  sownMound(canvas, 23, 29, 2.6, PARCHMENT);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/**
+ * Stage 1 — sprout: paired seed-leaves, low and rounded. A root crop opens
+ * flat rather than shooting up, which is what separates it from wheat at a
+ * glance even this early.
+ * @returns {Canvas}
+ */
+function turnipSprout() {
+  const canvas = createCanvas(32, 32);
+  sownMound(canvas, 9, 29, 2.6, PARCHMENT);
+  sownMound(canvas, 16, 29, 3, PARCHMENT);
+  sownMound(canvas, 23, 29, 2.6, PARCHMENT);
+  // Two flat cotyledons per crown, the left pair catching the light.
+  ellipse(canvas, 13.5, 25.5, 2.6, 1.3, GRASS_LIGHT, 0.2);
+  ellipse(canvas, 18.5, 25.5, 2.6, 1.3, GRASS_BASE, 0.2);
+  ellipse(canvas, 16, 24, 1.6, 1.2, LEAF_HIGHLIGHT, 0.2);
+  set(canvas, 9, 26, GRASS_BASE);
+  set(canvas, 23, 26, GRASS_SHADOW);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Stage 2 — growing: the rosette opens, nothing showing below. @returns {Canvas} */
+function turnipGrowing() {
+  const canvas = createCanvas(32, 32);
+  // Broad leaves fanning wide rather than tall — back-to-front so lit
+  // leaves overlap shaded ones.
+  blade(canvas, 7, 28, 6, -3, GRASS_SHADOW, GRASS_BASE);
+  blade(canvas, 23, 28, 6, 3, GRASS_SHADOW, GRASS_BASE);
+  blade(canvas, 10, 27, 8, -3, GRASS_BASE, GRASS_LIGHT);
+  blade(canvas, 20, 27, 8, 3, GRASS_BASE, GRASS_LIGHT);
+  blade(canvas, 13, 27, 10, -1, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  blade(canvas, 18, 27, 10, 1, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  // The crown gathers the leaves into one clump at the soil.
+  for (let x = 11; x <= 20; x += 1) set(canvas, x, 28, GRASS_SHADOW);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29.5, 8, 1.5);
+  return canvas;
+}
+
+/** Stage 3 — mature: the pale bulb shoulders out of the soil. @returns {Canvas} */
+function turnipMature() {
+  const canvas = createCanvas(32, 32);
+  // Leaves first, so the bulb draws in front of them.
+  blade(canvas, 7, 24, 7, -4, GRASS_SHADOW, GRASS_BASE);
+  blade(canvas, 24, 24, 7, 4, GRASS_SHADOW, GRASS_BASE);
+  blade(canvas, 11, 23, 9, -3, GRASS_BASE, GRASS_LIGHT);
+  blade(canvas, 20, 23, 9, 3, GRASS_BASE, GRASS_LIGHT);
+  blade(canvas, 15, 22, 11, 0, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  // Bulb: shade layer, then the lit body offset toward the upper-left light.
+  ellipse(canvas, 16, 26.6, 5.6, 3.6, STONE_LIGHT, 0.15);
+  ellipse(canvas, 15.2, 25.9, 4.4, 2.7, PARCHMENT, 0.15);
+  // A hint of root below the shoulder.
+  set(canvas, 16, 29, STONE_LIGHT);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29.5, 8, 1.6);
+  return canvas;
+}
+
+// ── Carrot growth stages (feathery fronds, orange crown) ─────────────────────
+
+/**
+ * A feathery frond: a 1 px stroke that leans and tapers, with side ticks that
+ * alternate as it rises. Thin where wheat is thick, which is what keeps the two
+ * apart at 1x even before either shows colour.
+ * @param {Canvas} canvas
+ * @param {number} baseX
+ * @param {number} baseY
+ * @param {number} height
+ * @param {number} lean total x drift at the tip (signed)
+ * @param {number[]} body
+ * @param {number[]} tip
+ */
+function frond(canvas, baseX, baseY, height, lean, body, tip) {
+  for (let i = 0; i < height; i += 1) {
+    const x = baseX + Math.round((lean * i) / height);
+    const y = baseY - i;
+    set(canvas, x, y, i >= height - 2 ? tip : body);
+    // Side ticks on alternating flanks — the feathered read.
+    if (i >= 2 && i % 2 === 0) set(canvas, x + (i % 4 === 0 ? 1 : -1), y, body);
+  }
+}
+
+/** Stage 0 — seed: sown mounds, orange specks. @returns {Canvas} */
+function carrotSeed() {
+  const canvas = createCanvas(32, 32);
+  sownMound(canvas, 9, 29, 2.6, CARROT_ORANGE);
+  sownMound(canvas, 16, 29, 3, CARROT_ORANGE);
+  sownMound(canvas, 23, 29, 2.6, CARROT_ORANGE);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Stage 1 — sprout: thin threads break the mounds. @returns {Canvas} */
+function carrotSprout() {
+  const canvas = createCanvas(32, 32);
+  sownMound(canvas, 9, 29, 2.6, CARROT_ORANGE);
+  sownMound(canvas, 16, 29, 3, CARROT_ORANGE);
+  sownMound(canvas, 23, 29, 2.6, CARROT_ORANGE);
+  frond(canvas, 9, 27, 4, -1, GRASS_BASE, LEAF_HIGHLIGHT);
+  frond(canvas, 16, 27, 6, 0, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  frond(canvas, 22, 27, 4, 1, GRASS_BASE, GRASS_LIGHT);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Stage 2 — growing: a standing tuft of fronds. @returns {Canvas} */
+function carrotGrowing() {
+  const canvas = createCanvas(32, 32);
+  frond(canvas, 9, 28, 9, -3, GRASS_SHADOW, GRASS_BASE);
+  frond(canvas, 22, 28, 9, 3, GRASS_SHADOW, GRASS_BASE);
+  frond(canvas, 12, 28, 12, -2, GRASS_BASE, GRASS_LIGHT);
+  frond(canvas, 19, 28, 12, 2, GRASS_BASE, GRASS_LIGHT);
+  frond(canvas, 16, 28, 14, 0, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  for (let x = 11; x <= 20; x += 1) set(canvas, x, 28, GRASS_SHADOW);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29.5, 8, 1.5);
+  return canvas;
+}
+
+/** Stage 3 — mature: fronds full, orange shoulder at the soil line. @returns {Canvas} */
+function carrotMature() {
+  const canvas = createCanvas(32, 32);
+  frond(canvas, 8, 26, 10, -4, GRASS_SHADOW, GRASS_BASE);
+  frond(canvas, 23, 26, 10, 4, GRASS_SHADOW, GRASS_BASE);
+  frond(canvas, 11, 25, 13, -2, GRASS_BASE, GRASS_LIGHT);
+  frond(canvas, 20, 25, 13, 2, GRASS_BASE, GRASS_LIGHT);
+  frond(canvas, 14, 25, 15, -1, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  frond(canvas, 17, 25, 16, 1, GRASS_LIGHT, LEAF_HIGHLIGHT);
+  // The crown pushing clear of the soil — the ready signal, in the crop's own
+  // colour with Pumpkin as its in-family shade step (as the item icon uses).
+  ellipse(canvas, 16, 27.4, 4.2, 2.2, PUMPKIN, 0.15);
+  ellipse(canvas, 15.3, 26.8, 3.2, 1.5, CARROT_ORANGE, 0.15);
+  set(canvas, 16, 29, PUMPKIN);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29.5, 8, 1.6);
+  return canvas;
+}
+
+// ── Pumpkin growth stages (sprawling vine, one big gourd) ────────────────────
+
+/** Stage 0 — seed: two mounds, wider apart; a pumpkin needs room. @returns {Canvas} */
+function pumpkinSeed() {
+  const canvas = createCanvas(32, 32);
+  sownMound(canvas, 11, 29, 3.2, PUMPKIN);
+  sownMound(canvas, 21, 29, 3.2, PUMPKIN);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Stage 1 — sprout: two fat seed-leaves on a short stem. @returns {Canvas} */
+function pumpkinSprout() {
+  const canvas = createCanvas(32, 32);
+  sownMound(canvas, 11, 29, 3.2, PUMPKIN);
+  sownMound(canvas, 21, 29, 3.2, PUMPKIN);
+  // Stem, then a cotyledon each side — bigger than the turnip's, which is the
+  // whole visual promise of this crop.
+  for (let y = 24; y <= 27; y += 1) set(canvas, 16, y, GRASS_BASE);
+  ellipse(canvas, 12.5, 24, 3.4, 1.8, GRASS_LIGHT, 0.2);
+  ellipse(canvas, 19.5, 24.5, 3.4, 1.8, GRASS_BASE, 0.2);
+  ellipse(canvas, 12, 23.4, 2, 1, LEAF_HIGHLIGHT, 0.2);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Stage 2 — growing: the vine sprawls, one small green gourd set. @returns {Canvas} */
+function pumpkinGrowing() {
+  const canvas = createCanvas(32, 32);
+  // Big lobed leaves low and wide — the vine covers ground before it fruits.
+  lobes(
+    canvas,
+    [
+      [8, 25, 5, 3.4],
+      [24, 25.5, 5, 3.4],
+      [16, 22, 6, 4],
+    ],
+    GRASS_BASE,
+  );
+  lobes(
+    canvas,
+    [
+      [8, 25, 5, 3.4],
+      [16, 22, 6, 4],
+    ],
+    GRASS_LIGHT,
+    -1,
+    -1,
+    0.72,
+  );
+  // Leaf veins, painted only inside the mass.
+  for (const [x, y0, y1] of [
+    [8, 23, 27],
+    [16, 20, 25],
+    [24, 24, 27],
+  ]) {
+    for (let y = y0; y <= y1; y += 1) {
+      if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, GRASS_SHADOW);
+    }
+  }
+  // The set fruit: still green, and small.
+  ellipse(canvas, 16, 27.4, 3, 2, GRASS_SHADOW, 0.15);
+  ellipse(canvas, 15.4, 26.9, 2.1, 1.3, GRASS_BASE, 0.15);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29.5, 10, 1.6);
+  return canvas;
+}
+
+/** Stage 3 — mature: the gourd, ribbed and stemmed, filling the tile. @returns {Canvas} */
+function pumpkinMature() {
+  const canvas = createCanvas(32, 32);
+  // Leaves behind, so the gourd reads in front of its own vine.
+  lobes(
+    canvas,
+    [
+      [6, 24, 4.4, 3],
+      [26, 24.5, 4.4, 3],
+    ],
+    GRASS_BASE,
+  );
+  lobes(canvas, [[6, 24, 4.4, 3]], GRASS_LIGHT, -1, -1, 0.7);
+  // Stem, drawn before the body so the body's outline wraps its base.
+  for (let y = 15; y <= 19; y += 1) {
+    set(canvas, 15, y, WOOD_BASE);
+    set(canvas, 16, y, WOOD_LIGHT);
+  }
+  set(canvas, 17, 16, GRASS_BASE);
+  set(canvas, 18, 15, GRASS_BASE);
+  // Body: deep base with the lit front lobe toward the upper-left (R-06).
+  ellipse(canvas, 16, 24, 8.2, 5.6, PUMPKIN, 0.15);
+  ellipse(canvas, 14.4, 22.6, 5.4, 3.6, CARROT_ORANGE, 0.15);
+  // Rib seams: Soft Ink, sparingly, and only where the body actually is.
+  for (const x of [10, 16, 22]) {
+    for (let y = 18; y <= 29; y += 1) {
+      if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, SOFT_INK);
+    }
+  }
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29.5, 10, 1.8);
   return canvas;
 }
 
@@ -408,6 +662,21 @@ function main() {
   writePng(join(cropsDir, 'wheat_2.png'), wheatGrowing());
   writePng(join(cropsDir, 'wheat_3.png'), wheatMature());
 
+  writePng(join(cropsDir, 'turnip_0.png'), turnipSeed());
+  writePng(join(cropsDir, 'turnip_1.png'), turnipSprout());
+  writePng(join(cropsDir, 'turnip_2.png'), turnipGrowing());
+  writePng(join(cropsDir, 'turnip_3.png'), turnipMature());
+
+  writePng(join(cropsDir, 'carrot_0.png'), carrotSeed());
+  writePng(join(cropsDir, 'carrot_1.png'), carrotSprout());
+  writePng(join(cropsDir, 'carrot_2.png'), carrotGrowing());
+  writePng(join(cropsDir, 'carrot_3.png'), carrotMature());
+
+  writePng(join(cropsDir, 'pumpkin_0.png'), pumpkinSeed());
+  writePng(join(cropsDir, 'pumpkin_1.png'), pumpkinSprout());
+  writePng(join(cropsDir, 'pumpkin_2.png'), pumpkinGrowing());
+  writePng(join(cropsDir, 'pumpkin_3.png'), pumpkinMature());
+
   writePng(join(uiDir, 'item_wheat.png'), itemWheat());
   writePng(join(uiDir, 'item_turnip.png'), itemTurnip());
   writePng(join(uiDir, 'item_carrot.png'), itemCarrot());
@@ -419,7 +688,9 @@ function main() {
   writePng(join(uiDir, 'item_carrot_seed.png'), itemSeedPouch(CARROT_ORANGE));
   writePng(join(uiDir, 'item_pumpkin_seed.png'), itemSeedPouch(PUMPKIN));
 
-  globalThis.console.log('generated wheat_0..3 + 4 item icons + 4 seed pouches');
+  globalThis.console.log(
+    'generated wheat/turnip/carrot/pumpkin _0..3 + 4 item icons + 4 seed pouches',
+  );
 }
 
 main();

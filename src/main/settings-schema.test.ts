@@ -113,7 +113,9 @@ describe('parseSettings — the categorized application settings model', () => {
     expect(
       parseSettings({
         overlay: { collapsed: false },
-        desktop: { opacityPercent: 100, workMode: false },
+        // The defaults themselves, so this stays a test about IGNORING the
+        // unknown category rather than about any particular dial position.
+        desktop: DEFAULT_SETTINGS.desktop,
         graphics: { scale: 2 }, // a future category must never break parsing
       }),
     ).toEqual(DEFAULT_SETTINGS);

@@ -14,6 +14,7 @@
 import { ticksToWholeSeconds } from '../time/game-clock';
 
 import type { BuildingView } from './buildings-slice';
+import type { CropView } from './crops-slice';
 import type { EconomyView, WalletView } from './economy-slice';
 import type { InventoryView } from './inventory-slice';
 import type { WorkerView } from './workers-slice';
@@ -39,6 +40,8 @@ export interface SliceMap {
   readonly workers: readonly WorkerView[];
   /** Placed buildings, projected for rendering. Phase-05c. */
   readonly buildings: readonly BuildingView[];
+  /** Planted crops, projected for rendering. Republishes on STAGE change only. */
+  readonly crops: readonly CropView[];
   /** The player's aggregated holdings, for the inventory panel. Phase-05d. */
   readonly inventory: InventoryView;
   /** The coin balance, alone — so it re-renders alone. Phase-06d. */
@@ -53,6 +56,7 @@ export const SLICE_NAMES = [
   'status',
   'workers',
   'buildings',
+  'crops',
   'inventory',
   'wallet',
   'economy',

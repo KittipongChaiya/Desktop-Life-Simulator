@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   OPACITY_MAX_PERCENT,
+  OPACITY_DEFAULT_PERCENT,
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
@@ -118,7 +119,8 @@ describe('SettingsPanel', () => {
     expect(slider.min).toBe(String(OPACITY_MIN_PERCENT));
     expect(slider.max).toBe(String(OPACITY_MAX_PERCENT));
     expect(slider.step).toBe(String(OPACITY_STEP_PERCENT));
-    expect(screen.getByText('100%')).toBeDefined();
+    // The readout before main hydrates it, which is the dial's default.
+    expect(screen.getByText(`${String(OPACITY_DEFAULT_PERCENT)}%`)).toBeDefined();
   });
 
   it('hydrates the slider from the companion state in main', async () => {

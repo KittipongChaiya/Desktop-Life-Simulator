@@ -30,6 +30,24 @@ export interface SimulationTick {
   readonly tick: number;
 }
 
+/**
+ * Fired when a tile is successfully tilled.
+ *
+ * Its consumer is the composition root, which invalidates the tile's terrain
+ * chunk so the tilled soil is drawn. It has to be an event rather than a
+ * snapshot slice: tilling moves `tilledAt`, which no slice projects, and
+ * projecting the whole 4,096-tile grid to catch one changed byte would cost
+ * more every tick than the redraw costs once.
+ *
+ * A worker tilling produces the identical event, so autonomous work is drawn
+ * on the same path as the player's — there is no second route to keep in sync.
+ */
+export interface TileTilled {
+  readonly tile: number;
+  /** Tick recorded on the tile, i.e. what `tilledAt` now holds. */
+  readonly tick: number;
+}
+
 /** Fired when a crop is successfully planted. */
 export interface CropPlanted {
   readonly tile: number;
@@ -67,6 +85,7 @@ export interface ItemSold {
 export interface SimEventMap {
   readonly appStarted: AppStarted;
   readonly simulationTick: SimulationTick;
+  readonly tileTilled: TileTilled;
   readonly cropPlanted: CropPlanted;
   readonly cropHarvested: CropHarvested;
   readonly itemSold: ItemSold;

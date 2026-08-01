@@ -7,9 +7,11 @@
 
 import {
   buildingsEqual,
+  cropsEqual,
   economyEquals,
   inventoryEqual,
   projectBuildings,
+  projectCrops,
   projectEconomy,
   projectInventory,
   projectStatus,
@@ -29,6 +31,10 @@ export function snapshotSystem(world: World): void {
   publishIfChanged(world.snapshots.workers, projectWorkers(world), workersEqual);
   // Buildings change only on placement, so this republishes rarely.
   publishIfChanged(world.snapshots.buildings, projectBuildings(world), buildingsEqual);
+  // Crops grow every tick but LOOK different only four times in a life, and the
+  // projection carries the stage sprite rather than the elapsed time — so this
+  // republishes on a stage change, never per tick (ADR-005 §2).
+  publishIfChanged(world.snapshots.crops, projectCrops(world), cropsEqual);
   // Inventory republishes only when the player's aggregated holdings change (crit 17).
   publishIfChanged(world.snapshots.inventory, projectInventory(world), inventoryEqual);
   // Coins republish on change only; prices only when an INTEGER price moves —

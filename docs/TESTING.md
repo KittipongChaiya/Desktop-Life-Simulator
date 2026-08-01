@@ -57,13 +57,13 @@ expect(cropAt(world, tile).stage).toBe(CropStage.Mature);
 
 ## 2. Tooling
 
-| Tool | Scope |
-|---|---|
-| **Vitest** | Unit, integration, property. Shares Vite config, so aliases work without duplication |
-| **@vitest/coverage-v8** | Coverage measurement and gates |
-| **fast-check** | Property-based testing |
-| **Playwright** (`_electron`) | E2E against the real packaged app |
-| **@testing-library/react** | UI component tests — queries by role and text, never by class |
+| Tool                         | Scope                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------ |
+| **Vitest**                   | Unit, integration, property. Shares Vite config, so aliases work without duplication |
+| **@vitest/coverage-v8**      | Coverage measurement and gates                                                       |
+| **fast-check**               | Property-based testing                                                               |
+| **Playwright** (`_electron`) | E2E against the real packaged app                                                    |
+| **@testing-library/react**   | UI component tests — queries by role and text, never by class                        |
 
 **No mocking framework.** If a unit test needs heavy mocking, the boundary is wrong. The sim needs none; persistence takes a filesystem interface as a parameter; the renderer is tested through snapshots. Reaching for a mock is a design signal, not a testing need.
 
@@ -91,15 +91,15 @@ tests/
 
 Enforced in CI. A PR below any threshold does not merge.
 
-| Area | Line | Branch | Rationale |
-|---|---|---|---|
-| `src/sim/**` | **90%** | **85%** | Pure and trivially testable. No exemptions granted |
-| `src/persistence/**` | **95%** | **90%** | Highest in the project — this code protects player data |
-| `src/shared/**` | 85% | 80% | Mostly types; logic is small |
-| `src/renderer/app/**` | 70% | 60% | Behavior over pixels |
-| `src/renderer/render/**` | 50% | 40% | Visual output is verified by E2E and by eye |
-| `src/main/**` | 60% | 50% | Electron APIs are covered by E2E |
-| **Project total** | **80%** | **75%** | `AI_RULES.md` §3.3 |
+| Area                     | Line    | Branch  | Rationale                                               |
+| ------------------------ | ------- | ------- | ------------------------------------------------------- |
+| `src/sim/**`             | **90%** | **85%** | Pure and trivially testable. No exemptions granted      |
+| `src/persistence/**`     | **95%** | **90%** | Highest in the project — this code protects player data |
+| `src/shared/**`          | 85%     | 80%     | Mostly types; logic is small                            |
+| `src/renderer/app/**`    | 70%     | 60%     | Behavior over pixels                                    |
+| `src/renderer/render/**` | 50%     | 40%     | Visual output is verified by E2E and by eye             |
+| `src/main/**`            | 60%     | 50%     | Electron APIs are covered by E2E                        |
+| **Project total**        | **80%** | **75%** | `AI_RULES.md` §3.3                                      |
 
 ### 4.1 On the numbers
 
@@ -115,17 +115,17 @@ Enforced in CI. A PR below any threshold does not merge.
 
 ### 5.1 Simulation
 
-| Target | Assert |
-|---|---|
-| Each system | Given a world state, one tick produces the expected state |
-| System ordering | Growth-before-harvest: a crop maturing on tick N is harvestable on tick N |
-| Determinism | Same seed + intents → byte-identical state after 100k ticks |
-| Intent validation | Invalid intents return an error and leave state untouched |
-| Store ownership | No system mutates a store it does not own (§3.3 of `ARCHITECTURE.md`) |
-| Content registries | Registration, lookup, duplicate-ID rejection |
-| Pathing | Correct paths, unreachable targets handled, deterministic tie-breaking |
-| Worker FSM | Every transition; **no state can deadlock** |
-| Edge cases | Empty world, full inventory, no seeds, no walkable path |
+| Target             | Assert                                                                    |
+| ------------------ | ------------------------------------------------------------------------- |
+| Each system        | Given a world state, one tick produces the expected state                 |
+| System ordering    | Growth-before-harvest: a crop maturing on tick N is harvestable on tick N |
+| Determinism        | Same seed + intents → byte-identical state after 100k ticks               |
+| Intent validation  | Invalid intents return an error and leave state untouched                 |
+| Store ownership    | No system mutates a store it does not own (§3.3 of `ARCHITECTURE.md`)     |
+| Content registries | Registration, lookup, duplicate-ID rejection                              |
+| Pathing            | Correct paths, unreachable targets handled, deterministic tie-breaking    |
+| Worker FSM         | Every transition; **no state can deadlock**                               |
+| Edge cases         | Empty world, full inventory, no seeds, no walkable path                   |
 
 **The determinism test is the most important test in the repository.** ADR-002, ADR-003, ADR-004, and ADR-007 all build on it. If it fails, something far more serious than a single feature is broken.
 
@@ -133,57 +133,57 @@ Enforced in CI. A PR below any threshold does not merge.
 
 ### 5.2 Persistence
 
-| Target | Assert |
-|---|---|
-| Round trip | `fromSave(toSave(w))` ≡ `w` for arbitrary worlds (property) |
-| Byte stability | The same world serializes identically twice |
-| Golden fixtures | Every historical version migrates to current and validates |
-| Migration purity | Repeated runs produce identical output |
-| Crash safety | Interrupting each write step leaves ≥ 1 loadable save |
-| Corruption | Truncated / empty / malformed files recover from `.bak` |
-| Forward refusal | A higher `schemaVersion` is refused, never partially loaded |
-| Catch-up | Within tolerance; **never over-credits** |
-| Unknown content | Quarantined, then restored when content returns |
+| Target           | Assert                                                      |
+| ---------------- | ----------------------------------------------------------- |
+| Round trip       | `fromSave(toSave(w))` ≡ `w` for arbitrary worlds (property) |
+| Byte stability   | The same world serializes identically twice                 |
+| Golden fixtures  | Every historical version migrates to current and validates  |
+| Migration purity | Repeated runs produce identical output                      |
+| Crash safety     | Interrupting each write step leaves ≥ 1 loadable save       |
+| Corruption       | Truncated / empty / malformed files recover from `.bak`     |
+| Forward refusal  | A higher `schemaVersion` is refused, never partially loaded |
+| Catch-up         | Within tolerance; **never over-credits**                    |
+| Unknown content  | Quarantined, then restored when content returns             |
 
 Full list: `SAVE_FORMAT.md` §10.
 
 ### 5.3 UI
 
-| Target | Assert |
-|---|---|
-| Panels | Render correct data from a given snapshot slice |
-| Interactions | Dispatch the correct intent — **never mutate the world** |
-| Subscriptions | A component re-renders only when its slice changes |
-| Idle | Zero React commits over 10 s with a static world |
-| Accessibility | Keyboard navigable; controls have accessible names |
+| Target        | Assert                                                   |
+| ------------- | -------------------------------------------------------- |
+| Panels        | Render correct data from a given snapshot slice          |
+| Interactions  | Dispatch the correct intent — **never mutate the world** |
+| Subscriptions | A component re-renders only when its slice changes       |
+| Idle          | Zero React commits over 10 s with a static world         |
+| Accessibility | Keyboard navigable; controls have accessible names       |
 
 Query by role and text (`getByRole('button', { name: 'Buy' })`), never by CSS class. Class-based queries break on styling changes and test nothing a user experiences.
 
 ### 5.4 Rendering
 
-| Target | Assert |
-|---|---|
-| Idle | **Zero `requestAnimationFrame` callbacks over 10 s with a static world** |
-| Dirty gate | A world change marks the scene dirty exactly once |
-| Animation lifecycle | Every increment of `animatingEntityCount` has a matching decrement |
-| Teardown | Collapsing destroys all Pixi resources; no retained references |
-| Draw calls | Static reference farm stays under the ceiling |
-| Interpolation | Positions interpolate correctly across `alpha` ∈ [0,1) |
+| Target              | Assert                                                                   |
+| ------------------- | ------------------------------------------------------------------------ |
+| Idle                | **Zero `requestAnimationFrame` callbacks over 10 s with a static world** |
+| Dirty gate          | A world change marks the scene dirty exactly once                        |
+| Animation lifecycle | Every increment of `animatingEntityCount` has a matching decrement       |
+| Teardown            | Collapsing destroys all Pixi resources; no retained references           |
+| Draw calls          | Static reference farm stays under the ceiling                            |
+| Interpolation       | Positions interpolate correctly across `alpha` ∈ [0,1)                   |
 
 The animation-lifecycle test is the guard against the most likely way render-on-demand decays: an effect that starts animating and never stops.
 
 ### 5.5 Main process and overlay (E2E)
 
-| Target | Assert |
-|---|---|
-| Docking | Sits above the taskbar, spanning `workArea` width |
-| Always-on-top | Stays above normal windows; **yields to fullscreen apps** |
-| Click-through | Clicks in transparent regions reach the window beneath |
-| Multi-monitor | Re-docks on monitor change |
-| DPI | Correct geometry on scaling change |
-| **Background tick** | The tick continues while the window is fully occluded |
-| Single instance | A second launch focuses the first |
-| Save on quit | Quitting writes a complete, loadable save |
+| Target              | Assert                                                    |
+| ------------------- | --------------------------------------------------------- |
+| Docking             | Sits above the taskbar, spanning `workArea` width         |
+| Always-on-top       | Stays above normal windows; **yields to fullscreen apps** |
+| Click-through       | Clicks in transparent regions reach the window beneath    |
+| Multi-monitor       | Re-docks on monitor change                                |
+| DPI                 | Correct geometry on scaling change                        |
+| **Background tick** | The tick continues while the window is fully occluded     |
+| Single instance     | A second launch focuses the first                         |
+| Save on quit        | Quitting writes a complete, loadable save                 |
 
 The background-tick test validates `backgroundThrottling: false` (ADR-003 §2). Without it, a regression would silently stall the simulation whenever the player did anything else — which is the normal case for this product, and would be nearly invisible in casual testing.
 
@@ -238,18 +238,31 @@ Builders make each test state its own preconditions. Shared mutable fixtures cre
 
 ### 7.1 Every PR
 
-| Gate | Command |
-|---|---|
-| Typecheck (all three configs) | `npm run typecheck` |
-| Lint, zero warnings | `npm run lint` |
-| Architecture boundaries | `npm run check:boundaries` |
-| Import cycles | `npm run check:cycles` |
-| Unit + integration + property | `npm test` |
-| Coverage thresholds | `npm run test:coverage` |
-| Build succeeds | `npm run build` |
-| E2E | `npm run test:e2e` |
-| Performance regressions | `PERFORMANCE.md` §10.1 |
-| Asset validation | `ASSETS.md` §13 |
+| Gate                          | Command                                                             |
+| ----------------------------- | ------------------------------------------------------------------- |
+| Typecheck (all three configs) | `npm run typecheck`                                                 |
+| Lint, zero warnings           | `npm run lint`                                                      |
+| Architecture boundaries       | `npm run check:boundaries`                                          |
+| Import cycles                 | `npm run check:cycles`                                              |
+| Unit + integration + property | `npm test`                                                          |
+| Coverage thresholds           | `npm run test:coverage`                                             |
+| Build succeeds                | `npm run build`                                                     |
+| E2E                           | `VITE_FEATURE_DEBUG=true npm run build` **then** `npm run test:e2e` |
+| Performance regressions       | `PERFORMANCE.md` §10.1                                              |
+| Asset validation              | `ASSETS.md` §13                                                     |
+
+> **The E2E rebuild is not optional, and the order above is the trap.** The suite
+> launches `electron .`, which runs whatever sits in `out/`. Eight specs drive the
+> app through the F1 developer console — it is the only way to fund a farm or skip
+> 900 ticks from outside the process — and a production build compiles that console
+> out (`electron.vite.config`, `__FEATURE_DEBUG__`). So running the `npm run build`
+> gate on the line above and then the E2E gate leaves `out/` stripped, and those
+> eight specs fail on a 30-second `locator.fill` timeout that names no cause.
+>
+> This was misread as cross-spec order-dependence. It is not: a spec run entirely
+> alone fails the same way against a production build, and passes untouched against
+> a debug one. `tests/e2e/global-setup.ts` now refuses to start against a stripped
+> build and names the command to run.
 
 ### 7.2 The append-only rule
 

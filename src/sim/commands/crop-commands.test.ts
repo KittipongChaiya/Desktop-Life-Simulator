@@ -110,6 +110,10 @@ describe('planting consumes a seed (phase-06b, §8.1)', () => {
   it('rejects planting with no matching seed and mutates nothing', () => {
     const world = createWorld(1);
     tillTile(world, OWNED); // tilled, owned, empty — but the farm holds no seeds
+    // Drained so the count below measures the PLANT alone; the till legitimately
+    // published its own `tileTilled`.
+    world.events.flush();
+
     const result = plantCrop(world, OWNED, CORE_WHEAT);
 
     expect(result.ok).toBe(false);
@@ -273,6 +277,29 @@ describe('events: producer, delivery, consumer, ordering', () => {
 
     world.events.flush();
     expect(received).toEqual([OWNED]);
+  });
+
+  it('produces tileTilled carrying the recorded tick', () => {
+    // The renderer's only notice that a tile changed: `tilledAt` is in no
+    // snapshot slice, so without this the tilled soil is never drawn.
+    const world = createWorld(1);
+    const received: { tile: number; tick: number }[] = [];
+    world.events.subscribe('tileTilled', (event) => received.push({ ...event }));
+
+    tillTile(world, OWNED);
+    expect(received).toHaveLength(0); // queued, never dispatched inline
+
+    world.events.flush();
+    expect(received).toEqual([{ tile: OWNED, tick: world.tiles.tilledAt[OWNED] }]);
+  });
+
+  it('publishes no tileTilled for a rejected till', () => {
+    const world = createWorld(1);
+    tillTile(world, OUTSIDE); // unowned
+    tillTile(world, OWNED);
+    tillTile(world, OWNED); // already tilled
+
+    expect(world.events.pending()).toBe(1);
   });
 
   it('produces cropHarvested carrying its yields', () => {

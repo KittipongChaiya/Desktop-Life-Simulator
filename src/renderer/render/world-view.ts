@@ -18,6 +18,8 @@
 // bundled asset that resolves in both dev and production.
 import buildingsData from '@assets/buildings.json';
 import buildingsImage from '@assets/buildings.png';
+import cropsData from '@assets/crops.json';
+import cropsImage from '@assets/crops.png';
 import entitiesData from '@assets/entities.json';
 import entitiesImage from '@assets/entities.png';
 import terrainData from '@assets/terrain.json';
@@ -46,6 +48,7 @@ import {
   type CameraState,
 } from './camera';
 import { createCameraFocus, needsFocus, type CameraFocus } from './camera-focus';
+import { createCropRenderer, type CropRenderer } from './crop-view';
 import { planDecor } from './decor';
 import { createDecorRenderer, type DecorRenderer } from './decor-view';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
@@ -159,8 +162,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   });
 
   // Textures come from the generated atlases, never a runtime path (ADR-006 §4).
-  // Each atlas is a separate imported sheet; more (crops, buildings) are added
-  // here as their phases land. Static imports so Vite bundles them under the CSP.
+  // Each atlas is a separate imported sheet. Static imports so Vite bundles
+  // them under the CSP.
+  //
+  // The `crops` sheet was generated in phase-05.6 and never loaded here, so
+  // every `crops:*` key resolved to `Texture.EMPTY` — one half of why a planted
+  // farm looked identical to an empty one.
   const parseSheet = async (image: string, data: unknown): Promise<Spritesheet> => {
     const sheet = new Spritesheet(await loadAtlasTexture(image), data as never);
     await sheet.parse();
@@ -170,6 +177,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     terrain: await parseSheet(terrainImage, terrainData),
     entities: await parseSheet(entitiesImage, entitiesData),
     buildings: await parseSheet(buildingsImage, buildingsData),
+    crops: await parseSheet(cropsImage, cropsData),
   };
 
   const textureFor = (spriteKey: string): Texture => {
@@ -263,6 +271,14 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   });
 
   const buildings: BuildingRenderer = createBuildingRenderer({
+    layer: app.layers.objects,
+    textureFor,
+    gate,
+  });
+
+  // Crops share the y-sorted `objects` layer with buildings and decor, so a
+  // worker standing south of a pumpkin draws in front of it.
+  const crops: CropRenderer = createCropRenderer({
     layer: app.layers.objects,
     textureFor,
     gate,
@@ -364,6 +380,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         lastColumn: range.last,
       });
       buildings.update(options.world.snapshots.buildings.value);
+      // The slice republishes on a stage change, so this is a reference
+      // comparison on all but four frames of a crop's life.
+      crops.update(options.world.snapshots.crops.value);
 
       // Decor is static until the plot grows, so it is re-planned only when
       // the expansion counter moves — never per frame. A tile that becomes
@@ -492,6 +511,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Before `app.destroy()`, which tears down the layer that parents them.
       workers.destroy();
       buildings.destroy();
+      crops.destroy();
       ghost.destroy();
       highlight.destroy();
       // A glide's lease must not outlive the view that owns it.

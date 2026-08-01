@@ -7,10 +7,13 @@
  * all.
  *
  * Re-rendering is per chunk: changing one tile re-renders the 256 tiles around
- * it, not the world. Phase-03 tilling a tile therefore costs one chunk redraw.
+ * it, not the world. Tilling a tile therefore costs one chunk redraw — the
+ * composition root invalidates the tile when `tileTilled` is published, which
+ * is what makes tilled soil appear at all.
  *
- * The chunk-index arithmetic lives in `terrain-chunks.ts` and is unit-tested
- * without a GPU; this module is only the Pixi half.
+ * The chunk-index arithmetic lives in `terrain-chunks.ts` and the sprite choice
+ * in `terrain-tiles.ts`, both unit-tested without a GPU; this module is only
+ * the Pixi half.
  */
 
 // Container, RenderTexture, and Sprite are used as CONSTRUCTORS — they must be
@@ -21,9 +24,10 @@ import { Container, RenderTexture, Sprite, type Renderer, type Texture } from 'p
 import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
 import { asTileIndex } from '../../shared/ids';
 import type { TileKindRegistry } from '../../sim/content/tile-kinds';
-import { getKind, isOwned, type TileGrid } from '../../sim/world/tile-grid';
+import { isOwned, type TileGrid } from '../../sim/world/tile-grid';
 
 import { CHUNK_SIZE, chunkOrigin, type ChunkTracker } from './terrain-chunks';
+import { tileSpriteKey } from './terrain-tiles';
 
 const CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
 
@@ -67,14 +71,6 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
   /** Reused scratch container — allocating one per chunk redraw would churn. */
   const scratch = new Container();
 
-  const textureForKindIndex = (kindIndex: number): Texture => {
-    const definition = tileKinds.byIndex(kindIndex);
-    // An unknown index means the grid references a kind that is not registered
-    // — a save from a build with more content, or a bug. Fall back to the first
-    // kind rather than throwing inside a render pass.
-    return textureFor(definition?.sprite ?? tileKinds.byIndex(0)?.sprite ?? '');
-  };
-
   const renderChunk = (chunk: number): void => {
     let target = textures.get(chunk);
     if (target === undefined) {
@@ -96,7 +92,7 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
         if (worldX >= grid.width || worldY >= grid.height) continue;
 
         const tile = asTileIndex(worldY * WORLD_WIDTH + worldX);
-        const sprite = new Sprite(textureForKindIndex(getKind(grid, tile)));
+        const sprite = new Sprite(textureFor(tileSpriteKey(grid, tileKinds, tile)));
         sprite.x = tx * TILE_SIZE;
         sprite.y = ty * TILE_SIZE;
         if (!isOwned(grid, tile)) sprite.tint = UNOWNED_TINT;

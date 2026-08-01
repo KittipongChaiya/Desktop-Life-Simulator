@@ -66,7 +66,17 @@ export const UI_UPDATE_HZ = 10;
 export const OPACITY_MIN_PERCENT = 30;
 export const OPACITY_MAX_PERCENT = 100;
 export const OPACITY_STEP_PERCENT = 5;
-export const OPACITY_DEFAULT_PERCENT = 100;
+/**
+ * Opens at the FLOOR of the dial, so a first launch is as unobtrusive as the
+ * companion can be and the player dials presence UP if they want it.
+ *
+ * Two consequences worth knowing, neither a defect:
+ * work mode's 25% now sits only one notch below the resting state, so entering
+ * it is a subtle change rather than the obvious one ADR-014 §2 describes; and
+ * the dial cannot move DOWN from its default, which is why the slider tests
+ * step up.
+ */
+export const OPACITY_DEFAULT_PERCENT = OPACITY_MIN_PERCENT;
 
 /**
  * The volume dial (phase-07.5a, ADR-016) — the companion's FIFTH presence

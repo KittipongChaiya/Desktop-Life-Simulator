@@ -8,6 +8,7 @@
  */
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
+import { cropsEqual, projectCrops, type CropView } from './crops-slice';
 import {
   economyEquals,
   projectEconomy,
@@ -30,6 +31,7 @@ export interface SnapshotState {
   readonly status: VersionedSlice<StatusSlice>;
   readonly workers: VersionedSlice<readonly WorkerView[]>;
   readonly buildings: VersionedSlice<readonly BuildingView[]>;
+  readonly crops: VersionedSlice<readonly CropView[]>;
   readonly inventory: VersionedSlice<InventoryView>;
   readonly wallet: VersionedSlice<WalletView>;
   readonly economy: VersionedSlice<EconomyView>;
@@ -38,9 +40,11 @@ export interface SnapshotState {
 export function createSnapshotState(): SnapshotState {
   return {
     status: { version: 0, value: projectStatus(0) },
-    // A world begins with no workers or buildings; the slices fill as they appear.
+    // A world begins with no workers, buildings, or crops; the slices fill as
+    // they appear.
     workers: { version: 0, value: [] },
     buildings: { version: 0, value: [] },
+    crops: { version: 0, value: [] },
     // Corrected to the real capacity on the first tick's projection.
     inventory: { version: 0, value: { stacks: [], capacity: 0, usedSlots: 0 } },
     // Corrected to the real balance and price list on the first tick.
@@ -72,6 +76,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     status: state.status.version,
     workers: state.workers.version,
     buildings: state.buildings.version,
+    crops: state.crops.version,
     inventory: state.inventory.version,
     wallet: state.wallet.version,
     economy: state.economy.version,
@@ -85,6 +90,8 @@ export {
   projectWorkers,
   buildingsEqual,
   projectBuildings,
+  cropsEqual,
+  projectCrops,
   inventoryEqual,
   projectInventory,
   walletEquals,

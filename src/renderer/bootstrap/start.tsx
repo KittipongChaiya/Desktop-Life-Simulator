@@ -429,6 +429,14 @@ function composeApplication(world: World, session: SaveSession): void {
   // SOUND WIRING (07.5a). Every trigger is something that ALREADY HAPPENED —
   // a published event or a settled snapshot — never an intent, so a rejected
   // command is silent and the farm never lies about what it did.
+  // Tilled soil. The terrain is cached per 16x16 chunk, so a tile that changes
+  // is invisible until its chunk is marked stale — and until now NOTHING in the
+  // application called `invalidateTile`, which is why tilling produced no
+  // visual change at all. One till costs one chunk redraw, as designed.
+  world.events.subscribe('tileTilled', (event) => {
+    worldMount.current()?.invalidateTile(asTileIndex(event.tile));
+  });
+
   world.events.subscribe('cropHarvested', (event) => {
     sound.play(Sound.Harvest);
     // The burst lands on the tile that was actually harvested — the event

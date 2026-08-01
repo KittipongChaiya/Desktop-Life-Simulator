@@ -34,6 +34,15 @@ export const CORE_WATER = asContentId('core:water');
 export const CORE_STONE = asContentId('core:stone');
 export const CORE_PATH = asContentId('core:path');
 
+/**
+ * Sprite for a TILLED tile — a tile state, deliberately not a tile kind.
+ *
+ * Tilling sets `tilledAt` and leaves `kind` alone (ADR-009 §1), so the sprite
+ * belongs to no definition and cannot live on one. It lives here, with the rest
+ * of the terrain content, rather than as a string literal in the render layer.
+ */
+export const TILLED_SPRITE = 'terrain:tilled';
+
 export type TileKindRegistry = ContentRegistry<TileKindDefinition>;
 
 export function createTileKindRegistry(): TileKindRegistry {
