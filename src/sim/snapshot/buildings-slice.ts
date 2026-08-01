@@ -13,6 +13,14 @@ import type { BuildingStore } from '../world/building';
 /** One placed building, projected for rendering. */
 export interface BuildingView {
   readonly id: number;
+  /**
+   * Which KIND of building this is (07.7d).
+   *
+   * Presentation legitimately needs it: the composition root anchors a sale's
+   * coin burst at the market stall, and matching on the sprite key instead
+   * would break the moment two buildings shared art.
+   */
+  readonly buildingId: string;
   readonly tile: number;
   /** Sprite key from the manifest, resolved from the definition. */
   readonly sprite: string;
@@ -32,6 +40,7 @@ export function projectBuildings(source: BuildingProjectionSource): readonly Bui
       const definition = source.buildingRegistry.get(building.buildingId);
       return {
         id: building.id,
+        buildingId: building.buildingId,
         tile: building.tile,
         sprite: definition.ok ? definition.value.sprite : '',
       };
@@ -46,6 +55,7 @@ export function buildingsEqual(a: readonly BuildingView[], b: readonly BuildingV
     const y = b[i];
     if (x === undefined || y === undefined) return false;
     if (x.id !== y.id || x.tile !== y.tile || x.sprite !== y.sprite) return false;
+    if (x.buildingId !== y.buildingId) return false;
   }
   return true;
 }

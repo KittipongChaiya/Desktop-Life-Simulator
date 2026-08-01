@@ -55,10 +55,13 @@ import { createCropRenderer, type CropRenderer } from './crop-view';
 import { planDecor } from './decor';
 import { createDecorRenderer, type DecorRenderer } from './decor-view';
 import { createDirtyGate, type DirtyGate } from './dirty-gate';
+import { EffectKind } from './effect-state';
 import { createEffects, type Effects } from './effects';
 import { createFloatingNumberPool, type FloatingKind } from './floating-number-state';
 import { createFloatingNumberRenderer, type FloatingNumberRenderer } from './floating-numbers';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
+import { createParticlePool } from './particle-pool';
+import { createParticleRenderer, type ParticleRenderer } from './particle-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
@@ -112,6 +115,14 @@ export interface WorldView {
    */
   showNumber(kind: FloatingKind, tile: TileIndex, amount: number): void;
   /**
+   * Throws particles from a tile (07.7d) — dust off a hoe, leaves off a
+   * harvest, gold off a sale.
+   *
+   * Driven by the composition root from things that HAVE HAPPENED, never from
+   * an intent, so a rejected command scatters nothing.
+   */
+  emitParticles(kind: EffectKind, tile: TileIndex, count: number): void;
+  /**
    * Eases the camera to bring a tile into view (07.5c).
    *
    * Does NOTHING when the tile is already comfortably visible, and any pan or
@@ -143,6 +154,14 @@ export interface WorldViewOptions {
   readonly atlas: string;
   /** The selected worker id, read each frame to draw its selection box. */
   readonly selectedWorkerId: () => number | null;
+  /**
+   * Motion strength, 0–1, read per animation (ADR-017 §7).
+   *
+   * Absent means full. Reduced Motion and the minimum intensity both arrive
+   * as 0, which leaves everything at rest without disabling any code path —
+   * so a setting changed mid-animation cannot strand a sprite.
+   */
+  readonly motionIntensity?: () => number;
 }
 
 /**
@@ -294,10 +313,19 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   // Crops share the y-sorted `objects` layer with buildings and decor, so a
   // worker standing south of a pumpkin draws in front of it.
+  const particles = createParticlePool();
+
   const crops: CropRenderer = createCropRenderer({
     layer: app.layers.objects,
     textureFor,
     gate,
+    intensity: options.motionIntensity,
+    // A crop reaching a new stage sparkles where it stands. Raised here rather
+    // than by the composition root because the STAGE CHANGE is only visible in
+    // the slice diff, which is this renderer's business and nobody else's.
+    onStageChange: (tile) => {
+      particles.emit(EffectKind.Sparkle, tile as TileIndex, performance.now(), 4);
+    },
   });
 
   // The build ghost shares the worldUi layer with the highlight (ADR-001
@@ -307,6 +335,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   // Layer 4, which `layers.ts` reserved and left empty for exactly this.
   const effects: Effects = createEffects(app.layers.effects, gate);
+
+  const particleRenderer: ParticleRenderer = createParticleRenderer({
+    layer: app.layers.effects,
+    pool: particles,
+    gate,
+  });
 
   // Numbers share the effects layer: both are transient acknowledgements that
   // belong above the world and below the HUD.
@@ -353,6 +387,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       const now = performance.now();
       if (kind === 'burst') effects.burst(tile, now);
       else effects.ring(tile, now);
+    },
+
+    emitParticles(kind, tile, count) {
+      particles.emit(kind, tile, performance.now(), count);
     },
 
     showNumber(kind, tile, amount) {
@@ -429,6 +467,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // moment the last one expires.
       effects.update(performance.now());
       numberRenderer.update(performance.now());
+      particleRenderer.update(performance.now());
+      // Crops animate per frame but reconcile only on a slice change; this
+      // holds a lease for exactly as long as something is actually moving.
+      crops.animate(performance.now());
 
       if (!gate.shouldRender()) return false;
 
@@ -553,6 +595,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).
       numberRenderer.destroy();
+      particleRenderer.destroy();
       effects.destroy();
       terrain.destroy();
       app.destroy();

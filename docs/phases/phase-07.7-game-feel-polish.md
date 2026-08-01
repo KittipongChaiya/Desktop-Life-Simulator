@@ -50,7 +50,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7a | Accessibility settings           | The six controls of §11 in `settings.json` under the ADR-014 §4 model; Reduced Motion as a master switch; every later milestone reads them | **Delivered** |
 | 07.7b | Motion foundation                | Pooled particle manager (dust, leaves, sparkle, coin burst, splash); presentation PRNG; the lease made structural                          | **Delivered** |
 | 07.7c | Floating numbers                 | Pooled `+coins` / `+items` risers — fade, drift up, auto-release. XP hook shape only, no XP system                                         | **Delivered** |
-| 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Pending**   |
+| 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Delivered** |
 | 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Pending**   |
 | 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Pending**   |
 | 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Pending**   |
@@ -198,8 +198,30 @@ Two art decisions made by looking rather than by reasoning:
 
 Gates: typecheck · lint · cycles clean. Unit **94 files / 1166 tests**. E2E **34 passed, 3 skipped**.
 
+### 07.7d — Crop feedback · Delivered
+
+`crop-anim.ts` (+ tests), `particle-view.ts`, an animated `crop-view.ts`, `buildings-slice.test.ts`, and the triggers in `start.tsx`.
+
+**The particle pool finally has a renderer.** 07.7b built the pool and deliberately left it undisplayed; this milestone draws it — as pooled sprites over Pixi's built-in white texture, tinted and scaled per kind, rather than `effects.ts`'s `Graphics`. Redrawing geometry every frame is fine for two shapes and not for a hundred and ninety specks.
+
+**The crop renderer's update is now two methods.** `update` reconciles against the slice and runs only when it republishes; `animate` runs per frame and holds a lease for exactly as long as something is moving. A farm at rest reconciles nothing, animates nothing, and draws nothing — the ADR-017 §1 rule, kept.
+
+**A harvested crop outlives its own data.** It is gone from the snapshot the instant it is harvested, so to animate out at all its sprite must be kept after its entry disappears. Departing sprites move to their own map and are destroyed when the curve ends; `crop-anim.ts` owns _when_ that is, because a mistake there is a leaked sprite rather than a visible glitch. A replant on the same tile destroys the departing sprite immediately rather than fading it over its replacement.
+
+Curves are damped **toward 1** by the intensity setting rather than skipped, so a setting changed mid-animation cannot strand a sprite at the wrong size. The curve tests assert every animation _lands_: a scale ending at 1.04 instead of 1 would leave the whole farm permanently, invisibly wrong with nothing to point at.
+
+**Coins needed an anchor the event does not carry.** `ItemSold` has no tile, so the burst is placed at the market stall — found via a new `buildingId` on `BuildingView`, because matching on the sprite key would break the moment two buildings shared art. A manual sale with no stall built gets **no world effect at all**: the coin sound and wallet readout already say it happened, and inventing a position would be the farm pointing at nothing.
+
+The buildings slice had no test file; it has one now, including the assertion the new field exists for — a `buildingsEqual` ignoring `buildingId` reads a changed kind as "unchanged".
+
+Gates: typecheck · lint · cycles clean. Unit **96 files / 1192 tests**. E2E **34 passed, 3 skipped**.
+
+**Not yet connected:** the six accessibility settings persist (07.7a) and the renderer reads a `motionIntensity` accessor, but nothing yet carries the stored value across the IPC boundary into that accessor — so the toggles do not take effect at runtime. `CompanionState` is the channel; that plumbing is the next thing owed and is listed as 07.7d-bis below.
+
 ### Remaining
 
-07.7d–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
+**07.7d-bis — connect the settings** (owed): carry the `motion` category over `CompanionState` into `motionIntensity`, so 07.7a's toggles actually gate 07.7d's effects.
+
+07.7e–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
 
 Budgets are measured and recorded in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**

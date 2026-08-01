@@ -34,6 +34,7 @@ import { AppProviders } from '../app/store-context';
 import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createWorkerSelection } from '../app/worker-selection';
+import { EffectKind } from '../render/effect-state';
 import { FloatingKind } from '../render/floating-number-state';
 import { workerAtTile } from '../render/worker-render';
 
@@ -436,6 +437,15 @@ function composeApplication(world: World, session: SaveSession): void {
   // visual change at all. One till costs one chunk redraw, as designed.
   world.events.subscribe('tileTilled', (event) => {
     worldMount.current()?.invalidateTile(asTileIndex(event.tile));
+    // Turned earth (07.7d). The soil changing colour is the result; the puff
+    // is the moment, and it is what makes a hoe feel like it struck something.
+    worldMount.current()?.emitParticles(EffectKind.Dust, asTileIndex(event.tile), 5);
+  });
+
+  // A seed going in. The crop's own sprite presses in from small (crop-view's
+  // spawn curve); this is the soil it disturbed on the way.
+  world.events.subscribe('cropPlanted', (event) => {
+    worldMount.current()?.emitParticles(EffectKind.Dust, asTileIndex(event.tile), 3);
   });
 
   world.events.subscribe('cropHarvested', (event) => {
@@ -450,9 +460,23 @@ function composeApplication(world: World, session: SaveSession): void {
     // — and a harvest the player did not cause still shows where it happened.
     const gained = event.yields.reduce((total, stack) => total + stack.quantity, 0);
     worldMount.current()?.showNumber(FloatingKind.Item, asTileIndex(event.tile), gained);
+    // Foliage disturbed by the pick, on top of the existing burst.
+    worldMount.current()?.emitParticles(EffectKind.Leaves, asTileIndex(event.tile), 6);
   });
-  world.events.subscribe('itemSold', () => {
+  world.events.subscribe('itemSold', (event) => {
     sound.play(Sound.Coin);
+
+    // Coins land where the sale happened (07.7d), which is the market stall —
+    // the one place in the world a sale is visible. A manual sale with no
+    // stall built has no world location, and gets no world effect: the coin
+    // sound and the wallet readout already say it happened, and inventing a
+    // position would be the farm pointing at nothing.
+    const stall = store.get('buildings').find((b) => b.buildingId === 'core:market_stall');
+    if (stall === undefined) return;
+
+    const tile = asTileIndex(stall.tile);
+    worldMount.current()?.emitParticles(EffectKind.CoinBurst, tile, 6);
+    worldMount.current()?.showNumber(FloatingKind.Coins, tile, event.coins);
   });
 
   // A deposit is the moment goods reach the player's holdings — which is
