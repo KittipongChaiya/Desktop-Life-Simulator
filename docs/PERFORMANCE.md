@@ -73,10 +73,26 @@ At 20 Hz, a 0.5 ms tick costs 1% of a core. This is the single largest fixed cos
 
 These are the mechanisms that make the collapsed and idle budgets achievable. Both are enforced by automated tests, and **deleting or skipping either test invalidates ADR-001 or ADR-005 respectively.**
 
-| Invariant                                                              | Test                                                     |
-| ---------------------------------------------------------------------- | -------------------------------------------------------- |
-| No `requestAnimationFrame` fires when the world is static (ADR-001 §1) | `tests/e2e/idle-cost.spec.ts` — zero callbacks over 10 s |
-| No React commit occurs when no snapshot slice changed (ADR-005 §2)     | Same file — zero commits over 10 s                       |
+| Invariant                                                                                                 | Test                                                                 |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| No `requestAnimationFrame` fires when the world is static (ADR-001 §1)                                    | `tests/e2e/render-budget.spec.ts` — "a static world draws no frames" |
+| No React commit occurs when no snapshot slice changed (ADR-005 §2)                                        | Same file                                                            |
+| Ambient motion enabled, pointer idle past `AMBIENT_IDLE_TIMEOUT_MS` → still zero (ADR-017 §2 condition 4) | **NOT YET TESTED** — see below                                       |
+
+> **Corrected 2026-08-01 (phase-07.7k).** The first two rows named
+> `tests/e2e/idle-cost.spec.ts`, which does not exist and never has. Both
+> invariants ARE enforced, in `render-budget.spec.ts` under "a static world
+> draws no frames" and the collapse-cycle leak test — but a reader checking the
+> named file would have found nothing and reasonably concluded the invariants
+> were unguarded.
+>
+> **The third row is the gap ADR-017 opened and this phase has not closed.**
+> Ambient motion is the one thing that can hold the frame loop open, and its
+> surrender-on-idle behaviour is unit-tested in `ambient-presence.test.ts` but
+> not asserted end-to-end against a real window. It cannot be, yet: enabling
+> ambient motion requires a settings control that does not exist (see the
+> phase-07.7 doc). Until both land, condition 4 is an enforced promise in the
+> unit suite and an unenforced one in the app.
 
 A tick over a sleeping world should iterate almost nothing (ADR-004) and publish nothing. When both hold, idle cost approaches the tick alone.
 

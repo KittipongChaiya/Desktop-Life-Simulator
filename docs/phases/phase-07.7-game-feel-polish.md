@@ -57,7 +57,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Delivered** |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Delivered** |
 | 07.7j | Ambient life (opt-in)            | Building motion (§3) and environment motion (§10), behind ADR-017 §2's four conditions, with the idle-surrender behaviour                  | **Delivered** |
-| 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Pending**   |
+| 07.7k | Measurement, invariants and docs | Budgets measured and recorded; §4.2's second invariant case added; the six documents synchronised; phase report                            | **Partial**   |
 
 ---
 
@@ -353,6 +353,51 @@ Rocks do not sway, which is the whole of the rule for what does.
 The disabled path restores upright **exactly once** and then costs nothing — without that guard it would write a rotation to every plant on every frame of a still world, which is the defect the milestone exists to avoid.
 
 Gates: typecheck · lint · cycles clean. Unit **100 files / 1270 tests**. E2E **34 passed, 3 skipped**.
+
+### 07.7k — Measurement, invariants and docs · Partial
+
+This milestone's job is accounting, so it reports rather than claims.
+
+#### Acceptance criteria, honestly
+
+| #   | Criterion                                                        | State                                                                                          |
+| --- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 1   | Byte-identical world from the same seed + commands               | **Met** — existing determinism properties, unchanged and passing                               |
+| 2   | Byte-identical save                                              | **Met** — `save-round-trip`, `save-compatibility`                                              |
+| 3   | Every fixture still migrates                                     | **Met** — `save-fixtures`                                                                      |
+| 4   | No `sim` → `renderer` import; no animation state reaches the sim | **Met** — `check:boundaries`, `check:cycles` clean                                             |
+| 5   | p99 tick unchanged                                               | **NOT MEASURED**                                                                               |
+| 6   | Every animation releases its lease                               | **Met in unit** — `animation-lease`, and every pool asserts it empties                         |
+| 7   | Ambient off (the default): zero frames on a static world         | **Met** — `render-budget.spec.ts`                                                              |
+| 8   | Ambient ON + pointer idle: zero frames                           | **Unit only** — `ambient-presence.test.ts`. Not assertable end-to-end yet; see the gap below   |
+| 9   | 20 collapse/expand cycles, no retained growth                    | **Met** — `render-budget.spec.ts` criterion 18, still passing with every new pool              |
+| 10  | Pools never allocate after construction                          | **Met** — `particle-pool`, `floating-number-state`                                             |
+| 11  | 30-minute run at maximum effect density within the heap ceiling  | **NOT MEASURED**                                                                               |
+| 12  | Each setting suppresses exactly its own class                    | **Met in unit** — but not reachable by a player; see the gap                                   |
+| 13  | Reduced Motion overrides without overwriting                     | **Met in unit** — same                                                                         |
+| 14  | Settings in `settings.json`, never in a save                     | **Met** — `settings-schema`                                                                    |
+| 15  | Identical animation choices from the same seed                   | **Met** — `presentation-rng` and `worker-personality` statelessness tests                      |
+| 16  | `world.rng` untouched by any renderer path                       | **Met** — nothing under `renderer/render` imports it; `decor`'s generator-position test passes |
+
+**Eleven met, two met only in unit, three not done.**
+
+#### The gap that matters most
+
+**The six accessibility settings have no user interface.** They are stored, parsed, defaulted, carried across `CompanionState`, resolved through `effectiveMotion`, and they genuinely gate every effect in this phase — but `SettingsPanel` has no controls for them and there is no IPC setter. A player can only change them by hand-editing `settings.json`.
+
+That is the same failure shape this phase kept finding in older code — a complete mechanism with no path to it — and it deserves naming plainly rather than filing under polish. It also blocks criterion 8 end to end: the invariant test needs ambient motion switched on, and nothing can switch it on.
+
+Scope to close it: an `InvokeChannel` setter, a main handler beside `applyVolumePercent`, a controller method, six controls in `SettingsPanel`, and the E2E invariant case that then becomes possible.
+
+#### Documentation
+
+- `PERFORMANCE.md` §4.2 **corrected**. Both zero-work invariants named `tests/e2e/idle-cost.spec.ts`, which does not exist and never has. They are enforced — in `render-budget.spec.ts` — but a reader checking the named file would have found nothing and reasonably concluded the invariants were unguarded. The new ambient-idle case is listed as untested, because it is.
+- `CHANGELOG.md` — the phase entry.
+- `GAME_DESIGN.md`, `ARCHITECTURE.md`, `PLAN.md`, `VISUAL_REFERENCE.md`, `TECHNICAL_ASSET_SPEC.md` — **not yet updated**.
+
+#### What this phase refused, gathered in one place
+
+Fourteen named effects were not built, each for a stated reason rather than by omission: scratch-head and sit (no pose art); worker-step and button-hover sounds (an ambient bed, and a non-action); grass sway (terrain is baked into chunk textures, so it would mean re-rendering them every frame); windmill, chimney smoke and flags (no such buildings exist); butterflies, bird and cloud shadows (no art); XP floating numbers (no XP system); and the `×` glyph (illegible at this size).
 
 ### Remaining
 
