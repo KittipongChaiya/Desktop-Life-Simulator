@@ -68,7 +68,9 @@ Unchanged from ADR-007 §1, restated because a polish phase is exactly where it 
 
 ### 4. Everything visual is pooled, and nothing allocates per frame
 
-Particles, floating numbers, and personality sprites come from **pre-allocated pools** with a fixed ceiling. Exhausting a pool **drops the new effect** — it never grows the pool and never allocates mid-frame. A dropped sparkle is invisible; a GC pause on a 20 Hz overlay is not.
+Particles, floating numbers, and personality sprites come from **pre-allocated pools** with a fixed ceiling. A full pool **recycles its oldest entry** — it never grows and never allocates mid-frame. A dropped sparkle is invisible; a GC pause on a 20 Hz overlay is not.
+
+_Oldest, not newest._ `effect-state.ts` already made this call in 07.5b and its reasoning governs here: the oldest effect is furthest through its life and the least likely to be under the player's eye, while the newest is the one they just caused and are most likely watching. A mature farm can harvest several crops on one tick and an offline catch-up can credit hundreds at the load boundary, so the cap is reached in ordinary play, not just under abuse.
 
 This extends the discipline `terrain-renderer.ts` and `building-view.ts` already follow, and the reason is the one `CODE_STYLE.md` §10 gives: Pixi objects hold GPU memory that GC will not reclaim, and collapsed mode destroys and rebuilds the scene on every toggle, so a leak here is paid on every collapse for the life of the session.
 

@@ -23,6 +23,16 @@ export const EffectKind = {
   Burst: 'burst',
   /** A confirmation ring — a building placed, a worker selected. */
   Ring: 'ring',
+  /** Turned earth — tilling, and a worker's footfall on dry ground. 07.7b. */
+  Dust: 'dust',
+  /** Disturbed foliage — a crop harvested, a bush brushed past. 07.7b. */
+  Leaves: 'leaves',
+  /** A crop reaching a new growth stage; anything that became ready. 07.7b. */
+  Sparkle: 'sparkle',
+  /** Coins scattering at the point of sale — the burst, not the readout. 07.7b. */
+  CoinBurst: 'coin-burst',
+  /** Water — the well, and a watering can when one exists. 07.7b. */
+  Splash: 'splash',
 } as const;
 
 export type EffectKind = (typeof EffectKind)[keyof typeof EffectKind];
@@ -37,6 +47,16 @@ export type EffectKind = (typeof EffectKind)[keyof typeof EffectKind];
 export const EFFECT_DURATION_MS: Readonly<Record<EffectKind, number>> = {
   [EffectKind.Burst]: 420,
   [EffectKind.Ring]: 320,
+  // The 07.7b additions. All inside the same envelope as the two above, for
+  // the same reason: an acknowledgement the player catches peripherally and
+  // that is gone before it can be studied. Dust is the shortest — it is the
+  // most frequent, firing on every till and every footfall, so it has to be
+  // the least insistent.
+  [EffectKind.Dust]: 300,
+  [EffectKind.Leaves]: 460,
+  [EffectKind.Sparkle]: 380,
+  [EffectKind.CoinBurst]: 440,
+  [EffectKind.Splash]: 360,
 };
 
 /**

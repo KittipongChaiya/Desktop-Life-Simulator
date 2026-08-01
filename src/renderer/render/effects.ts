@@ -28,6 +28,7 @@ import { TILE_SIZE } from '../../shared/constants';
 import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
 
+import { bindAnimationLease, type AnimationLease } from './animation-lease';
 import type { DirtyGate } from './dirty-gate';
 import { createEffectQueue, EffectKind, type ActiveEffect, type EffectQueue } from './effect-state';
 
@@ -112,26 +113,23 @@ export function createEffects(layer: Container, gate: DirtyGate): Effects {
   layer.addChild(graphics);
 
   const queue: EffectQueue = createEffectQueue();
-  let releaseAnimation: (() => void) | null = null;
-
-  const holdLease = (): void => {
-    releaseAnimation ??= gate.acquireAnimation();
-  };
-
-  const dropLease = (): void => {
-    releaseAnimation?.();
-    releaseAnimation = null;
-  };
+  // The bookkeeping this file used to carry by hand (07.7b). `sync` acquires
+  // on the transition into alive and releases on the transition out, so there
+  // is no longer a place here to forget the release.
+  const lease: AnimationLease = bindAnimationLease(gate);
+  let holding = false;
 
   return {
     burst(tile, nowMs) {
       queue.spawn(EffectKind.Burst, tile, nowMs);
-      holdLease();
+      lease.sync(true);
+      holding = true;
     },
 
     ring(tile, nowMs) {
       queue.spawn(EffectKind.Ring, tile, nowMs);
-      holdLease();
+      lease.sync(true);
+      holding = true;
     },
 
     update(nowMs) {
@@ -140,8 +138,9 @@ export function createEffects(layer: Container, gate: DirtyGate): Effects {
       if (active.length === 0) {
         // Nothing alive: stop drawing, and stop asking for frames. The release
         // marks the gate dirty once more so this cleared frame reaches screen.
-        if (releaseAnimation !== null) graphics.clear();
-        dropLease();
+        if (holding) graphics.clear();
+        holding = false;
+        lease.sync(false);
         return;
       }
 
@@ -156,7 +155,8 @@ export function createEffects(layer: Container, gate: DirtyGate): Effects {
       // Unconditional: a view torn down mid-effect (collapsing the overlay
       // destroys the whole scene, ADR-001 §2) must not leave a lease behind on
       // a gate that outlives it.
-      dropLease();
+      lease.release();
+      holding = false;
       queue.clear();
       graphics.destroy();
     },

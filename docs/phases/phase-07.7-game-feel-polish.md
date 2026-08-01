@@ -48,7 +48,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | #     | Milestone                        | Delivers                                                                                                                                   | Status        |
 | ----- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
 | 07.7a | Accessibility settings           | The six controls of §11 in `settings.json` under the ADR-014 §4 model; Reduced Motion as a master switch; every later milestone reads them | **Delivered** |
-| 07.7b | Motion foundation                | `effects.ts` generalised to a pooled particle manager (dust, leaves, sparkle, coin burst, splash); presentation PRNG; lease audit          | **Pending**   |
+| 07.7b | Motion foundation                | Pooled particle manager (dust, leaves, sparkle, coin burst, splash); presentation PRNG; the lease made structural                          | **Delivered** |
 | 07.7c | Floating numbers                 | Pooled `+coins` / `+items` risers — fade, drift up, auto-release. XP hook shape only, no XP system                                         | **Pending**   |
 | 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Pending**   |
 | 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Pending**   |
@@ -162,8 +162,27 @@ The category is absent from every `settings.json` written before today, which is
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit suite **90 files / 1110 tests** (from 89 / 1093).
 
+### 07.7b — Motion foundation · Delivered
+
+`presentation-rng.ts`, `particle-pool.ts`, `animation-lease.ts` (each with tests), and five new kinds in `effect-state.ts`.
+
+**The lease became structural rather than a habit.** `dirty-gate.ts` calls its animation count "the fragile half" — every acquire needs a matching release, and a source that never releases is a permanent frame cost that looks exactly like normal operation. Two call sites carried that bookkeeping by hand; this phase would have added five more. `bindAnimationLease` takes a liveness flag per frame and owns the transitions, so there is no longer a place to forget. Both existing sites — `effects.ts` and the camera glide in `world-view.ts` — were migrated onto it, because a rule nothing follows is not a rule.
+
+**The pool allocates nothing after construction.** Parallel typed arrays for state, one reusable view per slot, one reusable result array. The test that matters collects the view objects handed out at capacity, runs three thousand emissions, and asserts that no object outside that original set is ever returned.
+
+**Presentation randomness is a hash, not a generator.** The guarding test interleaves unrelated calls between related ones and asserts the results are unchanged — a generator cannot pass it. That is what lets a butterfly vary its path without consuming `world.rng` and desynchronising every future tick from its own save.
+
+Two judgement calls worth recording:
+
+- **The pool's `activeAt` is deliberately unsorted**, unlike `EffectQueue`'s. Effects are distinct things whose order the player can read; particles are interchangeable specks in one layer, so sorting them would cost an O(n log n) pass every frame and buy nothing.
+- **`presentation-rng.ts` is deliberately NOT shared with `decor.ts`.** Their mixers differ numerically (`Math.imul` versus a plain multiply). Unifying them looks like an obvious cleanup and would relocate every tree, rock, and bush in every existing player's world.
+
+ADR-017 §4 was corrected during this milestone: it said a full pool "drops the new effect", but `effect-state.ts` had already decided the opposite in 07.5b with better reasoning — recycle the **oldest**, because it is furthest through its life while the newest is the one the player just caused. The ADR now matches the shipped behaviour.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit suite **93 files / 1150 tests** (from 90 / 1110). E2E **34 passed, 3 skipped** — run because the lease change touches the camera path the idle invariant depends on.
+
 ### Remaining
 
-07.7b–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
+07.7c–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
 
 Budgets are measured and recorded in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**

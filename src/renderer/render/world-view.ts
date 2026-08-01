@@ -33,6 +33,7 @@ import { CORE_GRASS } from '../../sim/content/tile-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
+import { bindAnimationLease, type AnimationLease } from './animation-lease';
 import { createRenderApp, type RenderApp, type RenderBackend } from './app';
 import { createBuildingGhost, type BuildingGhost, type GhostState } from './building-ghost';
 import { createBuildingRenderer, type BuildingRenderer } from './building-view';
@@ -214,11 +215,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // owned plot at construction, which is the directive's "focus on loading a
   // save" — done geometrically, with no movement to watch.
   const focus: CameraFocus = createCameraFocus();
-  let releaseFocusAnimation: (() => void) | null = null;
+  // The glide's lease, bound rather than hand-rolled (07.7b) — see
+  // `animation-lease.ts` for why the bookkeeping stopped living at call sites.
+  const focusLease: AnimationLease = bindAnimationLease(gate);
 
   const endFocus = (): void => {
-    releaseFocusAnimation?.();
-    releaseFocusAnimation = null;
+    focusLease.release();
   };
 
   const terrain: TerrainRenderer = createTerrainRenderer({
@@ -349,7 +351,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       focus.start(camera.x, targetX, performance.now());
       // Held only while gliding, and released the frame it finishes — the
       // same lease discipline the effects follow (ADR-001 §1).
-      releaseFocusAnimation ??= gate.acquireAnimation();
+      focusLease.sync(true);
     },
 
     renderFrame(alpha = 0, tick = 0) {
@@ -359,8 +361,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         camera = { ...camera, x: clampCameraX(glidedX, limits, camera.zoom) };
         applyCamera();
         gate.markDirty();
-      } else if (releaseFocusAnimation !== null) {
-        endFocus();
+      } else {
+        // Idempotent, so calling it on every non-gliding frame is free.
+        focusLease.sync(false);
       }
 
       const range = visibleTileRange(camera, limits);
