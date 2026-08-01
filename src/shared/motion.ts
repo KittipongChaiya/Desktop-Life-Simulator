@@ -118,6 +118,19 @@ export function effectiveMotion(
   };
 }
 
+/**
+ * An intensity level as a multiplier the renderer can apply directly.
+ *
+ * Every finite curve is damped TOWARD its resting value by this number rather
+ * than skipped, so a level changed mid-animation cannot strand a sprite at the
+ * wrong size — at 0 the sprite simply sits where it belongs, and no code path
+ * is disabled.
+ */
+export function intensityScale(intensity: MotionIntensity): number {
+  if (intensity === MotionIntensity.Minimal) return 0;
+  return intensity === MotionIntensity.Subtle ? 0.5 : 1;
+}
+
 /** Settings files are untrusted input; anything unrecognised takes the default. */
 export function sanitizeMotionIntensity(value: unknown): MotionIntensity {
   return typeof value === 'string' && INTENSITIES.includes(value)

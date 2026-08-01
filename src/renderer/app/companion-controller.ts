@@ -12,12 +12,20 @@ import {
   OPACITY_DEFAULT_PERCENT,
   VOLUME_DEFAULT_PERCENT,
 } from '../../shared/constants';
+import {
+  DEFAULT_MOTION_SETTINGS,
+  effectiveMotion,
+  type EffectiveMotion,
+  type MotionSettings,
+} from '../../shared/motion';
 
 interface CompanionState {
   readonly opacityPercent: number;
   readonly workMode: boolean;
   readonly clickThrough: boolean;
   readonly hidden: boolean;
+  /** Stored motion preferences (07.7); resolved through `motion()` below. */
+  readonly motion: MotionSettings;
   readonly volumePercent: number;
   readonly muted: boolean;
 }
@@ -32,6 +40,11 @@ export interface CompanionController {
   hidden(): boolean;
   /** The volume dial's position, 0–100 (07.5a). NOT the effective loudness. */
   volumePercent(): number;
+  /**
+   * What may move, with Reduced Motion and work mode already applied
+   * (ADR-017 §7). Resolved here so no consumer re-derives the precedence.
+   */
+  motion(): EffectiveMotion;
   setVolumePercent(value: number): void;
   muted(): boolean;
   toggleMuted(): void;
@@ -47,6 +60,29 @@ export interface CompanionBridge {
   onStateChanged(listener: (state: CompanionState) => void): () => void;
 }
 
+/**
+ * Field-wise, because `motion` is the one nested object on the state.
+ *
+ * Main rebuilds `CompanionState` on every broadcast, so a reference check
+ * would report a change on every hotkey press and wake the renderer for
+ * nothing.
+ */
+function sameMotion(a: MotionSettings | undefined, b: MotionSettings | undefined): boolean {
+  // Tolerant of absence, because the flat comparisons beside it already are:
+  // `state.muted === next.muted` is happily false-y for a partial payload,
+  // whereas dereferencing a missing nested object throws inside the listener.
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return false;
+  return (
+    a.intensity === b.intensity &&
+    a.particles === b.particles &&
+    a.cameraShake === b.cameraShake &&
+    a.decorativeCreatures === b.decorativeCreatures &&
+    a.environmental === b.environmental &&
+    a.reducedMotion === b.reducedMotion
+  );
+}
+
 export function createCompanionController(bridge: CompanionBridge): CompanionController {
   const listeners = new Set<() => void>();
   let state: CompanionState = {
@@ -56,6 +92,7 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     hidden: false,
     volumePercent: VOLUME_DEFAULT_PERCENT,
     muted: AUDIO_MUTED_BY_DEFAULT,
+    motion: DEFAULT_MOTION_SETTINGS,
   };
 
   const notify = (): void => {
@@ -69,7 +106,8 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
       state.clickThrough === next.clickThrough &&
       state.hidden === next.hidden &&
       state.volumePercent === next.volumePercent &&
-      state.muted === next.muted
+      state.muted === next.muted &&
+      sameMotion(state.motion, next.motion)
     ) {
       return;
     }
@@ -88,6 +126,8 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     clickThrough: () => state.clickThrough,
     hidden: () => state.hidden,
     volumePercent: () => state.volumePercent,
+
+    motion: () => effectiveMotion(state.motion, { workMode: state.workMode }),
     muted: () => state.muted,
 
     setVolumePercent(value) {

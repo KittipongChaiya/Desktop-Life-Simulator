@@ -216,11 +216,26 @@ The buildings slice had no test file; it has one now, including the assertion th
 
 Gates: typecheck · lint · cycles clean. Unit **96 files / 1192 tests**. E2E **34 passed, 3 skipped**.
 
-**Not yet connected:** the six accessibility settings persist (07.7a) and the renderer reads a `motionIntensity` accessor, but nothing yet carries the stored value across the IPC boundary into that accessor — so the toggles do not take effect at runtime. `CompanionState` is the channel; that plumbing is the next thing owed and is listed as 07.7d-bis below.
+**Settings connected in 07.7d-bis, below.**
+
+### 07.7d-bis — the settings connected · Delivered
+
+`motion` now rides `CompanionState` beside opacity and volume — the third presence family on the channel it belongs to. Main sends the STORED settings rather than resolved ones, because `effectiveMotion` needs `workMode`, which is on the same object; resolving once in the controller beats shipping both forms.
+
+`intensityScale` turns a level into a multiplier: full 1, subtle 0.5, minimal **0**. Reduced Motion means _still_, not "a very small amount".
+
+**The gate lives in the world view, not at the call sites.** The stage-change sparkle is raised inside `crop-view`'s slice diff, so a caller-side check in the composition root would have silently missed it — every emitter now passes through one internal `emit`.
+
+Two things this surfaced:
+
+- `sameMotion` compares field-wise, because main rebuilds `CompanionState` on every broadcast; a reference check would wake the renderer on every hotkey press for nothing.
+- It also tolerates a missing object. The flat comparisons beside it already do — `state.muted === next.muted` is harmlessly false for a partial payload — whereas dereferencing a nested one throws inside a listener. The controller's own test fixture was partial, which is how this was found.
+
+Gates: typecheck · lint · cycles clean. Unit **96 files / 1201 tests**. E2E **34 passed, 3 skipped**.
+
+**Noted, not a regression:** `tests/catch-up.test.ts`'s 50,000-tick property failed once on a full-suite run at 388 s, and passed both in isolation and on a clean re-run. It is CPU-heavy and runs alongside 95 other files; this is a load-dependent timeout, not a behavioural failure. Recorded so the next sighting starts from here.
 
 ### Remaining
-
-**07.7d-bis — connect the settings** (owed): carry the `motion` category over `CompanionState` into `motionIntensity`, so 07.7a's toggles actually gate 07.7d's effects.
 
 07.7e–07.7k pending, in the order listed above. Budgets are measured in 07.7k; per `PERFORMANCE.md` §10, **a phase does not complete with an unmeasured budget.**
 

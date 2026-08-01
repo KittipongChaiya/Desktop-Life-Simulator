@@ -161,7 +161,15 @@ export interface WorldViewOptions {
    * as 0, which leaves everything at rest without disabling any code path —
    * so a setting changed mid-animation cannot strand a sprite.
    */
-  readonly motionIntensity?: () => number;
+  readonly motionIntensity?: (() => number) | undefined;
+  /**
+   * Whether particles may be thrown at all (ADR-017 §7).
+   *
+   * Checked HERE rather than at each call site because the stage-change
+   * sparkle is raised inside this module — a caller-side gate would silently
+   * miss it. Absent means enabled.
+   */
+  readonly particlesEnabled?: (() => boolean) | undefined;
 }
 
 /**
@@ -315,6 +323,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // worker standing south of a pumpkin draws in front of it.
   const particles = createParticlePool();
 
+  /** The one path particles are thrown through, so the setting cannot be skipped. */
+  const emit = (kind: EffectKind, tile: TileIndex, count: number): void => {
+    if (options.particlesEnabled?.() === false) return;
+    particles.emit(kind, tile, performance.now(), count);
+  };
+
   const crops: CropRenderer = createCropRenderer({
     layer: app.layers.objects,
     textureFor,
@@ -324,7 +338,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     // than by the composition root because the STAGE CHANGE is only visible in
     // the slice diff, which is this renderer's business and nobody else's.
     onStageChange: (tile) => {
-      particles.emit(EffectKind.Sparkle, tile as TileIndex, performance.now(), 4);
+      emit(EffectKind.Sparkle, tile as TileIndex, 4);
     },
   });
 
@@ -390,7 +404,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     },
 
     emitParticles(kind, tile, count) {
-      particles.emit(kind, tile, performance.now(), count);
+      emit(kind, tile, count);
     },
 
     showNumber(kind, tile, amount) {

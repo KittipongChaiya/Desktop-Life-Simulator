@@ -35,6 +35,10 @@ export interface WorldMountOptions {
   readonly inputTarget: HTMLElement;
   /** The selected worker id, forwarded to the view's selection box. */
   readonly selectedWorkerId: () => number | null;
+  /** Motion strength 0–1, forwarded to every animated renderer (ADR-017 §7). */
+  readonly motionIntensity: () => number;
+  /** Whether particles may be thrown (ADR-017 §7). */
+  readonly particlesEnabled: () => boolean;
   readonly onError?: (error: unknown) => void;
 }
 
@@ -56,6 +60,8 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         resolution: size.resolution,
         atlas: options.atlas,
         selectedWorkerId: options.selectedWorkerId,
+        motionIntensity: options.motionIntensity,
+        particlesEnabled: options.particlesEnabled,
       });
       detachInput = view.attachInput(options.inputTarget);
     } catch (error) {

@@ -7,6 +7,8 @@
  * when plugin code runs there.
  */
 
+import type { MotionSettings } from '../motion';
+
 /** Renderer -> main, awaiting a reply. */
 export const InvokeChannel = {
   /** Collapse or expand the overlay. Resizes and re-docks the window. */
@@ -118,6 +120,16 @@ export interface CompanionState {
   readonly volumePercent: number;
   /** Whether sound is muted. True by default — sound is opt-in (`VISION.md` §5.1). */
   readonly muted: boolean;
+  /**
+   * How much the overlay MOVES (phase-07.7, ADR-017 §7).
+   *
+   * The third presence family, riding the same channel for the same reason as
+   * volume: opacity governs how much the overlay intrudes on the eye, volume
+   * on the ear, and these on the attention. Carried as STORED settings, not as
+   * resolved ones — `effectiveMotion` needs `workMode`, which is on this same
+   * object, and resolving in one place beats shipping both forms.
+   */
+  readonly motion: MotionSettings;
 }
 
 /**

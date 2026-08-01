@@ -20,6 +20,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
+import { intensityScale } from '../../shared/motion';
 import { createActionFeedback } from '../app/action-feedback';
 import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
@@ -263,6 +264,11 @@ function composeApplication(world: World, session: SaveSession): void {
     // layer stops events over real controls.
     inputTarget: document.body,
     selectedWorkerId: () => selection.selected(),
+    // The accessibility settings, finally reaching the thing they govern
+    // (07.7d-bis). Read per animation rather than captured, so toggling
+    // Reduced Motion takes effect on the next frame without a remount.
+    motionIntensity: () => intensityScale(companion.motion().intensity),
+    particlesEnabled: () => companion.motion().particles,
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,
@@ -431,6 +437,17 @@ function composeApplication(world: World, session: SaveSession): void {
   // SOUND WIRING (07.5a). Every trigger is something that ALREADY HAPPENED —
   // a published event or a settled snapshot — never an intent, so a rejected
   // command is silent and the farm never lies about what it did.
+  /**
+   * Throws particles at a tile.
+   *
+   * Brevity only — the accessibility gate lives in the world view, because the
+   * stage-change sparkle is raised inside it and a caller-side check would
+   * silently miss that one.
+   */
+  const emitParticles = (kind: EffectKind, tile: TileIndex, count: number): void => {
+    worldMount.current()?.emitParticles(kind, tile, count);
+  };
+
   // Tilled soil. The terrain is cached per 16x16 chunk, so a tile that changes
   // is invisible until its chunk is marked stale — and until now NOTHING in the
   // application called `invalidateTile`, which is why tilling produced no
@@ -439,13 +456,13 @@ function composeApplication(world: World, session: SaveSession): void {
     worldMount.current()?.invalidateTile(asTileIndex(event.tile));
     // Turned earth (07.7d). The soil changing colour is the result; the puff
     // is the moment, and it is what makes a hoe feel like it struck something.
-    worldMount.current()?.emitParticles(EffectKind.Dust, asTileIndex(event.tile), 5);
+    emitParticles(EffectKind.Dust, asTileIndex(event.tile), 5);
   });
 
   // A seed going in. The crop's own sprite presses in from small (crop-view's
   // spawn curve); this is the soil it disturbed on the way.
   world.events.subscribe('cropPlanted', (event) => {
-    worldMount.current()?.emitParticles(EffectKind.Dust, asTileIndex(event.tile), 3);
+    emitParticles(EffectKind.Dust, asTileIndex(event.tile), 3);
   });
 
   world.events.subscribe('cropHarvested', (event) => {
@@ -461,7 +478,7 @@ function composeApplication(world: World, session: SaveSession): void {
     const gained = event.yields.reduce((total, stack) => total + stack.quantity, 0);
     worldMount.current()?.showNumber(FloatingKind.Item, asTileIndex(event.tile), gained);
     // Foliage disturbed by the pick, on top of the existing burst.
-    worldMount.current()?.emitParticles(EffectKind.Leaves, asTileIndex(event.tile), 6);
+    emitParticles(EffectKind.Leaves, asTileIndex(event.tile), 6);
   });
   world.events.subscribe('itemSold', (event) => {
     sound.play(Sound.Coin);
@@ -475,7 +492,7 @@ function composeApplication(world: World, session: SaveSession): void {
     if (stall === undefined) return;
 
     const tile = asTileIndex(stall.tile);
-    worldMount.current()?.emitParticles(EffectKind.CoinBurst, tile, 6);
+    emitParticles(EffectKind.CoinBurst, tile, 6);
     worldMount.current()?.showNumber(FloatingKind.Coins, tile, event.coins);
   });
 

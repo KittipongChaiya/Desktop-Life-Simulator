@@ -15,6 +15,7 @@ import {
   DEFAULT_MOTION_SETTINGS,
   MotionIntensity,
   effectiveMotion,
+  intensityScale,
   sanitizeMotionIntensity,
   type MotionSettings,
 } from './motion';
@@ -115,6 +116,37 @@ describe('work mode — ADR-017 §2 condition 3', () => {
     const effective = effectiveMotion({ ...ALL_ON, reducedMotion: true }, { workMode: true });
     expect(effective.intensity).toBe(MotionIntensity.Minimal);
     expect(effective.particles).toBe(false);
+  });
+});
+
+describe('intensity as a multiplier', () => {
+  it('maps full to unchanged motion', () => {
+    expect(intensityScale(MotionIntensity.Full)).toBe(1);
+  });
+
+  it('maps minimal to no motion at all', () => {
+    // Not "a very small amount": Reduced Motion has to mean STILL.
+    expect(intensityScale(MotionIntensity.Minimal)).toBe(0);
+  });
+
+  it('places subtle strictly between the two', () => {
+    const subtle = intensityScale(MotionIntensity.Subtle);
+    expect(subtle).toBeGreaterThan(0);
+    expect(subtle).toBeLessThan(1);
+  });
+
+  it('stays inside [0, 1], so a curve can only ever be damped', () => {
+    for (const level of [MotionIntensity.Full, MotionIntensity.Subtle, MotionIntensity.Minimal]) {
+      const scale = intensityScale(level);
+      expect(scale).toBeGreaterThanOrEqual(0);
+      expect(scale).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('reaches 0 through reduced motion, whatever the stored level', () => {
+    // The end-to-end shape the renderer relies on.
+    const stored: MotionSettings = { ...ALL_ON, reducedMotion: true };
+    expect(intensityScale(effectiveMotion(stored).intensity)).toBe(0);
   });
 });
 

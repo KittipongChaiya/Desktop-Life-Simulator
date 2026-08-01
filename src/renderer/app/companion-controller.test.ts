@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { OPACITY_DEFAULT_PERCENT } from '../../shared/constants';
+import { DEFAULT_MOTION_SETTINGS, MotionIntensity, type MotionSettings } from '../../shared/motion';
 
 import { createCompanionController, type CompanionBridge } from './companion-controller';
 
@@ -17,6 +18,7 @@ interface BridgeState {
   readonly workMode: boolean;
   readonly clickThrough: boolean;
   readonly hidden: boolean;
+  readonly motion: MotionSettings;
 }
 
 interface StubBridge extends CompanionBridge {
@@ -29,6 +31,7 @@ const state = (overrides: Partial<BridgeState> = {}): BridgeState => ({
   workMode: false,
   clickThrough: false,
   hidden: false,
+  motion: DEFAULT_MOTION_SETTINGS,
   ...overrides,
 });
 
@@ -129,6 +132,60 @@ describe('createCompanionController', () => {
 
     bridge.emit(state()); // identical to hydrated state
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('notifies when only the motion settings changed', async () => {
+    // The whole point of 07.7d-bis: a toggle in the settings panel has to
+    // reach the renderer, and it arrives as a nested object rather than a
+    // flat field — so a reference-only comparison would drop it.
+    const bridge = stubBridge();
+    const listener = vi.fn();
+    const controller = createCompanionController(bridge);
+    await settle();
+    controller.subscribe(listener);
+
+    bridge.emit(state({ motion: { ...DEFAULT_MOTION_SETTINGS, reducedMotion: true } }));
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it('does not notify when an identical motion object arrives rebuilt', async () => {
+    // Main rebuilds CompanionState on every broadcast, so a reference check
+    // would wake the renderer on every hotkey press for nothing.
+    const bridge = stubBridge();
+    const listener = vi.fn();
+    const controller = createCompanionController(bridge);
+    await settle();
+    controller.subscribe(listener);
+
+    bridge.emit(state({ motion: { ...DEFAULT_MOTION_SETTINGS } }));
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('resolves motion through reduced motion and work mode', async () => {
+    const bridge = stubBridge(
+      state({
+        workMode: false,
+        motion: { ...DEFAULT_MOTION_SETTINGS, intensity: MotionIntensity.Full, particles: true },
+      }),
+    );
+    const controller = createCompanionController(bridge);
+    await settle();
+
+    expect(controller.motion().intensity).toBe(MotionIntensity.Full);
+
+    bridge.emit(state({ motion: { ...DEFAULT_MOTION_SETTINGS, reducedMotion: true } }));
+    expect(controller.motion().intensity).toBe(MotionIntensity.Minimal);
+    expect(controller.motion().particles).toBe(false);
+  });
+
+  it('stops ambient motion in work mode without touching the stored choice', async () => {
+    const bridge = stubBridge(
+      state({ workMode: true, motion: { ...DEFAULT_MOTION_SETTINGS, environmental: true } }),
+    );
+    const controller = createCompanionController(bridge);
+    await settle();
+
+    expect(controller.motion().environmental).toBe(false);
   });
 
   it('unsubscribe tears down', async () => {

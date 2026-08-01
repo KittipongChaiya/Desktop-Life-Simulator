@@ -95,6 +95,7 @@ function companionState(): CompanionState {
     hidden,
     volumePercent: settings.audio.volumePercent,
     muted: settings.audio.muted,
+    motion: settings.motion,
   };
 }
 
