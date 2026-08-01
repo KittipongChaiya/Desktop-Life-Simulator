@@ -319,6 +319,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     gate,
     selectedId: options.selectedWorkerId,
     breathing: options.creaturesEnabled,
+    intensity: options.motionIntensity,
   });
 
   const buildings: BuildingRenderer = createBuildingRenderer({
@@ -467,6 +468,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         workers: options.world.snapshots.workers.value,
         alpha,
         tick,
+        nowMs: performance.now(),
         firstColumn: range.first,
         lastColumn: range.last,
       });

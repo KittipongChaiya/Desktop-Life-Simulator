@@ -21,10 +21,20 @@ import { Animations } from '@assets/manifest';
 import { Graphics, Sprite, type Container, type Texture } from 'pixi.js';
 
 import { TILE_SIZE } from '../../shared/constants';
-import type { WorkerView } from '../../sim/snapshot/workers-slice';
+import { Direction, type WorkerView } from '../../sim/snapshot/workers-slice';
 import { WorkerState } from '../../sim/world/worker';
 
 import type { DirtyGate } from './dirty-gate';
+import { derivedIndex } from './presentation-rng';
+import {
+  Fidget,
+  FIDGET_PERIOD_TICKS,
+  fidgetAt,
+  HOP_DURATION_MS,
+  hopLift,
+  isGlancing,
+  stretchLift,
+} from './worker-personality';
 import {
   currentFrame,
   easedApproach,
@@ -34,6 +44,14 @@ import {
   selectAnimation,
   type AnimationDef,
 } from './worker-render';
+
+/** Every facing, for choosing one to glance toward. */
+const FACINGS: readonly Direction[] = [
+  Direction.North,
+  Direction.East,
+  Direction.South,
+  Direction.West,
+];
 
 // The generated manifest is a plain record of animation definitions.
 const ANIMATIONS = Animations as Readonly<Record<string, AnimationDef>>;
@@ -45,12 +63,25 @@ interface Tracked {
   current: WorkerView;
   /** The live animation lease, or null when not animating. */
   release: (() => void) | null;
+  /**
+   * When a celebratory hop began, or null. Set on the Working -> not-Working
+   * transition (07.7f), which the view can see because it keeps both snapshots.
+   */
+  hopStartedAt: number | null;
 }
 
 export interface WorkerUpdate {
   readonly workers: readonly WorkerView[];
   readonly alpha: number;
   readonly tick: number;
+  /**
+   * Real milliseconds, for the one-shot hop (07.7f).
+   *
+   * Real time rather than ticks because it acknowledges something to a person
+   * and must not stretch when the sim is time-scaled in devtools — the same
+   * rule the effects follow.
+   */
+  readonly nowMs: number;
   readonly firstColumn: number;
   readonly lastColumn: number;
 }
@@ -76,6 +107,8 @@ export interface WorkerRendererOptions {
    * for as long as a worker is idle and on screen.
    */
   readonly breathing?: (() => boolean) | undefined;
+  /** Motion strength 0–1, damping every offset here (ADR-017 §7). */
+  readonly intensity?: (() => number) | undefined;
   /** The selected worker id, or null. Read each frame so the box follows it. */
   readonly selectedId: () => number | null;
 }
@@ -86,7 +119,24 @@ const SELECTION_WIDTH = 2;
 const SELECTION_ALPHA = 0.9;
 
 export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRenderer {
-  const { layer, worldUi, textureFor, gate, selectedId, breathing } = options;
+  const { layer, worldUi, textureFor, gate, selectedId, breathing, intensity } = options;
+
+  const motionStrength = (): number => {
+    const value = intensity?.() ?? 1;
+    return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
+  };
+
+  /**
+   * A direction to glance toward — never the one already faced.
+   *
+   * Derived rather than rolled (ADR-017 §5), so the same worker glances the
+   * same way on every launch.
+   */
+  const glanceAway = (facing: Direction, workerId: number, tick: number): Direction => {
+    const others = FACINGS.filter((candidate) => candidate !== facing);
+    const window = Math.floor(tick / FIDGET_PERIOD_TICKS);
+    return others[derivedIndex(others.length, workerId, window)] ?? facing;
+  };
   const tracked = new Map<number, Tracked>();
   const selectionBox = new Graphics();
   worldUi.addChild(selectionBox);
@@ -116,21 +166,47 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
     // Breathing, when the player has opted into living things moving on their
     // own. UNBOUNDED motion (ADR-017 §2): it never finishes, so it is off by
     // default and gated here rather than assumed.
-    const bob =
-      entry.current.state === WorkerState.Idle && breathing?.() === true
-        ? idleBob(update.tick, entry.current.id)
+    const strength = motionStrength();
+    const idling = entry.current.state === WorkerState.Idle;
+    const creatures = breathing?.() === true;
+
+    const bob = idling && creatures ? idleBob(update.tick, entry.current.id) * strength : 0;
+
+    // A recurring fidget — sparse, short, and only while the player has opted
+    // into living things moving on their own (ADR-017 §2).
+    const fidget = idling && creatures ? fidgetAt(entry.current.id, update.tick) : null;
+    const fidgetLift =
+      fidget?.kind === Fidget.Stretch ? stretchLift(fidget.progress) * strength : 0;
+
+    // The one-shot hop, which any worker gets on finishing a task.
+    const hopAge = entry.hopStartedAt === null ? null : update.nowMs - entry.hopStartedAt;
+    if (hopAge !== null && hopAge >= HOP_DURATION_MS) entry.hopStartedAt = null;
+    const hop =
+      hopAge !== null && hopAge < HOP_DURATION_MS
+        ? hopLift(hopAge / HOP_DURATION_MS) * strength
         : 0;
 
-    entry.sprite.y = position.y + TILE_SIZE + bob;
+    entry.sprite.y = position.y + TILE_SIZE - fidgetLift - hop + bob;
     entry.sprite.zIndex = position.y; // lower on screen draws in front
 
-    const def = ANIMATIONS[selectAnimation(entry.current.state, entry.current.facing)];
+    // A glance turns the head without moving the feet, using the idle poses
+    // that already exist — the only way to build one without new art.
+    const facing =
+      fidget?.kind === Fidget.LookAround && isGlancing(fidget.progress)
+        ? glanceAway(entry.current.facing, entry.current.id, update.tick)
+        : entry.current.facing;
+
+    const def = ANIMATIONS[selectAnimation(entry.current.state, facing)];
     if (def === undefined) return;
     entry.sprite.texture = textureFor(currentFrame(def, update.tick));
 
     // A breathing worker is animating too — without this the bob would be
     // computed and never drawn, because nothing would ask for the frame.
-    const animating = (def.frameTicks > 0 && def.frames.length > 1) || bob !== 0;
+    const animating =
+      (def.frameTicks > 0 && def.frames.length > 1) ||
+      bob !== 0 ||
+      fidget !== null ||
+      entry.hopStartedAt !== null;
     if (animating && entry.release === null) entry.release = gate.acquireAnimation();
     else if (!animating) releaseHold(entry);
   };
@@ -148,9 +224,15 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
           const sprite = new Sprite();
           sprite.anchor.set(0.5, 1);
           layer.addChild(sprite);
-          entry = { sprite, prev: view, current: view, release: null };
+          entry = { sprite, prev: view, current: view, release: null, hopStartedAt: null };
           tracked.set(view.id, entry);
         } else if (newSnapshot) {
+          // Finished a task: a small hop, once. Event-driven and finite, so
+          // unlike the idle fidgets it costs nothing at rest and is not gated
+          // on the decorative-creatures setting.
+          if (entry.current.state === WorkerState.Working && view.state !== WorkerState.Working) {
+            entry.hopStartedAt = performance.now();
+          }
           entry.prev = entry.current;
           entry.current = view;
         }

@@ -52,7 +52,7 @@ Ordered so each depends only on those above it. **07.7a is first because it gate
 | 07.7c | Floating numbers                 | Pooled `+coins` / `+items` risers — fade, drift up, auto-release. XP hook shape only, no XP system                                         | **Delivered** |
 | 07.7d | Crop feedback                    | Till puff · plant seed-bounce · stage-change pulse · harvest pop, scale-bounce, fade · coins fly to the wallet                             | **Delivered** |
 | 07.7e | Worker animation                 | Idle breathing · arrival easing · walk smoothing · till/plant/harvest/pickup/deposit animations · task-transition blending                 | **Delivered** |
-| 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Pending**   |
+| 07.7f | Worker personality               | Cosmetic idle fidgets — look around, stretch, scratch, sit, celebrate after harvest. Derived variation, never rolled                       | **Delivered** |
 | 07.7g | Camera shake                     | Configurable duration/strength/frequency; large harvest and building placement; **off by default**                                         | **Pending**   |
 | 07.7h | UI feel                          | Hover and press scale, tooltip fade, inventory slot highlight, selection pulse, hotkey hint fade — **zero per-frame React commits**        | **Pending**   |
 | 07.7i | Sound hook extension             | Till, plant, worker step, button hover added to the ADR-016 catalogue and its placeholder generator                                        | **Pending**   |
@@ -250,6 +250,30 @@ Phase is derived from the worker id so a row does not breathe in lockstep, and d
 **One existing test asserted the defect.** `selectAnimation(Working, South)` expected `idle_s` under a case named "idles in the facing direction otherwise" — accurate while nothing selected the swing, and wrong the moment something did. Updated rather than worked around, with a note saying why.
 
 Gates: typecheck · lint clean. Unit **96 files / 1212 tests**.
+
+### 07.7f — Worker personality · Delivered
+
+`worker-personality.ts` (+ tests) and the transforms in `worker-view.ts`.
+
+**Three of the brief's five suggestions were built. Two were refused, and that is the finding.** The worker set is four idle poses, four walk cycles, and one work swing — nothing else.
+
+| Suggested    | Built  | Why                                                      |
+| ------------ | ------ | -------------------------------------------------------- |
+| Look around  | yes    | the four idle facings already exist                      |
+| Stretch      | yes    | reads as a vertical reach on any pose                    |
+| Celebrate    | yes    | a hop reads without a pose                               |
+| Scratch head | **no** | needs a pose; a jitter on the idle frame reads as a bug  |
+| Sit          | **no** | needs a pose; a squashed stand reads as a squashed stand |
+
+The two omissions are not deferred work — they are an **art request**. Neither can be faked with a transform, and faking them would look like a rendering defect rather than a personality. This is the same call as cutting the `×` glyph in 07.7c: a speculative effect is not worth an illegible one.
+
+**Stateless by construction.** A fidget is a pure function of worker id and tick — no timers, no stored schedule, nothing to leak or desynchronise on reload. Time divides into windows; the fidget and its offset within each are derived from the id and window index, so the same farm fidgets identically every launch and no two workers move in lockstep. The tests assert that interleaving five hundred unrelated calls changes nothing.
+
+**Every offset returns to zero.** A fidget that left a sprite one pixel high would accumulate, and after an hour the farm would be staffed by workers hovering above the ground with nothing in the code to point at. Both curves are asserted to start and end on the ground, never go below it, and clamp a late frame to rest.
+
+**The hop is finite, so it is not gated on creatures.** It fires on the Working → not-Working transition — which the view can see because it keeps both snapshots — costs nothing at rest, and is therefore in the finite class alongside the crop curves. The recurring fidgets and the breathing are ambient and stay behind Decorative Creatures.
+
+Gates: typecheck · lint · cycles clean. Unit **97 files / 1229 tests**. E2E **34 passed, 3 skipped**.
 
 ### Remaining
 
