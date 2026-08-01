@@ -29,6 +29,11 @@ import {
   VOLUME_MIN_PERCENT,
   VOLUME_STEP_PERCENT,
 } from '../shared/constants';
+import {
+  DEFAULT_MOTION_SETTINGS,
+  sanitizeMotionIntensity,
+  type MotionSettings,
+} from '../shared/motion';
 
 /** How the overlay window is arranged. */
 export interface OverlaySettings {
@@ -59,12 +64,15 @@ export interface AppSettings {
   readonly overlay: OverlaySettings;
   readonly desktop: DesktopSettings;
   readonly audio: AudioSettings;
+  /** How much the overlay MOVES (phase-07.7a, ADR-017 §7). */
+  readonly motion: MotionSettings;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   overlay: { collapsed: false },
   desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
   audio: { volumePercent: VOLUME_DEFAULT_PERCENT, muted: AUDIO_MUTED_BY_DEFAULT },
+  motion: DEFAULT_MOTION_SETTINGS,
 };
 
 /**
@@ -117,6 +125,8 @@ export function parseSettings(value: unknown): AppSettings {
   // written before 07.5a: it falls back to the defaults, and the next write
   // adds the category in place. That is the whole point of categorising.
   const audio = asRecord(record['audio']) ?? {};
+  // Likewise absent from every file written before 07.7a.
+  const motion = asRecord(record['motion']) ?? {};
 
   return {
     overlay: {
@@ -129,6 +139,17 @@ export function parseSettings(value: unknown): AppSettings {
     audio: {
       volumePercent: sanitizeVolumePercent(audio['volumePercent']),
       muted: readBoolean(audio['muted'], DEFAULT_SETTINGS.audio.muted),
+    },
+    motion: {
+      intensity: sanitizeMotionIntensity(motion['intensity']),
+      particles: readBoolean(motion['particles'], DEFAULT_MOTION_SETTINGS.particles),
+      cameraShake: readBoolean(motion['cameraShake'], DEFAULT_MOTION_SETTINGS.cameraShake),
+      decorativeCreatures: readBoolean(
+        motion['decorativeCreatures'],
+        DEFAULT_MOTION_SETTINGS.decorativeCreatures,
+      ),
+      environmental: readBoolean(motion['environmental'], DEFAULT_MOTION_SETTINGS.environmental),
+      reducedMotion: readBoolean(motion['reducedMotion'], DEFAULT_MOTION_SETTINGS.reducedMotion),
     },
   };
 }

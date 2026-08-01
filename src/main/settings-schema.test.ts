@@ -12,6 +12,7 @@ import {
   OPACITY_MAX_PERCENT,
   OPACITY_MIN_PERCENT,
 } from '../shared/constants';
+import { DEFAULT_MOTION_SETTINGS, MotionIntensity } from '../shared/motion';
 
 import {
   DEFAULT_SETTINGS,
@@ -55,6 +56,7 @@ describe('parseSettings — the categorized application settings model', () => {
       overlay: { collapsed: true },
       desktop: { opacityPercent: 60, workMode: true },
       audio: { volumePercent: 40, muted: false },
+      motion: DEFAULT_MOTION_SETTINGS,
     };
     expect(parseSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
   });
@@ -71,6 +73,7 @@ describe('parseSettings — the categorized application settings model', () => {
       overlay: { collapsed: true },
       desktop: { opacityPercent: 60, workMode: true },
       audio: DEFAULT_SETTINGS.audio,
+      motion: DEFAULT_SETTINGS.motion,
     });
   });
 
@@ -79,6 +82,7 @@ describe('parseSettings — the categorized application settings model', () => {
       overlay: { collapsed: true },
       desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
       audio: DEFAULT_SETTINGS.audio,
+      motion: DEFAULT_SETTINGS.motion,
     });
   });
 
@@ -93,6 +97,7 @@ describe('parseSettings — the categorized application settings model', () => {
       overlay: { collapsed: true }, // no overlay category — flat fallback applies
       desktop: { opacityPercent: 40, workMode: false },
       audio: DEFAULT_SETTINGS.audio,
+      motion: DEFAULT_SETTINGS.motion,
     });
   });
 
@@ -106,6 +111,7 @@ describe('parseSettings — the categorized application settings model', () => {
       overlay: { collapsed: false },
       desktop: { opacityPercent: 60, workMode: false },
       audio: DEFAULT_SETTINGS.audio,
+      motion: DEFAULT_SETTINGS.motion,
     });
   });
 
@@ -163,6 +169,60 @@ describe('the audio category', () => {
 
     expect(parsed.audio.volumePercent).toBe(DEFAULT_SETTINGS.audio.volumePercent);
     expect(parsed.audio.muted).toBe(false);
+  });
+});
+
+/**
+ * The motion category (phase-07.7a, ADR-017 §7) — the accessibility family,
+ * and the second proof that adding a category is compatible.
+ */
+describe('the motion category', () => {
+  it('defaults every field when the category is absent', () => {
+    // The ordinary case for every settings file written before 07.7a. The
+    // next write adds the category in place.
+    expect(parseSettings({ overlay: { collapsed: false } }).motion).toEqual(
+      DEFAULT_MOTION_SETTINGS,
+    );
+  });
+
+  it('leaves the rest of the file alone when the category is absent', () => {
+    const parsed = parseSettings({ desktop: { opacityPercent: 70, workMode: true } });
+
+    expect(parsed.desktop.opacityPercent).toBe(70);
+    expect(parsed.desktop.workMode).toBe(true);
+    expect(parsed.motion).toEqual(DEFAULT_MOTION_SETTINGS);
+  });
+
+  it('reads a stored category back', () => {
+    const stored = {
+      intensity: MotionIntensity.Subtle,
+      particles: false,
+      cameraShake: true,
+      decorativeCreatures: true,
+      environmental: true,
+      reducedMotion: true,
+    };
+
+    expect(parseSettings({ motion: stored }).motion).toEqual(stored);
+  });
+
+  it('falls back per field — one bad value never discards its neighbour', () => {
+    const parsed = parseSettings({
+      motion: { intensity: 'cinematic', particles: false, environmental: 'yes' },
+    });
+
+    expect(parsed.motion.intensity).toBe(DEFAULT_MOTION_SETTINGS.intensity);
+    expect(parsed.motion.particles).toBe(false); // the good neighbour survives
+    expect(parsed.motion.environmental).toBe(DEFAULT_MOTION_SETTINGS.environmental);
+  });
+
+  it('never enables unbounded motion from a malformed file', () => {
+    // A corrupt settings file must not be able to switch on the one class of
+    // motion that holds the frame loop open (ADR-017 §2).
+    const parsed = parseSettings({ motion: { environmental: 1, decorativeCreatures: 'true' } });
+
+    expect(parsed.motion.environmental).toBe(false);
+    expect(parsed.motion.decorativeCreatures).toBe(false);
   });
 });
 
