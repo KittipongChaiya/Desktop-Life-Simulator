@@ -80,7 +80,7 @@ export function DebugOverlay({ visible, metrics, profiler }: DebugOverlayProps):
       )}
 
       <p className={styles['hint']}>
-        F3 overlay · F1 console · F4 inspector · F2 events · F5 commands · F6 time
+        F3 overlay · F1 console · F4 inspector · F2 events · F5 commands · F6 time · F7 perf
       </p>
     </div>
   );

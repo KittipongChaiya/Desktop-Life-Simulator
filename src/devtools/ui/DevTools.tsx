@@ -1,5 +1,5 @@
 /**
- * Devtools root. Owns the F1–F6 keybinds and mounts each tool.
+ * Devtools root. Owns the F1–F7 keybinds and mounts each tool.
  *
  * Mounted by the renderer bootstrap only when FEATURE_DEBUG is on. Everything
  * below renders null when hidden, so an unopened tool costs one boolean check.
@@ -15,6 +15,7 @@ import { DebugOverlay } from './DebugOverlay';
 import { DevConsole } from './DevConsole';
 import { EventMonitor } from './EventMonitor';
 import { Inspector } from './Inspector';
+import { PerformancePanel } from './PerformancePanel';
 import { TimeControls } from './TimeControls';
 
 export interface DevToolsProps {
@@ -28,6 +29,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
   const [eventsVisible, setEventsVisible] = useState(false);
   const [commandsVisible, setCommandsVisible] = useState(false);
   const [timeVisible, setTimeVisible] = useState(false);
+  const [perfVisible, setPerfVisible] = useState(false);
 
   const closeConsole = useCallback(() => {
     setConsoleVisible(false);
@@ -39,6 +41,10 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
         case 'F3':
           event.preventDefault();
           setOverlayVisible((v) => !v);
+          break;
+        case 'F7':
+          event.preventDefault();
+          setPerfVisible((v) => !v);
           break;
         case 'F6':
           event.preventDefault();
@@ -80,6 +86,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
       <EventMonitor visible={eventsVisible} ring={host.events} />
       <CommandMonitor visible={commandsVisible} ring={host.commandLog} />
       <TimeControls visible={timeVisible} simulation={host.simulation} />
+      <PerformancePanel visible={perfVisible} simulation={host.simulation} />
       <DevConsole visible={consoleVisible} engine={host.console} onClose={closeConsole} />
     </>
   );

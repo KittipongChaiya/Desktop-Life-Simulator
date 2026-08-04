@@ -17,6 +17,7 @@ import type { CommandRing } from '@devtools/commands/ring';
 import { FEATURE_DEBUG, FEATURE_INSPECTOR } from '@devtools/flags';
 import type { DurationHistogram } from '@devtools/metrics/histogram';
 import { MetricGroup } from '@devtools/metrics/registry';
+import { heapLabel } from '@devtools/perf/heap';
 import type { WorldView } from '@render/world-view';
 
 import type { SimulationControl } from '../../shared/simulation-control';
@@ -237,11 +238,7 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
     label: 'Heap',
     group: MetricGroup.Render,
     order: 30,
-    read: () => {
-      const memory = (performance as { memory?: { usedJSHeapSize: number } }).memory;
-      if (memory === undefined) return 'unavailable';
-      return `${(memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`;
-    },
+    read: () => heapLabel(),
   });
 
   const commandRejection = options.commandRejection;

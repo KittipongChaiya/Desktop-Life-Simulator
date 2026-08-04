@@ -26,6 +26,7 @@ import { createInspectorRegistry, type InspectorRegistry } from './inspector/reg
 import { createConsoleSink } from './logger/console-sink';
 import { createLogManager, LogLevel, type LogManager } from './logger/logger';
 import { createMetricRegistry, MetricGroup, type MetricRegistry } from './metrics/registry';
+import { heapLabel } from './perf/heap';
 import { createNullProfiler, createProfiler, type Profiler } from './profiler/profiler';
 
 export interface DevToolsHost {
@@ -121,7 +122,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
       label: 'Memory',
       group: MetricGroup.Performance,
       order: 2,
-      read: readMemory,
+      read: () => heapLabel(),
     },
     {
       id: 'sim.tick',
@@ -172,19 +173,4 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
     commandLog,
     simulation: options.simulation,
   };
-}
-
-/**
- * Reads JS heap usage where the runtime exposes it.
- *
- * `performance.memory` is a non-standard Chromium extension. It is absent in
- * other runtimes and under some flags, so this reports "Unavailable" rather
- * than pretending to know.
- */
-function readMemory(): string {
-  const memory = (performance as { memory?: { usedJSHeapSize?: number } }).memory;
-  const used = memory?.usedJSHeapSize;
-  if (typeof used !== 'number') return 'Unavailable';
-
-  return `${(used / 1024 / 1024).toFixed(1)} MB`;
 }

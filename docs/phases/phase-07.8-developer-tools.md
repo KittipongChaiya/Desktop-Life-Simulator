@@ -38,7 +38,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | **Delivered** |
 | 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | **Delivered** |
 | 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | **Delivered** |
-| 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | Pending       |
+| 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | **Delivered** |
 | 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | Pending       |
 | 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | Pending       |
 | 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | Pending       |
@@ -230,6 +230,26 @@ Gates: typecheck · lint · boundaries · cycles clean. Unit **111 files / 1,439
 
 **Criterion 4: zero**, sixth milestone running — notable here because the scale is now declared on an interface production _does_ ship. Declaring a method costs nothing; only the controls that call it are debug code, and the marker list gains `time-controls` to assert exactly that.
 
+### 07.8h — Performance panel · Delivered
+
+**F7.** Sixty seconds of FPS, frame time and heap, plotted as SVG polylines with the current value beside each — a trend with no scale beside it says something changed and not what it changed to.
+
+**This is the panel ADR-018 §8 names as the trap**, in those words: _"a 60-second history that repaints at 60 Hz while nothing changes is a debug tool that makes the thing it measures worse, and its own readings untrustworthy."_ Three properties answer it, and all three are asserted:
+
+1. **Closed costs nothing.** No interval is scheduled while hidden, so not one accessor is read — asserted with a spy, and again on close.
+2. **It samples at 2 Hz, never per frame.** Sixty seconds of history is 120 points, and a point every 500 ms is what that means. The panel takes **no animation lease** and never requests a frame.
+3. **A uniform window stops repainting entirely.** The committed series is compared element-wise, so once the whole window holds one value, every further sample rebuilds the series already on screen and nothing commits. An idle farm settles into complete stillness rather than redrawing a flat line forever — and that falls out of the comparison rather than an `isIdle` special case.
+
+The E2E asserts the property the unit tests structurally cannot: with the panel **open**, a static world still reports ~0 FPS on the overlay. If the panel were animating its own graphs it would be measuring itself, and the number it plots would be its own artefact.
+
+**07.8b's deferred numeric channel was never needed.** That milestone declined to add one to the metric registry with no consumer, noting "07.8h adds what 07.8h needs". What 07.8h needed was the accessors the metrics already read — `fps()`, `frameTimeMs()`, and the heap — so the panel reads those directly and the registry stays as it was. The deferral was right, and the abstraction it would have bought would have had exactly one user.
+
+**The heap read was extracted, on its third occurrence.** `host.ts` and `devtools-mount.ts` each carried their own copy and **had already drifted** — one reporting `Unavailable`, the other `unavailable`, for the same condition. The panel would have been the third, which is precisely the threshold Rule 5 names, so `perf/heap.ts` now owns it and both call sites use it. Absent reports as **null**, not zero: a graph plotting 0 MB reads as a heap that was just freed.
+
+One bug the tests caught before it could mislead anyone: a flat series was drawn along the **bottom** of its box, because widening a zero span upwards puts every point at the floor. A steady 60 fps rendered as a line on the floor reads as a stall. The span is widened symmetrically now, so a flat series draws through the middle.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **113 files / 1,464 tests** (+25). E2E **50 passed, 4 skipped**. **Criterion 4: zero**, seventh milestone running — notable because this one edited two modules production ships, replacing their inline heap reads with a shared helper; the hash is unchanged.
+
 ### Remaining
 
-07.8h–07.8o, in the order above.
+07.8i–07.8o, in the order above.

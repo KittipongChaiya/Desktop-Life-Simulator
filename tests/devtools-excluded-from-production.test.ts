@@ -55,6 +55,8 @@ const DEVTOOLS_MARKERS = [
   // production DOES ship — so this marker checks that the CONTROLS are gone
   // even though the capability they drive is not debug-only code.
   'time-controls',
+  // The performance panel (07.8h).
+  'performance-panel',
 ];
 
 function rendererBundleText(): string {
