@@ -15,6 +15,7 @@ import type { SimulationControl } from '../shared/simulation-control';
 import { createBuiltinCommands } from './console/builtins';
 import { createConsoleEngine, type ConsoleEngine } from './console/engine';
 import { createCommandRegistry, type CommandRegistry } from './console/registry';
+import { createEventRing, type EventRing } from './events/ring';
 import { FEATURE_CONSOLE, FEATURE_INSPECTOR, FEATURE_PROFILER } from './flags';
 import { createInspectorRegistry, type InspectorRegistry } from './inspector/registry';
 import { createConsoleSink } from './logger/console-sink';
@@ -29,8 +30,19 @@ export interface DevToolsHost {
   readonly commands: CommandRegistry;
   readonly console: ConsoleEngine;
   readonly inspector: InspectorRegistry;
+  /** What the event monitor has observed (07.8e). Written by a subscriber only. */
+  readonly events: EventRing;
   readonly simulation: SimulationControl;
 }
+
+/**
+ * How many observations the event monitor keeps.
+ *
+ * Enough to hold the run-up to whatever you noticed — a harvest cycle is a
+ * handful of events — and small enough that the ring's ceiling is measured in
+ * kilobytes, given each summary is itself capped.
+ */
+const EVENT_RING_CAPACITY = 200;
 
 export interface DevToolsOptions {
   readonly simulation: SimulationControl;
@@ -48,6 +60,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
   const commands = createCommandRegistry();
   const consoleEngine = createConsoleEngine(commands);
   const inspector = createInspectorRegistry();
+  const events = createEventRing(EVENT_RING_CAPACITY);
 
   if (FEATURE_CONSOLE) {
     commands.registerAll(
@@ -133,6 +146,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
     commands,
     console: consoleEngine,
     inspector,
+    events,
     simulation: options.simulation,
   };
 }

@@ -699,6 +699,9 @@ function composeApplication(world: World, session: SaveSession): void {
           // hand back strings, never a store a panel could write through
           // (ADR-018 §2). `views` is the published slice, so picking a worker
           // agrees with the one drawn on screen.
+          // The event monitor's subscription (07.8e, ADR-018 §10). A bus and a
+          // clock: the monitor consumes and cannot produce.
+          eventSource: { bus: world.events, tick: () => world.tick },
           inspectors: {
             source: () => world,
             views: () => store.get('workers'),

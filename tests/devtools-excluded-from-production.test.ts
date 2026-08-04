@@ -41,6 +41,11 @@ const DEVTOOLS_MARKERS = [
   // reads straight off the worker record.
   'Carrying',
   ' tiles · ',
+  // The event monitor (07.8e). Its observer subscribes to the world's real
+  // bus, so this marker is also the check that no debug SUBSCRIBER ships —
+  // which would make the event graph differ between builds (ADR-018 §10).
+  'No events observed',
+  'event-monitor',
 ];
 
 function rendererBundleText(): string {

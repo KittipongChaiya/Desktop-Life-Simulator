@@ -20,6 +20,7 @@ import type { WorldView } from '@render/world-view';
 
 import type { SimulationControl } from '../../shared/simulation-control';
 import type { Command, CommandResult } from '../../sim/commands/types';
+import type { EventBus } from '../../sim/events/bus';
 import type { WorkerView } from '../../sim/snapshot/workers-slice';
 
 import { createTileInspectProvider, type TileInspectSource } from './tile-inspector';
@@ -83,6 +84,20 @@ export interface DevToolsMountOptions {
    * the pointer — from the same two readers.
    */
   readonly inspectors?: InspectorSources;
+  /**
+   * The event monitor's subscription (07.8e).
+   *
+   * The bus and the tick reader, nothing else. `observeEvents` subscribes and
+   * returns a disposer; it never publishes, and ADR-018 §10 is the reason the
+   * option is a bus rather than anything that could look like a producer.
+   */
+  readonly eventSource?: EventSource;
+}
+
+/** What the event monitor observes. */
+export interface EventSource {
+  readonly bus: EventBus;
+  readonly tick: () => number;
 }
 
 /** The readers every pointer-driven inspector needs. */
@@ -196,6 +211,15 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
     host.inspector.register(createWorkerInspectProvider(inspectors));
   }
 
+  // EVENT MONITOR (07.8e). Subscribe only — see `devtools/events/observer.ts`.
+  // The disposer is deliberately dropped: devtools live for the lifetime of the
+  // window, and there is no unmount path that would leave a subscriber behind.
+  const eventSource = options.eventSource;
+  if (eventSource !== undefined) {
+    const { observeEvents } = await import('@devtools/events/observer');
+    observeEvents(eventSource.bus, host.events, eventSource.tick);
+  }
+
   // HEAP (07.7M1). Chromium-only and deliberately unguarded elsewhere: this is
   // devtools, and a missing `memory` field reports as unavailable rather than
   // pretending to a number.
@@ -291,9 +315,9 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
     ]);
   }
 
-  host.logs
-    .get('renderer')
-    .info('developer tools ready', { keys: 'F1 console · F3 overlay · F4 inspector' });
+  host.logs.get('renderer').info('developer tools ready', {
+    keys: 'F1 console · F2 events · F3 overlay · F4 inspector',
+  });
 
   // A separate React root: devtools must never re-render the game UI, and the
   // game UI must never be able to unmount devtools.

@@ -95,7 +95,7 @@ export function DevConsole({ visible, engine, onClose }: DevConsoleProps): React
   if (!visible) return null;
 
   return (
-    <div className={styles['console']} data-testid="dev-console">
+    <div className={styles['console']} data-interactive data-testid="dev-console">
       <div className={styles['output']} ref={outputRef}>
         {engine.output().map((line, index) => (
           <div

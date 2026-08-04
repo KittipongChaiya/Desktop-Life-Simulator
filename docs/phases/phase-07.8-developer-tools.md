@@ -35,7 +35,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8b | Metrics API hardening (§13) | Typed groups, ordering, and the read-only contract asserted                                 | **Delivered** |
 | 07.8c | World inspector (§2)        | Tile provider — coords, state, owner, crop, stage, occupant, path cost — plus pinning       | **Delivered** |
 | 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | **Delivered** |
-| 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | Pending       |
+| 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | **Delivered** |
 | 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | Pending       |
 | 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | Pending       |
 | 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | Pending       |
@@ -154,6 +154,28 @@ Gates: typecheck · lint · boundaries · cycles clean. Unit **105 files / 1,377
 
 **Criterion 3:** the marker list gains `Carrying` and `tiles · `. **Criterion 4: zero** — 1,624,473 bytes, unchanged content hash, for the third milestone running.
 
+### 07.8e — Event monitor · Delivered
+
+**F2.** A bounded ring of what the bus dispatched, with per-type filters, and — the part that matters — **no path by which it could publish**. `observer.ts` is the whole of the subscription: it calls `subscribe`, returns a disposer, and `publish` appears nowhere in the directory. That is asserted rather than promised: a test spies on the bus and proves the observer never calls it.
+
+**Bounded in both directions.** The entry count is capped at 200, and so is each entry: a bounded count of unbounded records is unbounded, so a payload is summarised and truncated at record time. The panel reports **observed / kept / shown** separately, because a monitor that saw four thousand events, kept two hundred, and says "200" is lying about what it saw.
+
+**`simulationTick` is deliberately not observed.** It fires 20 times a second; a ring recording it would hold ten seconds of heartbeat and nothing else — a monitor whose default configuration destroys what it monitors. Nothing is lost: every entry carries the tick it was observed on, so recording the tick _event_ would add nothing the records already say. The observed set is declared explicitly rather than derived from `SimEventMap`, so the next per-frame event added is a decision rather than an accident.
+
+**It subscribes rather than polls.** `useSyncExternalStore` over the ring's own listener, so the panel re-renders exactly when an event is observed and never otherwise — criterion 9 satisfied by construction rather than by a change test. The ring rebuilds its entries immutably, which is what makes the identity comparison correct.
+
+**It records while closed**, which is the point: opening F2 after something goes wrong shows the run-up to it. The E2E asserts exactly that, tilling a tile before ever opening the panel.
+
+#### The defect the E2E found — and a second one behind it
+
+The filter test failed, and not for the reason the assertion suggested. Clicking a filter chip **tilled the tile behind the panel**.
+
+`pointer-actions` is attached to `document.body` and treats any press that did not start over a `[data-interactive]` element as a tile action. The monitor is the first devtools panel that is _interactive_ — the overlay and inspector are `pointer-events: none` — and it did not carry the attribute. A debug tool was changing the world by accident, which is precisely what ADR-018 §2 exists to forbid, arrived at by omission rather than by a shortcut.
+
+Fixing it exposed the same omission in the **developer console**, where it is worse. `app/hit-test.ts` keeps the mouse only while it is over a `[data-interactive]` element; the console carried none, so with a real mouse the window went click-through over it and **the console input could not be clicked into at all**. Neither test layer could see it, and `hit-test.ts` already says why: Playwright synthesises events inside the renderer, where OS-level mouse ignoring does not exist. The console's own specs reach it by keyboard, because F1 autofocuses the input. Both panels now carry the attribute, and both have a test asserting it — the attribute is the entire contract, so the attribute is what is asserted.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **108 files / 1,405 tests** (+28). E2E **43 passed, 4 skipped**. **Criterion 3:** markers `No events observed` and `event-monitor` — which double as the check that no debug _subscriber_ ships, since one would make the event graph differ between builds. **Criterion 4: zero**, fourth milestone running.
+
 ### Remaining
 
-07.8e–07.8o, in the order above.
+07.8f–07.8o, in the order above.
