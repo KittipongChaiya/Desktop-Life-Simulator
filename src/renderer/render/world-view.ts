@@ -151,6 +151,13 @@ export interface WorldView {
   /** Chunks redrawn on the most recent frame. Zero on a cached frame. */
   lastChunkRedraws(): number;
   visibleTileCount(): number;
+  /**
+   * Sprites currently parented across the world layers (07.8a).
+   *
+   * Diagnostics only, and read-only: it counts children, it does not expose
+   * them, so a debug panel cannot reach a sprite through this.
+   */
+  visibleSpriteCount(): number;
   destroy(): void;
 }
 
@@ -676,6 +683,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     },
 
     lastChunkRedraws: () => chunkRedraws,
+
+    visibleSpriteCount: () =>
+      app.layers.terrain.children.length +
+      app.layers.objects.children.length +
+      app.layers.entities.children.length +
+      app.layers.effects.children.length,
 
     visibleTileCount() {
       // The shake, before anything reads the stage this frame. It ends by

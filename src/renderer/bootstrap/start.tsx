@@ -10,7 +10,7 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
-import { FEATURE_PROFILER } from '@devtools/flags';
+import { FEATURE_DEBUG, FEATURE_PROFILER } from '@devtools/flags';
 import { createDurationHistogram } from '@devtools/metrics/histogram';
 import { catchUpWorld, computeElapsedTicks, type CatchUpReport } from '@persistence/catch-up';
 import { loadWorld } from '@persistence/load';
@@ -56,6 +56,7 @@ import { createPlayerInput } from './player-input';
 import { attachPointerActions, toHighlight } from './pointer-actions';
 import { createSnapshotStore } from './snapshot-store';
 import { createWebAudioPorts } from './web-audio';
+import { countContainers } from './world-counts';
 import { createWorldMount } from './world-mount';
 
 import '../app/global.css';
@@ -673,6 +674,27 @@ function composeApplication(world: World, session: SaveSession): void {
     // source — no privileged write path (ADR-010 §6).
     submitCommand: (command) => playerSource.submit(command),
     ...(tickHistogram === null ? {} : { tickHistogram }),
+    // Read-only counts for the overlay (07.8a), built ONLY in a debug build.
+    //
+    // Spread behind the flag rather than passed unconditionally: an object
+    // literal at this call site is constructed whatever `mountDevTools` does
+    // with it, so the closures — and `world-counts.ts` with them — would
+    // survive into production. ADR-018 §6 says removed, not disabled, and
+    // the acceptance check measured 178 bytes of exactly that before this.
+    ...(FEATURE_DEBUG
+      ? {
+          worldCounts: {
+            visibleSprites: () => worldMount.current()?.visibleSpriteCount() ?? 0,
+            workers: () => store.get('workers').length,
+            crops: () => store.get('crops').length,
+            buildings: () => store.get('buildings').length,
+            // Derived rather than projected, so it lives in a tested module.
+            containers: () => countContainers(store.get('workers').length, store.get('buildings')),
+            eventQueue: () => world.events.pending(),
+            commandQueue: () => world.commands.pending(),
+          },
+        }
+      : {}),
     appVersion: __APP_VERSION__,
     reload: () => {
       window.location.reload();

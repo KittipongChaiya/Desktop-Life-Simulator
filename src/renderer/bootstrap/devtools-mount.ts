@@ -58,6 +58,30 @@ export interface DevToolsMountOptions {
    * the histogram nor the clock reads that feed it.
    */
   readonly tickHistogram?: DurationHistogram;
+  /**
+   * Read-only world counts for the overlay (07.8a, ADR-018 §9).
+   *
+   * A bag of PULL accessors, not a reference to anything: the registry calls
+   * each when a panel asks, and none of them caches, mutates, or hands back
+   * something a panel could write through. Passed explicitly rather than read
+   * from a global, which is ADR-018 §5.
+   */
+  readonly worldCounts?: WorldCounts;
+}
+
+/** The read-only counts the debug overlay displays (07.8a). */
+export interface WorldCounts {
+  /** Sprites the world view currently has parented. */
+  readonly visibleSprites: () => number;
+  readonly workers: () => number;
+  readonly crops: () => number;
+  readonly buildings: () => number;
+  /** Addressable item containers — player, worker holds, storage buildings. */
+  readonly containers: () => number;
+  /** Events published this tick and not yet flushed. */
+  readonly eventQueue: () => number;
+  /** Commands queued for the next tick's drain. */
+  readonly commandQueue: () => number;
 }
 
 /** Resolves once tooling is mounted, or immediately when the build has none. */
@@ -118,6 +142,24 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
       ['sim.tickSamples', 'Tick samples', 25, () => String(histogram.total())],
     ] as const) {
       host.metrics.register({ id, label, group: MetricGroup.Simulation, order, read });
+    }
+  }
+
+  // WORLD COUNTS (07.8a). Every one is a pull, and every one that can be read
+  // from a SNAPSHOT is — so the overlay sees exactly what the renderer sees and
+  // cannot observe a half-stepped world mid-tick (ADR-005 §2).
+  const counts = options.worldCounts;
+  if (counts !== undefined) {
+    for (const [id, label, group, order, read] of [
+      ['world.workers', 'Workers', MetricGroup.World, 1, counts.workers],
+      ['world.crops', 'Crops', MetricGroup.World, 2, counts.crops],
+      ['world.buildings', 'Buildings', MetricGroup.World, 3, counts.buildings],
+      ['world.containers', 'Containers', MetricGroup.World, 4, counts.containers],
+      ['sim.eventQueue', 'Event queue', MetricGroup.Simulation, 30, counts.eventQueue],
+      ['sim.commandQueue', 'Command queue', MetricGroup.Simulation, 31, counts.commandQueue],
+      ['render.sprites', 'Visible sprites', MetricGroup.Render, 12, counts.visibleSprites],
+    ] as const) {
+      host.metrics.register({ id, label, group, order, read: () => String(read()) });
     }
   }
 
