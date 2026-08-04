@@ -37,7 +37,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | **Delivered** |
 | 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | **Delivered** |
 | 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | **Delivered** |
-| 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | Pending       |
+| 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | **Delivered** |
 | 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | Pending       |
 | 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | Pending       |
 | 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | Pending       |
@@ -214,6 +214,22 @@ Final: **1,624,473 bytes with the original content hash restored** — byte-iden
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **110 files / 1,429 tests** (+24). E2E **45 passed, 4 skipped** — the two new specs drive the HUD rather than the console, because the wrapper's whole point is that it sits on the path a _player_ uses. **Criterion 3:** markers `No commands observed` and `command-monitor`; the wrapper sits on the dispatch path, so they double as the check that a release build dispatches through no debug indirection.
 
+### 07.8g — Time controls · Delivered
+
+**F6.** Pause, resume, step by 1 or 10, and 1×/2×/4×/8×/16× — every one of them calling a control the loop has had since phase-01.
+
+**The milestone was a declaration, not a feature.** `GameLoop` already implemented `setTimeScale` with validation, and `game-loop.test.ts` already covered it. What was missing is that `SimulationControl` — the interface devtools actually receives — declared `pause`, `resume`, `step`, `tick`, `ups`, `fps` and `frameTimeMs`, and not the scale. The loop had the capability; the tooling could not name it. Moving those two members onto the shared interface is the whole of the plumbing, and it is where they belonged: that file's own header calls itself the development control surface and says pausing is a development capability, not a game feature. Pause and step were always there. The scale was the odd one out.
+
+**The panel is thin on purpose.** It schedules nothing, wraps nothing, and adds no time model of its own. Scaling multiplies the number of ticks per frame and never the tick duration — `TICK_MS` is frozen (ADR-007 §7) — so a scaled run visits exactly the same tick states as an unscaled one, just sooner. That is what keeps determinism, save `lastTick` semantics, and tick-authored content intact at 16×, and the reason no control here needed inventing.
+
+**It samples, because something else can change what it shows.** The console has had `pause` and `resume` since phase-01.5, so a panel that reported "running" merely because it was not the one that pressed the button would be worse than no panel. 4 Hz while open, the overlay's rate, and a reading is committed only when it differs — so a **paused world leaves the panel completely still**, which is asserted.
+
+**Not built: a `speed` console command.** The console owns `pause`, `resume` and `tick`, so a scale command belongs there too — but `builtins.ts` has no test harness at all today, and adding an untested command would breach `AI_RULES.md` §3.3 to save a developer one keystroke. It needs the harness first, and that is not this milestone. Stated here rather than left as a silent gap.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **111 files / 1,439 tests** (+10). E2E **48 passed, 4 skipped** — three new specs, because the unit tests drive a fake and only the real app proves the panel is wired to the loop: pausing stops the tick advancing, `+10` advances a paused world by exactly ten, and the scale set is the scale reported back.
+
+**Criterion 4: zero**, sixth milestone running — notable here because the scale is now declared on an interface production _does_ ship. Declaring a method costs nothing; only the controls that call it are debug code, and the marker list gains `time-controls` to assert exactly that.
+
 ### Remaining
 
-07.8g–07.8o, in the order above.
+07.8h–07.8o, in the order above.

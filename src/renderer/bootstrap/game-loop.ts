@@ -22,22 +22,6 @@ const RATE_WINDOW_MS = 500;
 export interface GameLoop extends SimulationControl {
   start(): void;
   stop(): void;
-  /**
-   * Multiplies how much simulated time each real second produces.
-   *
-   * Scaling changes the NUMBER OF TICKS per frame, never the tick duration.
-   * That distinction is the whole design: `TICK_MS` is frozen (ADR-007 §7), so
-   * a scaled run visits exactly the same tick states as an unscaled one, just
-   * sooner. Determinism, save `lastTick` semantics, and content authored in
-   * ticks all survive.
-   *
-   * A scale that stretched TICK_MS would make tick counts stop mapping to game
-   * time and silently corrupt every duration in the game.
-   *
-   * Development and testing only; there is no time control in the product.
-   */
-  setTimeScale(scale: number): void;
-  timeScale(): number;
 }
 
 export interface GameLoopOptions {

@@ -51,6 +51,10 @@ const DEVTOOLS_MARKERS = [
   // no debug indirection at all.
   'No commands observed',
   'command-monitor',
+  // Time controls (07.8g). The scale now sits on `SimulationControl`, which
+  // production DOES ship — so this marker checks that the CONTROLS are gone
+  // even though the capability they drive is not debug-only code.
+  'time-controls',
 ];
 
 function rendererBundleText(): string {

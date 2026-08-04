@@ -29,4 +29,23 @@ export interface SimulationControl {
   fps(): number;
   /** Most recent frame duration, in milliseconds. */
   frameTimeMs(): number;
+  /**
+   * Multiplies how much simulated time each real second produces.
+   *
+   * Scaling changes the NUMBER OF TICKS per frame, never the tick duration.
+   * That distinction is the whole design: `TICK_MS` is frozen (ADR-007 §7), so
+   * a scaled run visits exactly the same tick states as an unscaled one, just
+   * sooner. Determinism, save `lastTick` semantics, and content authored in
+   * ticks all survive. A scale that stretched `TICK_MS` would make tick counts
+   * stop mapping to game time and silently corrupt every duration in the game.
+   *
+   * Declared HERE from 07.8g rather than on `GameLoop` alone. The loop has had
+   * it since phase-01; devtools could not reach it, because this interface —
+   * the development control surface — declared everything but. Pause and step
+   * are equally dev-only and were always here; the scale was the odd one out.
+   *
+   * Throws on a non-positive or non-finite scale.
+   */
+  setTimeScale(scale: number): void;
+  timeScale(): number;
 }
