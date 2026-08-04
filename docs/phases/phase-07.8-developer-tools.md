@@ -36,7 +36,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8c | World inspector (§2)        | Tile provider — coords, state, owner, crop, stage, occupant, path cost — plus pinning       | **Delivered** |
 | 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | **Delivered** |
 | 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | **Delivered** |
-| 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | Pending       |
+| 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | **Delivered** |
 | 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | Pending       |
 | 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | Pending       |
 | 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | Pending       |
@@ -176,6 +176,44 @@ Fixing it exposed the same omission in the **developer console**, where it is wo
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **108 files / 1,405 tests** (+28). E2E **43 passed, 4 skipped**. **Criterion 3:** markers `No events observed` and `event-monitor` — which double as the check that no debug _subscriber_ ships, since one would make the event graph differ between builds. **Criterion 4: zero**, fourth milestone running.
 
+### 07.8f — Command monitor · Delivered
+
+**F5.** Every command the player submits, with its outcome, the validation error that refused it, what the dispatch cost, and the queue depth at the moment it was submitted. Plus execution-time failures from **any** source, through the hook the dispatcher already had.
+
+**Observing a command must not change it.** The wrapper returns the producer's result — the same object, not a copy — rethrows exactly what it threw, and adds no validation, no retry, no second path into the dispatcher. A debug build dispatches identically to a release one, or a bug reproduced with the tools open is not a reproduction. The identity of the returned result is asserted, not the equality.
+
+**What it cannot see, stated rather than implied.** This is the milestone where the brief asks for something the phase's own constraint forbids, so the boundary is worth naming precisely:
+
+| §5 asks for        | Delivered                                                                | Why not more                                                                     |
+| ------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Outcomes           | Accepted, rejected, failed — every player command, any source's failures | —                                                                                |
+| Validation results | The error code that refused it, per row                                  | —                                                                                |
+| Queue depth        | Recorded per row, at that command's dispatch                             | A live depth needs a timer; it is already on the F3 overlay (`sim.commandQueue`) |
+| Durations          | **Dispatch only** — validation and queueing                              | Execution happens inside `drain`, and instrumenting it is a simulation change    |
+
+Worker commands are dispatched inside the simulation and pass no boundary the renderer can wrap, so the monitor sees them only when they _fail_. Adding an `onExecuted` seam would be simulation surface built for a debug tool — ADR-018 §1 refuses it and this phase's hard constraint forbids it outright. ADR-018's own consequences say the quiet part: _some tools will be impossible to build honestly, and must then not be built._ The honest subset is built, and the table says which part is missing and why.
+
+**A second ring, not a generalisation of the first.** The buffer mechanics match `events/ring.ts`; the records do not — a command has an outcome, an error code, a cost, and a depth, none of which an event has. Rule 5 says abstract on the **third** occurrence, so the duplication is deliberate and the module says so: if 07.8m's recorder wants a third bounded buffer, that is when the buffer gets extracted.
+
+**Named `commandLog`, not `commands`,** because `host.commands` is already the console's command registry — two unrelated meanings of one word, and this is the one that would have been silently wrong.
+
+The panel carries `data-interactive` from the start, with a test, because 07.8e found what its absence costs.
+
+#### Criterion 4 did its job again, and taught something specific
+
+The first build after wiring came back **+53 bytes**, then **+10**, before reaching zero. Neither figure was debug _code_ — `queueDepth`, `dispatchMs`, `observeCommands` and every other tooling symbol were absent from the bundle throughout. The bytes were **names**.
+
+**This production bundle is not minified.** It ships formatted, readable JavaScript with original identifiers; only comments are stripped. So a variable name is bytes, and an unused parameter name is bytes:
+
+- **53** — a `rawPlayerSource` binding introduced to share the unwrapped source between two arms of a conditional. The fold was working perfectly; the _variable_ was the entire cost. Repeating `createPlayerInputSource(world.commands)` in both arms removed it.
+- **10** — exactly `, metadata`, the third parameter the debug arm of `onExecutionRejected` needs and the release arm does not. Splitting the handler into two flag-selected arms removed it.
+
+A related lesson worth stating plainly: **`FEATURE_DEBUG` folds, a variable derived from it does not.** Branching on `commandLog !== null` alone does not fold, because Rollup will not propagate a module-level `const` into a function body; branching on `FEATURE_DEBUG && …` does. This is 07.8a's accessor-bag lesson in a second form, and the code now carries it in a comment where the next author will meet it.
+
+Final: **1,624,473 bytes with the original content hash restored** — byte-identical to every milestone since 07.8a.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **110 files / 1,429 tests** (+24). E2E **45 passed, 4 skipped** — the two new specs drive the HUD rather than the console, because the wrapper's whole point is that it sits on the path a _player_ uses. **Criterion 3:** markers `No commands observed` and `command-monitor`; the wrapper sits on the dispatch path, so they double as the check that a release build dispatches through no debug indirection.
+
 ### Remaining
 
-07.8f–07.8o, in the order above.
+07.8g–07.8o, in the order above.

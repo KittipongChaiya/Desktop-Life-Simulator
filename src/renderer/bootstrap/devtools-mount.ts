@@ -13,6 +13,7 @@
  * (src/devtools/flags.ts).
  */
 
+import type { CommandRing } from '@devtools/commands/ring';
 import { FEATURE_DEBUG, FEATURE_INSPECTOR } from '@devtools/flags';
 import type { DurationHistogram } from '@devtools/metrics/histogram';
 import { MetricGroup } from '@devtools/metrics/registry';
@@ -84,6 +85,14 @@ export interface DevToolsMountOptions {
    * the pointer — from the same two readers.
    */
   readonly inspectors?: InspectorSources;
+  /**
+   * The command ring the composition root wired (07.8f).
+   *
+   * Created there rather than here because the observation must be in place
+   * before the first command is submitted, which happens long before devtools
+   * mount.
+   */
+  readonly commandLog?: CommandRing;
   /**
    * The event monitor's subscription (07.8e).
    *

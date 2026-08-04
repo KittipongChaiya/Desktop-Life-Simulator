@@ -79,7 +79,9 @@ export function DebugOverlay({ visible, metrics, profiler }: DebugOverlayProps):
         </section>
       )}
 
-      <p className={styles['hint']}>F3 overlay · F1 console · F4 inspector · F2 events</p>
+      <p className={styles['hint']}>
+        F3 overlay · F1 console · F4 inspector · F2 events · F5 commands
+      </p>
     </div>
   );
 }

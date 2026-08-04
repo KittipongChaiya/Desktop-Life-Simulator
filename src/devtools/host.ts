@@ -12,6 +12,11 @@
 
 import type { SimulationControl } from '../shared/simulation-control';
 
+import {
+  createCommandRing,
+  DEFAULT_COMMAND_RING_CAPACITY,
+  type CommandRing,
+} from './commands/ring';
 import { createBuiltinCommands } from './console/builtins';
 import { createConsoleEngine, type ConsoleEngine } from './console/engine';
 import { createCommandRegistry, type CommandRegistry } from './console/registry';
@@ -32,6 +37,14 @@ export interface DevToolsHost {
   readonly inspector: InspectorRegistry;
   /** What the event monitor has observed (07.8e). Written by a subscriber only. */
   readonly events: EventRing;
+  /**
+   * What the command monitor has observed (07.8f).
+   *
+   * Named `commandLog`, not `commands`, because `commands` is already the
+   * console's command registry — two unrelated meanings of the word, and the
+   * one that would be silently wrong is this one.
+   */
+  readonly commandLog: CommandRing;
   readonly simulation: SimulationControl;
 }
 
@@ -46,6 +59,14 @@ const EVENT_RING_CAPACITY = 200;
 
 export interface DevToolsOptions {
   readonly simulation: SimulationControl;
+  /**
+   * The command ring the composition root already wired (07.8f).
+   *
+   * Supplied rather than created here because the observation has to be in
+   * place before the first command can be submitted, which is long before
+   * devtools mount. One is created when absent so a test needs no wiring.
+   */
+  readonly commandLog?: CommandRing;
   readonly appVersion: string;
   readonly reload: () => void;
   readonly logLevel?: LogLevel;
@@ -61,6 +82,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
   const consoleEngine = createConsoleEngine(commands);
   const inspector = createInspectorRegistry();
   const events = createEventRing(EVENT_RING_CAPACITY);
+  const commandLog = options.commandLog ?? createCommandRing(DEFAULT_COMMAND_RING_CAPACITY);
 
   if (FEATURE_CONSOLE) {
     commands.registerAll(
@@ -147,6 +169,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
     console: consoleEngine,
     inspector,
     events,
+    commandLog,
     simulation: options.simulation,
   };
 }

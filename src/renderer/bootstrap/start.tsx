@@ -10,6 +10,12 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
+import { observeCommands, observeExecutionFailure } from '@devtools/commands/observer';
+import {
+  createCommandRing,
+  DEFAULT_COMMAND_RING_CAPACITY,
+  type CommandRing,
+} from '@devtools/commands/ring';
 import { FEATURE_DEBUG, FEATURE_PROFILER } from '@devtools/flags';
 import { createDurationHistogram } from '@devtools/metrics/histogram';
 import { catchUpWorld, computeElapsedTicks, type CatchUpReport } from '@persistence/catch-up';
@@ -134,21 +140,57 @@ export function startApplication(): void {
  */
 const actionFeedback = createActionFeedback();
 
+/**
+ * What the command monitor observes (07.8f).
+ *
+ * Module scope for the same reason `actionFeedback` is: `worldOptions` closes
+ * over it before the composition root runs, and a command can be refused at
+ * execution from the very first tick. Behind `FEATURE_DEBUG` so a release build
+ * constructs neither the ring nor the wrapper around the player's dispatch.
+ */
+const commandLog: CommandRing | null = FEATURE_DEBUG
+  ? createCommandRing(DEFAULT_COMMAND_RING_CAPACITY)
+  : null;
+
+/**
+ * Records an execution-time rejection for the monitor, once the world exists.
+ *
+ * Assigned rather than constructed at module scope because it needs to read the
+ * live tick, and the world is built inside `bootApplication`. Null until then,
+ * and null forever in a release build.
+ */
+let recordExecutionFailure: ReturnType<typeof observeExecutionFailure> | null = null;
+
 async function bootApplication(): Promise<void> {
   // Execution-time command rejections are injected here, at the construction
   // boundary. The world reports a `Command` and an `AppError` and knows nothing
   // about a view; deciding that this becomes a log line is the composition
   // root's job, not the simulation's (ADR-010 §7).
+  //
+  // TWO ARMS, selected by the flag. The debug arm needs the dispatcher's third
+  // parameter to know whether a worker or the player issued the command; the
+  // release arm must not carry it, because THIS BUNDLE DOES NOT MANGLE NAMES
+  // and an unused `metadata` parameter is ten bytes of shipped signature.
+  // Criterion 4 measured exactly that, twice, before this shape.
   const worldOptions: WorldOptions = {
-    onExecutionRejected: (command, error) => {
-      lastCommandRejection = `${command.type}: ${error.code}`;
-      // AND tell the player (07.5i). This callback previously only fed a
-      // devtools metric, under a comment admitting these had "nowhere to
-      // surface until the HUD arrives in phase-05". The HUD arrived; they
-      // never surfaced, so a command that failed a tick after the click
-      // looked exactly like a dead click.
-      actionFeedback.report(error);
-    },
+    onExecutionRejected: FEATURE_DEBUG
+      ? (command, error, metadata) => {
+          lastCommandRejection = `${command.type}: ${error.code}`;
+          actionFeedback.report(error);
+          // The ONLY view the tooling gets of execution, and a view of
+          // failures only — the hook exists because errors must not vanish,
+          // not because devtools asked for it (07.8f).
+          recordExecutionFailure?.(command, error, metadata);
+        }
+      : (command, error) => {
+          lastCommandRejection = `${command.type}: ${error.code}`;
+          // Tell the player (07.5i). This callback previously only fed a
+          // devtools metric, under a comment admitting these had "nowhere to
+          // surface until the HUD arrives in phase-05". The HUD arrived; they
+          // never surfaced, so a command that failed a tick after the click
+          // looked exactly like a dead click.
+          actionFeedback.report(error);
+        },
   };
 
   const saves = await window.desktopLife.save.load();
@@ -298,7 +340,32 @@ function composeApplication(world: World, session: SaveSession): void {
   // The player's write path into the simulation. The same dispatcher worker AI
   // and automation will use — no privileged variant exists (ADR-010 §6). Shared
   // between tile interaction and the HUD (the hire button dispatches through it).
-  const playerSource = createPlayerInputSource(world.commands);
+  // Every player command is observed at its source (07.8f), so the monitor
+  // sees the HUD's dispatches and not just the console's. The wrapper returns
+  // the producer's result untouched; a debug build dispatches identically.
+  //
+  // Written as one expression, with the constructor repeated in both arms,
+  // because THIS BUNDLE DOES NOT MANGLE IDENTIFIERS: a `rawPlayerSource`
+  // binding to share between the arms cost 53 bytes of production build in
+  // its own name, which criterion 4 caught. No devtools code shipped — the
+  // fold was working — the variable was the whole of it. Gated on the flag
+  // rather than on `commandLog` alone for the same reason regardless: Vite
+  // replaces FEATURE_DEBUG with a literal that folds, and a module-level
+  // const derived from it is not propagated into this function.
+  const playerSource =
+    FEATURE_DEBUG && commandLog !== null
+      ? observeCommands(createPlayerInputSource(world.commands), commandLog, {
+          tick: () => world.tick,
+          pending: () => world.commands.pending(),
+        })
+      : createPlayerInputSource(world.commands);
+
+  if (FEATURE_DEBUG && commandLog !== null) {
+    recordExecutionFailure = observeExecutionFailure(commandLog, {
+      tick: () => world.tick,
+      pending: () => world.commands.pending(),
+    });
+  }
   // Which crop the seed tool plants — presentation state shared between the
   // shop panel's selector and the click mapping (06e).
   const seeds = createSeedSelection();
@@ -666,6 +733,7 @@ function composeApplication(world: World, session: SaveSession): void {
 
   void mountDevTools({
     simulation: loop,
+    ...(commandLog === null ? {} : { commandLog }),
     world: () => worldMount.current(),
     worldError: () => lastWorldError,
     commandRejection: () => lastCommandRejection,

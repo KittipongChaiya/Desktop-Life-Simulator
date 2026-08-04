@@ -46,6 +46,11 @@ const DEVTOOLS_MARKERS = [
   // which would make the event graph differ between builds (ADR-018 §10).
   'No events observed',
   'event-monitor',
+  // The command monitor (07.8f). Its wrapper sits ON the player's dispatch
+  // path, so this marker is the check that a release build dispatches through
+  // no debug indirection at all.
+  'No commands observed',
+  'command-monitor',
 ];
 
 function rendererBundleText(): string {
