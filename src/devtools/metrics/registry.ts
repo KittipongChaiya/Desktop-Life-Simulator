@@ -13,6 +13,11 @@
  *
  * Providers are pull-based and read ONLY when the overlay is visible, which is
  * what keeps the hidden overlay's cost at zero.
+ *
+ * Phase-07.8b hardened that convention into ADR-018 §9's stated contract:
+ * sampling reads a snapshot of the registration set, hands back frozen values
+ * no panel can write through, and cannot be left half-registered by a batch
+ * that fails. Observation must not perturb the observed, in either direction.
  */
 
 export const MetricGroup = {
@@ -57,13 +62,50 @@ export interface MetricRegistry {
   size(): number;
 }
 
-const GROUP_ORDER: readonly MetricGroup[] = [
-  MetricGroup.Performance,
-  MetricGroup.Simulation,
-  MetricGroup.Render,
-  MetricGroup.World,
-  MetricGroup.Input,
-];
+/**
+ * Display rank per group.
+ *
+ * A total `Record`, not a list to search: adding a group to `MetricGroup`
+ * without ranking it here is a COMPILE error. The list this replaced was
+ * searched with `indexOf`, so an unranked group scored -1 and silently sorted
+ * ahead of Performance — a wrong overlay that nothing would have failed on.
+ */
+const GROUP_RANK: Record<MetricGroup, number> = {
+  [MetricGroup.Performance]: 0,
+  [MetricGroup.Simulation]: 1,
+  [MetricGroup.Render]: 2,
+  [MetricGroup.World]: 3,
+  [MetricGroup.Input]: 4,
+};
+
+/** Group, then explicit order, then label. Reads only the definition given. */
+function byDisplayOrder(a: MetricDefinition, b: MetricDefinition): number {
+  const groupDelta = GROUP_RANK[a.group] - GROUP_RANK[b.group];
+  if (groupDelta !== 0) return groupDelta;
+
+  const orderDelta = (a.order ?? 0) - (b.order ?? 0);
+  return orderDelta !== 0 ? orderDelta : a.label.localeCompare(b.label);
+}
+
+function sampleOf(definition: MetricDefinition): MetricSample {
+  let value: string;
+  try {
+    value = definition.read();
+  } catch (error) {
+    // A broken provider must never take down the overlay — the overlay is
+    // frequently the only way to see what is wrong.
+    value = error instanceof Error ? `<error: ${error.message}>` : '<error>';
+  }
+
+  // Frozen because ADR-018 §9 says a metric may not be something a panel can
+  // write through, and `readonly` says that to the compiler only.
+  return Object.freeze({
+    id: definition.id,
+    label: definition.label,
+    group: definition.group,
+    value,
+  });
+}
 
 export function createMetricRegistry(): MetricRegistry {
   const definitions = new Map<string, MetricDefinition>();
@@ -73,8 +115,12 @@ export function createMetricRegistry(): MetricRegistry {
       throw new Error(`Metric "${definition.id}" is already registered`);
     }
     definitions.set(definition.id, definition);
+
     return () => {
-      definitions.delete(definition.id);
+      // Removes THIS registration and no other. A panel that unmounts holds an
+      // undo closure keyed by id; without the identity check, calling it late
+      // would delete whatever metric owns that id by then — the next panel's.
+      if (definitions.get(definition.id) === definition) definitions.delete(definition.id);
     };
   };
 
@@ -82,6 +128,17 @@ export function createMetricRegistry(): MetricRegistry {
     register,
 
     registerAll(list) {
+      // Validated as a batch BEFORE anything is registered. Registering as it
+      // went left the metrics before a collision permanently registered: the
+      // throw replaces the return value, so their undo functions are lost.
+      const incoming = new Set<string>();
+      for (const definition of list) {
+        if (definitions.has(definition.id) || incoming.has(definition.id)) {
+          throw new Error(`Metric "${definition.id}" is already registered`);
+        }
+        incoming.add(definition.id);
+      }
+
       const undo = list.map(register);
       return () => {
         for (const fn of undo) fn();
@@ -89,33 +146,14 @@ export function createMetricRegistry(): MetricRegistry {
     },
 
     sample() {
-      const samples: MetricSample[] = [];
+      // The registration set is snapshotted and ordered BEFORE any provider
+      // runs, so which metrics this sample contains is decided by the caller
+      // and not by the providers. Iterating the live map would let a provider
+      // that registers during its own read — a §9 violation, but one this
+      // should survive — appear in the sample it is corrupting.
+      const ordered = [...definitions.values()].sort(byDisplayOrder);
 
-      for (const definition of definitions.values()) {
-        let value: string;
-        try {
-          value = definition.read();
-        } catch (error) {
-          // A broken provider must never take down the overlay — the overlay is
-          // frequently the only way to see what is wrong.
-          value = error instanceof Error ? `<error: ${error.message}>` : '<error>';
-        }
-        samples.push({
-          id: definition.id,
-          label: definition.label,
-          group: definition.group,
-          value,
-        });
-      }
-
-      return samples.sort((a, b) => {
-        const groupDelta = GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group);
-        if (groupDelta !== 0) return groupDelta;
-
-        const orderDelta =
-          (definitions.get(a.id)?.order ?? 0) - (definitions.get(b.id)?.order ?? 0);
-        return orderDelta !== 0 ? orderDelta : a.label.localeCompare(b.label);
-      });
+      return Object.freeze(ordered.map(sampleOf));
     },
 
     has: (id) => definitions.has(id),

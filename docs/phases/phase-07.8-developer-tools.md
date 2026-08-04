@@ -32,7 +32,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | #     | Milestone                   | Delivers                                                                                    | Status        |
 | ----- | --------------------------- | ------------------------------------------------------------------------------------------- | ------------- |
 | 07.8a | Overlay completion (§1)     | The 7 missing values, through the existing registry                                         | **Delivered** |
-| 07.8b | Metrics API hardening (§13) | Typed groups, ordering, and the read-only contract asserted                                 | Pending       |
+| 07.8b | Metrics API hardening (§13) | Typed groups, ordering, and the read-only contract asserted                                 | **Delivered** |
 | 07.8c | World inspector (§2)        | Tile provider — coords, state, owner, crop, stage, occupant, path cost — plus pinning       | Pending       |
 | 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | Pending       |
 | 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | Pending       |
@@ -95,6 +95,24 @@ Two defensible positions, and the reason for choosing the second:
 
 The second is taken. Recorded here rather than rounded to "no increase", because a criterion worded _no increase_ that quietly means _no meaningful increase_ stops being a criterion. If exact-zero is required, the fix is to gate all three accessors together — a deliberate change to the view's API, not something to slip into a tooling phase.
 
+### 07.8b — Metrics API hardening · Delivered
+
+§13 was already satisfied in shape — typed, grouped, pull-based, read-only — so this hardened the contract rather than rebuilding it (AI_RULES Rule 1). Three defects, all of them reachable by what the rest of this phase is about to do to the registry, plus the contract ADR-018 §9 states but nothing enforced.
+
+**A stale unregister removed a live metric.** `register()` returned a closure that deleted by id. Unregister `fps`, let something else register `fps`, then call the first closure late — and it deleted the second registration. Harmless while every metric was registered once at boot, which is every registration that exists today. Not harmless from 07.8c on, where panels register and unregister as they mount. The closure now removes **its own** registration and no other.
+
+**A failed batch registered part of itself.** `registerAll` registered as it walked, so a collision half-way through threw with the earlier metrics registered _and their undo functions discarded_ — the throw replaces the return value, so nothing could ever remove them. The batch is now validated whole, including duplicates within itself, before anything is registered.
+
+**An unranked group sorted to the front.** Group order was a list searched with `indexOf`, and `indexOf` returns −1 for a group nobody remembered to add — so a new `MetricGroup` would sort silently ahead of Performance. It is a `Record<MetricGroup, number>` now, which makes a missing rank a compile error. This is the one item here with no present-day symptom: the list was complete, and the change is the guarantee, not a fix.
+
+**And the read-only contract, asserted rather than declared.** `readonly` is a compile-time claim a panel can ignore at runtime, so samples and the sample list are frozen. Sampling also snapshots the registration set _before_ calling any provider: which metrics a sample contains is now decided by the caller, and a provider that registers during its own read — a §9 violation, but one this should survive — can no longer appear in the sample it is corrupting.
+
+Deliberately **not** built: a numeric channel for 07.8h's graphs. It has no consumer yet, and Rule 5 is explicit about abstracting in anticipation. 07.8h adds what 07.8h needs.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **102 files / 1,314 tests** (+8). E2E 38 passed, 4 skipped — including criterion 7, a static world still draws no frames.
+
+**Criterion 4: zero.** Production main chunk 1,624,473 bytes — the 07.8a figure, unchanged. Everything here is inside `src/devtools`, which does not ship.
+
 ### Remaining
 
-07.8b–07.8o, in the order above.
+07.8c–07.8o, in the order above.
