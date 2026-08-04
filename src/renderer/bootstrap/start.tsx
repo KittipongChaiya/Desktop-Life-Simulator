@@ -693,12 +693,15 @@ function composeApplication(world: World, session: SaveSession): void {
             eventQueue: () => world.events.pending(),
             commandQueue: () => world.commands.pending(),
           },
-          // The world inspector's reader (07.8c). `World` satisfies the
-          // source interface structurally, and that interface declares only
-          // fields the inspector reads — it answers questions and hands back
-          // strings, never a store a panel could write through (ADR-018 §2).
-          tileInspector: {
+          // What the world and entity inspectors read (07.8c, 07.8d). `World`
+          // satisfies the source interfaces structurally, and those interfaces
+          // declare only fields the inspectors read — they answer questions and
+          // hand back strings, never a store a panel could write through
+          // (ADR-018 §2). `views` is the published slice, so picking a worker
+          // agrees with the one drawn on screen.
+          inspectors: {
             source: () => world,
+            views: () => store.get('workers'),
             tileAt: (x: number, y: number) => worldMount.current()?.tileAt(x, y) ?? null,
           },
         }

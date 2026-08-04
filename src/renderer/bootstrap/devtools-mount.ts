@@ -20,8 +20,10 @@ import type { WorldView } from '@render/world-view';
 
 import type { SimulationControl } from '../../shared/simulation-control';
 import type { Command, CommandResult } from '../../sim/commands/types';
+import type { WorkerView } from '../../sim/snapshot/workers-slice';
 
-import { createTileInspectProvider, type TileInspectOptions } from './tile-inspector';
+import { createTileInspectProvider, type TileInspectSource } from './tile-inspector';
+import { createWorkerInspectProvider, type WorkerInspectSource } from './worker-inspector';
 
 export interface DevToolsMountOptions {
   readonly simulation: SimulationControl;
@@ -70,14 +72,25 @@ export interface DevToolsMountOptions {
    */
   readonly worldCounts?: WorldCounts;
   /**
-   * What the world inspector reads (07.8c).
+   * What the world and entity inspectors read (07.8c, 07.8d).
    *
-   * The provider is BUILT here rather than in `devtools`, for the reason the
-   * phase-02 render metrics are: it needs the render layer's screen→tile
-   * picking, and `devtools` may not import `render`. Devtools receives the
-   * finished `InspectProvider` and, through it, only plain strings.
+   * The providers are BUILT here rather than in `devtools`, for the reason the
+   * phase-02 render metrics are registered here: they need the render layer's
+   * screen→tile picking, and `devtools` may not import `render`. Devtools
+   * receives finished `InspectProvider`s and, through them, only strings.
+   *
+   * One bag for both, because both answer the same question — what is under
+   * the pointer — from the same two readers.
    */
-  readonly tileInspector?: TileInspectOptions;
+  readonly inspectors?: InspectorSources;
+}
+
+/** The readers every pointer-driven inspector needs. */
+export interface InspectorSources {
+  readonly source: () => TileInspectSource & WorkerInspectSource;
+  /** The workers as DRAWN, so picking agrees with the screen. */
+  readonly views: () => readonly WorkerView[];
+  readonly tileAt: (screenX: number, screenY: number) => { x: number; y: number } | null;
 }
 
 /** The read-only counts the debug overlay displays (07.8a). */
@@ -174,11 +187,13 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
     }
   }
 
-  // WORLD INSPECTOR (07.8c). Registered through the same public provider API
-  // phase-01.5 built for it, so the panel itself needed no change.
-  const tileInspector = options.tileInspector;
-  if (FEATURE_INSPECTOR && tileInspector !== undefined) {
-    host.inspector.register(createTileInspectProvider(tileInspector));
+  // WORLD AND ENTITY INSPECTORS (07.8c, 07.8d). Registered through the same
+  // public provider API phase-01.5 built for it, so the panel itself needed no
+  // change — which is the property that API was built to have.
+  const inspectors = options.inspectors;
+  if (FEATURE_INSPECTOR && inspectors !== undefined) {
+    host.inspector.register(createTileInspectProvider(inspectors));
+    host.inspector.register(createWorkerInspectProvider(inspectors));
   }
 
   // HEAP (07.7M1). Chromium-only and deliberately unguarded elsewhere: this is

@@ -28,6 +28,17 @@ async function setCollapsed(collapsed: boolean): Promise<void> {
   }, collapsed);
 }
 
+/** Runs a devtools console command (F1 toggles; the input autofocuses). */
+async function consoleCommand(command: string): Promise<void> {
+  const window = await app.firstWindow();
+  await window.keyboard.press('F1');
+  const input = window.getByLabel('Developer console input');
+  await input.fill(command);
+  await input.press('Enter');
+  await window.keyboard.press('F1');
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}
+
 test.beforeEach(async () => {
   session = await launchIsolated();
   app = session.app;
@@ -81,4 +92,33 @@ test('P pins the target, and the pointer can then leave it', async () => {
 
   await window.keyboard.press('p');
   await expect(heading).not.toContainText('PINNED');
+});
+
+test('a worker under the pointer is described from the simulation (07.8d)', async () => {
+  const window = await app.firstWindow();
+
+  await consoleCommand('money 5000');
+  const hire = window.getByRole('button', { name: /^Hire/ });
+  await expect(hire).toBeVisible();
+  await hire.click();
+  await expect(window.locator('[title="Workers hired"]')).toHaveText('1 worker');
+
+  // PAUSED, so the worker cannot walk out from under the pointer between the
+  // hover and the assertion. A spec that raced it would be flaky, and a flaky
+  // overlay test is a real bug (TESTING.md §6.4) — the suite runs no retries.
+  await consoleCommand('pause');
+
+  await window.keyboard.press('F4');
+  const inspector = window.getByTestId('inspector');
+  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  await window.mouse.move(size.w / 2, size.h / 2);
+
+  // The worker spawns at the plot centre, which the camera frames at the
+  // viewport centre.
+  await expect(inspector).toContainText('Worker #1');
+  await expect(inspector).toContainText('Energy');
+  // Carrying is on the WORKER RECORD and on no snapshot — seeing it here is
+  // the proof that picking reads the drawn view and the facts read the store.
+  await expect(inspector).toContainText('Carrying');
+  await expect(inspector).toContainText('/20');
 });

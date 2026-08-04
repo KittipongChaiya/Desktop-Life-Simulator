@@ -34,7 +34,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8a | Overlay completion (§1)     | The 7 missing values, through the existing registry                                         | **Delivered** |
 | 07.8b | Metrics API hardening (§13) | Typed groups, ordering, and the read-only contract asserted                                 | **Delivered** |
 | 07.8c | World inspector (§2)        | Tile provider — coords, state, owner, crop, stage, occupant, path cost — plus pinning       | **Delivered** |
-| 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | Pending       |
+| 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | **Delivered** |
 | 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | Pending       |
 | 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | Pending       |
 | 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | Pending       |
@@ -135,6 +135,25 @@ Gates: typecheck · lint · boundaries · cycles clean. Unit **104 files / 1,351
 
 **Criterion 4: zero.** Production main chunk 1,624,473 bytes with an unchanged content hash — byte-identical to 07.8b. Rollup dropped the whole provider.
 
+### 07.8d — Entity inspector · Delivered
+
+All six facts §3 names, for the worker under the pointer: FSM state, claimed task, energy against its maximum, what it is carrying against the hold it fills, where it is headed, and how far along that route it has walked. Same provider API, so the panel again needed no change.
+
+**Picked by what is drawn, described by what the simulation holds.** The two halves read different sources deliberately, and the split is the design rather than a compromise:
+
+- Picking uses the published `WorkerView`s through the renderer's own `workerAtTile`, so pointing at a worker selects the one a player can see — including a worker drawn mid-step between two tiles, which that function already accounts for. Restating the rule here would have been a second copy of it, free to drift from the first.
+- The facts come from the `Worker` record, because three of the six are not projected at all: a view carries no `carrying`, no `path`, and no cursor. Projecting them would be worse than reading them — `path` changes as the worker walks, so a slice carrying it would republish every tick (ADR-005 §2). This is the same conclusion 07.8c reached, arrived at from the opposite direction: there nothing was projected, here the useful half is.
+
+**A worker the view knows and the store does not is reported as nothing at all.** A slice outlives a removed worker by one publish, and filling that gap with a default-valued entity would invent a worker with no tile and no energy. Tested, because it is the one case where the two sources genuinely disagree.
+
+**Two readability decisions.** Energy is shown against `MAX_ENERGY` — `42` alone says nothing about whether this worker is about to go and rest. And a tile is named `28,29 (#1852)`: an index alone is unreadable, and coordinates alone cannot be matched against a log line.
+
+**The `@render` alias was missing from `vitest.config.ts`** and is now present. It is declared by `electron.vite.config` and both renderer tsconfigs; no test had yet imported a _runtime_ module through it, only types, which erase before resolution. An alias the build honours and the tests do not is a module the tests cannot cover — found by this milestone rather than designed around it.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **105 files / 1,377 tests** (+26). E2E **41 passed, 4 skipped**, including a third inspector spec. That spec **pauses the simulation** before hovering: a worker that can walk out from under the pointer between the hover and the assertion is a race, and this suite runs with no retries because a flaky overlay test is a real bug (`TESTING.md` §6.4).
+
+**Criterion 3:** the marker list gains `Carrying` and `tiles · `. **Criterion 4: zero** — 1,624,473 bytes, unchanged content hash, for the third milestone running.
+
 ### Remaining
 
-07.8d–07.8o, in the order above.
+07.8e–07.8o, in the order above.

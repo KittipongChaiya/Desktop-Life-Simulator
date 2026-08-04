@@ -23,6 +23,11 @@ export default defineConfig({
       '@sim': resolve(import.meta.dirname, 'src/sim'),
       '@persistence': resolve(import.meta.dirname, 'src/persistence'),
       '@devtools': resolve(import.meta.dirname, 'src/devtools'),
+      // Declared by `electron.vite.config` and both renderer tsconfigs, and
+      // missing here until 07.8d — no test had yet imported a RUNTIME module
+      // through it, only types, which erase before resolution. An alias the
+      // build honours and the tests do not is a module the tests cannot cover.
+      '@render': resolve(import.meta.dirname, 'src/renderer/render'),
       // Component tests mount panels that CSS-slice the packed atlas (06e).
       '@assets': resolve(import.meta.dirname, 'assets/dist'),
     },

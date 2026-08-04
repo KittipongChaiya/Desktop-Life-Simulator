@@ -35,6 +35,12 @@ const DEVTOOLS_MARKERS = [
   'Enter cost',
   'Occupants',
   'PINNED',
+  // The entity inspector (07.8d). Same exposure as the tile provider: it is
+  // reachable from a shipped module and only the `FEATURE_DEBUG` fold removes
+  // it. "Carrying" is the marker that matters — it is the one fact the panel
+  // reads straight off the worker record.
+  'Carrying',
+  ' tiles · ',
 ];
 
 function rendererBundleText(): string {
