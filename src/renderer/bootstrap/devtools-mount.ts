@@ -13,13 +13,15 @@
  * (src/devtools/flags.ts).
  */
 
-import { FEATURE_DEBUG } from '@devtools/flags';
+import { FEATURE_DEBUG, FEATURE_INSPECTOR } from '@devtools/flags';
 import type { DurationHistogram } from '@devtools/metrics/histogram';
 import { MetricGroup } from '@devtools/metrics/registry';
 import type { WorldView } from '@render/world-view';
 
 import type { SimulationControl } from '../../shared/simulation-control';
 import type { Command, CommandResult } from '../../sim/commands/types';
+
+import { createTileInspectProvider, type TileInspectOptions } from './tile-inspector';
 
 export interface DevToolsMountOptions {
   readonly simulation: SimulationControl;
@@ -67,6 +69,15 @@ export interface DevToolsMountOptions {
    * from a global, which is ADR-018 §5.
    */
   readonly worldCounts?: WorldCounts;
+  /**
+   * What the world inspector reads (07.8c).
+   *
+   * The provider is BUILT here rather than in `devtools`, for the reason the
+   * phase-02 render metrics are: it needs the render layer's screen→tile
+   * picking, and `devtools` may not import `render`. Devtools receives the
+   * finished `InspectProvider` and, through it, only plain strings.
+   */
+  readonly tileInspector?: TileInspectOptions;
 }
 
 /** The read-only counts the debug overlay displays (07.8a). */
@@ -161,6 +172,13 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
     ] as const) {
       host.metrics.register({ id, label, group, order, read: () => String(read()) });
     }
+  }
+
+  // WORLD INSPECTOR (07.8c). Registered through the same public provider API
+  // phase-01.5 built for it, so the panel itself needed no change.
+  const tileInspector = options.tileInspector;
+  if (FEATURE_INSPECTOR && tileInspector !== undefined) {
+    host.inspector.register(createTileInspectProvider(tileInspector));
   }
 
   // HEAP (07.7M1). Chromium-only and deliberately unguarded elsewhere: this is

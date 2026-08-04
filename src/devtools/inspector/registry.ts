@@ -48,6 +48,36 @@ export interface InspectorRegistry {
   size(): number;
 }
 
+/**
+ * Change test for a set of sections. Phase-07.8c.
+ *
+ * The panel re-reads its target on a timer, because a tile's state moves under
+ * a pointer that is standing still — a crop matures, a worker walks on. Almost
+ * every one of those reads returns exactly what the last one did, and
+ * committing it would re-render the panel four times a second forever, which
+ * is the defect ADR-018 §8 names. So the panel commits only when this says
+ * something actually changed.
+ *
+ * Shallow by construction: a section is a title and a flat list of
+ * label/value strings, and `field()` has already stringified everything.
+ */
+export function sectionsEqual(a: readonly InspectSection[], b: readonly InspectSection[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+
+  return a.every((section, index) => {
+    const other = b[index];
+    if (other === undefined) return false;
+    if (section.title !== other.title) return false;
+    if (section.fields.length !== other.fields.length) return false;
+
+    return section.fields.every((f, i) => {
+      const g = other.fields[i];
+      return g !== undefined && f.label === g.label && f.value === g.value;
+    });
+  });
+}
+
 export function createInspectorRegistry(): InspectorRegistry {
   const providers = new Map<string, InspectProvider>();
 

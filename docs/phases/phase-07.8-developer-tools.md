@@ -33,7 +33,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | ----- | --------------------------- | ------------------------------------------------------------------------------------------- | ------------- |
 | 07.8a | Overlay completion (§1)     | The 7 missing values, through the existing registry                                         | **Delivered** |
 | 07.8b | Metrics API hardening (§13) | Typed groups, ordering, and the read-only contract asserted                                 | **Delivered** |
-| 07.8c | World inspector (§2)        | Tile provider — coords, state, owner, crop, stage, occupant, path cost — plus pinning       | Pending       |
+| 07.8c | World inspector (§2)        | Tile provider — coords, state, owner, crop, stage, occupant, path cost — plus pinning       | **Delivered** |
 | 07.8d | Entity inspector (§3)       | Worker provider — FSM state, task, energy, carrying, destination, path length               | Pending       |
 | 07.8e | Event monitor (§4)          | Bounded ring of observed events with filters; **subscribe only** (ADR-018 §10)              | Pending       |
 | 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | Pending       |
@@ -113,6 +113,28 @@ Gates: typecheck · lint · boundaries · cycles clean. Unit **102 files / 1,314
 
 **Criterion 4: zero.** Production main chunk 1,624,473 bytes — the 07.8a figure, unchanged. Everything here is inside `src/devtools`, which does not ship.
 
+### 07.8c — World inspector · Delivered
+
+Every fact §2 names, for the tile under the pointer: coordinates and the flat index, terrain kind, derived state, ownership, walkability, the A\* enter cost, the crop with its age and stage, and whoever is standing there. Registered through the provider API phase-01.5 built for exactly this, so `Inspector.tsx` needed no change to display it.
+
+**It reads the world, not a snapshot, and that is the honest option rather than the convenient one.** 07.8a took its counts from published slices wherever a slice existed. Almost nothing here has one: tiles are not projected at all, and the crops slice deliberately carries a resolved sprite key rather than an id, an age, or a stage — projecting those would republish it every tick (`crops-slice.ts` says so). So the provider calls the sim's own pure queries — `tileStateAt`, `isWalkable`, `enterCost`, `stageFor` — which is the channel the terrain renderer already uses: `WorldView` is handed the world and reads `world.tiles` to draw it. No new sim→view channel is opened, and `TileInspectSource` declares only the fields it reads.
+
+**It lives in `bootstrap`, not `devtools`**, because it needs the render layer's screen→tile picking and `devtools` may not import `render` — the same reason the phase-02 render metrics are registered there. Devtools receives a finished provider and, through it, only strings.
+
+**Pinning fixes which tile is read, not what it said.** The panel used to read only on `pointermove`, which made every value a screenshot of the instant the pointer last moved: hold still over a ripening crop and it stayed `growing` forever. Pinning would have made that permanent. So the pointer position moved into a ref and the reading is taken at 4 Hz — the overlay's rate, for the overlay's reason — and pinning simply detaches the pointer listener. The sampler keeps running, so a pinned tile stays live.
+
+**That sampling is committed only when it changes** (`sectionsEqual`, the same shape as `cropsEqual`), so a still world repaints nothing and criterion 9 holds: React bails out when `setState` returns the object it already has. The tests assert both halves — that the panel keeps reading, and that the DOM does not move while the readings agree.
+
+Two smaller things, both from precedent already in the tree. `P` is ignored while a field has focus, because the developer console is one keypress away and `App.tsx` records exactly that defect for Space. And the panel distinguishes **`none`** from **`Unavailable`**: read-and-absent is not the same as could-not-read, and a tile with no crop should not look like a broken one.
+
+**Deliberately not surfaced:** `moisture`. The field exists on the grid, and no system reads it — showing a number nothing consumes would invent meaning the game does not have.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **104 files / 1,351 tests** (+37). E2E **40 passed, 4 skipped** — including two new specs, because the unit tests cannot prove the wiring: that the provider is registered, that the picking is hooked to the live camera, and that the world it reads is the world on screen.
+
+**Criterion 3:** the marker list gains `Enter cost`, `Occupants`, `PINNED`. This tool is the case that rule most needed — it lives in a module production _does_ ship, so only the `FEATURE_DEBUG` fold keeps it out.
+
+**Criterion 4: zero.** Production main chunk 1,624,473 bytes with an unchanged content hash — byte-identical to 07.8b. Rollup dropped the whole provider.
+
 ### Remaining
 
-07.8c–07.8o, in the order above.
+07.8d–07.8o, in the order above.

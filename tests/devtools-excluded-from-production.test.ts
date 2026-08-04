@@ -27,6 +27,14 @@ const DEVTOOLS_MARKERS = [
   'F1 console',
   'no metrics registered',
   'Nothing inspectable under the pointer',
+  // The world inspector's tile provider (07.8c). It lives in `bootstrap`
+  // rather than `devtools` — it needs the render layer's screen→tile picking —
+  // so it is reachable from a module production DOES ship, and only the
+  // `FEATURE_DEBUG` fold keeps it out. That makes it exactly the kind of tool
+  // rule 6 is worth asserting against an artifact rather than a source file.
+  'Enter cost',
+  'Occupants',
+  'PINNED',
 ];
 
 function rendererBundleText(): string {

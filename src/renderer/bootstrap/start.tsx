@@ -693,6 +693,14 @@ function composeApplication(world: World, session: SaveSession): void {
             eventQueue: () => world.events.pending(),
             commandQueue: () => world.commands.pending(),
           },
+          // The world inspector's reader (07.8c). `World` satisfies the
+          // source interface structurally, and that interface declares only
+          // fields the inspector reads — it answers questions and hands back
+          // strings, never a store a panel could write through (ADR-018 §2).
+          tileInspector: {
+            source: () => world,
+            tileAt: (x: number, y: number) => worldMount.current()?.tileAt(x, y) ?? null,
+          },
         }
       : {}),
     appVersion: __APP_VERSION__,
