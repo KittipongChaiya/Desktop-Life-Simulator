@@ -13,18 +13,38 @@
  */
 
 export interface RenderDebug {
-  /** Whether the chunk overlay draws. */
+  /** Whether the chunk overlay draws (07.8i). */
   chunks(): boolean;
   setChunks(enabled: boolean): void;
+  /** Whether worker routes draw (07.8j). */
+  routes(): boolean;
+  /** Whether the enter-cost heatmap draws (07.8j). */
+  heatmap(): boolean;
+  /**
+   * Advances pathfinding debug: off → routes → routes and heatmap → off.
+   *
+   * A cycle rather than two keys, because the function keys are nearly spent
+   * and because the heatmap is the expensive half — reaching it should take a
+   * deliberate second press rather than being one keystroke from idle.
+   */
+  cyclePathfinding(): void;
 }
 
 export function createRenderDebug(): RenderDebug {
   let chunks = false;
+  /** 0 off, 1 routes, 2 routes and heatmap. */
+  let pathfinding = 0;
 
   return {
     chunks: () => chunks,
     setChunks(enabled) {
       chunks = enabled;
+    },
+
+    routes: () => pathfinding > 0,
+    heatmap: () => pathfinding > 1,
+    cyclePathfinding() {
+      pathfinding = (pathfinding + 1) % 3;
     },
   };
 }

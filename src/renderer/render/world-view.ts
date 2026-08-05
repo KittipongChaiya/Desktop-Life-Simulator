@@ -54,7 +54,6 @@ import {
 } from './camera';
 import { createCameraFocus, needsFocus, type CameraFocus } from './camera-focus';
 import { isShakeFinished, shakeOffset, type ShakeConfig } from './camera-shake';
-import type { ChunkDebug } from './chunk-debug';
 import { createCropRenderer, type CropRenderer } from './crop-view';
 import { planDecor } from './decor';
 import { createDecorRenderer, type DecorRenderer } from './decor-view';
@@ -69,6 +68,7 @@ import { createParticleRenderer, type ParticleRenderer } from './particle-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
+import type { WorldDebug } from './world-debug';
 
 export interface WorldView {
   readonly gate: DirtyGate;
@@ -206,19 +206,15 @@ export interface WorldViewOptions {
    */
   readonly environmentEnabled?: (() => boolean) | undefined;
   /**
-   * The chunk debug overlay (07.8i), or absent in a build that has no tooling.
+   * In-world debug overlays (07.8i, 07.8j), absent in a build with no tooling.
    *
-   * A FACTORY plus a reader rather than a boolean: production must not merely
-   * skip drawing the overlay, it must not contain it. The factory is supplied
-   * from the composition root behind `FEATURE_DEBUG`, so `chunk-debug.ts` has
-   * no importer at all in a release build and Rollup drops it (ADR-018 §6).
+   * A FACTORY, not a boolean: production must not merely skip drawing them, it
+   * must not contain them. Supplied from the composition root behind
+   * `FEATURE_DEBUG`, so the overlay modules have no importer at all in a
+   * release build and Rollup drops them (ADR-018 §6). ONE port for every
+   * in-world tool — see `world-debug.ts` for why that is not one each.
    */
-  readonly chunkDebug?:
-    | {
-        readonly enabled: () => boolean;
-        readonly create: (parent: Container) => ChunkDebug;
-      }
-    | undefined;
+  readonly debug?: { readonly create: (parent: Container) => WorldDebug } | undefined;
 }
 
 /**
@@ -368,8 +364,8 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   // Gated on the LITERAL, so a release build contains no overlay to switch off
   // — not the hook, not the null check. See `shared/build-flags.ts`.
-  const chunkDebug: ChunkDebug | null = FEATURE_DEBUG
-    ? (options.chunkDebug?.create(app.layers.worldUi) ?? null)
+  const debug: WorldDebug | null = FEATURE_DEBUG
+    ? (options.debug?.create(app.layers.worldUi) ?? null)
     : null;
 
   const highlight: Highlight = createHighlight(app.layers.worldUi);
@@ -551,9 +547,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
       // Sampled before the terrain update, and dirties nothing. See
       // `chunk-debug.ts` for why both of those matter.
-      if (FEATURE_DEBUG && chunkDebug !== null) {
-        chunkDebug.setVisible(options.chunkDebug?.enabled() ?? false);
-        chunkDebug.update({ stale: tracker.staleVisible(range.first, range.last) });
+      if (FEATURE_DEBUG && debug !== null) {
+        debug.update({
+          stale: tracker.staleVisible(range.first, range.last),
+          firstColumn: range.first,
+          lastColumn: range.last,
+        });
       }
 
       // Chunk re-renders are themselves a scene change, so they must happen
@@ -756,7 +755,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       particleRenderer.destroy();
       effects.destroy();
       terrain.destroy();
-      if (FEATURE_DEBUG) chunkDebug?.destroy();
+      if (FEATURE_DEBUG) debug?.destroy();
       app.destroy();
     },
   };

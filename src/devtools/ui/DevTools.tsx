@@ -1,5 +1,5 @@
 /**
- * Devtools root. Owns the F1–F8 keybinds and mounts each tool.
+ * Devtools root. Owns the F1–F9 keybinds and mounts each tool.
  *
  * Mounted by the renderer bootstrap only when FEATURE_DEBUG is on. Everything
  * below renders null when hidden, so an unopened tool costs one boolean check.
@@ -48,6 +48,11 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
         case 'F8':
           event.preventDefault();
           host.renderDebug.setChunks(!host.renderDebug.chunks());
+          break;
+        // Cycles: off, routes, routes and heatmap (07.8j).
+        case 'F9':
+          event.preventDefault();
+          host.renderDebug.cyclePathfinding();
           break;
         case 'F7':
           event.preventDefault();

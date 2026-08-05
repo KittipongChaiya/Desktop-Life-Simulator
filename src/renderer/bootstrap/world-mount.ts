@@ -45,8 +45,8 @@ export interface WorldMountOptions {
   readonly shakeEnabled: () => boolean;
   /** Whether ambient environment motion may run (ADR-017 §2). */
   readonly environmentEnabled: () => boolean;
-  /** The chunk debug overlay (07.8i). Absent in a build with no tooling. */
-  readonly chunkDebug?: WorldViewOptions['chunkDebug'];
+  /** In-world debug overlays (07.8i, 07.8j). Absent in a build with no tooling. */
+  readonly debug?: WorldViewOptions['debug'];
   readonly onError?: (error: unknown) => void;
 }
 
@@ -73,7 +73,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         creaturesEnabled: options.creaturesEnabled,
         shakeEnabled: options.shakeEnabled,
         environmentEnabled: options.environmentEnabled,
-        chunkDebug: options.chunkDebug,
+        debug: options.debug,
       });
       detachInput = view.attachInput(options.inputTarget);
     } catch (error) {

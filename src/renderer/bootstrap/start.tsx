@@ -25,11 +25,14 @@ import { EMPTY_QUARANTINE, type SaveMeta, type SaveQuarantine } from '@persisten
 import { toSaveDocument } from '@persistence/serialize';
 import type { SaveWriteOutcome } from '@shared/ipc/contract';
 import { createWorld, type World, type WorldOptions } from '@sim/world/world';
+import type { Container } from 'pixi.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
 import { intensityScale } from '../../shared/motion';
+import { enterCost } from '../../sim/pathing/astar';
+import { tilesInRect } from '../../sim/world/tile-grid';
 import { createActionFeedback } from '../app/action-feedback';
 import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
@@ -51,10 +54,10 @@ import {
   LARGE_HARVEST_COUNT,
   PLACEMENT_SHAKE,
 } from '../render/camera-shake';
-import { createChunkDebug } from '../render/chunk-debug';
 import { EffectKind } from '../render/effect-state';
 import { FloatingKind } from '../render/floating-number-state';
 import { workerAtTile } from '../render/worker-render';
+import { createWorldDebug } from '../render/world-debug';
 
 import { createPlayerInputSource } from './command-dispatch';
 import { mountDevTools } from './devtools-mount';
@@ -331,7 +334,26 @@ function composeApplication(world: World, session: SaveSession): void {
     shakeEnabled: () => companion.motion().cameraShake,
     environmentEnabled: () => companion.motion().environmental,
     ...(FEATURE_DEBUG && renderDebug !== null
-      ? { chunkDebug: { enabled: () => renderDebug.chunks(), create: createChunkDebug } }
+      ? {
+          debug: {
+            create: (parent: Container) =>
+              createWorldDebug(parent, {
+                chunksEnabled: () => renderDebug.chunks(),
+                routesEnabled: () => renderDebug.routes(),
+                heatmapEnabled: () => renderDebug.heatmap(),
+                // Routes come from the WORKER RECORD: no slice projects a
+                // plan, and one that did would republish every tick (07.8d).
+                routes: () =>
+                  [...world.workers.values()]
+                    .filter((worker) => worker.path.length > 0)
+                    .map((worker) => ({ path: worker.path, cursor: worker.pathCursor })),
+                // The pathfinder's own edge weight, not a second opinion.
+                enterCost: (tile) => enterCost(world, tile),
+                visibleTiles: (first, last) =>
+                  tilesInRect(world.tiles, first, 0, last, world.tiles.height - 1),
+              }),
+          },
+        }
       : {}),
     viewport: () => ({
       width: window.innerWidth,

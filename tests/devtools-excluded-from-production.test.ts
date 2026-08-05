@@ -61,6 +61,9 @@ const DEVTOOLS_MARKERS = [
   // renderer owns, so this is the check that the factory's absence really did
   // remove it rather than merely leave it switched off.
   'chunk-debug',
+  // The pathfinding overlay (07.8j), which draws into the scene like the
+  // chunk one and is removed by the same fold.
+  'path-debug',
 ];
 
 function rendererBundleText(): string {

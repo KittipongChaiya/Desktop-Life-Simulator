@@ -40,7 +40,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | **Delivered** |
 | 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | **Delivered** |
 | 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | **Delivered** |
-| 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | Pending       |
+| 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | **Delivered** |
 | 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | Pending       |
 | 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | Pending       |
 | 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | Pending       |
@@ -277,6 +277,22 @@ The residue is forwarding, not tooling, and the honest options for the last 51 b
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **114 files / 1,475 tests** (+11). E2E **52 passed, 4 skipped**. **Criterion 3:** marker `chunk-debug` — which caught the comment leak on its first run.
 
+### 07.8j — Pathfinding debug · Delivered
+
+**F9 cycles: off → routes → routes and heatmap → off.** Each walking worker's remaining route drawn as a polyline with its destination ringed, and a heatmap of what every visible tile costs to enter — the pathfinder's own `enterCost`, not a second opinion.
+
+**The open and closed sets are not drawn, and that is the whole of §6 that is missing.** They exist only as locals inside `findPath` while a search runs, and the search is over before any frame is drawn. Reaching them needs an observer parameter on the pathfinder — a behaviour change to `src/sim` made for a debug tool, which this phase's hard constraint forbids and ADR-018 §1 refuses on principle. Re-implementing A\* in the overlay to reproduce them would be worse: a second copy of the pathfinder, free to disagree with the one the game uses, which is the drift `astar.ts` itself warns about. So the two reachable halves are drawn and the third is **named rather than faked** — the same call 07.8f made about execution timing, for the same reason.
+
+The route is not projected either: `WorkerView` carries a tile and a next tile, never the plan. It comes from the `Worker` record, the source and reasoning 07.8d established. Only the part still to be walked is drawn — a worker four tiles into a six-tile route is walking two, and drawing the whole plan would make a nearly-finished trip look like a new one.
+
+**One debug port, not one per tool.** 07.8i measured what an option costs: a property forwarded through `world-mount` survives into the release bundle even when everything behind it folds, because a property copy is an expression and expressions do not fold. A second tool would have bought a second copy of that. So `world-debug.ts` composes every in-world overlay behind a single `debug` port, and the view knows about one. It also gives 07.8l one place to hide all in-world debug chrome at once.
+
+**Criterion 4: 1,624,514 bytes — 10 fewer than 07.8i, and +41 on the 07.8a baseline.** A second scene-drawing tool cost _less than nothing_, because consolidating two options into one replaced `chunkDebug` with the shorter `debug` in the one line that survives. The residue is still forwarding, not tooling: both overlay modules are absent from the bundle.
+
+The E2E takes the heatmap seriously as the worst case — it fills every visible tile, so if any in-world drawing were going to hold the render loop awake it would be this one. Through all three cycle states, a settled world still reports ~0 FPS.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **115 files / 1,489 tests** (+14). E2E **54 passed, 4 skipped**. **Criterion 3:** marker `path-debug`.
+
 ### Remaining
 
-07.8j–07.8o, in the order above.
+07.8k–07.8o, in the order above.
