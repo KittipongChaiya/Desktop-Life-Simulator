@@ -157,6 +157,12 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
   // is behind FEATURE_DEBUG.
   const submitCommand = options.submitCommand;
   if (submitCommand !== undefined) {
+    // Spawn tools (07.8k). Registered here for the reason `money` is: they
+    // need the player source, and this is where it arrives. Every one of them
+    // dispatches; none of them writes (ADR-018 §3).
+    const { createSpawnCommands } = await import('@devtools/console/spawn-commands');
+    host.commands.registerAll(createSpawnCommands({ submitCommand }));
+
     host.commands.register({
       name: 'money',
       summary: 'Grant coins (dev-only source, ADR-013).',

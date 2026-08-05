@@ -64,6 +64,10 @@ const DEVTOOLS_MARKERS = [
   // The pathfinding overlay (07.8j), which draws into the scene like the
   // chunk one and is removed by the same fold.
   'path-debug',
+  // Spawn tools (07.8k). The first tool that writes, so the check that it is
+  // absent from a release build matters more than most.
+  'spawn worker',
+  'Unknown spawn kind',
 ];
 
 function rendererBundleText(): string {

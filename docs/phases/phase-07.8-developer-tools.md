@@ -41,7 +41,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | **Delivered** |
 | 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | **Delivered** |
 | 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | **Delivered** |
-| 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | Pending       |
+| 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | **Delivered** |
 | 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | Pending       |
 | 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | Pending       |
 | 07.8n | Panel UX (§14)              | Resize, dock, search, filter, remembered layout                                             | Pending       |
@@ -293,6 +293,26 @@ The E2E takes the heatmap seriously as the worst case — it fills every visible
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **115 files / 1,489 tests** (+14). E2E **54 passed, 4 skipped**. **Criterion 3:** marker `path-debug`.
 
+### 07.8k — Spawn tools · Delivered
+
+`spawn worker [count]`, `spawn crop <id> <x,y>`, `spawn building <id> <x,y>` — in the console, which is where ADR-018 §3's own cited precedent lives: the `money` command that dispatches `grantCoins` rather than touching the wallet.
+
+**The first tool that writes, and the rule is kept structurally rather than carefully.** `createSpawnCommands` receives exactly one capability — `submitCommand`, the ordinary player source. A store, a grid, an entity: not merely off-limits, not in scope. There is nothing there to write through even by accident, which is a stronger guarantee than a rule someone has to remember.
+
+**A batch is N commands, never one command with a count.** Each is validated against the world as it stands, so the third worker can be refused for want of coins while the first two are hired — and the tool reports both halves (`hired 2 of 3` _and_ the reason). Reporting only the failure would hide the two that landed.
+
+The three properties §3 promises are asserted in the real app rather than argued: a spawned worker reaches the HUD through validation, queue, tick and snapshot like any hire; an illegal placement is **refused**; and the spawn appears in the command monitor **as `player`**, which is only possible because it went through the source 07.8f wraps.
+
+#### Criterion 5 now has a test, and it found something on its first run
+
+`tests/devtools-writes-only-through-commands.test.ts` scans `src/devtools` and asserts **every `sim` import is type-only**. Types are erased, so a type-only import cannot call anything; if no sim function can be called from the tooling, no sim store can be mutated by it. The boundary linter already stops `sim` importing `devtools` — this is the other direction, which the linter permits and nothing else constrained.
+
+Its first run failed on the console's `time` command, which calls `ticksToSeconds` — a pure conversion between two numbers. Refusing that would have been dogma, so the rule is stated precisely instead: type-only, **except an explicit allowlist of modules that hold no state**, with one entry and a test that the list stays short enough to still be read. A control nobody reads is not a control.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **117 files / 1,507 tests** (+18). E2E **57 passed, 4 skipped**. **Criterion 4: 1,624,514** — unchanged from 07.8j; spawn tools are console-only and compile out entirely.
+
+**One flake observed, and not swept up.** The first full E2E run of this milestone failed `criterion 8: ambient motion returns to a zero-frame idle` — a 07.7 perf spec with 14-second waits and pointer-driven presence. It passed alone, passed on a clean full re-run, and nothing in 07.8k touches ambient motion or the frame loop. Recorded because `TESTING.md` §6.4 treats a flaky test as a real bug and this suite runs no retries: it is a pre-existing timing sensitivity in that spec, and 07.8o should decide whether to make it deterministic or accept it in writing.
+
 ### Remaining
 
-07.8k–07.8o, in the order above.
+07.8l–07.8o, in the order above.
