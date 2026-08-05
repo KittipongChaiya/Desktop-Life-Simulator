@@ -58,14 +58,19 @@ import type { World } from '../sim/world/world';
 /**
  * Worker time charged per harvest-and-replant cycle, in ticks.
  *
- * DELIBERATELY ABOVE the real simulation's per-cycle cost (harvest 30 +
- * plant 20 + movement, typically 60–130 ticks with deposit trips and replan
+ * DELIBERATELY ABOVE the real simulation's per-cycle cost (harvest 30 + till 30
+ * + plant 20 + movement, typically 90–160 ticks with deposit trips and replan
  * gaps amortized in): wherever worker time is the binding constraint, the
  * model must credit FEWER cycles than real workers achieve — the round-down
  * rule as a constant. At growth-bound saturation the margin costs only a few
- * percent (cycle = growthTicks + this, versus growthTicks + ~60–130 real).
+ * percent (cycle = growthTicks + this, versus growthTicks + ~90–160 real).
+ *
+ * RAISED FROM 150 IN 07.9: harvesting now clears the tilling, so every real
+ * cycle pays a 30-tick till it did not pay before (`GAME_DESIGN.md` §2.2). The
+ * old constant would have slipped under the real cost on a busy farm and
+ * started over-crediting — the one direction catch-up may never fail in.
  */
-const CYCLE_HANDLING_TICKS = 150;
+const CYCLE_HANDLING_TICKS = 200;
 
 export interface CatchUpReport {
   readonly elapsedTicks: number;
@@ -270,6 +275,11 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
         });
       } else {
         world.crops.delete(crop.tile); // harvested out, nothing to replant
+        // …and the last harvest took the tilling with it, exactly as the real
+        // command does (07.9). Without this, coming back from a gap would show
+        // tilled soil the live game would have reverted — the model's state
+        // has to be a state the simulation could have reached.
+        world.tiles.tilledAt[crop.tile] = 0;
       }
     }
 

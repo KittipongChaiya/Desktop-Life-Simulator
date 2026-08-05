@@ -2,8 +2,8 @@
  * Fails an E2E run immediately when `out/` was built without developer tooling.
  *
  * WHY THIS EXISTS. Eight specs drive the app through the F1 developer console —
- * `money`, `tick` — because there is no other way to fund a farm or skip 900
- * ticks from outside the process. The console is compiled OUT of a production
+ * `money`, `tick` — because there is no other way to fund a farm or skip the
+ * 1,800 ticks a turnip takes (§3.1) from outside the process. The console is compiled OUT of a production
  * build: `electron.vite.config` sets `__FEATURE_DEBUG__` from `!isProduction`,
  * and Rollup then drops the branch and every module behind it (that elimination
  * is deliberate and asserted by `tests/devtools-excluded-from-production.test.ts`).

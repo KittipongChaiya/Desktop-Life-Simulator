@@ -10,13 +10,13 @@ import { describe, expect, it } from 'vitest';
 
 import { ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
-import { asContentId, type TileIndex } from '../../shared/ids';
+import { asContentId, type ContentId, type TileIndex } from '../../shared/ids';
 import { CORE_CARROT, CORE_PUMPKIN, CORE_TURNIP, CORE_WHEAT, stageFor } from '../content/crops';
 import { DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulationBy } from '../tick';
 import { addItems, containerCount } from '../world/container';
 import { elapsedTicks } from '../world/crop';
-import { TileState, tileStateAt } from '../world/tile-state';
+import { isTilled, TileState, tileStateAt } from '../world/tile-state';
 import { createWorld, type World } from '../world/world';
 
 import { harvestCrop, plantCrop, tillTile } from './crop-commands';
@@ -52,6 +52,20 @@ function query(world: World) {
     cropRegistry: world.cropRegistry,
     tick: world.tick,
   };
+}
+
+/**
+ * A crop's total growth time, READ FROM ITS DEFINITION.
+ *
+ * Never a tick literal: durations are balance data (`GAME_DESIGN.md` §3.1) and
+ * are expected to move. A test that spells "2400" turns silently into a test of
+ * an immature crop the first time wheat is rebalanced — which is exactly what
+ * the 07.9 pass found.
+ */
+function growthTicks(world: World, cropId: ContentId): number {
+  const definition = world.cropRegistry.get(cropId);
+  if (!definition.ok) throw new Error('setup failed');
+  return definition.value.growthTicks;
 }
 
 describe('plant validation', () => {
@@ -141,11 +155,13 @@ describe('planting consumes a seed (phase-06b, §8.1)', () => {
     expect(world.lastPlanted.get(OWNED)).toBe(CORE_WHEAT);
 
     // The record survives the harvest — that is its entire purpose.
-    stepSimulationBy(world, 2400);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
     harvestCrop(world, OWNED);
     expect(world.lastPlanted.get(OWNED)).toBe(CORE_WHEAT);
 
-    // Replanting a different crop overwrites it.
+    // Replanting a different crop overwrites it — after tilling the ground
+    // again, which the harvest reverted (07.9).
+    tillTile(world, OWNED);
     plantCrop(world, OWNED, CORE_TURNIP);
     expect(world.lastPlanted.get(OWNED)).toBe(CORE_TURNIP);
   });
@@ -182,7 +198,7 @@ describe('harvest validation', () => {
   it('harvests once mature', () => {
     const world = readyWorld();
     plantCrop(world, OWNED, CORE_WHEAT);
-    stepSimulationBy(world, 2400);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
 
     expect(harvestCrop(world, OWNED).ok).toBe(true);
     expect(world.crops.size).toBe(0);
@@ -191,10 +207,93 @@ describe('harvest validation', () => {
   it('rejects harvesting the same crop twice', () => {
     const world = readyWorld();
     plantCrop(world, OWNED, CORE_WHEAT);
-    stepSimulationBy(world, 2400);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
     harvestCrop(world, OWNED);
 
     expect(harvestCrop(world, OWNED).ok).toBe(false);
+  });
+});
+
+describe('harvest returns the tile to bare ground (07.9)', () => {
+  /** A world with one mature wheat crop standing on tilled soil. */
+  function harvestReady(): World {
+    const world = readyWorld();
+    plantCrop(world, OWNED, CORE_WHEAT);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
+    return world;
+  }
+
+  it('clears the tilling with the crop', () => {
+    const world = harvestReady();
+    expect(isTilled(world.tiles, OWNED)).toBe(true);
+
+    expect(harvestCrop(world, OWNED).ok).toBe(true);
+
+    expect(world.crops.has(OWNED)).toBe(false);
+    expect(isTilled(world.tiles, OWNED)).toBe(false);
+    expect(world.tiles.tilledAt[OWNED]).toBe(0);
+  });
+
+  it('publishes tileUntilled, delivered on flush like every other event', () => {
+    // The renderer's only notice: `tilledAt` reaches no snapshot slice, so
+    // without this the tilled sprite outlives the soil (the same reason
+    // `tillTile` publishes `tileTilled`).
+    const world = harvestReady();
+    const received: number[] = [];
+    world.events.subscribe('tileUntilled', (event) => received.push(event.tile));
+
+    harvestCrop(world, OWNED);
+    expect(received).toHaveLength(0); // queued, never dispatched inline
+
+    world.events.flush();
+    expect(received).toEqual([OWNED]);
+  });
+
+  it('publishes it after cropHarvested — the revert is the consequence', () => {
+    const world = harvestReady();
+    const order: string[] = [];
+    world.events.subscribe('cropHarvested', () => order.push('harvested'));
+    world.events.subscribe('tileUntilled', () => order.push('untilled'));
+
+    harvestCrop(world, OWNED);
+    world.events.flush();
+
+    expect(order).toEqual(['harvested', 'untilled']);
+  });
+
+  it('publishes nothing and clears nothing when the harvest is rejected', () => {
+    const world = readyWorld();
+    plantCrop(world, OWNED, CORE_WHEAT);
+    world.events.flush(); // drain the till and the plant
+
+    expect(harvestCrop(world, OWNED).ok).toBe(false); // still growing
+
+    expect(world.events.pending()).toBe(0);
+    expect(isTilled(world.tiles, OWNED)).toBe(true);
+  });
+
+  it('closes the loop: the tile must be tilled again before it can be replanted', () => {
+    // The whole point of the change — seed → tilled → crop → harvest → ground,
+    // and round again through the SAME commands a player or worker issues.
+    const world = harvestReady();
+    harvestCrop(world, OWNED);
+
+    expect(plantCrop(world, OWNED, CORE_WHEAT).ok).toBe(false);
+
+    expect(tillTile(world, OWNED).ok).toBe(true);
+    expect(plantCrop(world, OWNED, CORE_WHEAT).ok).toBe(true);
+  });
+
+  it('leaves the plot around it alone', () => {
+    // One harvest reverts ONE tile: a neighbour tilled in the same breath is
+    // still tilled afterwards.
+    const world = harvestReady();
+    const neighbour = toIndexUnchecked(31, 30);
+    tillTile(world, neighbour);
+
+    harvestCrop(world, OWNED);
+
+    expect(isTilled(world.tiles, neighbour)).toBe(true);
   });
 });
 
@@ -205,7 +304,7 @@ describe('growth progression', () => {
     if (!definition.ok) throw new Error('setup failed');
 
     const stages: number[] = [];
-    for (let elapsed = 0; elapsed <= 2400; elapsed += 100) {
+    for (let elapsed = 0; elapsed <= growthTicks(world, CORE_WHEAT); elapsed += 100) {
       stages.push(stageFor(definition.value, elapsed));
     }
 
@@ -220,7 +319,7 @@ describe('growth progression', () => {
     const world = readyWorld();
     plantCrop(world, OWNED, CORE_WHEAT);
 
-    stepSimulationBy(world, 2399);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT) - 1);
     expect(harvestCrop(world, OWNED).ok).toBe(false);
 
     stepSimulationBy(world, 1);
@@ -235,12 +334,14 @@ describe('growth progression', () => {
     tillTile(world, early);
     tillTile(world, late);
 
+    const settle = 400;
     plantCrop(world, early, CORE_TURNIP);
-    stepSimulationBy(world, 500);
+    stepSimulationBy(world, growthTicks(world, CORE_TURNIP) - settle);
     plantCrop(world, late, CORE_WHEAT);
-    stepSimulationBy(world, 400);
+    stepSimulationBy(world, settle);
 
-    // Turnip (900t) is ready; wheat (2400t), planted later, is not.
+    // The turnip has had its whole growth; the wheat, planted later and slower
+    // besides, has had only the tail of it.
     expect(harvestCrop(world, early).ok).toBe(true);
     expect(harvestCrop(world, late).ok).toBe(false);
   });
@@ -258,11 +359,16 @@ describe('derived tile state (ADR-009 §1)', () => {
     plantCrop(world, OWNED, CORE_WHEAT);
     expect(tileStateAt(query(world), OWNED)).toBe(TileState.Planted);
 
-    stepSimulationBy(world, 1200);
+    const half = growthTicks(world, CORE_WHEAT) / 2;
+    stepSimulationBy(world, half);
     expect(tileStateAt(query(world), OWNED)).toBe(TileState.Growing);
 
-    stepSimulationBy(world, 1200);
+    stepSimulationBy(world, half);
     expect(tileStateAt(query(world), OWNED)).toBe(TileState.HarvestReady);
+
+    // And the harvest hands the tile back to bare ground (07.9).
+    harvestCrop(world, OWNED);
+    expect(tileStateAt(query(world), OWNED)).toBe(TileState.Empty);
   });
 });
 
@@ -305,7 +411,7 @@ describe('events: producer, delivery, consumer, ordering', () => {
   it('produces cropHarvested carrying its yields', () => {
     const world = readyWorld();
     plantCrop(world, OWNED, CORE_WHEAT);
-    stepSimulationBy(world, 2400);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
 
     const yields: { item: string; quantity: number }[] = [];
     world.events.subscribe('cropHarvested', (event) => yields.push(...event.yields));
@@ -321,7 +427,7 @@ describe('events: producer, delivery, consumer, ordering', () => {
     // recomputed from the crop map, so only the event stream maintains them.
     const world = readyWorld();
     plantCrop(world, OWNED, CORE_WHEAT);
-    stepSimulationBy(world, 2400);
+    stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
     harvestCrop(world, OWNED);
     world.events.flush();
 
@@ -339,7 +445,7 @@ describe('events: producer, delivery, consumer, ordering', () => {
 
     tillTile(world, OWNED);
     plantCrop(world, OWNED, CORE_TURNIP);
-    stepSimulationBy(world, 900);
+    stepSimulationBy(world, growthTicks(world, CORE_TURNIP));
     harvestCrop(world, OWNED);
     world.events.flush();
 
@@ -373,7 +479,7 @@ describe('determinism and offline progression', () => {
       grantAllSeeds(world);
       tillTile(world, OWNED);
       plantCrop(world, OWNED, CORE_WHEAT);
-      stepSimulationBy(world, 2400);
+      stepSimulationBy(world, growthTicks(world, CORE_WHEAT));
       harvestCrop(world, OWNED);
       stepSimulationBy(world, 10);
       return world;
@@ -392,11 +498,11 @@ describe('determinism and offline progression', () => {
     // precisely what continuous play would have produced.
     const continuous = readyWorld();
     plantCrop(continuous, OWNED, CORE_WHEAT);
-    stepSimulationBy(continuous, 2400);
+    stepSimulationBy(continuous, growthTicks(continuous, CORE_WHEAT));
 
     const offline = readyWorld();
     plantCrop(offline, OWNED, CORE_WHEAT);
-    offline.tick += 2400; // a gap: no ticks are run at all
+    offline.tick += growthTicks(offline, CORE_WHEAT); // a gap: no ticks are run at all
 
     const grown = continuous.crops.get(OWNED);
     const skipped = offline.crops.get(OWNED);

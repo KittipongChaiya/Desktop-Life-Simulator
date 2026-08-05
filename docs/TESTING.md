@@ -254,7 +254,7 @@ Builders make each test state its own preconditions. Shared mutable fixtures cre
 > **The E2E rebuild is not optional, and the order above is the trap.** The suite
 > launches `electron .`, which runs whatever sits in `out/`. Eight specs drive the
 > app through the F1 developer console — it is the only way to fund a farm or skip
-> 900 ticks from outside the process — and a production build compiles that console
+> the 1,800 ticks a turnip takes from outside the process — and a production build compiles that console
 > out (`electron.vite.config`, `__FEATURE_DEBUG__`). So running the `npm run build`
 > gate on the line above and then the E2E gate leaves `out/` stripped, and those
 > eight specs fail on a 30-second `locator.fill` timeout that names no cause.

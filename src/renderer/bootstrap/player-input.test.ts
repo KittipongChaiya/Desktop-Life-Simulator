@@ -163,7 +163,8 @@ describe('clicking', () => {
     stepSimulation(world);
     expect(world.crops.get(OWNED)?.cropId).toBe(CORE_WHEAT);
 
-    for (let i = 0; i < 2400; i += 1) stepSimulation(world);
+    // Grown from the definition, never a literal: §3.1 durations move.
+    for (let i = 0; i < wheat.value.growthTicks; i += 1) stepSimulation(world);
 
     input.selectTool(Tool.Hand);
     input.click(OWNED);

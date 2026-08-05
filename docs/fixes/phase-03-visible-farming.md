@@ -62,6 +62,8 @@ Two further assertions guard the specific failure this fix exists to end:
 - **no two steps of the loop may render identically**, and
 - **a harvested tile returns to the tilled frame**, not to bare ground — it stays ready to replant, and has to look that way or the player re-tills for nothing and the game rejects it.
 
+> **Superseded by 07.9** (`docs/phases/phase-07.9-gameplay-polish.md`). The second assertion is now its own inverse: harvesting clears the tilling, so the reference frame returns to BARE GROUND and the test asserts that instead (`GAME_DESIGN.md` §3.6). The reasoning above still holds — the frame must match what the commands will accept — and it is the reason the assertion was inverted rather than deleted.
+
 Regenerate after an intentional change, then review by eye:
 
 ```bash

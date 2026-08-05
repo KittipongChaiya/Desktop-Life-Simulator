@@ -8,10 +8,12 @@
  * byte-for-byte against a committed reference.
  *
  * WHAT THIS CATCHES: a repainted crop, a stage threshold that moved, a crop
- * that stops being projected, tilled soil that stops being drawn, a sprite key
- * that stops resolving — the whole decision path from world state to pixels,
- * plus the art behind it. All of that shipped broken once already: tilling and
- * planting produced no visual change whatsoever, and nothing failed.
+ * that stops being projected, tilled soil that stops being drawn — or that
+ * stops being CLEARED, since 07.9 hands a harvested tile back to bare ground —
+ * a sprite key that stops resolving: the whole decision path from world state
+ * to pixels, plus the art behind it. All of that shipped broken once already:
+ * tilling and planting produced no visual change whatsoever, and nothing
+ * failed.
  *
  * WHAT IT DOES NOT CATCH: anything that needs a GPU — z-ordering inside the
  * `objects` layer, camera transforms, the dirty gate, atlas packing. Those have
@@ -174,11 +176,13 @@ describe('the farming loop is visible at every step', () => {
     expect(new Set(frames).size).toBe(frames.length);
   });
 
-  it('returns to the tilled frame after a harvest, not to bare ground', () => {
-    // Harvesting removes the crop but not the tilling — the tile stays ready
-    // to replant, and it has to LOOK that way or the player re-tills for
-    // nothing and the game rejects it.
+  it('returns to bare ground after a harvest, not to the tilled frame (07.9)', () => {
+    // Harvesting takes the crop AND the tilling: the tile goes back to the
+    // ground it started as, and it has to LOOK that way or the player plants
+    // into soil that is no longer there and the game rejects it.
     const world = freshFarm();
+    const bare = Buffer.from(encodePng(composeFrame(world, TILE)));
+
     tillTile(world, TILE);
     const tilled = Buffer.from(encodePng(composeFrame(world, TILE)));
 
@@ -186,6 +190,8 @@ describe('the farming loop is visible at every step', () => {
     stepSimulationBy(world, stageStart(world, 3));
     harvestCrop(world, TILE);
 
-    expect(Buffer.from(encodePng(composeFrame(world, TILE))).equals(tilled)).toBe(true);
+    const harvested = Buffer.from(encodePng(composeFrame(world, TILE)));
+    expect(harvested.equals(bare)).toBe(true);
+    expect(harvested.equals(tilled)).toBe(false);
   });
 });

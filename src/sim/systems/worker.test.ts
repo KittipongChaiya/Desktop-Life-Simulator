@@ -18,6 +18,7 @@ import { CORE_TURNIP } from '../content/crops';
 import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, stepSimulationBy, tickOrder } from '../tick';
 import { addItems } from '../world/container';
+import { setOwned } from '../world/tile-grid';
 import { addCoins } from '../world/wallet';
 import {
   createWorker,
@@ -45,6 +46,13 @@ function occupyPlot(world: World): void {
       world.crops.set(tile, { cropId: CORE_TURNIP, tile, plantedTick: 1_000_000 });
     }
   }
+}
+
+/** Turnip's growth time, from its definition — never a tick literal (§3.1). */
+function turnipGrowthTicks(world: World): number {
+  const definition = world.cropRegistry.get(CORE_TURNIP);
+  if (!definition.ok) throw new Error('setup failed');
+  return definition.value.growthTicks;
 }
 
 describe('workerSystem placement', () => {
@@ -131,9 +139,44 @@ describe('autonomous farming', () => {
   it('harvests a mature crop autonomously', () => {
     const world = createWorld(1);
     world.crops.set(CENTER, { cropId: CORE_TURNIP, tile: CENTER, plantedTick: 0 });
+    world.tiles.tilledAt[CENTER] = 1;
     addWorker(world, 1, CENTER);
-    stepSimulationBy(world, 1000); // turnip matures at 900 ticks
+    stepSimulationBy(world, turnipGrowthTicks(world) + 100); // grown, then worked
     expect(world.cropStats.harvested).toBeGreaterThanOrEqual(1);
+  });
+
+  it('re-tills and replants the ground it harvested (07.9)', () => {
+    // The revert added a step the automation must close by itself: harvest →
+    // bare ground → till → plant. A worker that could not re-till would run the
+    // farm down to bare ground and stop — the jam §4.2 forbids.
+    //
+    // A one-tile farm, so what the worker does is unambiguous: every task it
+    // can possibly choose is a task on CENTER.
+    const world = createWorld(1);
+    for (let y = 28; y <= 35; y += 1) {
+      for (let x = 28; x <= 35; x += 1) {
+        const tile = toIndexUnchecked(x, y);
+        if (tile !== CENTER) setOwned(world.tiles, tile, false);
+      }
+    }
+    addItems(world.inventory, CORE_TURNIP_SEED, 10, DEFAULT_STACK_SIZE);
+    world.crops.set(CENTER, { cropId: CORE_TURNIP, tile: CENTER, plantedTick: 0 });
+    world.tiles.tilledAt[CENTER] = 1;
+    const worker = addWorker(world, 1, CENTER);
+
+    // What happened to the tile, in order.
+    const history: string[] = [];
+    world.events.subscribe('tileUntilled', () => history.push('untilled'));
+    world.events.subscribe('tileTilled', () => history.push('tilled'));
+    world.events.subscribe('cropHarvested', () => history.push('harvested'));
+    world.events.subscribe('cropPlanted', () => history.push('planted'));
+
+    // The crop's whole growth, then room for the three actions that follow it.
+    stepSimulationBy(world, turnipGrowthTicks(world) + 400);
+
+    expect(history).toEqual(['harvested', 'untilled', 'tilled', 'planted']);
+    expect(world.crops.has(CENTER)).toBe(true); // sown again, and growing
+    expect(worker.state).not.toBe(WorkerState.Working); // not stuck mid-action
   });
 
   it('every action reaches the world as a worker-sourced command, never a direct write', () => {

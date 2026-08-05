@@ -53,15 +53,17 @@ Reaching stage 4 means the player can close the panel and the game genuinely pla
 
 ### 2.2 Tile kinds
 
-| ID            | Walkable | Tillable | Notes                                                           |
-| ------------- | -------- | -------- | --------------------------------------------------------------- |
-| `core:grass`  | Yes      | Yes      | Default unowned and owned terrain                               |
-| `core:tilled` | Yes      | —        | Ready to plant; reverts to grass after 6,000 idle ticks (5 min) |
-| `core:water`  | No       | No       | Decoration; blocks pathing                                      |
-| `core:stone`  | No       | No       | Decoration; blocks pathing                                      |
-| `core:path`   | Yes      | No       | Player-placed; workers move 1.5× faster                         |
+| ID            | Walkable | Tillable | Notes                                                              |
+| ------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `core:grass`  | Yes      | Yes      | Default unowned and owned terrain                                  |
+| `core:tilled` | Yes      | —        | Ready to plant; reverts to grass when its crop is harvested (§3.6) |
+| `core:water`  | No       | No       | Decoration; blocks pathing                                         |
+| `core:stone`  | No       | No       | Decoration; blocks pathing                                         |
+| `core:path`   | Yes      | No       | Player-placed; workers move 1.5× faster                            |
 
 Tilled soil reverting to grass is the only decay in v0.1, and it is deliberately gentle: it costs a few seconds of work, never a crop or an item. `VISION.md` §2.2 forbids anything harsher.
+
+**Amended in 07.9.** The trigger is the HARVEST, not an idle timer. The 6,000-idle-tick revert this row specified was never built (`docs/phases/phase-03-farming.md`, acceptance 10) and is not v0.1's: a timer punishes the player who prepared ground and then went away, which is the one thing `VISION.md` §2.2 rules out. Reverting on harvest costs the same few seconds of work and only ever follows a reward. Detail in §3.6.
 
 ### 2.3 Per-tile state
 
@@ -79,18 +81,20 @@ Crops are stored separately, keyed by tile index (ADR-004 §2) — most tiles ha
 
 ### 3.1 The v0.1 crop table
 
-| ID             | Growth           | Seed cost | Sell (base) | Yield | Profit/tile | Coins/sec/tile |
-| -------------- | ---------------- | --------- | ----------- | ----- | ----------- | -------------- |
-| `core:turnip`  | 900 t (45 s)     | 5         | 12          | 1     | 7           | **0.156**      |
-| `core:wheat`   | 2,400 t (120 s)  | 12        | 34          | 1     | 22          | **0.183**      |
-| `core:carrot`  | 4,800 t (240 s)  | 25        | 80          | 1     | 55          | **0.229**      |
-| `core:pumpkin` | 12,000 t (600 s) | 60        | 230         | 1     | 170         | **0.283**      |
+| ID             | Growth             | Seed cost | Sell (base) | Yield | Profit/tile | Coins/sec/tile |
+| -------------- | ------------------ | --------- | ----------- | ----- | ----------- | -------------- |
+| `core:turnip`  | 1,800 t (90 s)     | 5         | 12          | 1     | 7           | **0.078**      |
+| `core:wheat`   | 4,800 t (240 s)    | 12        | 34          | 1     | 22          | **0.092**      |
+| `core:carrot`  | 9,600 t (480 s)    | 25        | 80          | 1     | 55          | **0.115**      |
+| `core:pumpkin` | 24,000 t (1,200 s) | 60        | 230         | 1     | 170         | **0.142**      |
+
+**Rebalanced in 07.9: every growth time doubled.** At 45 seconds a turnip spent under twelve seconds in each of its four stages — the crop read as a progress bar, and the loop asked for attention faster than an idle game should. The multiplier is UNIFORM by design: coins/sec/tile scales by the same 0.5 for every crop, so the ordering below and the 1.82× spread between the ends of the table are exactly what they were. Prices, seed costs and yields are untouched — this pass moved time, not money.
 
 ### 3.2 Why the curve slopes this way
 
 Longer crops yield strictly better coins-per-second. This is the opposite of most active games and is the single most important balance decision in v0.1: **it makes going away the optimal strategy.**
 
-A player checking in every 30 seconds is best served by turnips and earns 0.156/tile/sec. A player who plants pumpkins and comes back after lunch earns 0.283 — nearly twice as much for a fraction of the attention. This is `VISION.md` §2.2 expressed as arithmetic.
+A player checking in every minute or so is best served by turnips and earns 0.078/tile/sec. A player who plants pumpkins and comes back after lunch earns 0.142 — nearly twice as much for a fraction of the attention. This is `VISION.md` §2.2 expressed as arithmetic.
 
 The counterweight is capital: pumpkin seeds cost 12× turnip seeds, so early players cannot access the efficient crops. Progression is therefore about _affording patience_.
 
@@ -123,6 +127,24 @@ stage       : CropStage
 Tiles hold moisture 0–100. Watered tiles grow crops at **1.25×**; dry tiles at **1.0×**. Moisture decays 1 point per 200 ticks (10 s) and is replenished by rain (v0.2) or a player/worker watering action.
 
 **Crops never die from lack of water.** Moisture is a bonus, never a penalty — dry is the baseline, not a failure state.
+
+### 3.6 After the harvest (07.9)
+
+Harvesting takes the crop **and the tilling**. The tile returns to the ground it started as:
+
+```
+  grass ──till──► tilled ──plant──► seed ──► sprout ──► growing ──► mature
+    ▲                                                                 │
+    └─────────────────────────── harvest ◄────────────────────────────┘
+```
+
+This is the §1 loop diagram at the scale of one tile, and it is why that diagram always drew the return edge into TILL rather than into PLANT.
+
+Three consequences, all deliberate:
+
+- **The loop has a shape.** A farm at rest is grass. Every planted tile is the result of work someone did, which is what makes a full plot read as an achievement rather than a starting condition.
+- **The cost is the gentlest one available.** A till is 30 ticks (§4.3) and it only ever follows a yield. Nothing is lost, nothing decays while the player is away, and nothing can fail.
+- **Automation absorbs it.** A worker's priority list already ends in _till_ (§4.4), so the reverted tile is simply the next thing to do; the harvest → till → plant cycle closes with no new behaviour and no new task kind. It costs one more action per cycle, which the offline model charges for (`SAVE_FORMAT.md` §6).
 
 ---
 

@@ -89,13 +89,24 @@ export function createCropRegistry(): CropRegistry {
  * load-bearing: longer crops must stay strictly more efficient per second, so
  * that going away is the optimal strategy (`GAME_DESIGN.md` §3.2). Rebalancing
  * must preserve it.
+ *
+ * REBALANCED IN 07.9: every duration DOUBLED — turnip 45 s → 90 s, and so on
+ * down the table. Growth read as a progress bar rather than a crop; at 45 s a
+ * turnip spent under 12 seconds in each of its four stages, which is less time
+ * than a player takes to notice one. Doubling uniformly is deliberate: it
+ * scales every crop's coins/sec by the same 0.5, so §3.2's inversion and the
+ * whole shape of the curve survive untouched, and it is a DATA edit — prices,
+ * yields and seed costs are not economy balance this pass may move.
+ *
+ * It changes no save: a crop stores `plantedTick` and derives the rest
+ * (ADR-009 §2), so an existing farm's standing crops simply take the new time.
  */
 export function registerCoreCrops(registry: CropRegistry): void {
   const crops: readonly CropDefinition[] = [
     {
       id: CORE_TURNIP,
       displayName: 'Turnip',
-      growthTicks: secondsToTicks(45),
+      growthTicks: secondsToTicks(90),
       stageSprites: ['crops:turnip_0', 'crops:turnip_1', 'crops:turnip_2', 'crops:turnip_3'],
       harvestYield: [{ item: asContentId('core:turnip'), quantity: 1 }],
       seedItem: asContentId('core:turnip_seed'),
@@ -106,7 +117,7 @@ export function registerCoreCrops(registry: CropRegistry): void {
     {
       id: CORE_WHEAT,
       displayName: 'Wheat',
-      growthTicks: secondsToTicks(120),
+      growthTicks: secondsToTicks(240),
       stageSprites: ['crops:wheat_0', 'crops:wheat_1', 'crops:wheat_2', 'crops:wheat_3'],
       harvestYield: [{ item: asContentId('core:wheat'), quantity: 1 }],
       seedItem: asContentId('core:wheat_seed'),
@@ -117,7 +128,7 @@ export function registerCoreCrops(registry: CropRegistry): void {
     {
       id: CORE_CARROT,
       displayName: 'Carrot',
-      growthTicks: secondsToTicks(240),
+      growthTicks: secondsToTicks(480),
       stageSprites: ['crops:carrot_0', 'crops:carrot_1', 'crops:carrot_2', 'crops:carrot_3'],
       harvestYield: [{ item: asContentId('core:carrot'), quantity: 1 }],
       seedItem: asContentId('core:carrot_seed'),
@@ -128,7 +139,7 @@ export function registerCoreCrops(registry: CropRegistry): void {
     {
       id: CORE_PUMPKIN,
       displayName: 'Pumpkin',
-      growthTicks: secondsToTicks(600),
+      growthTicks: secondsToTicks(1200),
       stageSprites: ['crops:pumpkin_0', 'crops:pumpkin_1', 'crops:pumpkin_2', 'crops:pumpkin_3'],
       harvestYield: [{ item: asContentId('core:pumpkin'), quantity: 1 }],
       seedItem: asContentId('core:pumpkin_seed'),

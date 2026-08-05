@@ -48,6 +48,24 @@ export interface TileTilled {
   readonly tick: number;
 }
 
+/**
+ * Fired when a tile stops being tilled — in v0.1, when its crop is harvested
+ * (`GAME_DESIGN.md` §2.2, 07.9).
+ *
+ * The mirror of `TileTilled`, and it exists for the same reason: `tilledAt`
+ * reaches no snapshot slice, so the composition root would never learn the
+ * terrain chunk went stale and the tilled soil would outlive the crop that
+ * stood in it. A worker's harvest produces the identical event, so autonomous
+ * work is drawn on the same path as the player's.
+ *
+ * It carries no tick. `TileTilled` reports what `tilledAt` now holds; here that
+ * value is zero by definition, and the event ring already stamps every
+ * observation with the tick it arrived on.
+ */
+export interface TileUntilled {
+  readonly tile: number;
+}
+
 /** Fired when a crop is successfully planted. */
 export interface CropPlanted {
   readonly tile: number;
@@ -86,6 +104,7 @@ export interface SimEventMap {
   readonly appStarted: AppStarted;
   readonly simulationTick: SimulationTick;
   readonly tileTilled: TileTilled;
+  readonly tileUntilled: TileUntilled;
   readonly cropPlanted: CropPlanted;
   readonly cropHarvested: CropHarvested;
   readonly itemSold: ItemSold;

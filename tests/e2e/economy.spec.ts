@@ -75,8 +75,9 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
   await window.mouse.click(size.w / 2, size.h / 2);
   await new Promise((resolve) => setTimeout(resolve, 150));
 
-  // ── Grow: a turnip needs 900 ticks; advance 1,000 through the console ─────
-  await consoleCommand('tick 1000');
+  // ── Grow: a turnip needs 1,800 ticks (§3.1); advance 2,000 through the
+  //    console ────────────────────────────────────────────────────────────────
+  await consoleCommand('tick 2000');
 
   // ── Harvest (tool 4) ──────────────────────────────────────────────────────
   await window.keyboard.press('4');

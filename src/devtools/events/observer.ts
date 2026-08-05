@@ -29,6 +29,7 @@ import type { SimEventName } from '../../sim/events/types';
 export const OBSERVED_EVENTS: readonly SimEventName[] = [
   'appStarted',
   'tileTilled',
+  'tileUntilled',
   'cropPlanted',
   'cropHarvested',
   'itemSold',

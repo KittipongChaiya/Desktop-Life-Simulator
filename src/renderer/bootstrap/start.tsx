@@ -588,6 +588,15 @@ function composeApplication(world: World, session: SaveSession): void {
     emitParticles(EffectKind.Dust, asTileIndex(event.tile), 5);
   });
 
+  // And the soil going back (07.9). A harvested tile stops being tilled, which
+  // is the same kind of change tilling is — one tile, in no snapshot slice — so
+  // it is invalidated on the same path. No sound and no particles: the harvest
+  // already has both, and the ground reverting is its consequence, not a
+  // second event the player did.
+  world.events.subscribe('tileUntilled', (event) => {
+    worldMount.current()?.invalidateTile(asTileIndex(event.tile));
+  });
+
   // A seed going in. The crop's own sprite presses in from small (crop-view's
   // spawn curve); this is the soil it disturbed on the way.
   world.events.subscribe('cropPlanted', (event) => {

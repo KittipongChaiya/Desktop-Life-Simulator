@@ -142,6 +142,10 @@ export function plantCrop(world: CommandWorld, tile: TileIndex, cropId: ContentI
  *
  * Yields are reported on the event; who receives them is inventory's problem in
  * phase-05, and harvest deliberately does not know.
+ *
+ * It also hands the tile back to bare ground: harvesting undoes the tilling
+ * that made the planting possible, so the loop is till → plant → harvest →
+ * till again, for a worker exactly as for the player (07.9).
  */
 export function harvestCrop(
   world: CommandWorld,
@@ -173,6 +177,12 @@ export function harvestCrop(
   }
 
   world.crops.delete(tile);
+  // The harvest closes the tile's cycle: the soil goes with the crop and the
+  // tile is ordinary ground again (`GAME_DESIGN.md` §2.2, 07.9). Done HERE, in
+  // the handler, so the whole transition is one command — a tile is never
+  // observed crop-less but still tilled, and a replay applying this command
+  // reproduces both halves or neither.
+  world.tiles.tilledAt[tile] = 0;
   for (const stack of yields) {
     // Harvest is a SOURCE (ADR-011 §4): quantity legitimately enters here.
     addItems(destination, stack.item, stack.quantity, stackSizeOf(world.itemRegistry, stack.item));
@@ -182,6 +192,9 @@ export function harvestCrop(
     cropId: crop.cropId,
     yields: yields.map((stack) => ({ item: stack.item, quantity: stack.quantity })),
   });
+  // After the harvest, because that is the order the facts happened in: the
+  // crop came out, and the ground it left is no longer tilled.
+  world.events.publish('tileUntilled', { tile });
   return ok();
 }
 

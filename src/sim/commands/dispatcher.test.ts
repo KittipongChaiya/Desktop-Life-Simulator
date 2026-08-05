@@ -309,7 +309,11 @@ describe('event publication', () => {
   it('publishes harvest yields once the crop is mature', () => {
     const world = tilledWorld();
     send(world, plant(OWNED, CORE_WHEAT));
-    stepSimulationBy(world, 2401);
+    // Wheat's own growth time (§3.1), plus the tick the plant command waited
+    // for. Read from the definition: durations are balance data and move.
+    const wheat = world.cropRegistry.get(CORE_WHEAT);
+    if (!wheat.ok) throw new Error('setup failed');
+    stepSimulationBy(world, wheat.value.growthTicks + 1);
 
     const yields: { item: string; quantity: number }[] = [];
     world.events.subscribe('cropHarvested', (event) => yields.push(...event.yields));

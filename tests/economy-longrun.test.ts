@@ -149,8 +149,12 @@ describe('balance: longer crops are strictly better coins/sec (crit 21)', () => 
       expect(rates[i]!.rate).toBeGreaterThan(rates[i - 1]!.rate);
     }
     // Pin the endpoints so a rebalance cannot silently flatten the curve.
-    expect(rates[0]!.rate).toBeCloseTo(0.156, 2);
-    expect(rates[3]!.rate).toBeCloseTo(0.283, 2);
+    // Halved in 07.9 with the uniform doubling of every growth time (§3.1):
+    // the same curve, walked at half speed — the RATIO between the ends, which
+    // is what §3.2 actually rests on, is unchanged at 1.82×.
+    expect(rates[0]!.rate).toBeCloseTo(0.078, 3);
+    expect(rates[3]!.rate).toBeCloseTo(0.142, 3);
+    expect(rates[3]!.rate / rates[0]!.rate).toBeCloseTo(1.82, 2);
   });
 });
 
