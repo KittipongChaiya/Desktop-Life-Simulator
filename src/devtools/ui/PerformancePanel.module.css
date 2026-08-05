@@ -1,34 +1,9 @@
-/* Performance panel. Left edge, below the debug overlay it complements: the
+/* Performance panel. Position and chrome belong to `PanelFrame` (07.8n); the
    overlay carries the instantaneous numbers, this carries their shape. */
 
 .panel {
-  position: fixed;
-  top: 50%;
-  left: 8px;
-  z-index: 9000;
-  width: 288px;
-  padding: 8px 10px;
-  background: rgb(8 10 14 / 92%);
-  border: 1px solid rgb(255 160 200 / 30%);
-  border-radius: 4px;
-  color: #d7e3f4;
-  font:
-    11px/1.45 ui-monospace,
-    'Cascadia Code',
-    Consolas,
-    monospace;
-  font-variant-numeric: tabular-nums;
-  transform: translateY(-50%);
-  user-select: none;
-}
-
-.heading {
-  margin: 0 0 6px;
-  color: #ffa0c8;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
 }
 
 .graph {

@@ -18,6 +18,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import type { SimulationControl } from '../../shared/simulation-control';
 
+import { PanelFrame } from './PanelFrame';
 import styles from './TimeControls.module.css';
 
 const SAMPLE_HZ = 4;
@@ -38,12 +39,16 @@ function readingEquals(a: Reading, b: Reading): boolean {
   return a.paused === b.paused && a.scale === b.scale && a.tick === b.tick;
 }
 
+/** Where it opens the first time. Moved and remembered thereafter (07.8n). */
+const INITIAL = { x: 8, y: 8, width: 320, height: 118 };
+
 export interface TimeControlsProps {
   readonly visible: boolean;
   readonly simulation: SimulationControl;
+  readonly onClose?: () => void;
 }
 
-export function TimeControls({ visible, simulation }: TimeControlsProps): ReactNode {
+export function TimeControls({ visible, simulation, onClose }: TimeControlsProps): ReactNode {
   const [reading, setReading] = useState<Reading>({ paused: false, scale: 1, tick: 0 });
 
   useEffect(() => {
@@ -65,56 +70,62 @@ export function TimeControls({ visible, simulation }: TimeControlsProps): ReactN
     };
   }, [visible, simulation]);
 
-  if (!visible) return null;
-
   return (
-    <div className={styles['panel']} data-interactive data-testid="time-controls">
-      <h2 className={styles['heading']} data-testid="time-controls-heading">
-        Time · {reading.paused ? 'paused' : 'running'} · {reading.scale}× · tick{' '}
-        {reading.tick.toLocaleString()}
-      </h2>
+    <PanelFrame
+      id="time"
+      title="Time"
+      visible={visible}
+      initial={INITIAL}
+      {...(onClose === undefined ? {} : { onClose })}
+    >
+      <div className={styles['panel']} data-testid="time-controls">
+        <h2 className={styles['heading']} data-testid="time-controls-heading">
+          Time · {reading.paused ? 'paused' : 'running'} · {reading.scale}× · tick{' '}
+          {reading.tick.toLocaleString()}
+        </h2>
 
-      <div className={styles['row']}>
-        <button
-          type="button"
-          className={styles['button']}
-          onClick={() => {
-            if (reading.paused) simulation.resume();
-            else simulation.pause();
-          }}
-        >
-          {reading.paused ? 'Resume' : 'Pause'}
-        </button>
-
-        {STEPS.map((count) => (
+        <div className={styles['row']}>
           <button
-            key={count}
             type="button"
             className={styles['button']}
             onClick={() => {
-              simulation.step(count);
+              if (reading.paused) simulation.resume();
+              else simulation.pause();
             }}
           >
-            +{count}
+            {reading.paused ? 'Resume' : 'Pause'}
           </button>
-        ))}
-      </div>
 
-      <div className={styles['row']}>
-        {SCALES.map((scale) => (
-          <button
-            key={scale}
-            type="button"
-            aria-pressed={reading.scale === scale}
-            className={reading.scale === scale ? styles['buttonActive'] : styles['button']}
-            onClick={() => {
-              simulation.setTimeScale(scale);
-            }}
-          >
-            {scale}×
-          </button>
-        ))}
+          {STEPS.map((count) => (
+            <button
+              key={count}
+              type="button"
+              className={styles['button']}
+              onClick={() => {
+                simulation.step(count);
+              }}
+            >
+              +{count}
+            </button>
+          ))}
+        </div>
+
+        <div className={styles['row']}>
+          {SCALES.map((scale) => (
+            <button
+              key={scale}
+              type="button"
+              aria-pressed={reading.scale === scale}
+              className={reading.scale === scale ? styles['buttonActive'] : styles['button']}
+              onClick={() => {
+                simulation.setTimeScale(scale);
+              }}
+            >
+              {scale}×
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    </PanelFrame>
   );
 }

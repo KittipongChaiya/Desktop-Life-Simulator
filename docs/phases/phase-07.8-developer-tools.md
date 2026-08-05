@@ -44,7 +44,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | **Delivered** |
 | 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | **Delivered** |
 | 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | **Delivered** |
-| 07.8n | Panel UX (§14)              | Resize, dock, search, filter, remembered layout                                             | Pending       |
+| 07.8n | Panel UX (§14)              | Resize, dock, search, filter, remembered layout                                             | **Delivered** |
 | 07.8o | Close-out                   | Budgets re-measured, docs synced, acceptance audit                                          | Pending       |
 
 **07.8k is deliberately late.** It is the first tool that writes, and ADR-018 §3 is the rule most likely to be broken by a shortcut — it lands after the read-only surface is settled, not while it is in flux.
@@ -347,6 +347,28 @@ The one untested line is the export itself — a Blob download, a browser API wi
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **121 files / 1,544 tests** (+24). E2E **61 passed, 4 skipped** — the new spec tills a tile the ordinary way and asserts the recording caught it on the real command and event streams. **Criterion 4: 1,624,514** — unchanged.
 
+### 07.8n — Panel UX · Delivered
+
+A shared `PanelFrame`: title bar, drag to move, grip to resize, optional search box, close button — and geometry remembered across sessions. Applied to the four panels a developer actually rearranges (events, commands, time, performance).
+
+**Written once, so a tenth panel inherits it.** Nine tools accumulated over this phase, each pinned to a hardcoded corner; three open is fine and five overlap. The frame also carries `data-interactive` for all of them at once, which retires the per-panel repetition of 07.8e's defect — the next panel cannot forget it.
+
+**Which panels are framed, and why the rest are not.** The **inspector** follows the pointer and is deliberately pointer-transparent; giving it a draggable bar would fight what it is for. The **overlay** is a corner HUD readout, also pointer-transparent. The **console** owns its own docked layout with a focused input. Framing those would be change for its own sake, so they are unchanged.
+
+**Search is a view, never a delete.** The two monitors filter rows by substring across name, payload, type, source and error code, on top of the existing chips. The recording underneath is untouched — asserted by clearing the box and getting every row back.
+
+**Remembered means both halves**: where each panel sits _and_ which were open. The console is deliberately excluded from the second — it takes focus and swallows typing, so restoring it on launch would surprise the next session rather than serve it. Layout lives in `localStorage`, not in the game's settings file: settings travel over IPC to the main process, and putting debug geometry there would add production surface for a debug feature.
+
+Stored layout is **validated, not trusted** (`AI_RULES.md` §2.4): absent, truncated, hand-edited or written by an older build all fall back to defaults, and one unreadable panel loses its own position rather than everyone else's. A storage write that throws is the single deliberate swallow in this phase — there is no user to tell and nothing downstream depends on it, and a panel that throws mid-drag would be a defect where a forgotten position is a nuisance.
+
+#### The E2E found a real bug: the overlay is 220 pixels tall
+
+The resize test failed because the grip was **off-screen and unreachable**. The window is a desktop strip — measured at 1920×220 — and `clampGeometry` bounded a panel's _position_ but not its _size_, so a 210-tall panel opened at y=150 hung its bottom two thirds past the edge. Size is now clamped to the viewport as well, the defaults fit a strip, and the case has its own unit test with the measurement in it.
+
+A second failure was mine, not the code's: the search test asserted "more than one event type exists", which is not what search is about and which a fresh session does not guarantee. It now asserts against a nonsense term instead.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **123 files / 1,576 tests** (+56). E2E **66 passed, 4 skipped**. **Criterion 4: 1,624,514** — unchanged. Two E2E assertions moved with the headings they were reading, and the criterion-8 flake did not recur.
+
 ### Remaining
 
-07.8n and 07.8o.
+07.8o — close-out.

@@ -1,0 +1,101 @@
+/* Shared panel chrome. One frame, so a tenth panel inherits every affordance
+   rather than inventing a corner to sit in. */
+
+.frame {
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgb(8 10 14 / 92%);
+  border: 1px solid rgb(215 227 244 / 22%);
+  border-radius: 4px;
+  color: #d7e3f4;
+  font:
+    11px/1.45 ui-monospace,
+    'Cascadia Code',
+    Consolas,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  background: rgb(215 227 244 / 8%);
+  /* The affordance: the bar is the handle, so it says so before it is tried. */
+  cursor: move;
+}
+
+.title {
+  color: #eaf2ff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status {
+  flex: 1;
+  overflow: hidden;
+  color: rgb(215 227 244 / 55%);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  flex: none;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  color: rgb(215 227 244 / 55%);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: #eaf2ff;
+}
+
+.search {
+  flex: none;
+  margin: 4px 6px 0;
+  padding: 2px 6px;
+  background: rgb(215 227 244 / 8%);
+  border: 1px solid rgb(215 227 244 / 18%);
+  border-radius: 3px;
+  color: #eaf2ff;
+  font: inherit;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+}
+
+/* Bottom-right grip. Sixteen pixels is small enough not to swallow content and
+   large enough to hit without aiming. */
+.grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 50%,
+    rgb(215 227 244 / 35%) 50%,
+    rgb(215 227 244 / 35%) 60%,
+    transparent 60%
+  );
+  cursor: nwse-resize;
+}

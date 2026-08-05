@@ -153,9 +153,9 @@ describe('PerformancePanel', () => {
     expect(screen.getByTestId('performance-panel').textContent).toContain('42');
   });
 
-  it('marks itself interactive', () => {
+  it('is framed, which is what makes it interactive and movable', () => {
     render(<PerformancePanel visible simulation={fakeSimulation()} />);
 
-    expect(screen.getByTestId('performance-panel').hasAttribute('data-interactive')).toBe(true);
+    expect(screen.getByTestId('panel-perf').hasAttribute('data-interactive')).toBe(true);
   });
 });

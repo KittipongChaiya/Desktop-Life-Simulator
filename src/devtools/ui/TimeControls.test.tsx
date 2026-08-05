@@ -160,9 +160,9 @@ describe('TimeControls', () => {
     expect(container.innerHTML).toBe(painted);
   });
 
-  it('marks itself interactive, so its buttons are not clicks on the farm', () => {
+  it('is framed, which is what makes it interactive and movable', () => {
     render(<TimeControls visible simulation={fakeSimulation()} />);
 
-    expect(screen.getByTestId('time-controls').hasAttribute('data-interactive')).toBe(true);
+    expect(screen.getByTestId('panel-time').hasAttribute('data-interactive')).toBe(true);
   });
 });

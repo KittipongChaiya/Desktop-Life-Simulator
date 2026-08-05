@@ -51,8 +51,9 @@ describe('EventMonitor', () => {
     render(<EventMonitor visible ring={ring} />);
 
     // 5 seen, 2 retained. Reporting only the 2 would hide the eviction.
-    expect(screen.getByTestId('event-monitor-heading').textContent).toContain('5');
-    expect(screen.getByTestId('event-monitor-heading').textContent).toContain('2');
+    // The summary lives in the shared frame's title bar since 07.8n.
+    expect(screen.getByTestId('panel-events').textContent).toContain('5');
+    expect(screen.getByTestId('panel-events').textContent).toContain('2');
   });
 
   it('filters a type out, and back in', () => {
@@ -79,14 +80,14 @@ describe('EventMonitor', () => {
     expect(screen.getAllByTestId('event-row')).toHaveLength(2);
   });
 
-  it('marks itself interactive, so clicking a filter is not a click on the farm', () => {
-    // Found by the E2E, not by reasoning: with a tool armed, clicking a chip
-    // tilled the tile behind the panel. `pointer-actions` treats any press
-    // that did not start over a `[data-interactive]` element as a tile action,
-    // and `hit-test` passes the mouse to the desktop over anything else.
+  it('is framed, which is what makes it interactive and movable', () => {
+    // `data-interactive` moved to the shared frame in 07.8n. Asserting the
+    // panel is FRAMED is the per-panel half of that: the frame's own tests
+    // cover the attribute, and this covers opting into it. Without it, with a
+    // tool armed, clicking a chip tills the tile behind the panel (07.8e).
     render(<EventMonitor visible ring={ringWith('tileTilled')} />);
 
-    expect(screen.getByTestId('event-monitor').hasAttribute('data-interactive')).toBe(true);
+    expect(screen.getByTestId('panel-events').hasAttribute('data-interactive')).toBe(true);
   });
 
   it('says plainly when it has seen nothing', () => {

@@ -26,6 +26,7 @@ import { DebugOverlay } from './DebugOverlay';
 import { DevConsole } from './DevConsole';
 import { EventMonitor } from './EventMonitor';
 import { Inspector } from './Inspector';
+import { loadLayout, saveLayout, withOpen } from './panel-layout';
 import { PerformancePanel } from './PerformancePanel';
 import { TimeControls } from './TimeControls';
 
@@ -34,14 +35,35 @@ export interface DevToolsProps {
 }
 
 export function DevTools({ host }: DevToolsProps): ReactNode {
-  const [overlayVisible, setOverlayVisible] = useState(false);
+  // Which panels were open last session (07.8n). Read once: a layout is a
+  // starting arrangement, not a live subscription.
+  const [remembered] = useState(() => new Set(loadLayout().open));
+
+  const [overlayVisible, setOverlayVisible] = useState(() => remembered.has('overlay'));
   const [consoleVisible, setConsoleVisible] = useState(false);
-  const [inspectorVisible, setInspectorVisible] = useState(false);
-  const [eventsVisible, setEventsVisible] = useState(false);
-  const [commandsVisible, setCommandsVisible] = useState(false);
-  const [timeVisible, setTimeVisible] = useState(false);
-  const [perfVisible, setPerfVisible] = useState(false);
+  const [inspectorVisible, setInspectorVisible] = useState(() => remembered.has('inspector'));
+  const [eventsVisible, setEventsVisible] = useState(() => remembered.has('events'));
+  const [commandsVisible, setCommandsVisible] = useState(() => remembered.has('commands'));
+  const [timeVisible, setTimeVisible] = useState(() => remembered.has('time'));
+  const [perfVisible, setPerfVisible] = useState(() => remembered.has('perf'));
   const [screenshot, setScreenshot] = useState(false);
+
+  /**
+   * Toggles a panel and remembers the decision.
+   *
+   * The CONSOLE is deliberately absent from the remembered set: it takes focus
+   * and swallows typing, so restoring it on launch would surprise the next
+   * session rather than serve it.
+   */
+  const toggle = useCallback(
+    (id: string, set: React.Dispatch<React.SetStateAction<boolean>>) => () => {
+      set((open) => {
+        saveLayout(withOpen(loadLayout(), id, !open));
+        return !open;
+      });
+    },
+    [],
+  );
 
   const closeConsole = useCallback(() => {
     setConsoleVisible(false);
@@ -64,7 +86,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
       switch (event.key) {
         case 'F3':
           event.preventDefault();
-          setOverlayVisible((v) => !v);
+          toggle('overlay', setOverlayVisible)();
           break;
         // F8 draws INTO THE WORLD rather than opening a panel, so it has no
         // component and no React state: it flips a holder the view reads each
@@ -80,19 +102,19 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
           break;
         case 'F7':
           event.preventDefault();
-          setPerfVisible((v) => !v);
+          toggle('perf', setPerfVisible)();
           break;
         case 'F6':
           event.preventDefault();
-          setTimeVisible((v) => !v);
+          toggle('time', setTimeVisible)();
           break;
         case 'F5':
           event.preventDefault();
-          setCommandsVisible((v) => !v);
+          toggle('commands', setCommandsVisible)();
           break;
         case 'F2':
           event.preventDefault();
-          setEventsVisible((v) => !v);
+          toggle('events', setEventsVisible)();
           break;
         case 'F1':
           if (!FEATURE_CONSOLE) return;
@@ -102,7 +124,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
         case 'F4':
           if (!FEATURE_INSPECTOR) return;
           event.preventDefault();
-          setInspectorVisible((v) => !v);
+          toggle('inspector', setInspectorVisible)();
           break;
         default:
           break;
@@ -113,7 +135,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [host]);
+  }, [host, toggle]);
 
   // One rule, applied once per panel. Spelled out seven times it would be
   // seven chances for the next panel to forget it and appear in a capture.
@@ -127,10 +149,26 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
         profiler={host.profiler}
       />
       <Inspector visible={shown(inspectorVisible)} registry={host.inspector} />
-      <EventMonitor visible={shown(eventsVisible)} ring={host.events} />
-      <CommandMonitor visible={shown(commandsVisible)} ring={host.commandLog} />
-      <TimeControls visible={shown(timeVisible)} simulation={host.simulation} />
-      <PerformancePanel visible={shown(perfVisible)} simulation={host.simulation} />
+      <EventMonitor
+        visible={shown(eventsVisible)}
+        ring={host.events}
+        onClose={toggle('events', setEventsVisible)}
+      />
+      <CommandMonitor
+        visible={shown(commandsVisible)}
+        ring={host.commandLog}
+        onClose={toggle('commands', setCommandsVisible)}
+      />
+      <TimeControls
+        visible={shown(timeVisible)}
+        simulation={host.simulation}
+        onClose={toggle('time', setTimeVisible)}
+      />
+      <PerformancePanel
+        visible={shown(perfVisible)}
+        simulation={host.simulation}
+        onClose={toggle('perf', setPerfVisible)}
+      />
       <DevConsole visible={shown(consoleVisible)} engine={host.console} onClose={closeConsole} />
     </>
   );

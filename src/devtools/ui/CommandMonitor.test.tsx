@@ -65,7 +65,8 @@ describe('CommandMonitor', () => {
     record(ring, 'c', CommandOutcome.Failed);
 
     render(<CommandMonitor visible ring={ring} />);
-    const heading = screen.getByTestId('command-monitor-heading').textContent ?? '';
+    // The tally lives in the shared frame's title bar since 07.8n.
+    const heading = screen.getByTestId('panel-commands').textContent ?? '';
 
     expect(heading).toContain('3');
     expect(heading).toMatch(/1.*accepted/);
@@ -106,12 +107,11 @@ describe('CommandMonitor', () => {
     expect(screen.getAllByTestId('command-row')).toHaveLength(2);
   });
 
-  it('marks itself interactive, so clicking a filter is not a click on the farm', () => {
-    // The defect 07.8e found the hard way. Every interactive devtools panel
-    // carries this or its clicks become tile actions.
+  it('is framed, which is what makes it interactive and movable', () => {
+    // The defect 07.8e found the hard way, now owned by the shared frame.
     render(<CommandMonitor visible ring={ringWith(CommandOutcome.Accepted)} />);
 
-    expect(screen.getByTestId('command-monitor').hasAttribute('data-interactive')).toBe(true);
+    expect(screen.getByTestId('panel-commands').hasAttribute('data-interactive')).toBe(true);
   });
 
   it('says plainly when it has seen nothing', () => {

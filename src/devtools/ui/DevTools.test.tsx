@@ -10,12 +10,18 @@
  */
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { SimulationControl } from '../../shared/simulation-control';
 import { createDevTools, type DevToolsHost } from '../host';
 
 import { DevTools } from './DevTools';
+
+beforeEach(() => {
+  // Which panels are open is remembered from 07.8n, so a case that opens F3
+  // would otherwise decide what the next case starts with.
+  localStorage.clear();
+});
 
 afterEach(cleanup);
 

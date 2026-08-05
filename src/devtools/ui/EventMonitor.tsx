@@ -25,14 +25,20 @@ import { OBSERVED_EVENTS } from '../events/observer';
 import type { EventRing } from '../events/ring';
 
 import styles from './EventMonitor.module.css';
+import { PanelFrame } from './PanelFrame';
+
+/** Where it opens the first time. Moved and remembered thereafter (07.8n). */
+const INITIAL = { x: 8, y: 34, width: 430, height: 180 };
 
 export interface EventMonitorProps {
   readonly visible: boolean;
   readonly ring: EventRing;
+  readonly onClose?: () => void;
 }
 
-export function EventMonitor({ visible, ring }: EventMonitorProps): ReactNode {
+export function EventMonitor({ visible, ring, onClose }: EventMonitorProps): ReactNode {
   const [muted, setMuted] = useState<readonly string[]>([]);
+  const [query, setQuery] = useState('');
 
   const subscribe = useCallback((onChange: () => void) => ring.subscribe(onChange), [ring]);
   const getEntries = useCallback(() => ring.entries(), [ring]);
@@ -44,53 +50,64 @@ export function EventMonitor({ visible, ring }: EventMonitorProps): ReactNode {
     );
   };
 
-  if (!visible) return null;
-
-  const shown = entries.filter((entry) => !muted.includes(entry.name));
+  const needle = query.trim().toLowerCase();
+  const shown = entries.filter(
+    (entry) =>
+      !muted.includes(entry.name) &&
+      (needle === '' ||
+        entry.name.toLowerCase().includes(needle) ||
+        entry.summary.toLowerCase().includes(needle)),
+  );
 
   return (
-    <div className={styles['monitor']} data-interactive data-testid="event-monitor">
-      <h2 className={styles['heading']} data-testid="event-monitor-heading">
-        Events · {ring.observed()} observed · {entries.length} kept · {shown.length} shown
-      </h2>
-
-      <div className={styles['filters']}>
-        {OBSERVED_EVENTS.map((name) => (
+    <PanelFrame
+      id="events"
+      title="Events"
+      visible={visible}
+      initial={INITIAL}
+      status={`${String(ring.observed())} observed · ${String(entries.length)} kept · ${String(shown.length)} shown`}
+      onSearch={setQuery}
+      {...(onClose === undefined ? {} : { onClose })}
+    >
+      <div className={styles['monitor']} data-testid="event-monitor">
+        <div className={styles['filters']}>
+          {OBSERVED_EVENTS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={muted.includes(name) ? styles['chipMuted'] : styles['chip']}
+              onClick={() => {
+                toggle(name);
+              }}
+            >
+              {name}
+            </button>
+          ))}
           <button
-            key={name}
             type="button"
-            className={muted.includes(name) ? styles['chipMuted'] : styles['chip']}
+            className={styles['chip']}
             onClick={() => {
-              toggle(name);
+              ring.clear();
             }}
           >
-            {name}
+            Clear
           </button>
-        ))}
-        <button
-          type="button"
-          className={styles['chip']}
-          onClick={() => {
-            ring.clear();
-          }}
-        >
-          Clear
-        </button>
-      </div>
+        </div>
 
-      {shown.length === 0 ? (
-        <p className={styles['empty']}>No events observed yet.</p>
-      ) : (
-        <ol className={styles['list']}>
-          {[...shown].reverse().map((entry) => (
-            <li key={entry.seq} className={styles['row']} data-testid="event-row">
-              <span className={styles['tick']}>t{entry.tick}</span>
-              <span className={styles['name']}>{entry.name}</span>
-              <span className={styles['summary']}>{entry.summary}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
+        {shown.length === 0 ? (
+          <p className={styles['empty']}>No events observed yet.</p>
+        ) : (
+          <ol className={styles['list']}>
+            {[...shown].reverse().map((entry) => (
+              <li key={entry.seq} className={styles['row']} data-testid="event-row">
+                <span className={styles['tick']}>t{entry.tick}</span>
+                <span className={styles['name']}>{entry.name}</span>
+                <span className={styles['summary']}>{entry.summary}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </PanelFrame>
   );
 }

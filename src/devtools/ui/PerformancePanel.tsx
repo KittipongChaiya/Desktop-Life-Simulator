@@ -32,6 +32,7 @@ import {
   seriesPath,
 } from '../perf/series';
 
+import { PanelFrame } from './PanelFrame';
 import styles from './PerformancePanel.module.css';
 
 const GRAPH_WIDTH = 260;
@@ -53,12 +54,20 @@ function sameSeries(a: Series, b: Series): boolean {
   return sameValues(a.fps, b.fps) && sameValues(a.frame, b.frame) && sameValues(a.heap, b.heap);
 }
 
+/** Where it opens the first time. Moved and remembered thereafter (07.8n). */
+const INITIAL = { x: 910, y: 8, width: 310, height: 200 };
+
 export interface PerformancePanelProps {
   readonly visible: boolean;
   readonly simulation: SimulationControl;
+  readonly onClose?: () => void;
 }
 
-export function PerformancePanel({ visible, simulation }: PerformancePanelProps): ReactNode {
+export function PerformancePanel({
+  visible,
+  simulation,
+  onClose,
+}: PerformancePanelProps): ReactNode {
   const [series, setSeries] = useState<Series>(EMPTY);
 
   useEffect(() => {
@@ -85,18 +94,28 @@ export function PerformancePanel({ visible, simulation }: PerformancePanelProps)
     };
   }, [visible, simulation]);
 
-  if (!visible) return null;
-
   return (
-    <div className={styles['panel']} data-interactive data-testid="performance-panel">
-      <h2 className={styles['heading']}>Performance · last {PERF_WINDOW_MS / 1000}s</h2>
-
-      <Graph id="fps" label="FPS" values={series.fps} format={(v) => v.toFixed(0)} />
-      <Graph id="frame" label="Frame" values={series.frame} format={(v) => `${v.toFixed(1)} ms`} />
-      {series.heap.length > 0 && (
-        <Graph id="heap" label="Heap" values={series.heap} format={(v) => `${v.toFixed(1)} MB`} />
-      )}
-    </div>
+    <PanelFrame
+      id="perf"
+      title="Performance"
+      visible={visible}
+      initial={INITIAL}
+      status={`last ${String(PERF_WINDOW_MS / 1000)}s`}
+      {...(onClose === undefined ? {} : { onClose })}
+    >
+      <div className={styles['panel']} data-testid="performance-panel">
+        <Graph id="fps" label="FPS" values={series.fps} format={(v) => v.toFixed(0)} />
+        <Graph
+          id="frame"
+          label="Frame"
+          values={series.frame}
+          format={(v) => `${v.toFixed(1)} ms`}
+        />
+        {series.heap.length > 0 && (
+          <Graph id="heap" label="Heap" values={series.heap} format={(v) => `${v.toFixed(1)} MB`} />
+        )}
+      </div>
+    </PanelFrame>
   );
 }
 

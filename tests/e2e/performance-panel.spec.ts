@@ -33,7 +33,8 @@ test('plots a live history of the running app', async () => {
   await window.keyboard.press('F7');
   const panel = window.getByTestId('performance-panel');
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText('last 60s');
+  // The window it covers is stated in the shared frame's title bar (07.8n).
+  await expect(window.getByTestId('panel-perf')).toContainText('last 60s');
 
   // Points accumulate as the window fills, oldest to the left.
   const fps = window.getByTestId('graph-fps');
