@@ -45,7 +45,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | **Delivered** |
 | 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | **Delivered** |
 | 07.8n | Panel UX (§14)              | Resize, dock, search, filter, remembered layout                                             | **Delivered** |
-| 07.8o | Close-out                   | Budgets re-measured, docs synced, acceptance audit                                          | Pending       |
+| 07.8o | Close-out                   | Budgets re-measured, docs synced, acceptance audit                                          | **Delivered** |
 
 **07.8k is deliberately late.** It is the first tool that writes, and ADR-018 §3 is the rule most likely to be broken by a shortcut — it lands after the read-only surface is settled, not while it is in flux.
 
@@ -369,6 +369,65 @@ A second failure was mine, not the code's: the search test asserted "more than o
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **123 files / 1,576 tests** (+56). E2E **66 passed, 4 skipped**. **Criterion 4: 1,624,514** — unchanged. Two E2E assertions moved with the headings they were reading, and the criterion-8 flake did not recur.
 
-### Remaining
+### 07.8o — Close-out · Delivered
 
-07.8o — close-out.
+#### Budgets, re-measured
+
+| Budget                       | Ceiling (`PERFORMANCE.md`) | Measured now            |
+| ---------------------------- | -------------------------- | ----------------------- |
+| Simulation tick, average     | < 0.5 ms                   | **0.027 ms**            |
+| Simulation tick, p99         | < 3 ms                     | **0.1 ms** (max 0.6 ms) |
+| Ambient motion, pointer away | 0 fps, 0 leases            | **0 fps, 0 anim**       |
+| Ambient motion, watched      | > 0 — the lease is held    | **25.5 fps, 1 anim**    |
+
+Nothing this phase added moves a budget, which the numbers are here to show rather than assert: the tooling is compiled out of the build these ceilings govern, and in a debug build every panel is closed until asked for.
+
+**The flake recorded in 07.8k is fixed, not accepted.** Criterion 8 sampled the frame rate once, a second after a pointer move — but presence begins on that move and the overlay republishes at 4 Hz, so the read could land in the gap before the first ambient lease was taken. It polls now. The assertions are unchanged; only the race is gone.
+
+#### Docs synced
+
+- **`PERFORMANCE.md`** — the invariant table said `NOT YET TESTED` for ambient idle while the note directly beneath it said that row had been closed in 07.7M. It names the spec now. Two rows added for this phase: a scene-drawing overlay and a frame-rate-plotting panel are the two ways tooling could quietly hold the render loop open, and both are asserted end-to-end.
+- **`PROJECT_STRUCTURE.md`** — the devtools tree listed `simulation-control.ts`, which moved to `shared` in phase-01.6, and none of this phase's directories. Both fixed, plus `shared/build-flags.ts`.
+- **`ADR-018`** — an implementation note on §7 recording that `FEATURE_DEBUG` is declared in `shared/build-flags.ts` and re-exported. The decision is unchanged; what changed is which layers may read it, and why they had to.
+
+#### Acceptance audit
+
+| #   | Criterion                               | Verdict               | Evidence                                                                                                                                                             |
+| --- | --------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Gameplay unchanged                      | **Met**               | No `src/sim` diff in this phase at all. The only shipped-code edits are `shared/build-flags.ts`, two declarations on `SimulationControl`, and one forwarded option.  |
+| 2   | Determinism preserved                   | **Met**               | Nothing added consumes `world.rng`; the sim suite, determinism properties included, passes unchanged.                                                                |
+| 3   | `FEATURE_DEBUG=false` removes all tools | **Met**               | `devtools-excluded-from-production.test.ts`, **31 markers**, greps a real build. It caught a leak in 07.8i — a comment, not code.                                    |
+| 4   | No production bundle increase           | **+41 bytes**, stated | See below.                                                                                                                                                           |
+| 5   | All mutations use the dispatcher        | **Met**               | `devtools-writes-only-through-commands.test.ts` asserts every sim import in `src/devtools` is type-only, so no sim function is callable from the tooling at all.     |
+| 6   | No boundary violations                  | **Met**               | `check:boundaries` clean; `check:cycles` clean over 241 modules.                                                                                                     |
+| 7   | Overlay disabled = zero idle frames     | **Met**               | `render-budget.spec.ts` "a static world draws no frames", unchanged — plus both new in-world overlays asserted with their drawing **on**.                            |
+| 8   | Debug rendering never affects gameplay  | **Met**               | Criterion 2 plus the boundary matrix: `render` may not import `devtools`, and the overlays read snapshots and pure queries only.                                     |
+| 9   | Panels update only on snapshot changes  | **Met**               | Asserted per panel: monitors subscribe via `useSyncExternalStore`; inspector and time controls commit only on change; the performance panel goes still when uniform. |
+| 10  | All tests pass                          | **Met**               | Unit **123 files / 1,576 tests**; E2E **66 passed, 4 skipped** — the four pre-existing skips.                                                                        |
+
+#### Criterion 4, in full
+
+**1,624,514 bytes against 07.8a's baseline of 1,624,473 — plus 41.** Not zero, and stated precisely because a criterion worded _no increase_ that quietly means _no meaningful increase_ stops being a criterion.
+
+**No tooling ships.** Every debug module is absent from the bundle, and 31 markers assert that against the artifact rather than the source. The 41 bytes are exactly two things, both plumbing:
+
+- `debug: options.debug,` — one option forwarded through `world-mount` so the world view can be handed its in-world overlays. A property copy is an _expression_, and expressions do not fold even when the flag has already decided them; only statements do.
+- One additional `...{}`, the residue a folded spread leaves behind.
+
+Three routes to zero were considered and rejected as worse than the bytes: a second locally-declared flag (two sources of truth for the master switch), restructuring the mount around a named options binding (which costs its own identifier, since this bundle is not minified), and shortening the property name (obfuscation, for twenty bytes).
+
+Criterion 4 earned its place three times along the way: **178 bytes** in 07.8a, **53 then 10** in 07.8f, and **557** in 07.8i — the last forcing `FEATURE_DEBUG` into `shared`, which is why two in-world overlays ended up costing less than one.
+
+---
+
+## Phase 07.8 · Complete
+
+Fifteen milestones, all delivered. Roughly 40% of the brief already existed, and this phase extended it rather than building beside it — which is what the survey at the top of this document was for.
+
+**What the brief asked for and did not get, collected in one place:**
+
+- **§5 command durations** are dispatch-only. Execution happens inside `drain`, and instrumenting it would be a simulation change made for a debug tool.
+- **§6 open and closed sets** are not drawn. They exist only inside `findPath` while it runs; reaching them needs an observer parameter on the pathfinder, and re-implementing A\* to reproduce them would be a second pathfinder free to disagree with the first.
+- **A `speed` console command** was not added: `builtins.ts` has no test harness, and an untested command is worse than a missing one.
+
+Each is an instance of ADR-018's own consequence — _some tools will be impossible to build honestly, and must then not be built_ — and each is named in the milestone that met it rather than left as a silent gap.

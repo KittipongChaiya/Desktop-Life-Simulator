@@ -77,7 +77,9 @@ These are the mechanisms that make the collapsed and idle budgets achievable. Bo
 | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | No `requestAnimationFrame` fires when the world is static (ADR-001 §1)                                    | `tests/e2e/render-budget.spec.ts` — "a static world draws no frames" |
 | No React commit occurs when no snapshot slice changed (ADR-005 §2)                                        | Same file                                                            |
-| Ambient motion enabled, pointer idle past `AMBIENT_IDLE_TIMEOUT_MS` → still zero (ADR-017 §2 condition 4) | **NOT YET TESTED** — see below                                       |
+| Ambient motion enabled, pointer idle past `AMBIENT_IDLE_TIMEOUT_MS` → still zero (ADR-017 §2 condition 4) | `tests/e2e/perf-harness.spec.ts` — criterion 8                       |
+| A debug overlay drawn INTO the world does not hold the loop open (ADR-018 §8)                             | `tests/e2e/chunk-debug.spec.ts`, `tests/e2e/path-debug.spec.ts`      |
+| An open performance panel does not inflate the frame rate it plots (ADR-018 §8)                           | `tests/e2e/performance-panel.spec.ts`                                |
 
 > **Corrected 2026-08-01 (phase-07.7k).** The first two rows named
 > `tests/e2e/idle-cost.spec.ts`, which does not exist and never has. Both
@@ -85,6 +87,13 @@ These are the mechanisms that make the collapsed and idle budgets achievable. Bo
 > draws no frames" and the collapse-cycle leak test — but a reader checking the
 > named file would have found nothing and reasonably concluded the invariants
 > were unguarded.
+>
+> **Corrected again 2026-08-05 (phase-07.8o).** The third row still read "NOT
+> YET TESTED" while the note directly beneath it said the opposite. It now
+> names the spec. Two rows were added for phase-07.8: an overlay that draws
+> into the scene, and a panel that plots the frame rate, are the two ways
+> tooling could quietly hold the render loop open, and both are asserted
+> end-to-end.
 >
 > **The third row was closed in 07.7M.** Ambient motion is the one thing that
 > can hold the frame loop open, and its surrender-on-idle behaviour is now

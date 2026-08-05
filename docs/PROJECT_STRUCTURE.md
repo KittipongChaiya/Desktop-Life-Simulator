@@ -53,8 +53,13 @@ src/
 │   ├── errors.ts               AppError taxonomy
 │   ├── ids.ts                  Branded ID types
 │   ├── geometry.ts             TilePosition, Rect, index↔coord helpers
+│   ├── build-flags.ts          FEATURE_DEBUG, the one compile-time gate. HERE
+│   │                           because `render` may not import devtools, and a
+│   │                           scene-drawing debug tool needs a literal to fold
+│   │                           against or its hook ships (07.8i, ADR-018 §7)
 │   ├── simulation-control.ts   Loop control contract (bootstrap implements,
-│   │                           devtools consumes; neither depends on the other)
+│   │                           devtools consumes; neither depends on the other).
+│   │                           Carries the time scale from 07.8g
 │   ├── shortcuts.ts            ShortcutActions + default bindings — THE one
 │   │                           place physical keys exist (fix/0.1/1.8a.md)
 │   └── ipc/
@@ -192,15 +197,21 @@ src/
 ├── devtools/                   DEVELOPER TOOLING — nothing in the game may
 │   │                           import this (phase-01.5 deliverable 8).
 │   │                           Excluded from production builds entirely.
-│   ├── flags.ts                Feature flags, injected as Vite `define` literals
+│   ├── flags.ts                Sub-flags; re-exports FEATURE_DEBUG from shared
 │   ├── host.ts                 Composition root; created only if FEATURE_DEBUG
-│   ├── simulation-control.ts   Interface bootstrap implements (pause/step/rates)
+│   ├── render-debug.ts         In-world overlay toggles the view reads (07.8i/j)
 │   ├── logger/                 Levels, subsystems, sinks, console sink
 │   ├── profiler/               Rolling-window scope timings
-│   ├── metrics/                Registry backing the F3 overlay
-│   ├── console/                Command registry + engine (F1)
+│   ├── metrics/                Registry backing the F3 overlay; tick histogram
+│   ├── console/                Command registry + engine (F1), spawn and
+│   │                           recording commands (07.8k, 07.8m)
 │   ├── inspector/              Inspection provider registry (F4)
-│   └── ui/                     DebugOverlay, DevConsole, Inspector
+│   ├── events/                 Bounded ring + subscribe-only observer (F2)
+│   ├── commands/               Bounded ring + dispatch observation (F5)
+│   ├── perf/                   Heap reading and plot maths (F7)
+│   ├── recording/              Session recorder and JSON export (07.8m)
+│   └── ui/                     Panels, and the shared PanelFrame chrome that
+│                               gives them drag, resize, search and memory
 │
 ├── main/                       Electron main process
 │   ├── index.ts                Entry

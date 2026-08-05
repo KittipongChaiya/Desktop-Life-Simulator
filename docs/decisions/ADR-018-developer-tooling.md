@@ -130,6 +130,15 @@ a production build. There is one master switch, and it is compile-time.
 A runtime boolean is forbidden. It would ship every byte of the tooling to
 players and merely hide it.
 
+> **Implementation note, phase-07.8i.** `FEATURE_DEBUG` is now _declared_ in
+> `src/shared/build-flags.ts` and re-exported by `devtools/flags.ts`. The
+> decision above is unchanged — one master switch, still a compile-time literal
+> injected by Vite, still one declaration. What changed is who may read it:
+> `render` may import only `shared`, `sim` and `render`, so a debug tool that
+> draws into the SCENE had no literal to fold against and its hook survived
+> into the release bundle (557 bytes, measured). The sub-flags stay in
+> `devtools/flags.ts`, where only devtools needs them.
+
 ### 8. Debug rendering never affects the simulation, and never breaks render-on-demand
 
 Two obligations, and the second is the one that bites:

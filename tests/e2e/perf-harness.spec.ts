@@ -180,7 +180,14 @@ test('criterion 8: ambient motion returns to a zero-frame idle', async () => {
   // Presence is pointer-driven: a move inside the world starts the window.
   await window.mouse.move(200, 100);
   await window.mouse.move(240, 120);
-  await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+  // POLLED, not sampled after a fixed sleep. Presence begins on a pointer move
+  // and the overlay republishes at 4 Hz, so a single read one second later can
+  // land in the gap before the first ambient animation takes its lease — which
+  // is what made this spec fail once during 07.8k and pass alone, and on every
+  // re-run, afterwards. The assertions below are unchanged; this only stops the
+  // measurement racing the sampler that reports it.
+  await expect.poll(async () => await metricNumber('FPS'), { timeout: 15_000 }).toBeGreaterThan(0);
 
   const whileWatched = {
     fps: await metricNumber('FPS'),
