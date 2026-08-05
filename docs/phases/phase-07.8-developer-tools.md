@@ -43,7 +43,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | **Delivered** |
 | 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | **Delivered** |
 | 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | **Delivered** |
-| 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | Pending       |
+| 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | **Delivered** |
 | 07.8n | Panel UX (§14)              | Resize, dock, search, filter, remembered layout                                             | Pending       |
 | 07.8o | Close-out                   | Budgets re-measured, docs synced, acceptance audit                                          | Pending       |
 
@@ -329,6 +329,24 @@ The E2E arranges three panels and the chunk overlay, presses once, and asserts t
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **119 files / 1,520 tests** (+13). E2E **59 passed, 4 skipped**. **Criterion 4: 1,624,514** — unchanged.
 
+### 07.8m — Recording · Delivered
+
+`record start`, `record stop`, `record status` in the console. Stopping exports a JSON file named for the ticks it spans.
+
+**Subscription, not production** — ADR-018 §10's words. The recorder subscribes to the two rings the monitors already fill, samples performance on its own clock, and writes JSON. It publishes nothing, dispatches nothing, and holds no capability that could: rings hand it observations, readers hand it numbers.
+
+**It keeps its own copy, from the moment you press record.** The monitors' rings are small and always running, so a recording that simply read them at stop time would either lose its beginning or sweep up two hundred entries from a session nobody asked to record. The recorder watermarks each ring at `start` and copies only what arrives after — asserted in both directions.
+
+**Bounded, and honest about it.** 5,000 entries per stream, newest kept, and **drops are counted and exported** — and reported in the console as well, because a developer who never opens the JSON must still learn the recording is incomplete rather than draw conclusions from a gap they cannot see. An unbounded array growing with session length is the shape `PERFORMANCE.md` forbids.
+
+**The format is shaped for the replay that is out of scope.** Commands carry type, source and outcome — what a dispatcher would need to replay them under rule 3 — while events are recorded as observations, which is all they can ever be under rule 10. A `version` field is there so a future replayer can refuse what it does not understand.
+
+**07.8f's "third bounded buffer" note came due, and the answer was no.** This buffer needs no listeners, no freezing and no stable identity; extracting a shared one would have been sharing three lines of slicing. Recorded in the module so the question is not re-asked from scratch.
+
+The one untested line is the export itself — a Blob download, a browser API with no logic. It is injected into the console command, which is what let everything around it be tested; driving a save dialog would be testing Electron rather than this code. The object URL is revoked immediately, since a recording can be megabytes and leaking one per export would make the diagnostic tool a leak.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **121 files / 1,544 tests** (+24). E2E **61 passed, 4 skipped** — the new spec tills a tile the ordinary way and asserts the recording caught it on the real command and event streams. **Criterion 4: 1,624,514** — unchanged.
+
 ### Remaining
 
-07.8m–07.8o, in the order above.
+07.8n and 07.8o.

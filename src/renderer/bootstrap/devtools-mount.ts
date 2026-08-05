@@ -17,7 +17,7 @@ import type { CommandRing } from '@devtools/commands/ring';
 import { FEATURE_DEBUG, FEATURE_INSPECTOR } from '@devtools/flags';
 import type { DurationHistogram } from '@devtools/metrics/histogram';
 import { MetricGroup } from '@devtools/metrics/registry';
-import { heapLabel } from '@devtools/perf/heap';
+import { heapLabel, heapMegabytes } from '@devtools/perf/heap';
 import type { RenderDebug } from '@devtools/render-debug';
 import type { WorldView } from '@render/world-view';
 
@@ -136,6 +136,24 @@ export interface WorldCounts {
   readonly commandQueue: () => number;
 }
 
+/**
+ * Hands a finished recording to the developer as a file (07.8m).
+ *
+ * The one piece of this milestone that is a browser API rather than logic, so
+ * it is kept to a single function and injected into the console command — which
+ * is what let everything around it be tested. The object URL is revoked
+ * immediately: a recording can be megabytes, and leaking one per export would
+ * turn the diagnostic tool into a leak.
+ */
+function downloadJson(name: string, json: string): void {
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = name;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Resolves once tooling is mounted, or immediately when the build has none. */
 export async function mountDevTools(options: DevToolsMountOptions): Promise<void> {
   if (!FEATURE_DEBUG) return;
@@ -229,6 +247,25 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
     host.inspector.register(createTileInspectProvider(inspectors));
     host.inspector.register(createWorkerInspectProvider(inspectors));
   }
+
+  // RECORDING (07.8m). Subscribes to the two rings and samples performance on
+  // its own clock; it publishes nothing and dispatches nothing (ADR-018 §10).
+  const [{ createRecorder }, { createRecordCommands }] = await Promise.all([
+    import('@devtools/recording/recorder'),
+    import('@devtools/console/record-commands'),
+  ]);
+
+  const recorder = createRecorder({
+    events: host.events,
+    commands: host.commandLog,
+    tick: () => options.simulation.tick(),
+    fps: () => options.simulation.fps(),
+    frameTimeMs: () => options.simulation.frameTimeMs(),
+    heapMb: () => heapMegabytes(),
+    appVersion: options.appVersion,
+  });
+
+  host.commands.registerAll(createRecordCommands({ recorder, deliver: downloadJson }));
 
   // EVENT MONITOR (07.8e). Subscribe only — see `devtools/events/observer.ts`.
   // The disposer is deliberately dropped: devtools live for the lifetime of the

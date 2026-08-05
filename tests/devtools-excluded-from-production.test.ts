@@ -68,6 +68,9 @@ const DEVTOOLS_MARKERS = [
   // absent from a release build matters more than most.
   'spawn worker',
   'Unknown spawn kind',
+  // Recording (07.8m).
+  'recording started',
+  'record start | record stop',
 ];
 
 function rendererBundleText(): string {
