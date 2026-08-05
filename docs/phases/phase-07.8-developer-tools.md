@@ -42,7 +42,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | **Delivered** |
 | 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | **Delivered** |
 | 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | **Delivered** |
-| 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | Pending       |
+| 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | **Delivered** |
 | 07.8m | Recording (§12)             | Observe commands, events, performance; export JSON                                          | Pending       |
 | 07.8n | Panel UX (§14)              | Resize, dock, search, filter, remembered layout                                             | Pending       |
 | 07.8o | Close-out                   | Budgets re-measured, docs synced, acceptance audit                                          | Pending       |
@@ -313,6 +313,22 @@ Gates: typecheck · lint · boundaries · cycles clean. Unit **117 files / 1,507
 
 **One flake observed, and not swept up.** The first full E2E run of this milestone failed `criterion 8: ambient motion returns to a zero-frame idle` — a 07.7 perf spec with 14-second waits and pointer-driven presence. It passed alone, passed on a clean full re-run, and nothing in 07.8k touches ambient motion or the frame loop. Recorded because `TESTING.md` §6.4 treats a flaky test as a real bug and this suite runs no retries: it is a pre-existing timing sensitivity in that spec, and 07.8o should decide whether to make it deterministic or accept it in writing.
 
+### 07.8l — Screenshot mode · Delivered
+
+**Ctrl+Shift+S** hides every panel and every in-world overlay at once, and brings them all back.
+
+**It hides; it does not forget.** That one sentence is the whole contract, and it is the difference between a screenshot mode and a "close everything" button — which would look identical in the capture and be wrong the moment the developer wanted their layout back. Each panel keeps its own open/closed state; the mode sits in front of all of them as a single rule, so leaving it restores the exact arrangement. A panel toggled _during_ the mode appears when you leave it, which falls out of the same design rather than needing its own case.
+
+**One switch, two surfaces.** The DOM panels are gated by one `shown()` rule applied once per panel — spelled out seven times it would be seven chances for the next panel to forget it and appear in a capture. The in-world overlays are suppressed by the same keystroke through `renderDebug.setScreenshot`, which applies the identical hide-don't-forget rule in the one place the world view reads. 07.8j's single debug port is what made the second surface a one-liner instead of a list to maintain.
+
+The binding matches the app's own `Ctrl+Shift+C` click-through mode: the function keys are spent, and a capture is deliberate enough to be worth two modifiers.
+
+The E2E arranges three panels and the chunk overlay, presses once, and asserts the debug chrome is gone **while the game itself is still there** — it is what the screenshot is _of_. Then presses again and asserts the arrangement returns, including that a panel left closed stays closed.
+
+**No new production marker**, because screenshot mode adds no string of its own: it renders nothing, it only withholds. The panels it hides are each already asserted absent from a release build.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **119 files / 1,520 tests** (+13). E2E **59 passed, 4 skipped**. **Criterion 4: 1,624,514** — unchanged.
+
 ### Remaining
 
-07.8l–07.8o, in the order above.
+07.8m–07.8o, in the order above.

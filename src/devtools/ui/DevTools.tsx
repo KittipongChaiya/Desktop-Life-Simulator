@@ -3,6 +3,17 @@
  *
  * Mounted by the renderer bootstrap only when FEATURE_DEBUG is on. Everything
  * below renders null when hidden, so an unopened tool costs one boolean check.
+ *
+ * SCREENSHOT MODE (Ctrl+Shift+S, 07.8l) hides every panel at once — and HIDES
+ * rather than FORGETS. Each panel keeps its own open/closed state; screenshot
+ * mode sits in front of all of them as a single `&&`, so leaving it restores
+ * exactly the arrangement you had. A mode that closed the panels instead would
+ * be a "close everything" button wearing the wrong name, and you would rebuild
+ * your layout after every capture.
+ *
+ * The in-world overlays are suppressed by the same switch through
+ * `renderDebug.setScreenshot`, which applies the identical rule in the one
+ * place the world view reads. One toggle, two surfaces, no list to maintain.
  */
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -30,6 +41,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
   const [commandsVisible, setCommandsVisible] = useState(false);
   const [timeVisible, setTimeVisible] = useState(false);
   const [perfVisible, setPerfVisible] = useState(false);
+  const [screenshot, setScreenshot] = useState(false);
 
   const closeConsole = useCallback(() => {
     setConsoleVisible(false);
@@ -37,6 +49,18 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      // Ctrl+Shift+S, matching the app's own `Ctrl+Shift+C` click-through
+      // binding. The function keys are spent, and a screenshot is deliberate
+      // enough to be worth two modifiers.
+      if (event.ctrlKey && event.shiftKey && (event.key === 'S' || event.key === 's')) {
+        event.preventDefault();
+        setScreenshot((active) => {
+          host.renderDebug.setScreenshot(!active);
+          return !active;
+        });
+        return;
+      }
+
       switch (event.key) {
         case 'F3':
           event.preventDefault();
@@ -91,15 +115,23 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
     };
   }, [host]);
 
+  // One rule, applied once per panel. Spelled out seven times it would be
+  // seven chances for the next panel to forget it and appear in a capture.
+  const shown = (visible: boolean): boolean => visible && !screenshot;
+
   return (
     <>
-      <DebugOverlay visible={overlayVisible} metrics={host.metrics} profiler={host.profiler} />
-      <Inspector visible={inspectorVisible} registry={host.inspector} />
-      <EventMonitor visible={eventsVisible} ring={host.events} />
-      <CommandMonitor visible={commandsVisible} ring={host.commandLog} />
-      <TimeControls visible={timeVisible} simulation={host.simulation} />
-      <PerformancePanel visible={perfVisible} simulation={host.simulation} />
-      <DevConsole visible={consoleVisible} engine={host.console} onClose={closeConsole} />
+      <DebugOverlay
+        visible={shown(overlayVisible)}
+        metrics={host.metrics}
+        profiler={host.profiler}
+      />
+      <Inspector visible={shown(inspectorVisible)} registry={host.inspector} />
+      <EventMonitor visible={shown(eventsVisible)} ring={host.events} />
+      <CommandMonitor visible={shown(commandsVisible)} ring={host.commandLog} />
+      <TimeControls visible={shown(timeVisible)} simulation={host.simulation} />
+      <PerformancePanel visible={shown(perfVisible)} simulation={host.simulation} />
+      <DevConsole visible={shown(consoleVisible)} engine={host.console} onClose={closeConsole} />
     </>
   );
 }
