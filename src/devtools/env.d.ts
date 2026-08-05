@@ -7,7 +7,8 @@
  */
 
 declare const __APP_VERSION__: string;
-declare const __FEATURE_DEBUG__: boolean;
+// `__FEATURE_DEBUG__` lives in `shared/env.d.ts` (07.8i): `shared` needs it and
+// is compiled by projects that never see this file.
 declare const __FEATURE_PROFILER__: boolean;
 declare const __FEATURE_CONSOLE__: boolean;
 declare const __FEATURE_INSPECTOR__: boolean;

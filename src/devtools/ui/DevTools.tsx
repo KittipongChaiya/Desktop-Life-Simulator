@@ -1,5 +1,5 @@
 /**
- * Devtools root. Owns the F1–F7 keybinds and mounts each tool.
+ * Devtools root. Owns the F1–F8 keybinds and mounts each tool.
  *
  * Mounted by the renderer bootstrap only when FEATURE_DEBUG is on. Everything
  * below renders null when hidden, so an unopened tool costs one boolean check.
@@ -42,6 +42,13 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
           event.preventDefault();
           setOverlayVisible((v) => !v);
           break;
+        // F8 draws INTO THE WORLD rather than opening a panel, so it has no
+        // component and no React state: it flips a holder the view reads each
+        // frame, and the borders appearing in the world are the feedback.
+        case 'F8':
+          event.preventDefault();
+          host.renderDebug.setChunks(!host.renderDebug.chunks());
+          break;
         case 'F7':
           event.preventDefault();
           setPerfVisible((v) => !v);
@@ -77,7 +84,7 @@ export function DevTools({ host }: DevToolsProps): ReactNode {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, []);
+  }, [host]);
 
   return (
     <>

@@ -12,7 +12,7 @@
  * `unmount`, and phase-02 acceptance criterion 18 cycles it 20 times.
  */
 
-import { createWorldView, type WorldView } from '@render/world-view';
+import { createWorldView, type WorldView, type WorldViewOptions } from '@render/world-view';
 
 import type { World } from '../../sim/world/world';
 
@@ -45,6 +45,8 @@ export interface WorldMountOptions {
   readonly shakeEnabled: () => boolean;
   /** Whether ambient environment motion may run (ADR-017 §2). */
   readonly environmentEnabled: () => boolean;
+  /** The chunk debug overlay (07.8i). Absent in a build with no tooling. */
+  readonly chunkDebug?: WorldViewOptions['chunkDebug'];
   readonly onError?: (error: unknown) => void;
 }
 
@@ -71,6 +73,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         creaturesEnabled: options.creaturesEnabled,
         shakeEnabled: options.shakeEnabled,
         environmentEnabled: options.environmentEnabled,
+        chunkDebug: options.chunkDebug,
       });
       detachInput = view.attachInput(options.inputTarget);
     } catch (error) {

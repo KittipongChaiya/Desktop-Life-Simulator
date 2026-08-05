@@ -39,7 +39,7 @@ Ordered so each depends only on those above it, and so the read-only work lands 
 | 07.8f | Command monitor (§5)        | Queue depth, outcomes, durations, validation results                                        | **Delivered** |
 | 07.8g | Time controls (§9)          | Expose scale on `SimulationControl`; pause/resume/step/1–16× through the existing scheduler | **Delivered** |
 | 07.8h | Performance panel (§8)      | Change-driven graphs over a 60 s ring                                                       | **Delivered** |
-| 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | Pending       |
+| 07.8i | Chunk debug (§7)            | Borders, dirty set, redraw counts                                                           | **Delivered** |
 | 07.8j | Pathfinding debug (§6)      | Path, open/closed sets, cost heatmap — opt-in                                               | Pending       |
 | 07.8k | Spawn tools (§10)           | Every mutation dispatched as a command (ADR-018 §3)                                         | Pending       |
 | 07.8l | Screenshot mode (§11)       | Hide all debug chrome                                                                       | Pending       |
@@ -250,6 +250,33 @@ One bug the tests caught before it could mislead anyone: a flat series was drawn
 
 Gates: typecheck · lint · boundaries · cycles clean. Unit **113 files / 1,464 tests** (+25). E2E **50 passed, 4 skipped**. **Criterion 4: zero**, seventh milestone running — notable because this one edited two modules production ships, replacing their inline heap reads with a shared helper; the hash is unchanged.
 
+### 07.8i — Chunk debug · Delivered
+
+**F8.** Chunk borders, the stale set filled amber, and a per-chunk redraw tally drawn on each chunk. The first debug tool that draws into the **scene** rather than the DOM, which brought two problems no panel had.
+
+**It never asks for a frame.** The overlay is updated from inside the existing draw path and marks nothing dirty. A stale chunk has already dirtied the gate for the terrain cache's own reasons, so the overlay rides the frame that was happening anyway. An overlay that dirtied the gate to keep its numbers fresh would hold the render loop awake forever — and would do it in the one build where that looks like the tool working. The E2E asserts it: with the overlay **on**, a settled world still reports 0 chunk redraws and ~0 FPS.
+
+**Redraw counts are counted in the overlay, not the tracker.** A per-chunk tally in `ChunkTracker` would be production code on the terrain path. Instead the count comes from the stale set sampled immediately _before_ `TerrainRenderer.update` runs: every chunk in that set is about to be redrawn, so the tally is exact rather than inferred.
+
+The toggle is held **outside** the view, because collapsing destroys the whole scene (ADR-003 §4) and an overlay that switched itself off on collapse would read as broken. The second E2E collapses and expands with it on, and asserts the rebuilt scene settles back to zero redraws — the destroy/rebuild path is where a scene-drawing tool leaks GPU objects.
+
+#### `FEATURE_DEBUG` moved to `shared`, and why it had to
+
+`render` may import only `shared`, `sim` and `render` — the boundary phase-01.5 deliverable 8 exists to enforce. So the render layer had **no literal to fold against**, and the overlay's hook and null check shipped: **557 bytes measured**. Declaring `FEATURE_DEBUG` in `shared/build-flags.ts`, with `devtools/flags.ts` re-exporting it, gives every layer a boundary-legal way to compile debug code out. ADR-018 §7 is unchanged — one master switch, still a compile-time literal, now with one declaration and two places allowed to read it. 07.8j draws in-world too and would have hit the same wall.
+
+#### Criterion 4: **+51 bytes**, stated exactly
+
+Not zero, for the first time since 07.8a. No tooling shipped — `chunk-debug.ts` is absent from the bundle entirely, and the world-view hook folds away completely. The 51 bytes are one option forwarded through `world-mount` (`chunkDebug: options.chunkDebug`) plus the `...{}` a folded spread leaves behind.
+
+Getting there took four measurements and taught two rules, now recorded in `chunk-debug.ts` where they cost nothing:
+
+- **Statement-level gating folds; expression-level gating does not.** `if (FEATURE_DEBUG) …` is eliminated after Rollup inlines the constant. `...(FEATURE_DEBUG ? { x } : {})` is not, unless the whole condition is knowable inside the module at transform time — which is why the identical shape folded in `start.tsx` (its other operand is a local `const … = null`) and not in `world-mount`.
+- **Comments in surviving code are bytes.** This bundle is not minified: it ships formatted source with original identifiers and comments intact. Two comment lines beside a folded spread cost 145 bytes, and one of them tripped the marker test by containing the string `chunk-debug` in prose — the exclusion test failing on a _comment_ while the code it described was correctly absent.
+
+The residue is forwarding, not tooling, and the honest options for the last 51 bytes are worse than the bytes: a second locally-declared flag, or restructuring the mount around a named options binding that costs its own name.
+
+Gates: typecheck · lint · boundaries · cycles clean. Unit **114 files / 1,475 tests** (+11). E2E **52 passed, 4 skipped**. **Criterion 3:** marker `chunk-debug` — which caught the comment leak on its first run.
+
 ### Remaining
 
-07.8i–07.8o, in the order above.
+07.8j–07.8o, in the order above.

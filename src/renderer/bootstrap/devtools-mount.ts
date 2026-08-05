@@ -18,6 +18,7 @@ import { FEATURE_DEBUG, FEATURE_INSPECTOR } from '@devtools/flags';
 import type { DurationHistogram } from '@devtools/metrics/histogram';
 import { MetricGroup } from '@devtools/metrics/registry';
 import { heapLabel } from '@devtools/perf/heap';
+import type { RenderDebug } from '@devtools/render-debug';
 import type { WorldView } from '@render/world-view';
 
 import type { SimulationControl } from '../../shared/simulation-control';
@@ -94,6 +95,8 @@ export interface DevToolsMountOptions {
    * mount.
    */
   readonly commandLog?: CommandRing;
+  /** Render-debug toggles the tooling writes and the view reads (07.8i). */
+  readonly renderDebug?: RenderDebug;
   /**
    * The event monitor's subscription (07.8e).
    *

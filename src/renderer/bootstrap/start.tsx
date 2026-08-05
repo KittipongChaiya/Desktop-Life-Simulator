@@ -18,6 +18,7 @@ import {
 } from '@devtools/commands/ring';
 import { FEATURE_DEBUG, FEATURE_PROFILER } from '@devtools/flags';
 import { createDurationHistogram } from '@devtools/metrics/histogram';
+import { createRenderDebug, type RenderDebug } from '@devtools/render-debug';
 import { catchUpWorld, computeElapsedTicks, type CatchUpReport } from '@persistence/catch-up';
 import { loadWorld } from '@persistence/load';
 import { EMPTY_QUARANTINE, type SaveMeta, type SaveQuarantine } from '@persistence/schema';
@@ -50,6 +51,7 @@ import {
   LARGE_HARVEST_COUNT,
   PLACEMENT_SHAKE,
 } from '../render/camera-shake';
+import { createChunkDebug } from '../render/chunk-debug';
 import { EffectKind } from '../render/effect-state';
 import { FloatingKind } from '../render/floating-number-state';
 import { workerAtTile } from '../render/worker-render';
@@ -307,6 +309,10 @@ function composeApplication(world: World, session: SaveSession): void {
     throw new Error('#world canvas is missing from index.html');
   }
 
+  // Render-debug toggles (07.8i), held outside the view so a collapse does not
+  // reset them. See `devtools/render-debug.ts`.
+  const renderDebug: RenderDebug | null = FEATURE_DEBUG ? createRenderDebug() : null;
+
   const worldMount = createWorldMount({
     canvas,
     world,
@@ -324,6 +330,9 @@ function composeApplication(world: World, session: SaveSession): void {
     creaturesEnabled: () => companion.motion().decorativeCreatures,
     shakeEnabled: () => companion.motion().cameraShake,
     environmentEnabled: () => companion.motion().environmental,
+    ...(FEATURE_DEBUG && renderDebug !== null
+      ? { chunkDebug: { enabled: () => renderDebug.chunks(), create: createChunkDebug } }
+      : {}),
     viewport: () => ({
       width: window.innerWidth,
       height: window.innerHeight,
@@ -734,6 +743,7 @@ function composeApplication(world: World, session: SaveSession): void {
   void mountDevTools({
     simulation: loop,
     ...(commandLog === null ? {} : { commandLog }),
+    ...(FEATURE_DEBUG && renderDebug !== null ? { renderDebug } : {}),
     world: () => worldMount.current(),
     worldError: () => lastWorldError,
     commandRejection: () => lastCommandRejection,

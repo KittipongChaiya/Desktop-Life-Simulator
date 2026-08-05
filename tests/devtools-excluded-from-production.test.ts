@@ -57,6 +57,10 @@ const DEVTOOLS_MARKERS = [
   'time-controls',
   // The performance panel (07.8h).
   'performance-panel',
+  // The chunk overlay (07.8i). It draws into the SCENE from a module the
+  // renderer owns, so this is the check that the factory's absence really did
+  // remove it rather than merely leave it switched off.
+  'chunk-debug',
 ];
 
 function rendererBundleText(): string {

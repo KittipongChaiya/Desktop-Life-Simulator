@@ -26,8 +26,9 @@ import terrainData from '@assets/terrain.json';
 import terrainImage from '@assets/terrain.png';
 import uiWorldData from '@assets/ui-world.json';
 import uiWorldImage from '@assets/ui-world.png';
-import { Spritesheet, Texture } from 'pixi.js';
+import { Spritesheet, Texture, type Container } from 'pixi.js';
 
+import { FEATURE_DEBUG } from '../../shared/build-flags';
 import { TILE_SIZE } from '../../shared/constants';
 import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
@@ -53,6 +54,7 @@ import {
 } from './camera';
 import { createCameraFocus, needsFocus, type CameraFocus } from './camera-focus';
 import { isShakeFinished, shakeOffset, type ShakeConfig } from './camera-shake';
+import type { ChunkDebug } from './chunk-debug';
 import { createCropRenderer, type CropRenderer } from './crop-view';
 import { planDecor } from './decor';
 import { createDecorRenderer, type DecorRenderer } from './decor-view';
@@ -203,6 +205,20 @@ export interface WorldViewOptions {
    * this view adds the presence condition. Absent means no.
    */
   readonly environmentEnabled?: (() => boolean) | undefined;
+  /**
+   * The chunk debug overlay (07.8i), or absent in a build that has no tooling.
+   *
+   * A FACTORY plus a reader rather than a boolean: production must not merely
+   * skip drawing the overlay, it must not contain it. The factory is supplied
+   * from the composition root behind `FEATURE_DEBUG`, so `chunk-debug.ts` has
+   * no importer at all in a release build and Rollup drops it (ADR-018 §6).
+   */
+  readonly chunkDebug?:
+    | {
+        readonly enabled: () => boolean;
+        readonly create: (parent: Container) => ChunkDebug;
+      }
+    | undefined;
 }
 
 /**
@@ -349,6 +365,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     app.app.stage.scale.set(camera.zoom);
   };
   applyCamera();
+
+  // Gated on the LITERAL, so a release build contains no overlay to switch off
+  // — not the hook, not the null check. See `shared/build-flags.ts`.
+  const chunkDebug: ChunkDebug | null = FEATURE_DEBUG
+    ? (options.chunkDebug?.create(app.layers.worldUi) ?? null)
+    : null;
 
   const highlight: Highlight = createHighlight(app.layers.worldUi);
 
@@ -526,6 +548,14 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       }
 
       const range = visibleTileRange(camera, limits);
+
+      // Sampled before the terrain update, and dirties nothing. See
+      // `chunk-debug.ts` for why both of those matter.
+      if (FEATURE_DEBUG && chunkDebug !== null) {
+        chunkDebug.setVisible(options.chunkDebug?.enabled() ?? false);
+        chunkDebug.update({ stale: tracker.staleVisible(range.first, range.last) });
+      }
+
       // Chunk re-renders are themselves a scene change, so they must happen
       // before the gate is consulted.
       chunkRedraws = terrain.update(range.first, range.last);
@@ -726,6 +756,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       particleRenderer.destroy();
       effects.destroy();
       terrain.destroy();
+      if (FEATURE_DEBUG) chunkDebug?.destroy();
       app.destroy();
     },
   };

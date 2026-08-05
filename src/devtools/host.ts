@@ -28,6 +28,7 @@ import { createLogManager, LogLevel, type LogManager } from './logger/logger';
 import { createMetricRegistry, MetricGroup, type MetricRegistry } from './metrics/registry';
 import { heapLabel } from './perf/heap';
 import { createNullProfiler, createProfiler, type Profiler } from './profiler/profiler';
+import { createRenderDebug, type RenderDebug } from './render-debug';
 
 export interface DevToolsHost {
   readonly logs: LogManager;
@@ -46,6 +47,11 @@ export interface DevToolsHost {
    * one that would be silently wrong is this one.
    */
   readonly commandLog: CommandRing;
+  /**
+   * Render-debug toggles (07.8i). Written here, read by the world view once
+   * per frame — which is why the holder lives outside both.
+   */
+  readonly renderDebug: RenderDebug;
   readonly simulation: SimulationControl;
 }
 
@@ -68,6 +74,8 @@ export interface DevToolsOptions {
    * devtools mount. One is created when absent so a test needs no wiring.
    */
   readonly commandLog?: CommandRing;
+  /** Supplied by the composition root, which wired it to the view. */
+  readonly renderDebug?: RenderDebug;
   readonly appVersion: string;
   readonly reload: () => void;
   readonly logLevel?: LogLevel;
@@ -84,6 +92,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
   const inspector = createInspectorRegistry();
   const events = createEventRing(EVENT_RING_CAPACITY);
   const commandLog = options.commandLog ?? createCommandRing(DEFAULT_COMMAND_RING_CAPACITY);
+  const renderDebug = options.renderDebug ?? createRenderDebug();
 
   if (FEATURE_CONSOLE) {
     commands.registerAll(
@@ -171,6 +180,7 @@ export function createDevTools(options: DevToolsOptions): DevToolsHost {
     inspector,
     events,
     commandLog,
+    renderDebug,
     simulation: options.simulation,
   };
 }

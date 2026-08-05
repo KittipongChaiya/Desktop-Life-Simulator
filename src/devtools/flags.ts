@@ -12,8 +12,17 @@
  * the built artifact rather than the source.
  */
 
-/** Master switch. When false, no developer tooling is constructed or bundled. */
-export const FEATURE_DEBUG: boolean = __FEATURE_DEBUG__;
+/**
+ * Master switch. When false, no developer tooling is constructed or bundled.
+ *
+ * Re-exported from `shared` rather than declared here (07.8i): the render layer
+ * may not import devtools, and a scene-drawing debug tool needs a literal it
+ * can fold against or its hook ships. One switch, one declaration, two places
+ * that may read it.
+ */
+export { FEATURE_DEBUG } from '../shared/build-flags';
+
+import { FEATURE_DEBUG } from '../shared/build-flags';
 
 /** Timing instrumentation (deliverable 3). */
 export const FEATURE_PROFILER: boolean = __FEATURE_PROFILER__;
