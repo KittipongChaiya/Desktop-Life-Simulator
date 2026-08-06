@@ -3,7 +3,23 @@
 .container {
   position: absolute;
   top: 44px;
-  right: 8px;
+
+  /*
+   * ITS OWN COLUMN, clear of the inventory. Phase-07.9.
+   *
+   * This used to be `right: 8px`, directly under the inventory toggle — and the
+   * inventory PANEL opens downward from y≈42 into exactly this space. With both
+   * open, the settings body lay over the sell rows and every `Sell 1` / `All`
+   * button became unclickable: visible, un-dimmed, and dead, because the clicks
+   * were landing on the settings panel. Reported as "I am unable to sell items
+   * directly from my inventory", which was not a selling bug at all.
+   *
+   * They could never have shared the corner: the inventory's 168px body plus
+   * this panel's 126px plus two toggles is ~340px of content in a 220px window.
+   * Height is the scarce axis here and width is not, so the fix spends width —
+   * 240px (the inventory panel) + 8 (its right inset) + 8 (a gutter).
+   */
+  right: 256px;
   pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
   display: flex;
   flex-direction: column;
