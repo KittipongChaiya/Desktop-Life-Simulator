@@ -142,6 +142,21 @@ The roadmap above informs _architecture_ and must never inflate _v0.1 scope_. Co
 
 Every other future system is explicitly **not** paid for in v0.1. If a proposed v0.1 change is justified only by a v0.3+ feature and does not appear in the table above, reject it.
 
+### 4.3 What v0.2 Pays Forward
+
+v0.2 is where this project stops being an application and becomes **an engine with a game on top of it**. That is a deliberate widening of §4.2's rule, authorized here and bounded by the same discipline: these costs are cheap now and expensive to retrofit, and nothing else is paid for.
+
+| Cost paid in v0.2                              | Enables later                                                                   |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| A generalized content-identity model (ADR-026) | Official packs, third-party plugins, generated packs, DLC — one model, not five |
+| An explicitly **versioned** public plugin API  | Engine releases stop breaking plugins; API v2 without a rewrite                 |
+| Extension points on every major system         | Content lands as data rather than as engine changes                             |
+| Enablement as world state                      | Features that turn off without forking a save                                   |
+
+**The API's capability surface is specified in full; only version 1's subset ships** (ADR-019 §3). A capability absent from a version does not exist at that version — no stub, no no-op, no "coming soon" field. That is `AI_RULES.md` §1.6 applied to a public interface, and it is what keeps this widening from becoming the speculative generality §1.5 forbids.
+
+**The extension model is shared.** First-party content registers through the same public API a third party uses, and provenance is never read at runtime (ADR-026 §2). An official pack that could do something a third-party pack cannot is how the public API stops being dogfooded — which is exactly what happened to the `plugins/core/` seam in v0.1 (`ARCHITECTURE.md` §8.1).
+
 ---
 
 ## 5. Non-Goals

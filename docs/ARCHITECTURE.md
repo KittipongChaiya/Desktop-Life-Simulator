@@ -93,14 +93,16 @@ This single invariant is what makes the game testable at 90% coverage, savable (
 
 ### 3.2 The tick
 
-Fixed 20 Hz, accumulator-driven, decoupled from render (ADR-007). System order is declared once:
+Fixed 20 Hz, accumulator-driven, decoupled from render (ADR-007). System order is declared once, in `src/sim/systems/index.ts`:
 
 ```
-commandSystem → growthSystem → workerSystem → movementSystem
-              → harvestSystem → economySystem → eventFlushSystem → snapshotSystem
+commandSystem → workerSystem → movementSystem → economySystem
+              → tickEventSystem → eventFlushSystem → snapshotSystem
 ```
 
-Correctness-critical orderings (`commandSystem` first, `growthSystem` before `harvestSystem`, `snapshotSystem` last) are documented in ADR-007 §4 and ADR-010 §3, and covered by tests.
+**There is no growth system, and there is no harvest system.** Crop maturity is derived from `tick − plantedTick` (ADR-009 §2), so there is nothing to advance each tick; harvesting is a command, not a system. Earlier revisions of this document listed both — they were the phase-0 sketch and never shipped. Corrected in the v0.2 Phase 0 documentation pass.
+
+Correctness-critical orderings (`commandSystem` first, `movementSystem` after `workerSystem` so a worker acts on the tick it decides, `snapshotSystem` last) are documented in ADR-007 §4 and ADR-010 §3, and covered by tests.
 
 ### 3.3 Systems
 
@@ -114,13 +116,14 @@ A system is a free function `(world: World) => void`. It may mutate stores it ow
 | System             | Owns                               | Reads                                |
 | ------------------ | ---------------------------------- | ------------------------------------ |
 | `commandSystem`    | the command queue                  | everything (validates, then applies) |
-| `growthSystem`     | `crops.growth`, `crops.stage`      | `tiles` (moisture)                   |
 | `workerSystem`     | `workers.state`, `workers.task`    | `crops`, `tiles`, `buildings`        |
 | `movementSystem`   | `workers.position`, `workers.path` | `tiles` (walkability)                |
-| `harvestSystem`    | `inventory`, `crops` (removal)     | `workers`                            |
-| `economySystem`    | `wallet`, price state              | `inventory`                          |
+| `economySystem`    | `wallet`, price state              | `inventory`, containers              |
+| `tickEventSystem`  | —                                  | `tick` (publishes `simulationTick`)  |
 | `eventFlushSystem` | `events`                           | —                                    |
 | `snapshotSystem`   | snapshot slices                    | everything (read-only)               |
+
+**v0.2 adds no system to this table.** The calendar, the season, the weather, and tile wetness are all _derived_ (ADR-020 §1, ADR-021 §1, ADR-022 §1, §3) — pure functions over `world.tick` and stored facts. ADR-022 §2 makes that a detector rather than a preference: **if weather needs a tick slot, the design is wrong.** Worker scheduling (ADR-024) extends `workerSystem`'s selection pipeline rather than adding a stage to the tick.
 
 ### 3.3a Commands — the only write path
 
@@ -173,9 +176,27 @@ human time. `world.tick` remains the only notion of time the simulation has
 milliseconds for interpolation (ADR-007 §5) and does not route through the
 clock — presentation timing and simulation time are different concerns.
 
-Extension points (game days, seasons, offline catch-up) are documented in
+Extension points (game days, seasons, offline catch-up) were documented in
 `docs/phases/phase-01.6-hardening.md` §1 rather than stubbed, because each needs
-semantics that only its owning system can define.
+semantics that only its owning system can define. **v0.2 defines them, and every
+one turns out to be a derivation rather than a system** (`ROADMAP.md` §6–§8):
+
+| Concept        | Derived from                   | New mutable state          | ADR     |
+| -------------- | ------------------------------ | -------------------------- | ------- |
+| Day, day phase | `tick`, `ticksPerDay`          | None                       | ADR-020 |
+| Season         | `day`, `daysPerSeason`         | None                       | ADR-021 |
+| Weather        | `seed`, weather period, season | None                       | ADR-022 |
+| Tile wetness   | `wateredAt` + derived rainfall | None (replaces `moisture`) | ADR-022 |
+
+Only the _constants_ are persisted, and only because changing them on a live
+world would silently renumber its past (ADR-020 §2). Everything else follows
+ADR-009 §2's precedent: the tick is already the accumulator, so a second one is
+a second source of truth.
+
+**Day phases are quantized, not continuous.** A named phase changes a handful of
+times per day; a continuous fraction would republish a slice 20 times a second
+forever, which ADR-005 §2 names a defect and ADR-001 §1 would pay for in frames.
+This is the same move `CropStage` makes, for the same reason.
 
 ### 3.5 Events
 
@@ -301,23 +322,35 @@ The UI root is pointer-transparent except over actual controls, which combined w
 
 Reserved in v0.1, implemented in v0.2+ (ADR-003 §6). This list is **exhaustive** — anything not here is not paid for in v0.1 (`VISION.md` §4.2).
 
-| Extension point             | v0.1 state                                          | Enables                                                 |
-| --------------------------- | --------------------------------------------------- | ------------------------------------------------------- |
-| Namespaced content IDs      | Used from the first crop                            | Mods, content packs                                     |
-| Content registries          | Core registers through the public API               | Plugin-added content, no core change                    |
-| Typed event bus             | Used by core for decoupling                         | Plugin hooks                                            |
-| Save namespacing            | `plugins: {}` present, absent-plugin data preserved | Mod state that survives uninstall                       |
-| `plugins/` directory        | Contains `core/` + manifest schema                  | The v0.2 loader                                         |
-| Render layers 4–5           | Created, empty                                      | Particles, weather, lighting                            |
-| `catchUp` per system        | Implemented for accruing systems                    | Offline progress for any future system                  |
-| Snapshot slices             | Sliced from the start                               | New panels without re-plumbing                          |
-| Devtools metric registry    | Populated with runtime metrics                      | Phase-02 camera/chunks/tiles, phase-04 entities         |
-| Devtools command registry   | 12 working commands                                 | Phase-03 `spawn`, phase-04 `teleport`, phase-06 `money` |
-| Devtools inspector registry | Runtime provider                                    | Phase-02 tile hover, phase-04 entity click              |
+| Extension point             | Delivered state                                       | Enables                                                 |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
+| Namespaced content IDs      | ✅ Used from the first crop                           | Mods, content packs                                     |
+| Content registries          | ✅ Generic, typed, duplicate-rejecting                | Plugin-added content, no core change                    |
+| Typed event bus             | ✅ Used by core for decoupling                        | Plugin hooks                                            |
+| Save namespacing            | ✅ `plugins: {}` present, absent data preserved       | Mod state that survives uninstall                       |
+| Save quarantine             | ✅ Built in phase-07b, unknown content preserved      | Content removal that destroys nothing (ADR-026 §3)      |
+| `plugins/` boundary zone    | ✅ Lint zone configured and enforced                  | A source that cannot reach past its boundary            |
+| `plugins/` directory        | ⚠️ **Manifest schema only — `core/` was never built** | Phase 08 closes it (see §8.1)                           |
+| The public plugin API       | ❌ **Never built** — core registers from `src/sim`    | Phase 08 (ADR-019 §2)                                   |
+| Render layers 4–5           | Layer 4 claimed in 07.5b; layer 5 created, empty      | Weather (Phase 12), lighting (Phase 10)                 |
+| `catchUp` per system        | ✅ Implemented for accruing systems                   | Offline progress for any future system                  |
+| Snapshot slices             | ✅ Sliced from the start                              | New panels without re-plumbing                          |
+| `CropDefinition.seasons`    | ✅ Declared as data, empty in v0.1                    | Phase 11 reads it with no shape change                  |
+| Devtools metric registry    | ✅ Populated with runtime metrics                     | Phase-02 camera/chunks/tiles, phase-04 entities         |
+| Devtools command registry   | ✅ 12 working commands                                | Phase-03 `spawn`, phase-04 `teleport`, phase-06 `money` |
+| Devtools inspector registry | ✅ Runtime provider                                   | Phase-02 tile hover, phase-04 entity click              |
 
-### 8.1 Why `plugins/core/` matters
+### 8.1 `plugins/core/` — the gap, and why Phase 08 exists
 
-First-party content registers through the **public plugin API** but is statically imported. This proves the API is sufficient before any third party depends on it, and means the v0.2 loader changes _how content arrives_, not the shape of the content system.
+ADR-003 §6's load-bearing design point was:
+
+> **`plugins/core/` is registered through the public plugin API but statically imported.** The API is therefore proven sufficient by first-party content before any third party depends on it.
+
+**That did not ship.** `plugins/` holds a README and a manifest schema; core content registers through `registerCoreCrops(cropRegistry)` and its three siblings, called from `src/sim/world/world.ts`. There is no `PluginApi` object in the repository.
+
+Most of the hard part _did_ ship — namespaced permanent IDs, generic typed registries, the event bus, the command dispatcher, save partitioning with quarantine, and the lint boundary zone. Only the seam is missing, which is why Phase 08 is a migration rather than a rewrite: it moves the four registrations behind the public API with **no behaviour change, no save change, and no test change** (ADR-019 §2).
+
+The gap is recorded rather than quietly fixed because it is the evidence for ADR-003 §6's own prediction: a reserved-but-unused seam does not stay honest.
 
 ---
 
@@ -477,3 +510,84 @@ it. Sub-flags (`FEATURE_PROFILER`, `FEATURE_CONSOLE`, `FEATURE_INSPECTOR`) may
 refine a debug build but are all false whenever `FEATURE_DEBUG` is, and none can
 re-enable tooling in a release. Removal is asserted against a real built
 artifact by `tests/devtools-excluded-from-production.test.ts`.
+
+---
+
+## 14. The content-source system (v0.2, ADR-026 and ADR-019)
+
+> **Status: DESIGNED (v0.2 Phase 0). Built in Phases 08–09.** This section
+> describes the target composition; §8.1 records what exists today.
+
+v0.2 turns the reserved plugin architecture into a specified, versioned public
+API. Nothing about the layers in §2 changes — a content source is a new _source
+of content_, not a new layer.
+
+### 14.1 One model for five kinds of content
+
+Built-in, official packs, third-party plugins, generated packs, and DLC are all
+**content sources**: one manifest, one API, one set of rules (ADR-026 §1). A
+source declares a **provenance**, which the engine records for player-facing
+display, the load-time trust decision, and diagnostics — and which **no
+simulation system, command, registry lookup, or save-format rule may read**
+(ADR-026 §2). First-party content earns no runtime privilege. That is what makes
+"official and third-party share one extension model" true rather than a slogan.
+
+### 14.2 The API is versioned; the engine is not
+
+```
+PLUGIN_API_VERSION = 1
+```
+
+A source targets an **API version**, never a game version, because engine
+releases move for reasons no source can observe (ADR-019 §1). The engine
+supports every API version it has ever shipped; withdrawing one needs a
+successor ADR, exactly as dropping a migration link does.
+
+The full capability surface is _specified_; **version 1 declares the subset that
+executes no plugin code** — content, assets, audio, localization, configuration,
+effects, and declarative behaviours. Commands, event listeners, UI panels, and
+service consumption are API v2, and `PLUGIN_API.md` §10 names the four questions
+a successor ADR must answer first.
+
+**Why v1 is data-only.** The renderer runs under `script-src 'self'` with no
+`unsafe-eval`, and ADR-001's implementation note records that the CSP stayed
+strict _specifically because_ plugins run in the renderer. Data-only means the
+CSP is untouched, determinism is structural rather than promised, and ADR-026's
+isolation invariant holds without trusting the source to behave.
+
+### 14.3 The isolation invariant
+
+> **Removing a content source may affect only entities, containers,
+> side-tables, and save partitions in namespaces that source owns. Nothing
+> else in the save may change.**
+
+One sentence, stated as a property test (ADR-026 §3). It generalises
+`SAVE_FORMAT.md` §8 and ADR-015 §4 from two adjacent rules about mods into one
+rule about content, and ADR-027 §5 asserts it at _every_ version in the
+migration chain rather than once.
+
+### 14.4 What a source may never do
+
+Each prohibition names its enforcement, because a rule with no detector is a
+wish (ADR-019 §5): no direct mutation, no dispatcher bypass, no world writes
+outside a command, no replacing an engine service, no modifying a core registry
+(`register` rejects duplicates and has no update or delete), no patching engine
+internals (the lint zone), and no private APIs (`PLUGIN_API.md` is the surface).
+
+### 14.5 Load order is world state
+
+Resolution is dependency-topological with ties broken by namespace ascending —
+**never filesystem enumeration order**, which varies by platform. This matters
+because ADR-008 §4 guarantees subscribers run in registration order and
+ADR-010 §8 forbids runtime discovery for exactly this reason. The resolved order
+is recorded in the save's source manifest, so a world resolves its sources the
+same way tomorrow as today (ADR-019 §6, ADR-026 §4).
+
+### 14.6 Enablement is world state, not a preference
+
+A world records which sources and features are enabled, **in the save** rather
+than in `settings.json` (ADR-019 §7). This follows ADR-014 §4's boundary rather
+than breaking it: opacity changes what the player _sees_; disabling seasons
+changes what the world _does_, and two players with one seed and different
+enablement sets have different worlds. Changing the set carries §14.3's
+guarantee — disabling isolates, re-enabling restores.

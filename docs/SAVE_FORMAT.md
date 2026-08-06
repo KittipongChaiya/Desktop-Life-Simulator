@@ -437,6 +437,33 @@ Disk-full is **deliberately not simulated in tests**. ENOSPC arrives from the sa
 
 v0.1 always writes `"plugins": {}`. The key exists from version 1 so introducing the v0.2 loader requires no migration.
 
+### 8.1 Content isolation — the generalized rule (v0.2, ADR-026)
+
+The rules above were written about _plugins_. v0.2 has five kinds of content source — built-in, official packs, third-party plugins, generated packs, and DLC — and designing save safety around one of them would make the other four either special cases or lies. They are generalized into one invariant:
+
+> **Removing a content source may affect only entities, containers, side-tables, and save partitions whose `ContentId` lies in a namespace that source owns. Nothing else in the save may change.**
+
+Stated as one sentence because it is a property test, not a paragraph of intent.
+
+| Save content                                   | Behaviour                                                                       |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| An instance referencing an unknown `ContentId` | Quarantined verbatim with its owning state, restored when the ID returns (§5.3) |
+| A container holding stacks of unknown items    | The unknown stacks quarantine; the rest of the container is untouched           |
+| A partition under the source's key             | Preserved byte-for-byte, written back unread                                    |
+| **Anything in another namespace**              | **Untouched.** This is the invariant                                            |
+
+Quarantine (§5.3, built in phase-07b) is therefore promoted from an edge case to the **primary removal guarantee**, and gains a namespace index so "remove everything from this source" is one operation rather than a scan.
+
+`user saves are user data` (ADR-015 §4). No case here may be resolved by discarding a player's world when any lesser resolution exists.
+
+### 8.2 The source manifest (v0.2, schema v2)
+
+A save records the content sources active when it was written — their namespaces, provenance, display names, and versions.
+
+It is **informational and never drives load behaviour**, exactly as `meta.gameVersion` never does (ADR-015 §2). Its purpose is that a returning player is told _"Harvest Moon Expansion is not installed — 14 crops are being kept safe"_ rather than being shown fourteen orphaned IDs. Without it the game knows an ID is unknown but cannot name what owned it.
+
+It also records the **resolved load order** (ADR-019 §6), so a world resolves its sources identically on every launch and every machine.
+
 ---
 
 ## 9. Changing the Schema — Checklist
@@ -458,15 +485,63 @@ Every step, in one commit (`AI_RULES.md` §5.1):
 
 ## 10. Test Requirements
 
-| Test                | Asserts                                                        |
-| ------------------- | -------------------------------------------------------------- |
-| Round-trip property | `fromSave(toSave(w))` is identical to `w` for arbitrary worlds |
-| Byte-stability      | The same world serializes to identical bytes twice             |
-| Golden fixtures     | Every historical version migrates to current and validates     |
-| Migration purity    | Migrations produce identical output on repeated runs           |
-| Crash safety        | Interrupting §7.1 at each step leaves ≥ 1 loadable save        |
-| Corruption recovery | Truncated, empty, and malformed files recover from `.bak`      |
-| Forward refusal     | A higher `schemaVersion` is refused, never partially loaded    |
-| Catch-up accuracy   | Within tolerance, never over-credits (§6.5)                    |
-| Unknown content     | Quarantined and restored when content returns                  |
-| Size guard          | A mature farm stays under 2 MB                                 |
+| Test                | Asserts                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| Round-trip property | `fromSave(toSave(w))` is identical to `w` for arbitrary worlds                               |
+| Byte-stability      | The same world serializes to identical bytes twice                                           |
+| Golden fixtures     | Every historical version migrates to current and validates                                   |
+| Migration purity    | Migrations produce identical output on repeated runs                                         |
+| Crash safety        | Interrupting §7.1 at each step leaves ≥ 1 loadable save                                      |
+| Corruption recovery | Truncated, empty, and malformed files recover from `.bak`                                    |
+| Forward refusal     | A higher `schemaVersion` is refused, never partially loaded                                  |
+| Catch-up accuracy   | Within tolerance, never over-credits (§6.5)                                                  |
+| Unknown content     | Quarantined and restored when content returns                                                |
+| Size guard          | A mature farm stays under 2 MB                                                               |
+| Content isolation   | Removing a source touches only its own namespaces (§8.1) — at **every** version in the chain |
+
+---
+
+## 11. The v0.2 Migration Chain (ADR-027)
+
+v0.1 shipped `schemaVersion: 1` and, deliberately, no migration — version 1 is the first. v0.2 is where the chain runs against a player's save for the first time.
+
+### 11.1 One schema version per shape-changing phase
+
+Not one per commit, and not one for the whole version. A version is burned the moment its golden fixture is committed (ADR-015 §2), so the unit has to be something whose shape is settled and independently testable — and a phase is the granularity this project already ships at.
+
+| Link      | Adds or changes                                                                    | Phase | Decided by             |
+| --------- | ---------------------------------------------------------------------------------- | ----- | ---------------------- |
+| `v1 → v2` | Source manifest (§8.2); enablement set                                             | 09    | ADR-026 §4, ADR-019 §7 |
+| `v2 → v3` | Calendar constants (`ticksPerDay`, the phase set)                                  | 10    | ADR-020 §2             |
+| `v3 → v4` | Season constants (`daysPerSeason`, the season list)                                | 11    | ADR-021 §1             |
+| `v4 → v5` | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant | 12    | ADR-022 §3             |
+| `v5 → v6` | Per-worker schedule state                                                          | 14    | ADR-024 §4             |
+
+Phases 08, 13, 15, and 16 change no persisted shape. That is a useful check that the audio, plugin-API, and updater designs were right: all three are outside the save by construction.
+
+Each link ships under §9's checklist, in one commit. Migrated v0.1 saves default to values that make them indistinguishable from a fresh v0.2 world — the single `core` source, and everything the build ships enabled.
+
+### 11.2 Removing a field
+
+`v4 → v5` is the first **removal**. `grid.moisture` is persisted today and read by nothing — it was written for a moisture model deferred by ADR-009 and never built, so the migration removes an empty array rather than discarding player value.
+
+The pattern every future removal copies (ADR-015 §4: _"Readers never silently skip fields"_):
+
+- The migration **drops the old field and populates the new one with an explicit default** — `wateredAt = 0`, meaning never watered — in the migration, never by a tolerant reader.
+- A golden fixture at the previous version is committed before the link and proves it forever.
+
+**A future removal will not have the "carried no information" property**, and the reviewer of that migration needs to notice the difference.
+
+### 11.3 Pre-migration backups are kept indefinitely
+
+**Answering ADR-015 §Open Questions 1**, which deferred this to the first real migration:
+
+Before the chain runs against a save at version _N_, the untouched original is copied to `backups/slot-0-v<N>-premigration.json`. **One file per schema version, written once, never overwritten, exempt from the §7.1 step-7 pruning, and never touched by the updater.**
+
+This is not insurance. ADR-025 §2 shows it is the _only_ recovery path when a player rolls back across a schema boundary: a build that predates the bump refuses the save outright (§4 forward refusal), and `.bak` is at the same version so it is refused with it. A player who has moved 1 → 6 holds five small files — under 200 KB at the reference farm's measured 38,730 bytes, against a 2 MB guard.
+
+### 11.4 What does not change
+
+The identity header (ADR-015 §1); explicit hand-written, byte-stable serialization; the compatibility matrix in full including forward refusal; loading never writes; and **derived state is never persisted**.
+
+v0.2 in fact _increases_ the derived share: the calendar, the season, the weather, and tile wetness are all computed rather than stored (ADR-020 §1, ADR-021 §1, ADR-022 §1, §3). That is why five feature phases add so little to this document.

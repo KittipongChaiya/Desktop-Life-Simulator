@@ -1,8 +1,8 @@
 # PLAN
 
 > **Status:** Authoritative roadmap.
-> **Owns:** Version milestones, phase sequencing, success criteria, release gates.
-> **Does not own:** Product intent (`VISION.md`), per-phase detail (`docs/phases/`).
+> **Owns:** Version milestones, version-level success criteria, release gates, and how this plan changes.
+> **Does not own:** Product intent (`VISION.md`), v0.2 phase sequencing and per-phase acceptance (`ROADMAP.md`), per-phase specifications (`docs/phases/`).
 
 **No dates.** This is a sequenced plan, not a schedule. Each milestone completes when its success criteria are met.
 
@@ -93,25 +93,38 @@ Combat · RPG · dungeons · bosses · city defense · factory · town · NPCs �
 
 **Goal:** the world changes on its own, and other people can add to it.
 
-| Milestone         | Delivers                                                              | Depends on                              |
-| ----------------- | --------------------------------------------------------------------- | --------------------------------------- |
-| Plugin loader     | Dynamic loading, manifests, dependency resolution, plugin settings UI | v0.1 registries (ADR-003 §6)            |
-| Time of day       | Day/night cycle, lighting layer 5                                     | v0.1 layer reservation                  |
-| Seasons           | Season cycle, per-crop seasonal modifiers                             | v0.1 growth modifiers                   |
-| Weather           | Rain (auto-waters), storms; effects layer 4                           | v0.1 moisture system                    |
-| Audio             | Ambient, effects, music; volume settings                              | v0.1 asset pipeline (§8 of `ASSETS.md`) |
-| Worker priorities | Player-configurable task priority                                     | v0.1 fixed priority list                |
-| Auto-update       | Signed updates with save-integrity guarantees                         | v0.1 phase-07                           |
+v0.2 is also where this project stops being an application and becomes **an engine with a game on top of it**. Seasons and weather are how that gets proven; the plugin architecture is the work. Ten architectural goals govern the version and are stated in `ROADMAP.md` §1.
+
+### 3.1 Phases
+
+Sequencing, dependencies, deliverables, risks, acceptance criteria, testing strategy, and commit boundaries: **`ROADMAP.md`**.
+
+| #    | Phase                                | Schema | Delivers                                           | Decided by       |
+| ---- | ------------------------------------ | ------ | -------------------------------------------------- | ---------------- |
+| 08.0 | Coverage Reconciliation              | —      | The v0.1 release gate turns green                  | §8, `TESTING.md` |
+| 08   | Content Identity & Plugin Foundation | —      | The public API, and `plugins/core/`                | ADR-026, ADR-019 |
+| 09   | Plugin Loader & Capability Registry  | v2     | Third-party content actually loads                 | ADR-019, ADR-027 |
+| 10   | Time Simulation                      | v3     | The day cycle, and lighting layer 5                | ADR-020          |
+| 11   | Seasonal Simulation                  | v4     | The calendar means something                       | ADR-021          |
+| 12   | Weather Simulation                   | v5     | Rain, derived and exact                            | ADR-022          |
+| 13   | Audio Architecture                   | —      | Buses, a mixer, and the first ambient bed          | ADR-023          |
+| 14   | Worker Scheduling                    | v6     | The player directs the farm                        | ADR-024          |
+| 15   | Distribution & Auto-Update           | —      | The game can safely update itself                  | ADR-025          |
+| 16   | v0.2 Vertical Slice (RC)             | —      | It feels like one game, and the gates are measured | —                |
+
+Three orderings are dictated by dependency rather than preference, and `ROADMAP.md` §2.1 states them: the plugin foundation precedes every content system (08 before 10, 11, 12, 14); time precedes seasons precedes weather; and weather precedes audio, because rain is the first ambient bed with a real trigger.
+
+**Worker scheduling, not worker priorities.** The milestone was _"player-configurable task priority"_; a reorderable list answers one of the six scheduling concepts on the roadmap and makes the other five special cases. ADR-024 replaces it with a three-stage pipeline in which zones, roles, permissions, shifts, and emergency overrides each arrive as data.
 
 **Success criteria**
 
-- [ ] A third party writes a plugin adding a crop, using only `plugins/README.md`
-- [ ] A v0.1 save loads in v0.2 with no data loss
-- [ ] Uninstalling a plugin preserves its save data (`SAVE_FORMAT.md` §8)
-- [ ] Performance budgets hold with weather and lighting active
+- [ ] A third party writes a plugin adding a crop, using only `PLUGIN_GUIDE.md`
+- [ ] A v0.1 save loads in v0.2 with no data loss, through the full five-link chain
+- [ ] Uninstalling a plugin preserves its save data (`SAVE_FORMAT.md` §8) and touches no other namespace (ADR-026 §3)
+- [ ] Performance budgets hold with weather, lighting, and audio active
 - [ ] Auto-update never loses a save under interrupted-update testing
 
-**Note:** auto-update ships here and not in v0.1 deliberately — an updater that can restart the app is a way to lose player data, so it follows proven save integrity.
+**Note:** auto-update ships here and not in v0.1 deliberately — an updater that can restart the app is a way to lose player data, so it follows proven save integrity. v0.2 sharpens that: it also lands five schema versions, and ADR-025 §2 shows that **rollback across a schema bump orphans a save** unless the updater is bounded by schema version. Phase 15 therefore follows every shape-changing phase.
 
 ---
 

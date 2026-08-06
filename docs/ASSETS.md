@@ -67,6 +67,8 @@ A shared palette is what makes plugin-contributed art blend with core art. It is
 
 **Replacing a placeholder is a file drop.** Put a real `assets/src/audio/<name>.wav` in the tree and the generator copies it through instead of synthesising. No renderer code changes, because the game names sounds and never learns which of the two it got.
 
+**v0.2 changes the device, not the format** (ADR-023). Phase 13 replaces `HTMLAudioElement` with Web Audio to gain category buses, a mixer, voice pooling, and a spatial-audio seam — the revisit ADR-016 named. The source format above is unchanged, the file-drop replacement path is unchanged, and the transcode question stays closed until a real music bed makes eight short clips into something larger. Content sources register sounds against the engine's **closed** category set (`PLUGIN_API.md` §5); a source may not invent a category.
+
 ---
 
 ## 4. Atlas Groups
@@ -252,16 +254,25 @@ registerCrop({
 
 ---
 
-## 10. Plugin Assets (v0.2)
+## 10. Content-Source Assets (v0.2)
 
-Reserved now, not implemented (ADR-006 §7):
+Reserved by ADR-006 §7; specified by ADR-019 and built in Phase 09 (`ROADMAP.md` §5).
 
-- A plugin ships a **pre-built** atlas plus a manifest fragment.
-- Keys namespace by plugin ID: `myMod:dragonfruit_0`.
+- A source ships a **pre-built** atlas plus a manifest fragment.
+- Keys namespace by source ID: `myMod:dragonfruit_0`.
 - Fragments merge into the sprite registry at load.
-- Plugin atlases are separate — never repacked into core atlases.
+- Source atlases are separate — **never repacked into core atlases**.
+- Declared in the source's manifest under `assets` (`plugins/manifest.schema.json`).
 
-v0.1 builds no loading path. It only guarantees the namespace exists and that nothing assumes assets are exclusively first-party.
+The same rules apply to every kind of source — built-in, official pack, third-party, generated, DLC — because they share one extension model (ADR-026 §2). `plugins/core/` is the first consumer.
+
+### 10.1 Assets carry no gameplay logic
+
+**Binding, and stated because sidecar files are the obvious place for it to creep in** (ADR-019 §8, architecture goal 7):
+
+> An asset is pixels, audio samples, and the manifest that names them. Sprite keys, atlas fragments, and animation sidecars (`*.anim.json`) are **inert**.
+
+A source that wants behaviour declares it through `registerBehaviors` — a reviewable, versioned, engine-interpreted declaration (`PLUGIN_API.md` §9) — never through metadata smuggled into an asset. An executable asset would defeat the structural determinism and save-safety guarantees of API v1 by the back door.
 
 ---
 
