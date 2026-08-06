@@ -19,7 +19,13 @@ import { appError, ErrorCode } from '../../shared/errors';
 import { isContentId, type ContentId } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
 import { stackSizeOf } from '../content/items';
-import { acceptable, addItems, containerCount, removeItems } from '../world/container';
+import {
+  acceptable,
+  addItems,
+  containerCount,
+  removeItems,
+  type Container,
+} from '../world/container';
 import {
   expansionCost,
   multiplierOf,
@@ -36,8 +42,45 @@ import type { CommandWorld, ValidationResult } from './types';
 // ── Validators ───────────────────────────────────────────────────────────────
 
 /**
+ * Every container the sale may draw from, in the order it draws from them:
+ * the player inventory first, then storage buildings by ascending id.
+ *
+ * WHY SHEDS COUNT (07.9). `projectInventory` aggregates the player inventory
+ * AND every storage building into the single list the inventory panel renders
+ * — deliberately, because that is how a shed's "+50 slots" and a worker's
+ * deposits become visible to the player. Selling used to count `world.inventory`
+ * alone, so goods a WORKER harvested (they go to the nearest shed with room,
+ * never to the player inventory) showed up in the panel with live prices and
+ * `Sell 1` / `All` buttons that were silently refused as `MissingItem`.
+ *
+ * Hiring a worker and building a shed are the two things the game most
+ * encourages, and together they turned selling off. What the panel offers and
+ * what the command accepts are now the same set of goods, by construction.
+ *
+ * Sorted by id rather than left in Map order: command results are part of the
+ * deterministic tick (ADR-007 §1), so the container a unit came out of may not
+ * depend on insertion history.
+ *
+ * The player's own inventory goes FIRST so that selling a few units empties
+ * what the player is carrying before it touches a shed they were stockpiling.
+ */
+function sellableContainers(world: CommandWorld): readonly Container[] {
+  const sheds = [...world.buildingStorage.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, container]) => container);
+  return [world.inventory, ...sheds];
+}
+
+/** Total units of an item across everything the player owns. */
+function heldForSale(world: CommandWorld, itemId: ContentId): number {
+  let total = 0;
+  for (const container of sellableContainers(world)) total += containerCount(container, itemId);
+  return total;
+}
+
+/**
  * Checks a sale is legal. Rejects: unknown item, bad quantity, more than the
- * player inventory holds. Order: most specific cause first.
+ * player holds across inventory and sheds. Order: most specific cause first.
  */
 export function validateSell(
   world: CommandWorld,
@@ -47,7 +90,7 @@ export function validateSell(
   const definition = world.itemRegistry.get(itemId);
   if (!definition.ok) return err(definition.error);
 
-  const held = containerCount(world.inventory, itemId);
+  const held = heldForSale(world, itemId);
   if (held < quantity) {
     return err(
       appError(ErrorCode.MissingItem, 'not enough held to sell', { itemId, quantity, held }),
@@ -99,8 +142,9 @@ export function validateBuySeeds(
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 /**
- * Sells items from the player inventory: removes the goods, credits the wallet
- * at the pre-sale price, then depresses the multiplier and publishes the fact.
+ * Sells items the player owns — inventory and sheds alike (`sellableContainers`)
+ * — removing the goods, crediting the wallet at the pre-sale price, then
+ * depressing the multiplier and publishing the fact.
  */
 export function sellItems(world: CommandWorld, itemId: ContentId, quantity: number): Result<void> {
   const validation = validateSell(world, itemId, quantity);
@@ -109,11 +153,23 @@ export function sellItems(world: CommandWorld, itemId: ContentId, quantity: numb
   const definition = world.itemRegistry.get(itemId);
   if (!definition.ok) return err(definition.error); // unreachable — validated above
 
-  // Price the whole batch BEFORE recording the sale (interpretation 1).
+  // Price the whole batch BEFORE recording the sale (interpretation 1). One
+  // batch at one multiplier even when the units come out of several containers
+  // — where a good was stored is not a pricing input.
   const coins =
     quantity * salePrice(definition.value.basePrice, multiplierOf(world.economy, itemId));
 
-  removeItems(world.inventory, itemId, quantity); // validated — removes exactly
+  // Drain in order: the player's own inventory, then sheds by id. The total was
+  // validated above, so this always takes exactly `quantity` units. Each call is
+  // capped at what its container holds, because `removeItems` is all-or-nothing
+  // per container and would otherwise remove nothing at all.
+  let remaining = quantity;
+  for (const container of sellableContainers(world)) {
+    if (remaining <= 0) break;
+    const take = Math.min(remaining, containerCount(container, itemId));
+    if (take <= 0) continue;
+    remaining -= removeItems(container, itemId, take).removed;
+  }
   const credit = addCoins(world.wallet, coins);
   if (!credit.ok) return credit; // unreachable — quantity × floor() is a non-negative integer
 
