@@ -30,7 +30,21 @@ function formatUptime(totalSeconds: number): string {
     : `${pad(minutes)}:${pad(seconds)}`;
 }
 
-export function StatusBar(): ReactNode {
+export interface StatusBarProps {
+  /**
+   * The HUD panel toggles — workers, shop, inventory, settings.
+   *
+   * They live IN the bar rather than floating over it (07.9). Each used to
+   * carry its own absolute coordinates, and they collided with each other and
+   * with this bar; as flex items they simply cannot. Passed as children rather
+   * than imported here so the bar keeps knowing nothing about what a shop is,
+   * and so `App` keeps the one rule the bar must not own: panels exist only
+   * while the overlay is expanded, and this bar exists either way.
+   */
+  readonly children?: ReactNode;
+}
+
+export function StatusBar({ children }: StatusBarProps): ReactNode {
   const status = useSlice('status');
   const workers = useSlice('workers');
   const overlay = useOverlay();
@@ -56,6 +70,10 @@ export function StatusBar(): ReactNode {
       <span className={styles['muted']} title="Workers hired">
         {workers.length} {workers.length === 1 ? 'worker' : 'workers'}
       </span>
+
+      {/* The panel toggles. Between the readouts and the collapse chevron, in
+          the 1,334px this bar had spare. */}
+      <div className={styles['panels']}>{children}</div>
 
       <button
         type="button"

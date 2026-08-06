@@ -1,10 +1,22 @@
 /* Shop panel. Phase-06e. */
 
 .container {
-  position: absolute;
-  top: 44px;
-  left: 8px;
-  pointer-events: auto; /* opt back in over the click-through root (App.module.css) */
+  /*
+   * A TOGGLE IN THE TOP BAR. Phase-07.9.
+   *
+   * These four toggles used to float over the status bar on their own absolute
+   * coordinates — two on the left, two on the right — and they collided: the
+   * worker container overlapped the shop toggle by 49px, and all four sat on
+   * top of the bar itself. As flex items in the bar's row they cannot.
+   *
+   * The toggle lives here; its PANEL is anchored to a screen edge instead (see
+   * `.panel`), which is what keeps the middle of the overlay — where the plot
+   * is framed and where the player tills, plants and places buildings — clear
+   * of anything that would swallow the click.
+   */
+  position: relative;
+  flex: none;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -31,13 +43,26 @@
 }
 
 .panel {
+  /*
+   * Anchored to the overlay edge, not to its toggle (07.9). The four
+   * panels take the two edges — left pair 8..466, right pair 1444..1912 —
+   * so they cannot reach each other AND the middle stays clickable. A
+   * panel opening under its toggle would sit over the plot, and a build
+   * placed by clicking the ground would land on the panel instead.
+   */
+  position: fixed;
+  top: 58px;
+  left: 216px;
+  z-index: 1;
   width: 250px;
-  /* The expanded overlay is 220px tall (ADR-013 assumption 4 — the shop fits
-     it, no modal). Container top 44 + toggle ≈28 + gap 6 leaves ~140px of
-     window; stay safely inside it — a click on a row that renders past the
-     window edge lands on the desktop, not the button (found by the 06e
-     placement E2E). The list scrolls internally rather than growing. */
-  max-height: 126px;
+  /*
+   * Capped to the room BELOW the bar (07.9): the expanded overlay is 220px,
+   * the panel starts at 58, and an 8px gutter keeps it off the bottom edge —
+   * 220 - 58 - 8 = 154. A row rendered past the window edge is not merely
+   * ugly, it is unclickable: the click lands on the desktop. The list scrolls
+   * internally rather than growing.
+   */
+  max-height: 154px;
   overflow-y: auto;
   padding: 8px;
   background: rgba(20, 22, 28, 0.9);

@@ -127,3 +127,16 @@
   outline: 2px solid #6ea8fe;
   outline-offset: 1px;
 }
+
+/*
+ * The HUD panel toggles, hosted in the bar. Phase-07.9.
+ *
+ * `overflow: visible` is load-bearing: each child reserves its panel's width
+ * and the panel itself drops out of the bar's 48px band to hang below it.
+ */
+.panels {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+}

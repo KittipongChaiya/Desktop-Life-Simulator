@@ -190,22 +190,26 @@ test('every sell button is clickable while the settings panel is open', async ()
   // Every one of them is the thing the mouse would actually hit. This is the
   // assertion the bug would have failed: the buttons were all present, all
   // enabled, and all underneath the settings panel.
-  const unreachable = await window.evaluate(() =>
-    [...document.querySelectorAll('[data-testid="inventory"] button')]
+  const unreachable = await window.evaluate(() => {
+    const panel = document.querySelector('[data-testid="inventory"] [class*="panel"]');
+    const clip = panel?.getBoundingClientRect();
+    return [...document.querySelectorAll('[data-testid="inventory"] button')]
       .filter((button) => /^(Sell 1|All)$/.test((button.textContent ?? '').trim()))
       .filter((button) => {
         const rect = button.getBoundingClientRect();
-        const hit = document.elementFromPoint(
-          rect.left + rect.width / 2,
-          rect.top + rect.height / 2,
-        );
-        return hit !== button;
+        const y = rect.top + rect.height / 2;
+        // A row scrolled out of the panel's OWN viewport is working as designed
+        // — the list scrolls. The invariant is about a control that is on show
+        // and still cannot be hit, which is what the settings panel caused.
+        if (clip !== undefined && (y < clip.top || y > clip.bottom)) return false;
+        return document.elementFromPoint(rect.left + rect.width / 2, y) !== button;
       })
       .map(
         (button) =>
           `${(button.textContent ?? '').trim()} @${String(Math.round(button.getBoundingClientRect().y))}`,
-      ),
-  );
+      );
+  });
+
   expect(unreachable).toEqual([]);
 
   // And a real sale through a real click. Asserted on the slot count rather

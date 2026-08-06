@@ -143,7 +143,25 @@ export function App(): ReactNode {
           The exits stay reachable — F11 is global, and the tray never leaves. */}
       {!workMode && (
         <div className={styles['statusBar']} data-interactive>
-          <StatusBar />
+          {/* The panel toggles live IN the bar (07.9). They used to float over
+              it on their own absolute coordinates and collided — the worker
+              container overlapped the shop toggle, and all four sat on top of
+              the bar. As flex items in a row they cannot, and each reserves its
+              panel's width so two open panels cannot reach each other either.
+
+              The collapse rule stays here rather than moving into the bar: the
+              bar shows in BOTH presence modes, the panels only when expanded
+              (ADR-001 §2 — collapsed is a status bar, not a game board). */}
+          <StatusBar>
+            {!collapsed && (
+              <>
+                <WorkerPanel />
+                <ShopPanel />
+                <InventoryPanel />
+                <SettingsPanel />
+              </>
+            )}
+          </StatusBar>
         </div>
       )}
 
@@ -161,17 +179,10 @@ export function App(): ReactNode {
           click produced only a brief tile outline and read as a dead click. */}
       <ActionNotice />
 
-      {/* The worker panel (count, hire, list), the shop, the selected-worker
-          panel, the inventory, and settings show over the world when expanded. */}
-      {!collapsed && !workMode && (
-        <>
-          <WorkerPanel />
-          <ShopPanel />
-          <WorkerInfo />
-          <InventoryPanel />
-          <SettingsPanel />
-        </>
-      )}
+      {/* The selected-worker panel. Still floating rather than a bar slot: it
+          has no toggle — it appears when a worker is selected and goes when the
+          selection clears — so there is nothing to host in the bar. */}
+      {!collapsed && !workMode && <WorkerInfo />}
 
       {/* The return summary sits OUTSIDE the work-mode gate deliberately: its
           mode rule is different from the HUD's. The HUD is hidden and gone;
