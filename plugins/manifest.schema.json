@@ -1,61 +1,110 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://desktoplife.local/schemas/plugin-manifest.json",
-  "title": "Plugin Manifest",
-  "description": "Declares a content pack. Consumed by the v0.2 loader; used in v0.1 to describe plugins/core, which registers through the same public API it will (ADR-003 §6).",
+  "title": "Content Source Manifest",
+  "description": "Declares a content source — built-in content, an official pack, a third-party plugin, a generated pack, or DLC. All five kinds share this one manifest and one extension model (ADR-026 §2, goal 9). Consumed by the v0.2 loader (Phase 09); used from Phase 08 to describe plugins/core, which registers through the same public API a third party will (ADR-019 §2).",
   "type": "object",
-  "required": ["id", "name", "version", "gameVersion", "entry"],
+  "required": ["id", "name", "version", "apiVersion"],
   "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9_]+$",
-      "description": "Namespace owned by this plugin. PERMANENT — every content ID and save key derives from it, so changing it orphans player data. Collisions are rejected at load."
+      "description": "The primary namespace this source owns. PERMANENT — every content ID and save key derives from it, so changing it orphans player data (ADR-026 §5). A namespace is owned by exactly one source; a collision is rejected at load, for both sources. `core` and the reserved set are unavailable."
+    },
+    "additionalNamespaces": {
+      "type": "array",
+      "description": "Further namespaces this source owns. A source may own more than one; two sources may never share one (ADR-026 §1).",
+      "items": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+      "uniqueItems": true
     },
     "name": {
       "type": "string",
       "minLength": 1,
-      "description": "Human-readable display name. May change freely."
+      "description": "Human-readable display name. May change freely. Shown to the player when this source is missing, which is why it is required (ADR-026 §4)."
     },
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Semantic version of this plugin, independent of the game version."
+      "description": "Semantic version of this source, independent of the engine's. Informational — it never drives load behaviour."
     },
-    "gameVersion": {
+    "apiVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The PLUGIN_API_VERSION this source is written against. THE ONLY VERSION THAT DRIVES BEHAVIOUR. Compatibility is declared against the API version, never the engine version, because engine releases move for reasons no source can observe (ADR-019 §1, goal 10). The engine supports every API version it has ever shipped; a source targeting an unsupported version is refused by name, never partially loaded. Replaces the former `gameVersion` field."
+    },
+    "provenance": {
       "type": "string",
-      "description": "Semver range of game versions this plugin supports, e.g. \">=0.2.0 <0.4.0\"."
+      "enum": ["builtin", "official", "thirdParty", "generated", "dlc"],
+      "default": "thirdParty",
+      "description": "What kind of source this is. Recorded for player-facing display, the load-time trust decision, and support diagnostics — and read by NOTHING else. No simulation system, command, registry lookup, or save-format rule may branch on it (ADR-026 §2). First-party content earns no runtime privilege."
     },
     "saveSchemaVersion": {
       "type": "integer",
       "minimum": 1,
-      "description": "Version of this plugin's own save payload. Core never migrates plugin data — plugins version themselves (SAVE_FORMAT.md §8)."
+      "description": "Version of this source's own save payload. Core never reads, migrates, or drops plugin data — sources version themselves (SAVE_FORMAT.md §8)."
     },
-    "entry": {
-      "type": "string",
-      "description": "Module exporting register(api). Relative to the plugin root."
-    },
-    "description": { "type": "string" },
-    "author": { "type": "string" },
-    "license": { "type": "string" },
-    "homepage": { "type": "string", "format": "uri" },
-    "dependencies": {
+    "content": {
       "type": "object",
-      "description": "Other plugin IDs this one requires, mapped to semver ranges. Resolved by the v0.2 loader.",
-      "propertyNames": { "pattern": "^[a-z0-9_]+$" },
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": false,
+      "description": "Declarative content this source registers. An API v1 source is DATA: the loader parses and validates these files and never executes them (ADR-019 §4). Paths are relative to the source root.",
+      "properties": {
+        "definitions": {
+          "type": "array",
+          "description": "Content definition files — crops, trees, animals, items, recipes, buildings, tile kinds, decorations.",
+          "items": { "type": "string" }
+        },
+        "behaviors": {
+          "type": "array",
+          "description": "Behaviour declarations: (condition, effect) pairs composed from the engine's versioned vocabulary. The engine owns the vocabulary and evaluates it; a source composes from it (PLUGIN_API.md §9).",
+          "items": { "type": "string" }
+        },
+        "effects": {
+          "type": "array",
+          "description": "Visual effect declarations binding engine-provided primitives to declared event kinds. Effects inherit ADR-017 in full: pooled, leased, and derived-not-rolled randomness.",
+          "items": { "type": "string" }
+        },
+        "audio": {
+          "type": "array",
+          "description": "Sound definitions. A source assigns a sound to one of the engine's closed categories; it may not invent one (ADR-023 §2).",
+          "items": { "type": "string" }
+        },
+        "localization": {
+          "type": "object",
+          "description": "String-table paths by locale tag. Data only — no format with an executable surface.",
+          "additionalProperties": { "type": "string" }
+        },
+        "configuration": {
+          "type": "string",
+          "description": "Typed, defaulted settings surfaced in the plugin panel and stored under this source's own settings partition — never in the save."
+        }
+      }
     },
     "assets": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Pre-built atlases shipped by this plugin. Plugin atlases are never repacked into core atlases (ASSETS.md §10).",
+      "description": "Pre-built atlases shipped by this source. Plugin atlases are never repacked into core atlases (ASSETS.md §10). Assets are inert: they carry no gameplay logic, and behaviour is never smuggled into a sidecar (ADR-019 §8).",
       "properties": {
         "manifest": {
           "type": "string",
-          "description": "Path to the plugin's generated asset manifest."
+          "description": "Path to this source's generated asset manifest fragment. Keys namespace by the source ID, e.g. myMod:dragonfruit_0."
         },
         "atlases": { "type": "array", "items": { "type": "string" } }
       }
-    }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Other source IDs this one requires, mapped to semver ranges over THEIR `version`. Resolved topologically with ties broken by namespace ascending — never filesystem order, so resolution is identical on every machine (ADR-019 §6). A missing dependency or a cycle refuses this source, names it, and loads the rest.",
+      "propertyNames": { "pattern": "^[a-z0-9_]+$" },
+      "additionalProperties": { "type": "string" }
+    },
+    "entry": {
+      "type": "string",
+      "description": "OPTIONAL, and unused at API v1. Reserved for the code-bearing capabilities of API v2 (commands, event listeners, UI panels, service consumption), which need an execution mechanism, a trust model, determinism enforcement, and failure containment that a successor ADR must decide first (ADR-019 §4, PLUGIN_API.md §10). A v1 source carries no code and needs no entry point."
+    },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "license": { "type": "string" },
+    "homepage": { "type": "string", "format": "uri" }
   }
 }
