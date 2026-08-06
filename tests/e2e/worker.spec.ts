@@ -16,6 +16,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -101,12 +102,13 @@ test('clicking a worker selects it and shows its info panel', async () => {
   await hire.click();
   await expect(count).toHaveText('1 worker');
 
-  // The worker spawns at the plot centre, which the camera frames at the
-  // viewport centre; it tills that tile for ~1.5s, so it is there to be clicked.
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  // The worker spawns at the plot centre, which the camera frames in the band
+  // below the status bar (07.9); it tills that tile for ~1.5s, so it is there
+  // to be clicked.
+  const centre = await plotCentreOnScreen(window);
   // Let the world view finish mounting before clicking into it.
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
 
   const info = window.locator('[data-testid="worker-info"]');
   await expect(info).toBeVisible();

@@ -29,6 +29,7 @@ import type { Container } from 'pixi.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { OVERLAY_HEIGHT_COLLAPSED } from '../../shared/constants';
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
 import { intensityScale } from '../../shared/motion';
 import { enterCost } from '../../sim/pathing/astar';
@@ -359,6 +360,9 @@ function composeApplication(world: World, session: SaveSession): void {
       width: window.innerWidth,
       height: window.innerHeight,
       resolution: window.devicePixelRatio,
+      // The status bar is opaque and interactive, so a tile beneath it cannot
+      // be clicked at all. Framing centres on the band below it (07.9).
+      topInset: OVERLAY_HEIGHT_COLLAPSED,
     }),
     // A GPU failure must be VISIBLE. Swallowing it leaves the overlay running
     // with no world and no explanation, which is what happened on the first

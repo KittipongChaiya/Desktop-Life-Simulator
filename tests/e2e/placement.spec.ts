@@ -16,6 +16,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -82,14 +83,14 @@ test('placing a shed arms the ghost and opens storage', async () => {
 
   // The plot centre is framed at the viewport centre; hover it so the ghost
   // follows, then capture the armed state.
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
   await new Promise((resolve) => setTimeout(resolve, 300)); // let the world mount
-  await window.mouse.move(size.w / 2, size.h / 2);
+  await window.mouse.move(centre.x, centre.y);
   await window.screenshot({ path: 'test-results/placement-ghost.png' });
 
   // Click to place. It dispatches placeBuilding; the shed lands on the next tick
   // and its container joins the inventory aggregate, so capacity rises to 90.
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await expect(inventory).toContainText('0/90');
 
   await window.screenshot({ path: 'test-results/placement-done.png' });

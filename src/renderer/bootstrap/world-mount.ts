@@ -30,7 +30,13 @@ export interface WorldMountOptions {
   readonly canvas: HTMLCanvasElement;
   readonly world: World;
   readonly atlas: string;
-  readonly viewport: () => { width: number; height: number; resolution: number };
+  readonly viewport: () => {
+    width: number;
+    height: number;
+    resolution: number;
+    /** Logical pixels of viewport hidden behind the status bar (07.9). */
+    topInset: number;
+  };
   /** Element that receives drag-to-pan and wheel-to-zoom. */
   readonly inputTarget: HTMLElement;
   /** The selected worker id, forwarded to the view's selection box. */
@@ -66,6 +72,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         width: size.width,
         height: size.height,
         resolution: size.resolution,
+        viewportTopInset: size.topInset,
         atlas: options.atlas,
         selectedWorkerId: options.selectedWorkerId,
         motionIntensity: options.motionIntensity,

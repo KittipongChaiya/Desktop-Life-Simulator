@@ -80,7 +80,7 @@ export interface WorldView {
    * worker positions; `tick` drives frame-based animation (ASSETS.md §7).
    */
   renderFrame(alpha?: number, tick?: number): boolean;
-  pan(deltaX: number): void;
+  pan(deltaX: number, deltaY: number): void;
   zoom(next: number): void;
   camera(): CameraState;
   /** Tile under a screen point, or null when outside the world. */
@@ -169,6 +169,11 @@ export interface WorldViewOptions {
   readonly width: number;
   readonly height: number;
   readonly resolution: number;
+  /**
+   * Logical pixels at the top of the viewport covered by opaque HUD, so the
+   * plot is framed in the band the player can actually see and click (07.9).
+   */
+  readonly viewportTopInset?: number;
   /** Atlas name to load, from the generated manifest (ASSETS.md §5). */
   readonly atlas: string;
   /** The selected worker id, read each frame to draw its selection box. */
@@ -282,6 +287,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     worldWidthTiles: options.world.tiles.width,
     worldHeightTiles: options.world.tiles.height,
     resolution: options.resolution,
+    viewportTopInset: options.viewportTopInset ?? 0,
   };
   // Frame the owned plot at startup so workers and crops are on-screen: the
   // world is far taller than the short overlay, and the plot sits at its centre.
@@ -318,10 +324,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     textureFor,
   });
 
-  const doPan = (deltaX: number): void => {
+  const doPan = (deltaX: number, deltaY: number): void => {
     // The player moved the camera, so whatever it was doing on its own stops.
     focus.cancel();
-    const next = panCamera(camera, deltaX, limits);
+    const next = panCamera(camera, deltaX, deltaY, limits);
     if (next === camera) return;
     camera = next;
     applyCamera();
@@ -644,6 +650,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     attachInput(target) {
       let dragging = false;
       let lastX = 0;
+      let lastY = 0;
 
       const onPointerDown = (event: PointerEvent): void => {
         if (event.button !== 0) return;
@@ -659,6 +666,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         presence.touch(performance.now());
         dragging = true;
         lastX = event.clientX;
+        lastY = event.clientY;
         target.setPointerCapture(event.pointerId);
       };
 
@@ -669,9 +677,12 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         presence.touch(performance.now());
         gate.markDirty();
         if (!dragging) return;
-        // Drag right moves the world right, i.e. the camera left.
-        doPan(lastX - event.clientX);
+        // Drag right moves the world right, i.e. the camera left. Vertical
+        // works the same way, and exists because the plot is taller than the
+        // overlay and grows with every expansion (07.9 — see `camera.ts`).
+        doPan(lastX - event.clientX, lastY - event.clientY);
         lastX = event.clientX;
+        lastY = event.clientY;
       };
 
       const endDrag = (event: PointerEvent): void => {
@@ -692,7 +703,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         }
         if (event.deltaX !== 0) {
           event.preventDefault();
-          doPan(event.deltaX);
+          doPan(event.deltaX, 0);
         }
       };
 

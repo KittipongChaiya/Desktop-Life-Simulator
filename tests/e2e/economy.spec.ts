@@ -10,6 +10,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -66,13 +67,13 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
 
   // ── Till and plant the centre tile (tools 1 and 2; turnip is the default
   //    selected seed) ─────────────────────────────────────────────────────────
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
   await new Promise((resolve) => setTimeout(resolve, 300)); // let the world mount
   await window.keyboard.press('1');
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 150));
   await window.keyboard.press('2');
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 150));
 
   // ── Grow: a turnip needs 1,800 ticks (§3.1); advance 2,000 through the
@@ -81,7 +82,7 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
 
   // ── Harvest (tool 4) ──────────────────────────────────────────────────────
   await window.keyboard.press('4');
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
 
   // The turnip lands in the inventory.
   const inventory = window.getByRole('button', { name: /^Inventory/ });
@@ -106,7 +107,7 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
   // ── Build a storage shed on a clear tile ──────────────────────────────────
   await window.getByRole('button', { name: 'Shop' }).click();
   await shop.getByRole('button', { name: 'Build Storage Shed' }).click();
-  await window.mouse.click(size.w / 2 + 64, size.h / 2); // two tiles east of centre
+  await window.mouse.click(centre.x + 64, centre.y); // two tiles east of centre
   // 40 base + the shed's 50; the 9 unplanted seeds hold one slot.
   await expect(inventory).toContainText('1/90');
 

@@ -13,6 +13,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -44,11 +45,11 @@ test.afterEach(async () => {
 
 test('a command from the HUD is observed, accepted', async () => {
   const window = await app.firstWindow();
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
 
   await window.keyboard.press('1');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   await window.keyboard.press('F5');
@@ -63,12 +64,12 @@ test('a command from the HUD is observed, accepted', async () => {
 
 test('a refused command is observed with the validation error that refused it', async () => {
   const window = await app.firstWindow();
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
 
   // Seeds, with an empty inventory: validation refuses this at dispatch.
   await window.keyboard.press('2');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   await window.keyboard.press('F5');

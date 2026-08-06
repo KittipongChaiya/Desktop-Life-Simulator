@@ -34,6 +34,104 @@ const hiDpi = { ...limits, resolution: 2 };
 /** Centre of the 8×8 starting plot (world-centre), in world pixels. */
 const PLOT_CENTRE = { x: 32 * TILE_SIZE, y: 32 * TILE_SIZE };
 
+/**
+ * Vertical navigation. Phase-07.9.
+ *
+ * THE BUG THESE COVER. The camera centred the owned plot once and thereafter
+ * panned horizontally only, on the premise that "the overlay is short and the
+ * world is tall" — which requires the PLOT to fit the overlay vertically. It
+ * does not, and it never can: the starting plot is 8 tiles = 256px against a
+ * 220px overlay, and §6.3 expansion adds a ring per purchase (8 → 10 → 12 →
+ * 256 → 320 → 384px). No fixed strip height contains it.
+ *
+ * The player saw a farm whose lower rows were off-screen with no way to reach
+ * them, workers walking down out of the view and vanishing, and tiles under the
+ * opaque status bar that could not be clicked. Reported from a live session.
+ */
+describe('vertical panning (07.9)', () => {
+  it('pans down and back up', () => {
+    const start = createCamera(limits, PLOT_CENTRE);
+
+    const down = panCamera(start, 0, 120, limits);
+    expect(down.y).toBe(start.y + 120);
+
+    const backUp = panCamera(down, 0, -120, limits);
+    expect(backUp.y).toBe(start.y);
+  });
+
+  it('still pans horizontally, and both axes at once', () => {
+    const start = createCamera(limits, PLOT_CENTRE);
+
+    const moved = panCamera(start, 64, 32, limits);
+
+    expect(moved.x).toBe(start.x + 64);
+    expect(moved.y).toBe(start.y + 32);
+  });
+
+  it('clamps at the top and bottom of the world', () => {
+    const start = createCamera(limits, PLOT_CENTRE);
+
+    expect(panCamera(start, 0, -100_000, limits).y).toBe(0);
+    expect(panCamera(start, 0, 100_000, limits).y).toBe(
+      WORLD_HEIGHT * TILE_SIZE - limits.viewportHeight,
+    );
+  });
+
+  it('returns the same state when neither axis moves', () => {
+    const start = createCamera(limits, PLOT_CENTRE);
+
+    // Identity matters: `doPan` skips the redraw when the camera is unchanged,
+    // which is what keeps render-on-demand from waking on a dead drag.
+    expect(panCamera(start, 0, 0, limits)).toBe(start);
+    expect(panCamera({ ...start, y: 0 }, 0, -50, limits).y).toBe(0);
+  });
+
+  it('reaches every row of a plot far taller than the viewport', () => {
+    // Two expansions: 12 tiles = 384px in a 220px strip. Every row has to be
+    // reachable, or the farm has corners the player cannot work.
+    const plotTiles = 12;
+    const top = (32 - plotTiles / 2) * TILE_SIZE;
+    const bottom = (32 + plotTiles / 2) * TILE_SIZE;
+
+    const atTop = panCamera(createCamera(limits, PLOT_CENTRE), 0, -100_000, limits);
+    const atBottom = panCamera(createCamera(limits, PLOT_CENTRE), 0, 100_000, limits);
+
+    expect(atTop.y).toBeLessThanOrEqual(top);
+    expect(atBottom.y + limits.viewportHeight).toBeGreaterThanOrEqual(bottom);
+  });
+});
+
+describe('framing below the HUD (07.9)', () => {
+  // The status bar is opaque and carries `data-interactive`, so a tile under it
+  // cannot be clicked — `pointer-actions` refuses a press whose target is
+  // inside the HUD. Centring on the whole viewport buried the plot's upper rows
+  // there. Centring on the band BELOW the bar is what puts them in reach.
+  const inset = { ...limits, viewportTopInset: 48 };
+
+  it('centres the focus in the visible band, not the whole viewport', () => {
+    const framed = createCamera(inset, PLOT_CENTRE);
+
+    // The focus should land at the middle of the 48..220 band, i.e. 134px down.
+    const focusScreenY = PLOT_CENTRE.y - framed.y;
+    expect(focusScreenY).toBe((inset.viewportHeight + 48) / 2);
+  });
+
+  it('leaves framing unchanged when nothing is covering the view', () => {
+    const framed = createCamera({ ...limits, viewportTopInset: 0 }, PLOT_CENTRE);
+
+    expect(framed).toEqual(createCamera(limits, PLOT_CENTRE));
+  });
+
+  it('puts more of the plot below the bar than the old framing did', () => {
+    const before = createCamera(limits, PLOT_CENTRE);
+    const after = createCamera(inset, PLOT_CENTRE);
+
+    // The inset framing looks FURTHER UP the world, so rows that sat under the
+    // bar move down into the clickable band.
+    expect(after.y).toBeLessThan(before.y);
+  });
+});
+
 describe('clamping (criterion 3)', () => {
   it('never pans left of the world', () => {
     expect(clampCameraX(-500, limits, 1)).toBe(0);
@@ -52,13 +150,13 @@ describe('clamping (criterion 3)', () => {
 
   it('pans within bounds', () => {
     const camera = createCamera(limits);
-    expect(panCamera(camera, 64, limits).x).toBe(64);
+    expect(panCamera(camera, 64, 0, limits).x).toBe(64);
   });
 
   it('returns the same object when a pan changes nothing', () => {
     // Referential stability stops the render layer marking dirty on a no-op.
     const camera = createCamera(limits);
-    expect(panCamera(camera, -10, limits)).toBe(camera);
+    expect(panCamera(camera, -10, 0, limits)).toBe(camera);
   });
 });
 
@@ -100,7 +198,7 @@ describe('pixel snapping (criterion 4)', () => {
     // A fractional device offset is what makes pixel art shimmer.
     let camera = createCamera(hiDpi);
     for (const delta of [0.3, 1.7, -0.9, 12.34, -5.55]) {
-      camera = panCamera(camera, delta, hiDpi);
+      camera = panCamera(camera, delta, 0, hiDpi);
       expect(Number.isInteger(camera.x * hiDpi.resolution)).toBe(true);
     }
   });
@@ -147,7 +245,7 @@ describe('zoom', () => {
   });
 
   it('keeps the viewport centre fixed across a zoom change (both axes)', () => {
-    const camera = panCamera(createCamera(limits, PLOT_CENTRE), 200, limits);
+    const camera = panCamera(createCamera(limits, PLOT_CENTRE), 200, 0, limits);
     const centreBefore = {
       x: (camera.x + limits.viewportWidth / 2) / camera.zoom,
       y: (camera.y + limits.viewportHeight / 2) / camera.zoom,
@@ -171,7 +269,7 @@ describe('zoom', () => {
 
 describe('coordinate conversion', () => {
   it('round-trips screen and tile coordinates on both axes', () => {
-    const camera = panCamera(createCamera(limits, PLOT_CENTRE), 96, limits);
+    const camera = panCamera(createCamera(limits, PLOT_CENTRE), 96, 0, limits);
 
     for (const tileX of [0, 5, 31, 63]) {
       for (const tileY of [0, 28, 32, 35, 63]) {
@@ -214,7 +312,7 @@ describe('coordinate conversion', () => {
 describe('pan does not move vertically (phase-04c)', () => {
   it('leaves y unchanged when panning horizontally', () => {
     const camera = createCamera(limits, PLOT_CENTRE);
-    const panned = panCamera(camera, 128, limits);
+    const panned = panCamera(camera, 128, 0, limits);
     expect(panned.y).toBe(camera.y);
     expect(panned.x).not.toBe(camera.x);
   });
@@ -228,7 +326,7 @@ describe('visible range (culling)', () => {
   });
 
   it('never exceeds world bounds', () => {
-    const camera = panCamera(createCamera(limits), 99_999, limits);
+    const camera = panCamera(createCamera(limits), 99_999, 0, limits);
     const range = visibleTileRange(camera, limits);
     expect(range.last).toBeLessThanOrEqual(WORLD_WIDTH - 1);
     expect(range.first).toBeGreaterThanOrEqual(0);

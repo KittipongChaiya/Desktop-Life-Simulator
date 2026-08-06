@@ -11,6 +11,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -110,11 +111,11 @@ test('a worker under the pointer is described from the simulation (07.8d)', asyn
 
   await window.keyboard.press('F4');
   const inspector = window.getByTestId('inspector');
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
-  await window.mouse.move(size.w / 2, size.h / 2);
+  const centre = await plotCentreOnScreen(window);
+  await window.mouse.move(centre.x, centre.y);
 
-  // The worker spawns at the plot centre, which the camera frames at the
-  // viewport centre.
+  // The worker spawns at the plot centre, which the camera frames in the band
+  // below the status bar (07.9).
   await expect(inspector).toContainText('Worker #1');
   await expect(inspector).toContainText('Energy');
   // Carrying is on the WORKER RECORD and on no snapshot — seeing it here is

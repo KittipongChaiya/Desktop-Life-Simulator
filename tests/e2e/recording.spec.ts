@@ -13,6 +13,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -57,7 +58,7 @@ test.afterEach(async () => {
 
 test('a recording captures a real action on the real streams', async () => {
   const window = await app.firstWindow();
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
 
   expect(await consoleCommand('record status')).toContain('not recording');
   expect(await consoleCommand('record start')).toContain('recording started');
@@ -66,7 +67,7 @@ test('a recording captures a real action on the real streams', async () => {
   // tileTilled event through the bus, both of which the recorder observes.
   await window.keyboard.press('1');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 600));
 
   const running = await consoleCommand('record status');

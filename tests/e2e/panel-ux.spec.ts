@@ -9,6 +9,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -98,12 +99,12 @@ test('the layout is remembered across a reload', async () => {
 
 test('search narrows the rows without touching what was recorded', async () => {
   const window = await app.firstWindow();
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
 
   // Two kinds of observation to tell apart: a tilled tile and app startup.
   await window.keyboard.press('1');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 400));
 
   await window.keyboard.press('F2');

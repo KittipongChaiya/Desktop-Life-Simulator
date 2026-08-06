@@ -10,11 +10,27 @@
  * snaps to whole DEVICE pixels — dividing by resolution before snapping would
  * still leave a fractional device offset on a high-DPI display.
  *
- * The camera has a vertical position but NO vertical pan: the overlay is short
- * and the world is tall, so the view is CENTRED on a focus point (the owned
- * plot) at construction and thereafter pans horizontally only. Centring is a
- * pure geometric operation — the camera is handed a world-pixel focus and knows
- * nothing about plots or gameplay (kept independent per ADR-003 §4).
+ * The camera is CENTRED on a focus point (the owned plot) at construction and
+ * pans on BOTH axes thereafter. Centring is a pure geometric operation — the
+ * camera is handed a world-pixel focus and knows nothing about plots or
+ * gameplay (kept independent per ADR-003 §4).
+ *
+ * VERTICAL PAN, added in 07.9, replacing "the vertical position is fixed".
+ * That rule rested on the plot fitting the overlay vertically, and it never
+ * did: the starting plot is 8 tiles = 256px against a 220px overlay, and
+ * `GAME_DESIGN.md` §6.3 expansion adds a ring per purchase — 8 → 10 → 12 tiles
+ * is 256 → 320 → 384px. No fixed strip height can contain a plot that grows,
+ * so "centre it once and pan sideways" could only ever have worked for a farm
+ * nobody expanded. Reported from a live session as a farm whose lower rows were
+ * unreachable, workers walking off the bottom of the view and vanishing, and
+ * tiles under the status bar that would not take a click.
+ *
+ * `viewportTopInset` is the second half of that fix: the overlay's top strip is
+ * covered by the opaque status bar, and a tile under it cannot be clicked at
+ * all (`pointer-actions` refuses a press whose target is inside the HUD). The
+ * camera therefore centres on the VISIBLE band rather than the whole viewport.
+ * It is a geometric fact about the viewport — how much of it is obscured — not
+ * knowledge of what is doing the obscuring, so ADR-003 §4 still holds.
  */
 
 import { TILE_SIZE } from '../../shared/constants';
@@ -39,6 +55,12 @@ export interface CameraLimits {
   readonly worldHeightTiles: number;
   /** Device pixel ratio. */
   readonly resolution: number;
+  /**
+   * Logical pixels at the TOP of the viewport hidden behind opaque UI, so
+   * framing can centre on what the player can actually see and click. Optional
+   * and defaulting to 0: a caller with nothing covering the view says nothing.
+   */
+  readonly viewportTopInset?: number;
 }
 
 /** A world-pixel point to centre the view on. */
@@ -100,6 +122,17 @@ export function clampCameraY(y: number, limits: CameraLimits, zoom: number): num
  * (world pixels) it centres the viewport on that point — how the app frames the
  * owned plot at startup so workers and crops are visible.
  */
+/**
+ * Where a focus point should sit in the viewport, vertically.
+ *
+ * The middle of the VISIBLE band — below whatever covers the top — rather than
+ * the middle of the viewport, so framing does not bury rows under the HUD.
+ * With no inset the two are the same value.
+ */
+function focusScreenY(limits: CameraLimits): number {
+  return (limits.viewportHeight + (limits.viewportTopInset ?? 0)) / 2;
+}
+
 export function createCamera(limits: CameraLimits, focus?: Focus): CameraState {
   const zoom = MIN_ZOOM;
   if (focus === undefined) {
@@ -107,15 +140,25 @@ export function createCamera(limits: CameraLimits, focus?: Focus): CameraState {
   }
   return {
     x: clampCameraX(focus.x * zoom - limits.viewportWidth / 2, limits, zoom),
-    y: clampCameraY(focus.y * zoom - limits.viewportHeight / 2, limits, zoom),
+    y: clampCameraY(focus.y * zoom - focusScreenY(limits), limits, zoom),
     zoom,
   };
 }
 
-/** Pans horizontally only; the vertical position is fixed (§module note). */
-export function panCamera(state: CameraState, deltaX: number, limits: CameraLimits): CameraState {
+/**
+ * Pans on both axes. Returns the SAME state when neither axis moved, which is
+ * what lets `doPan` skip the redraw and keeps render-on-demand asleep through a
+ * drag that is already against a clamp.
+ */
+export function panCamera(
+  state: CameraState,
+  deltaX: number,
+  deltaY: number,
+  limits: CameraLimits,
+): CameraState {
   const x = clampCameraX(state.x + deltaX, limits, state.zoom);
-  return x === state.x ? state : { ...state, x };
+  const y = clampCameraY(state.y + deltaY, limits, state.zoom);
+  return x === state.x && y === state.y ? state : { ...state, x, y };
 }
 
 export function zoomCamera(
@@ -126,13 +169,17 @@ export function zoomCamera(
   const zoom = clampZoom(nextZoom);
   if (zoom === state.zoom) return state;
 
-  // Keep the viewport centre fixed on BOTH axes across a zoom change; otherwise
-  // zooming appears to fling the world sideways or vertically.
+  // Keep the view's centre fixed on BOTH axes across a zoom change; otherwise
+  // zooming appears to fling the world sideways or vertically. Vertically that
+  // means the centre of the VISIBLE band, the same point `createCamera` frames
+  // — anchoring on the viewport's midpoint instead would slide the world out
+  // from under the pointer by half the inset on every zoom step.
+  const anchorY = focusScreenY(limits);
   const centreWorldX = (state.x + limits.viewportWidth / 2) / state.zoom;
-  const centreWorldY = (state.y + limits.viewportHeight / 2) / state.zoom;
+  const centreWorldY = (state.y + anchorY) / state.zoom;
   return {
     x: clampCameraX(centreWorldX * zoom - limits.viewportWidth / 2, limits, zoom),
-    y: clampCameraY(centreWorldY * zoom - limits.viewportHeight / 2, limits, zoom),
+    y: clampCameraY(centreWorldY * zoom - anchorY, limits, zoom),
     zoom,
   };
 }

@@ -13,6 +13,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { plotCentreOnScreen } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -44,13 +45,13 @@ test.afterEach(async () => {
 
 test('an event from a real player action arrives in the ring', async () => {
   const window = await app.firstWindow();
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
 
   // Arm the hoe and till the plot centre. This travels the ordinary path —
   // click → command → dispatcher → tick → tileTilled — with no shortcut.
   await window.keyboard.press('1');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 400));
 
   // Opened AFTER the fact. The ring was recording the whole time.
@@ -62,11 +63,11 @@ test('an event from a real player action arrives in the ring', async () => {
 
 test('the filters hide a type without stopping the recording', async () => {
   const window = await app.firstWindow();
-  const size = await window.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const centre = await plotCentreOnScreen(window);
 
   await window.keyboard.press('1');
   await new Promise((resolve) => setTimeout(resolve, 300));
-  await window.mouse.click(size.w / 2, size.h / 2);
+  await window.mouse.click(centre.x, centre.y);
   await new Promise((resolve) => setTimeout(resolve, 400));
 
   await window.keyboard.press('F2');
