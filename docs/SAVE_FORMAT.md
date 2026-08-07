@@ -94,6 +94,29 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     "lastPlanted": [{ "tile": 4172, "cropId": "core:wheat" }],
 
     "ids": { "worker": 4, "building": 2 },
+
+    // v2 — ADR-026 §4. The content sources present when this save was written,
+    // sorted by id. INFORMATIONAL: it never drives load behaviour, exactly as
+    // `meta.gameVersion` never does. It exists so a returning player is told
+    // "Harvest Moon Expansion is not installed — 14 crops are being kept safe"
+    // rather than being shown fourteen orphaned ids. `provenance` is recorded
+    // here and read by nothing (ADR-026 §2).
+    "sources": [
+      {
+        "id": "core",
+        "namespaces": ["core"],
+        "provenance": "builtin",
+        "displayName": "Desktop Life Simulator",
+        "version": "1.0.0",
+      },
+    ],
+
+    // v2 — ADR-019 §7. Sources the player has switched off, sorted. DISABLED
+    // rather than enabled, so absent means on: a v1 save migrates to `[]` and
+    // behaves identically, and a source installed later is active rather than
+    // invisible. World state, not a preference — two players with one seed and
+    // different sets have different worlds.
+    "disabledSources": [],
   },
 
   "quarantine": {

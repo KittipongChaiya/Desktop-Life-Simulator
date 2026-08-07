@@ -22,8 +22,9 @@ import {
 import { registerWorkerCommands } from '../commands/worker-commands';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
-import { createInstalledRegistries } from '../content/installed';
+import { createInstalledRegistries, installedSources } from '../content/installed';
 import type { ItemRegistry } from '../content/items';
+import type { ContentSource } from '../content/sources';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
 import { createEventBus, type EventBus } from '../events/bus';
@@ -142,6 +143,22 @@ export interface World {
    * each tick; never read by other systems (ADR-005 §2).
    */
   readonly snapshots: SnapshotState;
+
+  /**
+   * The content sources this world was built from, in load order.
+   *
+   * Recorded so a save can name what is missing when a source is gone
+   * (ADR-026 §4). Nothing reads a source's provenance to decide anything —
+   * that is ADR-026 §2, and `tests/provenance-blindness.test.ts` enforces it.
+   */
+  readonly sources: readonly ContentSource[];
+
+  /**
+   * Sources the player has switched off. World state, not a preference
+   * (ADR-019 §7): two players with one seed and different sets have different
+   * worlds.
+   */
+  readonly disabledSources: Set<string>;
 }
 
 /** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
@@ -162,6 +179,13 @@ export const BASE_INVENTORY_SLOTS = 40;
 export interface WorldOptions {
   /** Notified when an accepted command fails at execution (ADR-010 §7). */
   readonly onExecutionRejected?: CommandDispatcherOptions['onExecutionRejected'];
+  /**
+   * Sources the player has switched off, restored from the save (ADR-019 §7).
+   *
+   * Absent means nothing is disabled, which is what a v1 save migrates to and
+   * what a fresh world starts as.
+   */
+  readonly disabledSources?: readonly string[];
 }
 
 /**
@@ -200,6 +224,8 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
 
   const world: World = {
     seed,
+    sources: installedSources(),
+    disabledSources: new Set(options.disabledSources ?? []),
     tick: 0,
     rng: createRng(seed),
     tiles,

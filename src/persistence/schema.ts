@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -137,6 +137,21 @@ export interface SaveCropStats {
  * the loaded world would issue a different next ID than the never-saved world,
  * and continue-identically fails.
  */
+/**
+ * One content source, as recorded in the save (v2, ADR-026 §4).
+ *
+ * `provenance` is RECORDED here and read by nothing: §4 requires it so the
+ * player can be told what kind of thing is missing, and ADR-026 §2 forbids any
+ * save-format rule from branching on it.
+ */
+export interface SaveContentSource {
+  readonly id: string;
+  readonly namespaces: readonly string[];
+  readonly provenance: string;
+  readonly displayName: string;
+  readonly version: string;
+}
+
 export interface SaveIds {
   readonly worker: number;
   readonly building: number;
@@ -189,6 +204,31 @@ export interface SaveWorld {
   /** The seed bin's per-tile memory, sorted by tile. */
   readonly lastPlanted: readonly { readonly tile: number; readonly cropId: string }[];
   readonly ids: SaveIds;
+  /**
+   * The content sources present when this save was written (v2, ADR-026 §4).
+   *
+   * INFORMATIONAL. It never drives load behaviour, exactly as `meta.gameVersion`
+   * never does (ADR-015 §2). Its purpose is that a returning player is told
+   * *"Harvest Moon Expansion is not installed -- 14 crops are being kept safe"*
+   * instead of being shown fourteen orphaned ids, or worse, nothing at all.
+   * Without it the game knows an id is unknown but cannot name what owned it.
+   *
+   * Sorted by id, so the document stays byte-stable.
+   */
+  readonly sources: readonly SaveContentSource[];
+  /**
+   * Sources the player has switched off, sorted (v2, ADR-019 §7).
+   *
+   * DISABLED rather than enabled, so that absent means on. A v1 save migrates
+   * to an empty list and behaves identically, and a source installed later is
+   * active rather than invisible -- the opposite default would make every
+   * newly-installed plugin look broken.
+   *
+   * World state, not a preference: disabling seasons changes what the world
+   * DOES, and two players with one seed and different sets have different
+   * worlds (ADR-014 §4's boundary, applied rather than broken).
+   */
+  readonly disabledSources: readonly string[];
 }
 
 /**

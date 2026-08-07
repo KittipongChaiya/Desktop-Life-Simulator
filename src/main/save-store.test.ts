@@ -9,13 +9,29 @@
  * valid saves on disk — an existing good save survives every partial write.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { atomicWriteSave, readSavesForLoad, WRITE_STEPS, type WriteStep } from './save-store';
+import {
+  atomicWriteSave,
+  BACKUPS_KEPT,
+  preMigrationBackupName,
+  readSavesForLoad,
+  writePreMigrationBackup,
+  WRITE_STEPS,
+  type WriteStep,
+} from './save-store';
 
 let dir: string;
 
@@ -187,5 +203,73 @@ describe('write failures leave the existing save intact (criterion 20)', () => {
     const saves = readSavesForLoad(dir);
     expect(saves.missing).toBe(false);
     expect(survived()).toEqual({ schemaVersion: 1, tick: 100 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase-09b — ADR-027 §2. The pre-migration backup.
+//
+// v0.2 lands five schema versions, and ADR-025 §2 found that rolling back
+// across one orphans a save: `.bak` sits at the SAME version as the save and is
+// refused with it, so the pre-migration copy is the only artifact an older
+// build can read. Losing it turns a rollback into data loss.
+// ---------------------------------------------------------------------------
+
+describe('writePreMigrationBackup (ADR-027 §2)', () => {
+  const original = '{"schemaVersion":1,"world":{}}';
+
+  it('copies the untouched save aside, under a name that states its version', () => {
+    expect(writePreMigrationBackup(dir, 1, original)).toBe(true);
+    const written = join(dir, 'backups', preMigrationBackupName(1));
+    expect(readFileSync(written, 'utf8')).toBe(original);
+  });
+
+  it('creates the backups directory when it does not exist yet', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'dls-premigration-'));
+    try {
+      expect(writePreMigrationBackup(fresh, 1, original)).toBe(true);
+      expect(existsSync(join(fresh, 'backups', preMigrationBackupName(1)))).toBe(true);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
+  it('NEVER overwrites an existing backup for the same version', () => {
+    // The original is the artifact. A second migration from v1 re-copying an
+    // already-migrated file over it would destroy the only thing an older
+    // build can read.
+    writePreMigrationBackup(dir, 1, original);
+    expect(writePreMigrationBackup(dir, 1, '{"schemaVersion":1,"world":{"tampered":true}}')).toBe(
+      false,
+    );
+
+    const written = join(dir, 'backups', preMigrationBackupName(1));
+    expect(readFileSync(written, 'utf8')).toBe(original);
+  });
+
+  it('keeps one file per version, so a 1 → 3 player holds both originals', () => {
+    writePreMigrationBackup(dir, 1, original);
+    writePreMigrationBackup(dir, 2, '{"schemaVersion":2,"world":{}}');
+
+    const names = readdirSync(join(dir, 'backups')).sort();
+    expect(names).toEqual([preMigrationBackupName(1), preMigrationBackupName(2)]);
+  });
+
+  it('is EXEMPT from autosave pruning, structurally rather than by rule', () => {
+    // `pruneBackups` filters on `slot-0-<tick>.json`. This name cannot match,
+    // so the exemption cannot be forgotten by someone editing the pruner —
+    // which is why these two are pinned against each other here.
+    expect(preMigrationBackupName(1)).not.toMatch(/^slot-0-\d+\.json$/);
+
+    writePreMigrationBackup(dir, 1, original);
+    for (let tick = 1; tick <= BACKUPS_KEPT + 3; tick += 1) {
+      atomicWriteSave(dir, `{"schemaVersion":2,"tick":${String(tick)}}`, tick);
+    }
+
+    expect(existsSync(join(dir, 'backups', preMigrationBackupName(1)))).toBe(true);
+    const autosaves = readdirSync(join(dir, 'backups')).filter((name) =>
+      /^slot-0-\d+\.json$/.test(name),
+    );
+    expect(autosaves.length).toBeLessThanOrEqual(BACKUPS_KEPT);
   });
 });

@@ -293,6 +293,29 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
     req(isInt(ids['worker']) && ids['worker'] >= 1, 'world.ids.worker', 'an integer ≥ 1');
     req(isInt(ids['building']) && ids['building'] >= 1, 'world.ids.building', 'an integer ≥ 1');
 
+    // v2 (ADR-026 §4, ADR-019 §7). Checked with the same strictness as the
+    // live world: the source manifest is what names a missing source to the
+    // player, and a malformed one survives every future save.
+    req(Array.isArray(world['sources']), 'world.sources', 'an array');
+    (world['sources'] as unknown[]).forEach((value2, i) => {
+      const path = `world.sources[${i}]`;
+      req(isRecord(value2), path, 'a record');
+      const entry = value2 as Record<string, unknown>;
+      req(isStr(entry['id']), `${path}.id`, 'a string');
+      req(Array.isArray(entry['namespaces']), `${path}.namespaces`, 'an array');
+      (entry['namespaces'] as unknown[]).forEach((namespace, n) => {
+        req(isStr(namespace), `${path}.namespaces[${n}]`, 'a string');
+      });
+      req(isStr(entry['provenance']), `${path}.provenance`, 'a string');
+      req(isStr(entry['displayName']), `${path}.displayName`, 'a string');
+      req(isStr(entry['version']), `${path}.version`, 'a string');
+    });
+
+    req(Array.isArray(world['disabledSources']), 'world.disabledSources', 'an array');
+    (world['disabledSources'] as unknown[]).forEach((value2, i) => {
+      req(isStr(value2), `world.disabledSources[${i}]`, 'a string');
+    });
+
     req(isRecord(doc['quarantine']), 'quarantine', 'a record');
     const quarantine = doc['quarantine'] as Record<string, unknown>;
     req(Array.isArray(quarantine['crops']), 'quarantine.crops', 'an array');

@@ -128,6 +128,17 @@ export function toSaveDocument(
         // `blocked` is derived from the building store — recomputed on load,
         // never persisted (SAVE_FORMAT.md §2.2).
       },
+      // Sorted by id so the document stays byte-stable regardless of load order.
+      sources: [...world.sources]
+        .map((source) => ({
+          id: source.id,
+          namespaces: [...source.namespaces],
+          provenance: source.provenance,
+          displayName: source.displayName,
+          version: source.version,
+        }))
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+      disabledSources: [...world.disabledSources].sort(),
       crops,
       workers,
       buildings,

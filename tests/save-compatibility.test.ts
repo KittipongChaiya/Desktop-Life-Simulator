@@ -450,18 +450,32 @@ describe('the compatibility policy (7.2 §Compatibility Rules)', () => {
     expect(rewritten['somethingFromLater']).toBeUndefined();
   });
 
-  it('REMOVED fields are the migration chain’s job, and v1 has nothing to remove', () => {
-    // Stated so the absence is deliberate rather than an oversight: at v1
-    // there is no earlier shape, so "a field this version removed" cannot
-    // exist yet. The mechanism that will handle it is proven in migrate.test.
-    expect(MIGRATIONS).toEqual([]);
-    expect(CURRENT_SCHEMA_VERSION).toBe(1);
+  it('REMOVED fields are the migration chain’s job, and nothing has been removed yet', () => {
+    // v1 had no earlier shape, so it could remove nothing. v2 adds fields and
+    // removes none — the first removal is ADR-027 §3's `v4 → v5` dropping
+    // `grid.moisture`. What this pins is that the chain reaches the current
+    // version in unbroken single steps, which is what makes a removal safe
+    // when one finally lands.
+    expect(MIGRATIONS.map((m) => [m.from, m.to])).toEqual([[1, 2]]);
+    expect(CURRENT_SCHEMA_VERSION).toBe(2);
   });
 });
 
 describe('the migration framework (7.2 §Migration Tests)', () => {
-  it('is registered, ordered, and empty at v1 — the mechanism exists before it is needed', () => {
-    expect(MIGRATIONS).toEqual([]);
+  it('is registered and ordered, with every link a single step to the current version', () => {
+    // Phase-09b replaced "empty at v1". The mechanism shipped in 07b before any
+    // link existed; this asserts the first one slotted into it without changing
+    // the runner, which was the whole point of building it early.
+    expect(MIGRATIONS.length).toBeGreaterThan(0);
+
+    let expected = 1;
+    for (const link of MIGRATIONS) {
+      expect(link.from).toBe(expected);
+      expect(link.to).toBe(expected + 1);
+      expect(link.describe.length).toBeGreaterThan(0);
+      expected += 1;
+    }
+    expect(expected).toBe(CURRENT_SCHEMA_VERSION);
   });
 
   it('is IDEMPOTENT: migrating an already-current document is a fixed point', () => {

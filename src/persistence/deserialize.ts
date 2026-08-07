@@ -60,7 +60,10 @@ function copyBytes(target: Uint8Array, encoded: string, field: string): void {
  */
 export function hydrateWorld(document: SaveDocument, options: WorldOptions = {}): World {
   const saved = document.world;
-  const world = createWorld(saved.seed, options);
+  const world = createWorld(saved.seed, {
+    ...options,
+    disabledSources: saved.disabledSources,
+  });
 
   world.tick = saved.tick;
   world.rng.setState(saved.rngState);

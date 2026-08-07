@@ -17,7 +17,10 @@
 
 import type { Migration } from '../migrate';
 
+import { v1ToV2 } from './v1-to-v2';
+
 export const MIGRATIONS: readonly Migration[] = [
-  // v1 is the first shipped version — no links yet. The first entry arrives
-  // with the first persisted-shape change, as `./v1-to-v2.ts`.
+  // Phase-09b: the first link. Records the world's content sources (ADR-026 §4)
+  // and its disabled set (ADR-019 §7).
+  v1ToV2,
 ];

@@ -93,12 +93,57 @@ describe('provenance blindness (ADR-026 §2)', () => {
     ).toEqual([]);
   });
 
-  it('no module under src/persistence mentions provenance — a save rule may not read it either', () => {
-    const offenders = sourceFilesUnder('src/persistence').filter((file) =>
-      /provenance/i.test(codeOf(file)),
-    );
+  it('no save-format rule BRANCHES on provenance, though the save records it', () => {
+    // Persistence is the one layer that must name the field: ADR-026 §4
+    // REQUIRES the save to record provenance, so the player can be told what
+    // kind of thing is missing. §2 forbids reading it to decide anything.
+    //
+    // So the rule here is narrower than in `src/sim` and matches what the ADR
+    // actually says — carrying a value is fine, comparing it is not. A
+    // `switch (source.provenance)` in a migration or a validator is the defect;
+    // a field in `SaveContentSource` is the requirement.
+    const branches = [
+      /provenance\s*(===|!==|==(?!=)|!=(?!=)|<|>)/,
+      /(===|!==)\s*[A-Za-z_.$]*[Pp]rovenance/,
+      /switch\s*\([^)]*provenance/i,
+      /if\s*\([^)]*\.provenance[^)]*\)/i,
+    ];
 
-    expect(offenders).toEqual([]);
+    const offenders = sourceFilesUnder('src/persistence').filter((file) => {
+      const code = codeOf(file);
+      return branches.some((pattern) => pattern.test(code));
+    });
+
+    expect(
+      offenders,
+      `these save-format modules branch on provenance (ADR-026 §2): ${offenders.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('the persistence check has teeth — a comparison would be caught', () => {
+    // Guards the guard: the patterns above are narrow, so this pins that they
+    // still catch the thing they exist for.
+    const branches = [
+      /provenance\s*(===|!==|==(?!=)|!=(?!=)|<|>)/,
+      /switch\s*\([^)]*provenance/i,
+      /if\s*\([^)]*\.provenance[^)]*\)/i,
+    ];
+    const violations = [
+      "if (source.provenance === 'builtin') skip();",
+      'switch (source.provenance) { default: break; }',
+      'if (entry.provenance) trust();',
+    ];
+
+    for (const sample of violations) {
+      expect(
+        branches.some((pattern) => pattern.test(sample)),
+        sample,
+      ).toBe(true);
+    }
+
+    // ...and that merely carrying the field is not flagged.
+    expect(branches.some((p) => p.test('readonly provenance: string;'))).toBe(false);
+    expect(branches.some((p) => p.test('provenance: source.provenance,'))).toBe(false);
   });
 
   it('every permitted module really does name it, so this test cannot pass by accident', () => {

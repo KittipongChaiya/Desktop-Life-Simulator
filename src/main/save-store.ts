@@ -23,15 +23,18 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  writeFileSync,
   rmSync,
   writeSync,
 } from 'node:fs';
 import { join } from 'node:path';
 
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema';
 import type { SavesOnDisk } from '../shared/ipc/contract';
 
 /** Autosave copies retained in `backups/` (`SAVE_FORMAT.md` §1). */
-const BACKUPS_KEPT = 3;
+/** Autosave copies kept in `backups/`. Pre-migration backups are not among them. */
+export const BACKUPS_KEPT = 3;
 
 const SLOT = 'slot-0.json';
 const SLOT_BAK = 'slot-0.json.bak';
@@ -128,6 +131,47 @@ export function atomicWriteSave(
   pruneBackups(backups);
 }
 
+/**
+ * Copies the untouched save aside before a migration chain runs. ADR-027 §2.
+ *
+ * **One file per schema version, written once, never overwritten.** A second
+ * migration from the same version must not clobber the first copy — the whole
+ * point is that the ORIGINAL survives, and re-copying an already-migrated file
+ * over it would destroy exactly the artifact this exists to keep.
+ *
+ * Kept indefinitely and exempt from the three-most-recent pruning. That is not
+ * a special case in `pruneBackups`: it filters on `slot-0-<tick>.json`, and
+ * this name cannot match, so the exemption is structural rather than a rule
+ * someone has to remember. `preMigrationBackupPath` and the prune filter are
+ * pinned against each other in the tests.
+ *
+ * Why indefinitely: ADR-025 §2 makes this the ONLY artifact an older build can
+ * read after a rollback across a schema bump, because `.bak` sits at the same
+ * version as the save and is refused with it. At the reference farm's 38,730
+ * bytes, a player who has moved 1 → 6 holds under 200 KB.
+ *
+ * @returns true if a backup was written, false if one already existed.
+ */
+export function writePreMigrationBackup(
+  savesDir: string,
+  fromVersion: number,
+  original: string,
+): boolean {
+  const backups = join(savesDir, 'backups');
+  mkdirSync(backups, { recursive: true });
+
+  const destination = join(backups, preMigrationBackupName(fromVersion));
+  if (existsSync(destination)) return false;
+
+  writeFileSync(destination, original, 'utf8');
+  return true;
+}
+
+/** The filename a pre-migration backup takes for a given schema version. */
+export function preMigrationBackupName(fromVersion: number): string {
+  return `slot-0-v${String(fromVersion)}-premigration.json`;
+}
+
 /** Keeps the newest `BACKUPS_KEPT` autosave copies, by tick in the filename. */
 function pruneBackups(backupsDir: string): void {
   const entries = readdirSync(backupsDir)
@@ -157,11 +201,35 @@ export function readSavesForLoad(savesDir: string): SavesOnDisk {
   const slotExists = existsSync(slot);
   const bakExists = existsSync(bak);
 
+  const primary = slotExists ? parseOrNull(slot) : null;
+
+  // ADR-027 §2: copy the ORIGINAL aside before anything migrates it. Here
+  // rather than in the load pipeline because this is the last place the
+  // untouched bytes exist — `src/persistence` receives a parsed document and
+  // never sees a file. Best-effort: a save that cannot be backed up still
+  // loads, since refusing to open a farm because a spare copy failed would be
+  // the larger harm.
+  const version = schemaVersionOf(primary);
+  if (version !== null && version < CURRENT_SCHEMA_VERSION) {
+    try {
+      writePreMigrationBackup(savesDir, version, readFileSync(slot, 'utf8'));
+    } catch {
+      // Logged by the caller's load report; never fatal.
+    }
+  }
+
   return {
-    primary: slotExists ? parseOrNull(slot) : null,
+    primary,
     backup: bakExists ? parseOrNull(bak) : null,
     missing: !slotExists && !bakExists,
   };
+}
+
+/** The schema version of a parsed document, or null if it declares none. */
+function schemaVersionOf(document: unknown): number | null {
+  if (typeof document !== 'object' || document === null) return null;
+  const version = (document as { schemaVersion?: unknown }).schemaVersion;
+  return typeof version === 'number' && Number.isInteger(version) ? version : null;
 }
 
 function parseOrNull(path: string): unknown {
