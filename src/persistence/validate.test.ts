@@ -16,9 +16,14 @@ import { describe, expect, it } from 'vitest';
 
 import { asTileIndex } from '../shared/ids';
 import { CORE_STORAGE_SHED } from '../sim/content/buildings';
-import { CORE_WHEAT } from '../sim/content/crops';
+import { CORE_TURNIP, CORE_WHEAT } from '../sim/content/crops';
+import {
+  CORE_WATER,
+  createTileKindRegistry,
+  registerCoreTileKinds,
+} from '../sim/content/tile-kinds';
 import { addItems } from '../sim/world/container';
-import { setBlocked, setOwned } from '../sim/world/tile-grid';
+import { setBlocked, setKind, setOwned } from '../sim/world/tile-grid';
 import { createWorker } from '../sim/world/worker';
 import { createWorld } from '../sim/world/world';
 
@@ -340,12 +345,223 @@ describe('repairSaveDocument (semantic, §5.2)', () => {
     const doc = tampered(
       (d: { world: { economy: { multipliers: { item: string; multiplier: number }[] } } }) => {
         d.world.economy.multipliers.push({ item: CORE_WHEAT, multiplier: 0.1 });
+        // Sparse means absent-is-1.0, so an entry AT the cap is not information.
+        d.world.economy.multipliers.push({ item: CORE_TURNIP, multiplier: 1.4 });
       },
     );
     const { document, repairs } = repairSaveDocument(doc, CONTENT);
     expect(document.world.economy.multipliers.find((m) => m.item === CORE_WHEAT)?.multiplier).toBe(
       0.5,
     );
-    expect(repairs.some((r) => r.rule === 'multiplier-out-of-band')).toBe(true);
+    expect(document.world.economy.multipliers.some((m) => m.item === CORE_TURNIP)).toBe(false);
+    expect(repairs.filter((r) => r.rule === 'multiplier-out-of-band')).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase-08.0b. `TESTING.md` §4 puts the project's highest bar on this file
+// because a defect here destroys a player's months of progress and surfaces
+// only when someone loads an old save. Everything below is a §5 rule that had
+// no test — quarantine's own structure, and eleven repair and restore paths.
+// ---------------------------------------------------------------------------
+
+describe('parseSaveDocument — the quarantine section is validated too (§5.1)', () => {
+  // Quarantine holds player value indefinitely and is written back on every
+  // save, so a malformed entry survives every future load. It is checked with
+  // the same strictness as the live world.
+
+  it('rejects a malformed quarantined crop', () => {
+    const doc = tampered((d: { quarantine: { crops: unknown[] } }) => {
+      d.quarantine.crops.push({ tile: 'somewhere', cropId: CORE_WHEAT, plantedTick: 0 });
+    });
+    expect(parseSaveDocument(doc).ok).toBe(false);
+  });
+
+  it('rejects a malformed quarantined building', () => {
+    for (const entry of [7, { building: 'shed', stacks: [] }, { building: {}, stacks: 'none' }]) {
+      const doc = tampered((d: { quarantine: { buildings: unknown[] } }) => {
+        d.quarantine.buildings.push(entry);
+      });
+      expect(parseSaveDocument(doc).ok).toBe(false);
+    }
+  });
+
+  it('rejects a malformed quarantined stack', () => {
+    for (const entry of [null, { owner: 5, stack: { item: CORE_WHEAT, qty: 1 } }, { owner: 'x' }]) {
+      const doc = tampered((d: { quarantine: { stacks: unknown[] } }) => {
+        d.quarantine.stacks.push(entry);
+      });
+      expect(parseSaveDocument(doc).ok).toBe(false);
+    }
+  });
+
+  it('rejects a malformed quarantined planting memory', () => {
+    for (const entry of ['tile 4', { tile: 4 }, { tile: 4.5, cropId: CORE_WHEAT }]) {
+      const doc = tampered((d: { quarantine: { lastPlanted: unknown[] } }) => {
+        d.quarantine.lastPlanted.push(entry);
+      });
+      expect(parseSaveDocument(doc).ok).toBe(false);
+    }
+  });
+});
+
+describe('repairSaveDocument — the rules that had no test (§5.2, §5.3)', () => {
+  it('drops a second crop on an already-planted tile, keeping the first', () => {
+    const occupied = validDocument().world.crops[0]!.tile;
+    const doc = tampered((d: { world: { crops: { tile: number; cropId: string }[] } }) => {
+      const first = d.world.crops[0]!;
+      d.world.crops.push({ ...first, cropId: CORE_TURNIP });
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    const onTile = document.world.crops.filter((c) => c.tile === occupied);
+    expect(onTile).toHaveLength(1);
+    expect(onTile[0]!.cropId).toBe(CORE_WHEAT); // the FIRST survives
+    expect(repairs.some((r) => r.rule === 'crop-tile-duplicate')).toBe(true);
+  });
+
+  it('clears a plant task whose seed no longer exists — the worker idles, never stalls', () => {
+    const doc = tampered((d: { world: { workers: { task: unknown; state: string }[] } }) => {
+      d.world.workers[0]!.task = { kind: 'plant', tile: 2080, cropId: 'mod:moon_melon' };
+      d.world.workers[0]!.state = 'moving';
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.world.workers[0]!.task).toBeNull();
+    expect(document.world.workers[0]!.state).toBe('idle');
+    expect(repairs.some((r) => r.rule === 'worker-task-content-unknown')).toBe(true);
+  });
+
+  it('reassigns a duplicate building ID and takes its storage with it', () => {
+    // The storage must follow, or the twin's goods land in the wrong shed —
+    // silent theft between two containers that both looked like building 1.
+    const doc = tampered((d: { world: { buildings: unknown[] } }) => {
+      const twin = JSON.parse(JSON.stringify(d.world.buildings[0])) as unknown;
+      d.world.buildings.push(twin);
+    });
+    const before = clone(doc).world.buildingStorage.length;
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    const ids = document.world.buildings.map((b) => b.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(document.world.buildingStorage).toHaveLength(before); // no goods lost
+    for (const storage of document.world.buildingStorage) {
+      expect(ids).toContain(storage.building); // and none left orphaned
+    }
+    expect(repairs.some((r) => r.rule === 'building-id-duplicate')).toBe(true);
+  });
+
+  it('keeps a building standing on unwalkable terrain and only logs it', () => {
+    const kinds = createTileKindRegistry();
+    registerCoreTileKinds(kinds);
+    const world = createWorld(7);
+    const shedTile = asTileIndex(2144);
+    setOwned(world.tiles, shedTile, true);
+    setKind(world.tiles, shedTile, kinds.indexOf(CORE_WATER));
+    const shedId = world.ids.allocateBuilding();
+    world.buildings.set(shedId, { id: shedId, tile: shedTile, buildingId: CORE_STORAGE_SHED });
+
+    const { document, repairs } = repairSaveDocument(toSaveDocument(world, META), CONTENT);
+    expect(document.world.buildings).toHaveLength(1); // KEPT — §5.2 logs, never demolishes
+    expect(repairs.some((r) => r.rule === 'building-tile-not-walkable')).toBe(true);
+  });
+
+  it('drops a planting memory outside the grid', () => {
+    const doc = tampered((d: { world: { lastPlanted: unknown[] } }) => {
+      d.world.lastPlanted.push({ tile: 99_999, cropId: CORE_WHEAT });
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.world.lastPlanted.some((e) => e.tile === 99_999)).toBe(false);
+    expect(repairs.some((r) => r.rule === 'last-planted-out-of-bounds')).toBe(true);
+  });
+
+  it('quarantines a planting memory whose crop is unknown, rather than forgetting it', () => {
+    const doc = tampered((d: { world: { lastPlanted: unknown[] } }) => {
+      d.world.lastPlanted.push({ tile: 3000, cropId: 'mod:moon_melon' });
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.world.lastPlanted.some((e) => e.tile === 3000)).toBe(false);
+    expect(document.quarantine.lastPlanted).toEqual([{ tile: 3000, cropId: 'mod:moon_melon' }]);
+    expect(repairs.some((r) => r.rule === 'last-planted-content-unknown')).toBe(true);
+  });
+
+  it('bumps the WORKER allocator when it fell below the highest used ID (ADR-015 §6)', () => {
+    // The building counter has always been tested; the worker counter never
+    // was, and a behind counter reissues a live worker's id on the next hire.
+    const doc = tampered((d: { world: { ids: { worker: number } } }) => {
+      d.world.ids.worker = 1;
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    const maxId = Math.max(...document.world.workers.map((w) => w.id));
+    expect(document.world.ids.worker).toBe(maxId + 1);
+    expect(repairs.some((r) => r.rule === 'allocator-behind')).toBe(true);
+  });
+
+  it('restores a building held from an earlier session, with its stored goods', () => {
+    const doc = tampered((d: { quarantine: { buildings: unknown[] } }) => {
+      d.quarantine.buildings.push({
+        building: { id: 41, tile: 2145, buildingId: CORE_STORAGE_SHED },
+        stacks: [{ item: CORE_WHEAT, qty: 12 }],
+      });
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.quarantine.buildings).toEqual([]);
+    expect(document.world.buildings.some((b) => b.id === 41 && b.tile === 2145)).toBe(true);
+    expect(document.world.buildingStorage.find((s) => s.building === 41)?.stacks).toEqual([
+      { item: CORE_WHEAT, qty: 12 },
+    ]);
+    expect(repairs.some((r) => r.rule === 'quarantine-restored')).toBe(true);
+  });
+
+  it('keeps a held building held while its tile is occupied — restore never overwrites', () => {
+    const doc = tampered(
+      (d: { world: { buildings: { tile: number }[] }; quarantine: { buildings: unknown[] } }) => {
+        d.quarantine.buildings.push({
+          building: { id: 41, tile: d.world.buildings[0]!.tile, buildingId: CORE_STORAGE_SHED },
+          stacks: [],
+        });
+      },
+    );
+    const { document } = repairSaveDocument(doc, CONTENT);
+    expect(document.quarantine.buildings).toHaveLength(1);
+  });
+
+  it('restores a held stack to the building storage it came from', () => {
+    const doc = tampered(
+      (d: {
+        world: { buildingStorage: { building: number }[] };
+        quarantine: { stacks: unknown[] };
+      }) => {
+        d.quarantine.stacks.push({
+          owner: `building:${d.world.buildingStorage[0]!.building}`,
+          stack: { item: CORE_WHEAT, qty: 9 },
+        });
+      },
+    );
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.quarantine.stacks).toEqual([]);
+    const stacks = document.world.buildingStorage[0]!.stacks;
+    expect(stacks[stacks.length - 1]).toEqual({ item: CORE_WHEAT, qty: 9 });
+    expect(repairs.some((r) => r.rule === 'quarantine-restored')).toBe(true);
+  });
+
+  it('restores a held planting memory once its crop is known and the tile is free', () => {
+    const doc = tampered((d: { quarantine: { lastPlanted: unknown[] } }) => {
+      d.quarantine.lastPlanted.push({ tile: 3000, cropId: CORE_WHEAT });
+    });
+    const { document, repairs } = repairSaveDocument(doc, CONTENT);
+    expect(document.quarantine.lastPlanted).toEqual([]);
+    expect(document.world.lastPlanted.some((e) => e.tile === 3000)).toBe(true);
+    expect(repairs.some((r) => r.rule === 'quarantine-restored')).toBe(true);
+  });
+
+  it('keeps a held planting memory when the tile already remembers something', () => {
+    const doc = tampered(
+      (d: {
+        world: { lastPlanted: { tile: number }[] };
+        quarantine: { lastPlanted: unknown[] };
+      }) => {
+        d.quarantine.lastPlanted.push({ tile: d.world.lastPlanted[0]!.tile, cropId: CORE_TURNIP });
+      },
+    );
+    const { document } = repairSaveDocument(doc, CONTENT);
+    expect(document.quarantine.lastPlanted).toHaveLength(1);
   });
 });

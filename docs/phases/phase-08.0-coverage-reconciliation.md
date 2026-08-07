@@ -58,7 +58,7 @@ Nine rows went up. None went down. `src/renderer/render` was declared at 50% bec
 | #     | Milestone                                         | Ships                                                                                                                                                 | Status        |
 | ----- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 08.0a | Policy and mechanism                              | The criterion, `TESTING.md` §4 rewritten, per-area gates actually enforced, the register test                                                         | **Delivered** |
-| 08.0b | `src/persistence` to 95 / 90                      | `validate.ts`'s rejection paths — 52 lines, 32 branches                                                                                               | Pending       |
+| 08.0b | `src/persistence` to 95 / 90                      | Quarantine's own structure, eleven untested §5 repair rules, and hydration's guards                                                                   | **Delivered** |
 | 08.0c | The gaps the criterion exposes                    | `pointer-actions.ts` (68), `console/builtins.ts` (63), `overlay-controller.ts` (25), `docking.ts` (15), `main/settings.ts` (8), `ipc/contract.ts` (3) | Pending       |
 | 08.0d | `src/sim` branch margin, and the mutation control | Margin above 85%, and evidence the added tests have teeth                                                                                             | Pending       |
 | 08.0e | Close                                             | Gate green, debt #1 resolved, `PLAN.md` §2.2, `CHANGELOG.md`                                                                                          | Pending       |
@@ -91,6 +91,58 @@ The first mutation is precisely the defect that produced this phase. It is now c
 ### Why `plugins/**` is measured before it exists
 
 Phase 08 creates `plugins/core/` and moves core content registration out of `src/sim` and into it (ADR-019, ADR-026). `src/sim/content` is well covered; an unmeasured destination would drop those lines out of the total on a pure refactor, and `plugins/` would start life with no threshold — repeating exactly the drift this phase exists to end, one phase after ending it. The row and the `include` entry are in place now, while the directory is still empty.
+
+---
+
+## 08.0b — what shipped
+
+`src/persistence` carries the highest bar in the project (95 / 90) for the reason `TESTING.md` §4.1 gives: a defect here destroys a player's months of progress, and it is exactly the code casual play never exercises. It measured **90.77 / 84.15**, and now measures **99.10 / 91.93** — clear of the bar on both, with margin rather than by a branch.
+
+The project total moved with it: **89.19 → 90.56% lines**, past the new global gate, and 80.80 → 81.95% branches.
+
+**`validate.test.ts`: 25 → 39 tests.** The gap was not obscure branches; it was §5 rules with no test at all.
+
+_Structural (§5.1) — the quarantine section was never validated._ Quarantine holds player value indefinitely and is written back on every save, so a malformed entry survives every future load. All four of its arrays now reject malformed entries with the same strictness as the live world.
+
+_Semantic (§5.2) and restoration (§5.3) — eleven rules._ A second crop on one tile; a plant task whose seed no longer exists; a duplicate building ID and the storage that must follow it; a building on unwalkable terrain; a planting memory out of bounds or with unknown content; the worker allocator falling behind; and the restore paths for a held building with its goods, a held stack returning to a building's storage, and a held planting memory.
+
+**`deserialize.test.ts` (new, 6 tests).** Hydration's guards had none. They protect against a pipeline ordering bug rather than a corrupt file — validation runs before them — which is precisely why they need tests: if validation is ever bypassed or reordered, these throws are the last thing between a malformed document and a silently wrong world. A `kind`-length `owned` encoding does not crash; it loads a farm with its last rows quietly reset.
+
+### Two defects in the existing suite, not just gaps
+
+1. A test named _"clamps a multiplier outside its band **and drops one at the cap**"_ never pushed a multiplier at the cap. It asserted half of what its name claimed, and the drop rule had never once executed. It now does both, and asserts two repairs rather than one.
+2. _"restores a quarantined stack to its owner"_ covered worker-owned and owner-gone but never building-owned; _"bumps an allocator counter"_ covered buildings but never workers — and a behind worker counter reissues a live worker's ID on the next hire, which is the exact failure ADR-015 §6 added the counters to prevent.
+
+A test whose name promises more than it asserts is worse than a missing test: it makes the gap invisible to everyone who reads the suite for what is covered.
+
+### Mutation controls
+
+| Mutation                                     | Result                                                               |
+| -------------------------------------------- | -------------------------------------------------------------------- |
+| Stop dropping a duplicate crop tile          | 1 test fails — _drops a second crop on an already-planted tile_      |
+| Stop quarantining an unknown planting memory | 1 test fails — _quarantines a planting memory whose crop is unknown_ |
+
+Writing them also caught a weak assertion of my own: the duplicate-building test originally asserted only "no storage left orphaned", which passes even if the storage never follows the reassigned ID. It now pins the storage count too, so goods cannot be lost silently.
+
+### Scope widened, and why
+
+08.0b was scoped as "`validate.ts`'s rejection paths". That alone would have cleared the line gate and left branches at **90.48%** — half a point of margin, which is the same knife-edge this phase criticises `src/sim` for sitting on. The branch headroom was in `deserialize.ts` (68.4%, the worst file in the area), so the milestone took in hydration's guards as well. Same milestone, wider than planned, and the result is 91.93% rather than 90.48%.
+
+### What the full run now says
+
+Four thresholds remain red, and they are exactly 08.0c's scope:
+
+| Gate                                  | Measured      | Closes in                                                    |
+| ------------------------------------- | ------------- | ------------------------------------------------------------ |
+| Project branches (85)                 | 81.95         | 08.0c — needs +71 branches; the targets hold +78             |
+| `src/renderer/bootstrap/**` (85 / 75) | 66.43 / 63.88 | 08.0c — `pointer-actions.ts` is 68 lines, 40 branches, at 0% |
+| `src/main/**` lines (90)              | 78.78         | 08.0c — `docking.ts` and `settings.ts`                       |
+
+Every other area passes. `src/devtools/**` clears 85 / 75 on aggregate despite `devtools/console` sitting at 69.45 — `builtins.ts` is still 08.0c work, and closing it is what buys the project-branch margin.
+
+### One line left uncovered, deliberately
+
+`validate.ts:340` — the rethrow of a non-`Structural` error. Every decode failure is already converted to `Structural` inside the helper, so that line is reachable only through a genuine bug in the module; forcing it would require an input `JSON.parse` cannot produce. One line of 355, in a file now at 99.7%.
 
 ---
 
