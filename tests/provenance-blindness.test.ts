@@ -29,10 +29,22 @@ import { describe, expect, it } from 'vitest';
 const ROOT = resolve(import.meta.dirname, '..');
 
 /**
- * The one module allowed to name it: the source registry defines the concept
- * and makes the load-time trust decision ADR-026 §2 permits.
+ * The modules allowed to name it — the load-time trust decision, and nothing
+ * else. ADR-026 §2 permits exactly three uses: player-facing display, the trust
+ * decision at load, and support diagnostics.
+ *
+ * **This list widening is how the rule erodes**, so each entry states which of
+ * the three it is, and the count is asserted below. An entry added because a
+ * system "just needs to know" is the violation, not an exception to it.
  */
-const DECLARING_MODULE = 'src/sim/content/sources.ts';
+const TRUST_DECISION_MODULES = [
+  // Defines `Provenance` and refuses a third party claiming a reserved
+  // namespace at registration.
+  'src/sim/content/sources.ts',
+  // Phase-09a: refuses the same claim at the loader, where the file can be
+  // named. Same decision, earlier and with better diagnostics.
+  'src/sim/content/manifest.ts',
+];
 
 /**
  * Source with comments removed.
@@ -62,7 +74,9 @@ function sourceFilesUnder(dir: string): string[] {
 }
 
 describe('provenance blindness (ADR-026 §2)', () => {
-  const files = sourceFilesUnder('src/sim').filter((file) => file !== DECLARING_MODULE);
+  const files = sourceFilesUnder('src/sim').filter(
+    (file) => !TRUST_DECISION_MODULES.includes(file),
+  );
 
   it('scans a simulation layer that actually has files in it', () => {
     // Guards the guard: a path typo would make every assertion below vacuous.
@@ -87,7 +101,16 @@ describe('provenance blindness (ADR-026 §2)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('the declaring module does define it, so this test is not passing by accident', () => {
-    expect(/provenance/i.test(codeOf(DECLARING_MODULE))).toBe(true);
+  it('every permitted module really does name it, so this test cannot pass by accident', () => {
+    for (const module of TRUST_DECISION_MODULES) {
+      expect(/provenance/i.test(codeOf(module)), module).toBe(true);
+    }
+  });
+
+  it('keeps the permitted set small — widening it is how this rule erodes', () => {
+    // Not a magic number: ADR-026 §2 permits provenance in the load-time trust
+    // decision only, and that decision lives in two places. A third entry needs
+    // an argument, which is what failing here forces someone to make.
+    expect(TRUST_DECISION_MODULES).toHaveLength(2);
   });
 });
