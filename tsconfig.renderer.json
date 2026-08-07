@@ -24,7 +24,8 @@
     "src/renderer/**/*.tsx",
     "src/shared/**/*.ts",
     "src/sim/**/*.ts",
-    "src/persistence/**/*.ts"
+    "src/persistence/**/*.ts",
+    "plugins/**/*.ts"
   ],
   "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }

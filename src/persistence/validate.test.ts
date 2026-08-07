@@ -17,11 +17,8 @@ import { describe, expect, it } from 'vitest';
 import { asTileIndex } from '../shared/ids';
 import { CORE_STORAGE_SHED } from '../sim/content/buildings';
 import { CORE_TURNIP, CORE_WHEAT } from '../sim/content/crops';
-import {
-  CORE_WATER,
-  createTileKindRegistry,
-  registerCoreTileKinds,
-} from '../sim/content/tile-kinds';
+import { createInstalledRegistries } from '../sim/content/installed';
+import { CORE_WATER } from '../sim/content/tile-kinds';
 import { addItems } from '../sim/world/container';
 import { setBlocked, setKind, setOwned } from '../sim/world/tile-grid';
 import { createWorker } from '../sim/world/worker';
@@ -449,8 +446,7 @@ describe('repairSaveDocument — the rules that had no test (§5.2, §5.3)', () 
   });
 
   it('keeps a building standing on unwalkable terrain and only logs it', () => {
-    const kinds = createTileKindRegistry();
-    registerCoreTileKinds(kinds);
+    const kinds = createInstalledRegistries().tileKinds;
     const world = createWorld(7);
     const shedTile = asTileIndex(2144);
     setOwned(world.tiles, shedTile, true);

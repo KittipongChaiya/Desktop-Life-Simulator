@@ -19,6 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { createInstalledRegistries } from '../src/sim/content/installed';
 import { toIndexUnchecked } from '../src/shared/geometry';
 import { CommandSource } from '../src/sim/commands/types';
 import {
@@ -27,7 +28,6 @@ import {
   CORE_SEED_BIN,
   CORE_STORAGE_SHED,
 } from '../src/sim/content/buildings';
-import { registerCoreCrops, createCropRegistry } from '../src/sim/content/crops';
 import { CORE_TURNIP_SEED, DEFAULT_STACK_SIZE } from '../src/sim/content/items';
 import { stepSimulation, stepSimulationBy } from '../src/sim/tick';
 import { addItems, containerCount } from '../src/sim/world/container';
@@ -128,8 +128,7 @@ describe('full idle: 8 hours unattended (crit 19 — the product thesis)', () =>
 
 describe('balance: longer crops are strictly better coins/sec (crit 21)', () => {
   it('holds across the §3.1 table, seed costs included', () => {
-    const registry = createCropRegistry();
-    registerCoreCrops(registry);
+    const registry = createInstalledRegistries().crops;
 
     // coins/sec/tile = (sale base − seed cost) / growth seconds. The yield is
     // 1 for every v0.1 crop; sale bases come from the item table (§3.1).

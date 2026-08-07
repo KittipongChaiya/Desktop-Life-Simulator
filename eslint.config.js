@@ -48,7 +48,13 @@ const LAYER_POLICIES = [
   { from: 'persistence', to: ['shared', 'sim', 'persistence'] },
   { from: 'render', to: ['shared', 'sim', 'render'] },
   { from: 'ui', to: ['shared', 'sim', 'ui'] },
-  { from: 'bootstrap', to: ['shared', 'sim', 'persistence', 'render', 'ui', 'bootstrap', 'devtools'] },
+  // Bootstrap gains 'plugins' in phase-08b: the composition root is exactly
+  // what assembles content sources. `sim` deliberately does NOT gain it — the
+  // engine must not depend on content (ARCHITECTURE.md §14.1, goals 4 and 5).
+  {
+    from: 'bootstrap',
+    to: ['shared', 'sim', 'persistence', 'render', 'ui', 'bootstrap', 'devtools', 'plugins'],
+  },
   // Devtools reads game state but nothing in the game may import devtools
   // (phase-01.5 deliverable 8). Absence from every other `to` list is what
   // enforces that.

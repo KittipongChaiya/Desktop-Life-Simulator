@@ -35,7 +35,18 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'tests/**/*.test.ts'],
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'tests/**/*.test.ts',
+      'plugins/**/*.test.ts',
+    ],
+    // Installs the core content source for every test file, exactly as the
+    // renderer's composition root does at runtime (phase-08b). This is config
+    // rather than a test change on purpose: ADR-019 §2 makes the existing
+    // suites passing UNMODIFIED the proof that the migration changed no
+    // behaviour, and `src/sim` may not import `plugins/**` to do it itself.
+    setupFiles: ['plugins/core/index.ts'],
     // E2E runs under Playwright, not Vitest.
     exclude: ['tests/e2e/**', 'node_modules/**'],
     environment: 'node',

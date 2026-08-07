@@ -82,15 +82,3 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
     storageSlots: MARKET_STALL_SLOTS,
   },
 ];
-
-/** Registers the v0.1 buildings — the `GAME_DESIGN.md` §5 table, exactly. */
-export function registerCoreBuildings(registry: BuildingRegistry): void {
-  for (const building of CORE_BUILDINGS) {
-    const result = registry.register(building);
-    if (!result.ok) {
-      // Core content failing to register is a programming error, not a runtime
-      // condition — duplicate or malformed ids shipped.
-      throw new Error(`failed to register ${building.id}: ${result.error.message}`);
-    }
-  }
-}

@@ -48,31 +48,3 @@ export type TileKindRegistry = ContentRegistry<TileKindDefinition>;
 export function createTileKindRegistry(): TileKindRegistry {
   return createContentRegistry<TileKindDefinition>('tile kind');
 }
-
-/**
- * Registers the v0.1 terrain set.
- *
- * Order is significant: it fixes each kind's dense numeric index, which the
- * tile grid stores. Appending is safe; reordering would reinterpret every
- * existing grid and every save.
- */
-export function registerCoreTileKinds(registry: TileKindRegistry): void {
-  const kinds: readonly TileKindDefinition[] = [
-    { id: CORE_GRASS, walkable: true, tillable: true, moveCost: 1, sprite: 'terrain:grass' },
-    { id: CORE_WATER, walkable: false, tillable: false, moveCost: 0, sprite: 'terrain:water' },
-    { id: CORE_STONE, walkable: false, tillable: false, moveCost: 0, sprite: 'terrain:stone' },
-    // Appended, so grass/water/stone keep their indices. A worker crosses a path
-    // in 7 ticks vs 10 on grass (§2.2). No path-laying mechanic ships in v0.1;
-    // the kind and its cost exist so movement honours paths when they arrive.
-    { id: CORE_PATH, walkable: true, tillable: false, moveCost: 0.7, sprite: 'terrain:path' },
-  ];
-
-  for (const kind of kinds) {
-    const result = registry.register(kind);
-    if (!result.ok) {
-      // Core content failing to register is a programming error, not a runtime
-      // condition — it means duplicate or malformed IDs shipped.
-      throw new Error(`failed to register ${kind.id}: ${result.error.message}`);
-    }
-  }
-}

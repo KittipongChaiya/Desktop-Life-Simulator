@@ -11,13 +11,9 @@ import { describe, expect, it } from 'vitest';
 
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asTileIndex } from '../../shared/ids';
-import {
-  CORE_WATER,
-  createTileKindRegistry,
-  registerCoreTileKinds,
-  TILLED_SPRITE,
-  type TileKindRegistry,
-} from '../../sim/content/tile-kinds';
+import { createInstalledRegistries } from '../../sim/content/installed';
+import { createTileKindRegistry } from '../../sim/content/tile-kinds';
+import { CORE_WATER, TILLED_SPRITE, type TileKindRegistry } from '../../sim/content/tile-kinds';
 import { createTileGrid, setKind, type TileGrid } from '../../sim/world/tile-grid';
 
 import { tileSpriteKey } from './terrain-tiles';
@@ -25,8 +21,7 @@ import { tileSpriteKey } from './terrain-tiles';
 const TILE = toIndexUnchecked(30, 30);
 
 function fixture(): { grid: TileGrid; kinds: TileKindRegistry } {
-  const kinds = createTileKindRegistry();
-  registerCoreTileKinds(kinds);
+  const kinds = createInstalledRegistries().tileKinds;
   return { grid: createTileGrid(), kinds };
 }
 
@@ -81,6 +76,8 @@ describe('tile sprite selection', () => {
 
   it('yields an empty key when no kind is registered at all', () => {
     const grid = createTileGrid();
+    // A genuinely EMPTY registry, not the installed one — the case under test is
+    // a grid whose kind byte resolves to nothing at all.
     expect(tileSpriteKey(grid, createTileKindRegistry(), TILE)).toBe('');
   });
 });

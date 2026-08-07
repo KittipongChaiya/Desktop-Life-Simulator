@@ -6,20 +6,18 @@ import { describe, expect, it } from 'vitest';
 
 import { asContentId } from '../../shared/ids';
 
+import { createInstalledRegistries } from './installed';
 import {
   CORE_CARROT,
   CORE_PUMPKIN,
   CORE_TURNIP,
   CORE_WHEAT,
-  createItemRegistry,
   DEFAULT_STACK_SIZE,
-  registerCoreItems,
   stackSizeOf,
 } from './items';
 
 describe('core items', () => {
-  const registry = createItemRegistry();
-  registerCoreItems(registry);
+  const registry = createInstalledRegistries().items;
 
   it('registers produce and seeds — two items per crop (06b)', () => {
     expect(registry.size).toBe(8);
@@ -56,8 +54,7 @@ describe('core items', () => {
 });
 
 describe('stackSizeOf', () => {
-  const registry = createItemRegistry();
-  registerCoreItems(registry);
+  const registry = createInstalledRegistries().items;
 
   it('returns the item stack size', () => {
     expect(stackSizeOf(registry, CORE_WHEAT)).toBe(DEFAULT_STACK_SIZE);

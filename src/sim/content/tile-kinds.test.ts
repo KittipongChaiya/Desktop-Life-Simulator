@@ -3,7 +3,7 @@
  *
  * THE INDEX IS THE SAVE FORMAT. The grid stores one byte per tile holding the
  * kind's registry index (ADR-004 §2), so the order of the list in
- * `registerCoreTileKinds` is on-disk data, not a detail. Inserting a kind
+ * the core source registers them is on-disk data, not a detail. Inserting a kind
  * anywhere but the end renumbers every kind after it, and every existing save
  * decodes to different terrain than it was written with — grass becoming water
  * under a farm nobody can walk across.
@@ -14,22 +14,16 @@
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  CORE_GRASS,
-  CORE_PATH,
-  CORE_STONE,
-  CORE_WATER,
-  createTileKindRegistry,
-  registerCoreTileKinds,
-} from './tile-kinds';
+import { applyInstalledSources, createInstalledRegistries } from './installed';
+import type { TileKindRegistry } from './tile-kinds';
+import { CORE_GRASS, CORE_PATH, CORE_STONE, CORE_WATER } from './tile-kinds';
 
-const registered = (): ReturnType<typeof createTileKindRegistry> => {
-  const registry = createTileKindRegistry();
-  registerCoreTileKinds(registry);
+const registered = (): TileKindRegistry => {
+  const registry = createInstalledRegistries().tileKinds;
   return registry;
 };
 
-describe('registerCoreTileKinds', () => {
+describe('the core tile kinds a world is created with', () => {
   it('registers every core kind', () => {
     const registry = registered();
     for (const id of [CORE_GRASS, CORE_WATER, CORE_STONE, CORE_PATH]) {
@@ -45,13 +39,11 @@ describe('registerCoreTileKinds', () => {
     ).toEqual([0, 1, 2, 3]);
   });
 
-  it('throws rather than half-registering when core content is malformed', () => {
-    // Registering twice is the only way to provoke it from outside, and it
-    // provokes exactly the condition the guard is for: a duplicate id shipped.
-    // A silent failure here would leave the grid decoding kinds that are not
-    // in the registry.
-    const registry = registered();
-    expect(() => registerCoreTileKinds(registry)).toThrow(/failed to register/);
+  it('refuses a second installation into the same registry, rather than duplicating', () => {
+    // A silent duplicate here would leave the grid decoding kind bytes that
+    // point at definitions nobody registered.
+    const targets = createInstalledRegistries();
+    expect(applyInstalledSources(targets).ok).toBe(false);
   });
 });
 

@@ -24,14 +24,8 @@
 import { appError, ErrorCode } from '../shared/errors';
 import { asContentId } from '../shared/ids';
 import { err, ok, type Result } from '../shared/result';
-import {
-  createBuildingRegistry,
-  registerCoreBuildings,
-  type BuildingRegistry,
-} from '../sim/content/buildings';
-import { createCropRegistry, registerCoreCrops } from '../sim/content/crops';
-import { createItemRegistry, registerCoreItems } from '../sim/content/items';
-import { createTileKindRegistry, registerCoreTileKinds } from '../sim/content/tile-kinds';
+import type { BuildingRegistry } from '../sim/content/buildings';
+import { createInstalledRegistries } from '../sim/content/installed';
 import { MULTIPLIER_CAP, MULTIPLIER_FLOOR } from '../sim/world/economy';
 import { WorkerState, WorkerTaskKind } from '../sim/world/worker';
 import { BASE_INVENTORY_SLOTS } from '../sim/world/world';
@@ -54,16 +48,16 @@ export interface KnownContent {
   readonly walkableKindIndexes: ReadonlySet<number>;
 }
 
-/** v0.1's known content: the core registries (plugins arrive in v0.2). */
+/**
+ * The registered content a document is validated against.
+ *
+ * Phase-08b: this is now whatever sources are INSTALLED rather than the four
+ * core registries, which is what lets validation see plugin content in phase-09
+ * without another change here. The name is unchanged so every existing caller
+ * and test is untouched (ADR-019 §2).
+ */
 export function coreContent(): KnownContent {
-  const crops = createCropRegistry();
-  registerCoreCrops(crops);
-  const items = createItemRegistry();
-  registerCoreItems(items);
-  const buildings = createBuildingRegistry();
-  registerCoreBuildings(buildings);
-  const tileKinds = createTileKindRegistry();
-  registerCoreTileKinds(tileKinds);
+  const { crops, items, buildings, tileKinds } = createInstalledRegistries();
   const walkable = new Set<number>();
   for (const kind of tileKinds.all()) {
     if (kind.walkable) walkable.add(tileKinds.indexOf(kind.id));

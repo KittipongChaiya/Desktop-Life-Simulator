@@ -20,18 +20,11 @@ import {
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
 import { registerWorkerCommands } from '../commands/worker-commands';
-import {
-  createBuildingRegistry,
-  registerCoreBuildings,
-  type BuildingRegistry,
-} from '../content/buildings';
-import { createCropRegistry, registerCoreCrops, type CropRegistry } from '../content/crops';
-import { createItemRegistry, registerCoreItems, type ItemRegistry } from '../content/items';
-import {
-  createTileKindRegistry,
-  registerCoreTileKinds,
-  type TileKindRegistry,
-} from '../content/tile-kinds';
+import type { BuildingRegistry } from '../content/buildings';
+import type { CropRegistry } from '../content/crops';
+import { createInstalledRegistries } from '../content/installed';
+import type { ItemRegistry } from '../content/items';
+import type { TileKindRegistry } from '../content/tile-kinds';
 import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
 import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
@@ -185,17 +178,16 @@ function dispatcherOptions(options: WorldOptions): CommandDispatcherOptions {
 }
 
 export function createWorld(seed: number, options: WorldOptions = {}): World {
-  const tileKinds = createTileKindRegistry();
-  registerCoreTileKinds(tileKinds);
-
-  const cropRegistry = createCropRegistry();
-  registerCoreCrops(cropRegistry);
-
-  const itemRegistry = createItemRegistry();
-  registerCoreItems(itemRegistry);
-
-  const buildingRegistry = createBuildingRegistry();
-  registerCoreBuildings(buildingRegistry);
+  // Content comes from the installed sources, through the public API — the
+  // engine no longer knows which content exists (ADR-019 §2, ADR-026 §2).
+  // `plugins/core/` installs itself when imported; the composition root and the
+  // test runner do that, and phase-09's loader will do it per discovered source.
+  const {
+    crops: cropRegistry,
+    items: itemRegistry,
+    buildings: buildingRegistry,
+    tileKinds,
+  } = createInstalledRegistries();
 
   const tiles = createTileGrid();
   // Every tile defaults to kind index 0, which is core:grass by registration

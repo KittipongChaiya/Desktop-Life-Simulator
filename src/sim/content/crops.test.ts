@@ -26,18 +26,16 @@ import {
   CORE_PUMPKIN,
   CORE_TURNIP,
   CORE_WHEAT,
-  createCropRegistry,
   isMature,
-  registerCoreCrops,
   stageFor,
   CropStage,
   STAGE_THRESHOLDS,
   type CropDefinition,
 } from './crops';
+import { createInstalledRegistries } from './installed';
 
 function coreCrops(): readonly CropDefinition[] {
-  const registry = createCropRegistry();
-  registerCoreCrops(registry);
+  const registry = createInstalledRegistries().crops;
   return registry.all();
 }
 

@@ -19,7 +19,14 @@ export interface TilePosition {
 
 /** True if the coordinate lies inside the world grid. */
 export function isInBounds(x: number, y: number): boolean {
-  return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
+  return (
+    Number.isInteger(x) &&
+    Number.isInteger(y) &&
+    x >= 0 &&
+    y >= 0 &&
+    x < WORLD_WIDTH &&
+    y < WORLD_HEIGHT
+  );
 }
 
 /** True if the index addresses a tile in the world grid. */

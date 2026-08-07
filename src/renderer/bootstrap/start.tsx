@@ -10,6 +10,10 @@
  * `boundaries/entry-point` rather than by convention.
  */
 
+// Installs the built-in content source. The composition root is where content
+// sources are assembled — `src/sim` may not import them (ARCHITECTURE.md §14.1),
+// and a world created before this import would have no content at all.
+import '../../../plugins/core';
 import { observeCommands, observeExecutionFailure } from '@devtools/commands/observer';
 import {
   createCommandRing,

@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../../shared/constants';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asTileIndex } from '../../shared/ids';
-import { CORE_GRASS, createTileKindRegistry, registerCoreTileKinds } from '../content/tile-kinds';
+import { createInstalledRegistries } from '../content/installed';
+import { CORE_GRASS } from '../content/tile-kinds';
 
 import {
   claimCenteredPlot,
@@ -37,8 +38,7 @@ describe('layout', () => {
 
   it('starts as an all-zero grass world with no fill pass', () => {
     const grid = createTileGrid();
-    const registry = createTileKindRegistry();
-    registerCoreTileKinds(registry);
+    const registry = createInstalledRegistries().tileKinds;
 
     expect(registry.indexOf(CORE_GRASS)).toBe(0);
     expect(grid.kind.every((value) => value === 0)).toBe(true);

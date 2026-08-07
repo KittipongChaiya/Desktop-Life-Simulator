@@ -16,25 +16,24 @@
 
 import { describe, expect, it } from 'vitest';
 
+import type { BuildingRegistry } from './buildings';
 import {
   CORE_BUILDINGS,
   CORE_MARKET_STALL,
   CORE_REST_HUT,
   CORE_SEED_BIN,
   CORE_STORAGE_SHED,
-  createBuildingRegistry,
   MARKET_STALL_SLOTS,
-  registerCoreBuildings,
   STORAGE_SHED_SLOTS,
 } from './buildings';
+import { applyInstalledSources, createInstalledRegistries } from './installed';
 
-const registered = (): ReturnType<typeof createBuildingRegistry> => {
-  const registry = createBuildingRegistry();
-  registerCoreBuildings(registry);
+const registered = (): BuildingRegistry => {
+  const registry = createInstalledRegistries().buildings;
   return registry;
 };
 
-describe('registerCoreBuildings', () => {
+describe('the core buildings a world is created with', () => {
   it('registers every building in the shipped set', () => {
     const registry = registered();
     for (const building of CORE_BUILDINGS) {
@@ -50,11 +49,12 @@ describe('registerCoreBuildings', () => {
     }
   });
 
-  it('throws rather than half-registering when core content is malformed', () => {
-    // The guard exists for a duplicate or malformed id shipping in the table.
-    // Registering twice provokes exactly that condition.
-    const registry = registered();
-    expect(() => registerCoreBuildings(registry)).toThrow(/failed to register/);
+  it('refuses a second installation into the same registry, rather than duplicating', () => {
+    // Phase-08b: the guard moved with the content. Applying the installed
+    // sources twice into one registry is a duplicate id, which the public API
+    // refuses outright rather than half-registering.
+    const targets = createInstalledRegistries();
+    expect(applyInstalledSources(targets).ok).toBe(false);
   });
 
   it('leaves no duplicate ids in the shipped table', () => {
