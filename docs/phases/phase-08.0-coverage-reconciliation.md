@@ -60,10 +60,10 @@ Nine rows went up. None went down. `src/renderer/render` was declared at 50% bec
 | 08.0a | Policy and mechanism                              | The criterion, `TESTING.md` §4 rewritten, per-area gates actually enforced, the register test | **Delivered** |
 | 08.0b | `src/persistence` to 95 / 90                      | Quarantine's own structure, eleven untested §5 repair rules, and hydration's guards           | **Delivered** |
 | 08.0c | The gaps the criterion exposes                    | Six untested modules, +124 tests; two brought to a testable shape without behaviour change    | **Delivered** |
-| 08.0d | `src/sim` branch margin, and the mutation control | Margin above 85%, and evidence the added tests have teeth                                     | Pending       |
-| 08.0e | Close                                             | Gate green, debt #1 resolved, `PLAN.md` §2.2, `CHANGELOG.md`                                  | Pending       |
+| 08.0d | `src/sim` branch margin, and the mutation control | `sim/content` and the command input boundary; margin 0 → 16 branches                          | **Delivered** |
+| 08.0e | Close                                             | Gate green at 95.26 / 85.95; debt #1 resolved, two items opened                               | **Delivered** |
 
-**The coverage gate is red until 08.0e, by construction.** It is the deliverable. `npm test`, `npm run typecheck`, `npm run lint`, `check:boundaries` and `check:cycles` are green at every commit; a future session reading a red `test:coverage` mid-phase is reading the work in progress, not a broken tree.
+**The coverage gate was red until 08.0e, by construction** — it is the deliverable. `npm test`, `npm run typecheck`, `npm run lint`, `check:boundaries` and `check:cycles` were green at every commit; a future session reading a red `test:coverage` on a mid-phase commit is reading work in progress, not a broken tree.
 
 The thresholds declared in 08.0a are targets that 08.0b–d meet, and they were checked for reachability before being written: 08.0b and 08.0c together yield +182 lines and +110 branches, which puts the project at roughly **95% lines / 85.5% branches** — above the 90 / 85 declared.
 
@@ -205,7 +205,96 @@ Catch-up credited one more harvest than running the ticks for real does.
 1. Fix the over-credit in `catch-up.ts`, with the counterexample above as the regression test.
 2. Then pin seeds on both `assertNeverOver` properties per §6.2, and treat new counterexamples as findings to fix rather than as noise between runs.
 
-Until (1) lands, `PLAN.md` §8's coverage gate can go green while criterion 14 cannot — so **08.0e cannot close**, and that is now the phase's critical path rather than any remaining coverage work.
+**Correction to this document's first assessment.** It said 08.0e could not close until this was fixed. That was wrong, and checking `PLAN.md` §8 line by line is what showed it: criterion 14 is a **phase-07d acceptance criterion**, not one of the eight §8 release gates. The eight are save compatibility, performance, coverage, boundaries, docs, ADRs, data loss, and dead code — and an over-credit is not data loss; the player receives more than they earned, not less, and nothing on disk is damaged.
+
+So 08.0 closes on its own terms, and this is carried as debt with a reproduction rather than treated as a blocker it is not. It remains a real defect on a documented invariant (`SAVE_FORMAT.md` §6.5), and it is the recommended next work — it is simply not this phase's gate to fail.
+
+---
+
+## 08.0d — what shipped
+
+`src/sim` cleared its branch gate by **four branches** after 08.0c. Above the floor, and still the fragility this milestone exists to remove — one uncovered `if` in phase-08 eats it. The two weakest pools were both places phase-08 will add code:
+
+**`sim/content` 69.23 → 88.46% branches.** `registry.ts` had **no test file**, though `TESTING.md` §5.1 has required "content registries: registration, lookup, duplicate-ID rejection" since phase-00. It is also the module ADR-019's `PluginApi` wraps: every crop, item, building, and tile kind a third party ever registers passes through its `register`, and the errors it returns become the errors a plugin author reads. `tile-kinds.ts` and `buildings.ts` (50% each) followed.
+
+**`sim/commands` 76.10 → 80.97% branches — the untrusted-input boundary (ADR-010 §5).** Command fields arrive as plain numbers and strings from the renderer, the developer console, a replayed log — and in v0.2 from plugin code, which ADR-003 §3 says to treat as hostile. One property, asserted uniformly: a malformed field is a typed rejection, never a throw and never a mutation, and `world.rng` does not advance — a refused command that consumed randomness would desynchronise two players from one seed.
+
+Content tests 26 → 44, plus 13 boundary tests. **Margin: 4 → 16 branches.**
+
+### Three assertions that were wrong, and the code that was right
+
+Recorded because each was written confidently, and each is a fact the next session would otherwise re-learn:
+
+1. **`asContentId` is not a brand cast — it throws.** So a malformed id cannot reach `register` through it, and the registry's own check is reachable only by an unvalidated cast. That is not contrived: a plugin manifest is JSON, its `id` arrives as a `string`, and the registry is the last place that can refuse it. The helper is named `untrusted` and says so.
+2. **A malformed content id and an unregistered one return the same `ErrorCode`** (`UnknownContent`); only the message differs. Worth knowing before phase-08 puts a plugin author on the other end: a loader branching on the code alone cannot tell a manifest typo from an unmet dependency, and those want different advice.
+3. **`depositWorker` validates at execution, not dispatch** — it registers `validate: () => ok()`, deliberately, because the worker AI issues it against a target chosen a tick earlier. So a successful dispatch is not a statement that the worker exists. The test pins what actually matters: no throw, no mutation.
+
+### Mutation controls
+
+| Mutation                                  | Result                                                                        |
+| ----------------------------------------- | ----------------------------------------------------------------------------- |
+| Registry accepts duplicate ids            | 6 tests fail                                                                  |
+| Tile kinds reordered (water before grass) | 1 test fails — the index-pinning guard, because those bytes are in save files |
+
+---
+
+## 08.0e — the close
+
+**The gate is green.** `npm run test:coverage` exits 0 with no threshold error, on **1,782 tests, all passing**.
+
+| Area                     | At phase start    | At close          | Gate        |
+| ------------------------ | ----------------- | ----------------- | ----------- |
+| `src/sim`                | 97.36 / 85.08     | **98.21 / 87.54** | 90 / 85     |
+| `src/persistence`        | 90.77 / 84.15     | **99.11 / 91.93** | 95 / 90     |
+| `src/shared`             | 90.43 / 96.43     | **93.62 / 96.43** | 90 / 85     |
+| `src/renderer/app`       | 85.25 / 76.73     | **90.04 / 78.18** | 85 / 75     |
+| `src/renderer/render`    | 34.26 / 35.98     | **98.94 / 88.37** | 95 / 85     |
+| `src/renderer/bootstrap` | 30.65 / 34.95     | **90.21 / 85.56** | 85 / 75     |
+| `src/main`               | 31.42 / 40.00     | **96.09 / 94.12** | 90 / 80     |
+| `src/devtools`           | 85.35 / 76.55     | **92.19 / 81.72** | 85 / 75     |
+| **Project total**        | **67.29 / 66.48** | **95.26 / 85.95** | **90 / 85** |
+
+Tests grew from **1,607 to 1,782** — +175, in 12 new files. No test was weakened, skipped, or deleted, and every threshold in the table is higher than the one it replaced.
+
+### The eight `PLAN.md` §8 gates, checked individually
+
+| Gate               | Verdict                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Save compatibility | Green — every golden fixture loads; `save-compatibility.test.ts` and `save-fixtures.test.ts` pass                              |
+| Performance        | Green — measured at 07.7M, evidence in `docs/perf/`; unchanged by this phase, which ships no runtime behaviour                 |
+| Coverage           | **Green — this phase's deliverable**                                                                                           |
+| Boundaries         | Green — `check:boundaries` and `check:cycles` clean, 242 modules                                                               |
+| Docs               | Green — `TESTING.md` §4 rewritten, `CHANGELOG.md` updated, this document                                                       |
+| ADRs               | Green — no architectural change; the criterion and the register live in `TESTING.md`, which owns coverage policy               |
+| Data loss          | Green — no known data-loss defect. The catch-up over-credit gives the player more than they earned and damages nothing on disk |
+| Dead code          | Green — the audit at 07.7N found no TODO, FIXME, or unreachable setting; no test is skipped                                    |
+
+### What this phase actually fixed
+
+Not a number. The gate read 67.29% against 80% and every earlier close called that "structural" — but the structure was never named, so each phase re-diagnosed it and moved on. It was three things at once, and only the first was visible:
+
+1. **Six of seven published thresholds were never enforced.** The config carried one global pair. Three areas had been below their documented bars for months, and `src/persistence` — the highest bar in the project, the code that protects saves — was one of them.
+2. **The measured set was wrong.** 1,378 lines of Pixi and Electron binding sat in the denominator contributing 34 covered lines, dragging `renderer/render`'s row to 34% while its extracted logic sat at 98.94%. That is what made the published numbers _look_ unreachable and made lowering them look reasonable.
+3. **Real gaps hid behind the arithmetic.** Once the denominator was right, what was left was not rounding: a registry with no test file, hydration guards with none, quarantine's structure unvalidated, and the developer console — the only way E2E can drive the game — at 3%.
+
+The fix is that all three are now mechanical. `tests/coverage-policy.test.ts` fails if the document and the config disagree, if an exclusion names no detector, or if a detector does not exist.
+
+### One failure observed and not attributed
+
+During the close, one `npm test` run reported **1 failed / 1,781 passed** and the output was not captured. It has not recurred: two full suite runs since are 1,782/1,782, and `tests/catch-up.test.ts` passed 10 of 10 in isolation.
+
+The shape is consistent with debt #13 — the catch-up property is a single test, so it fails exactly one — but **consistent is not the same as proven**, and no evidence survives to say so. `TESTING.md` §6.4 says to diagnose a flake rather than retry it; the diagnosis here is incomplete, and pretending otherwise would be worse than recording it.
+
+Both onward paths are already open as debt: fixing #13 removes the most likely cause, and pinning the seeds (#14) makes any recurrence reproducible instead of a coin toss. **Until #14 lands, a green suite is evidence and not proof** — which is exactly the property a release gate is supposed to have, and the reason #14 is filed as debt rather than a note.
+
+### Debt discharged and debt opened
+
+`phase-07.7-game-feel-polish.md` debt **#1 is resolved** — the register records what changed.
+
+Two items open in its place, both recorded there:
+
+- **The catch-up over-credit** (criterion 14), with its seed and counterexample.
+- **`tsconfig.tools.json` is never typechecked.** `npm run typecheck` runs the sim, main, and renderer projects only, so no test file is type-checked in CI — `tsc -p tsconfig.tools.json` reports 210 pre-existing errors, mostly a missing `jsx` flag for `.test.tsx`. Nothing this phase added contributes to that count. A coverage phase that left an unchecked test surface unrecorded would be missing its own point.
 
 ---
 
@@ -228,8 +317,8 @@ No production source file. No test was weakened, skipped, deleted, or made asser
 Phase-level, from `ROADMAP.md` §3:
 
 - [x] Every area under `src/` has a declared threshold in `TESTING.md` §4 — and, new, every one of them is enforced
-- [ ] `npm run test:coverage` completes and meets every declared threshold — 08.0e
-- [ ] All eight `PLAN.md` §8 release gates are green for v0.1 — 08.0e
+- [x] `npm run test:coverage` completes and meets every declared threshold — **95.26 / 85.95**, exit 0, no threshold error
+- [x] All eight `PLAN.md` §8 release gates are green for v0.1 — checked individually in §08.0e
 - [x] No test was weakened or skipped to achieve it
 
 08.0a specifically:

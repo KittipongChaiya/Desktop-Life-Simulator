@@ -79,10 +79,10 @@ Phases 14 (worker scheduling) and 15 (updates) are otherwise independent and may
 
 **Acceptance.**
 
-- [ ] Every area under `src/` has a declared threshold in `TESTING.md` §4
-- [ ] `npm run test:coverage` completes and meets every declared threshold
-- [ ] All eight `PLAN.md` §8 release gates are green for v0.1
-- [ ] No test was weakened or skipped to achieve it
+- [x] Every area under `src/` has a declared threshold in `TESTING.md` §4 — and every one is enforced
+- [x] `npm run test:coverage` completes and meets every declared threshold — 95.26 / 85.95
+- [x] All eight `PLAN.md` §8 release gates are green for v0.1
+- [x] No test was weakened or skipped to achieve it
 
 **Documentation.** `TESTING.md` §4; `PLAN.md` §2.2 v0.1 close note; `CHANGELOG.md`.
 

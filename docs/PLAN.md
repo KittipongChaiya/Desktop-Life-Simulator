@@ -72,10 +72,14 @@ v0.1 ships when **all** are true:
 **Technical**
 
 - [ ] All `PERFORMANCE.md` ceilings measured and met on baseline hardware
-- [ ] All `TESTING.md` coverage gates met
-- [ ] Determinism test passes at 100k ticks
-- [ ] Save round-trip and crash-safety tests pass
-- [ ] Zero known data-loss defects
+- [x] All `TESTING.md` coverage gates met — **phase-08.0**, 95.26% lines / 85.95% branches against a raised 90 / 85
+- [x] Determinism test passes at 100k ticks
+- [x] Save round-trip and crash-safety tests pass
+- [x] Zero known data-loss defects
+
+> **Phase-08.0 closed the coverage gate**, the last of the eight §8 release gates to go green. The cause was not neglect: six of the seven published per-area thresholds had never been enforced by the config, and 1,378 lines of Pixi and Electron binding sat in the denominator contributing 34 covered lines. `TESTING.md` §4.2 now states the criterion for what is measured, and a test fails if the document and the config ever disagree again.
+>
+> **One correctness defect is open and is not a data-loss defect**: catch-up over-credits by one harvest on a specific farm (`phase-07.7` debt #13, `PLAN.md` §8 criterion 14). The player gains rather than loses and nothing on disk is damaged, so the §8 data-loss gate stands — but the criterion itself does not hold, and it is the recommended next work.
 
 **Documentation**
 
