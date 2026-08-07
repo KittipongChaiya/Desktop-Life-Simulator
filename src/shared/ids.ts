@@ -41,6 +41,40 @@ export function splitContentId(id: ContentId): { namespace: string; name: string
   return { namespace: id.slice(0, separator), name: id.slice(separator + 1) };
 }
 
+/**
+ * Namespaces no third-party source may claim. Phase-08a — ADR-026 §1.
+ *
+ * A namespace belongs to exactly one content source, permanently, and a claim
+ * collision is a load failure rather than a merge. These are held back so a
+ * third party cannot occupy the name a future first-party pack needs — and once
+ * one is occupied there is no taking it back, because transferring a namespace
+ * would orphan every save written before the transfer (ADR-026 §5).
+ *
+ * The list lives here, beside the validator, for the reason ADR-026 §1 gives:
+ * **a reservation nobody can check is not a reservation.**
+ *
+ * Deliberately short. Reserving names speculatively is the same mistake as
+ * building machinery for imagined needs (`AI_RULES.md` §1.5) — and every entry
+ * costs a third-party author a name they might reasonably want.
+ */
+export const RESERVED_NAMESPACES: readonly string[] = [
+  // Built-in content. Reserved forever (ADR-026 §1).
+  'core',
+  // Official packs and DLC, whatever they end up being called.
+  'official',
+  'dls',
+  // Names that would let a source pass itself off as the engine.
+  'engine',
+  'system',
+];
+
+const RESERVED = new Set(RESERVED_NAMESPACES);
+
+/** True if `namespace` is held for first-party use. */
+export function isReservedNamespace(namespace: string): boolean {
+  return RESERVED.has(namespace);
+}
+
 /** Unchecked casts. Use only where the value's shape is already guaranteed. */
 /**
  * Asserts a string is a well-formed content ID.
