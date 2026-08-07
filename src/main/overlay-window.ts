@@ -8,13 +8,13 @@
 
 import { join } from 'node:path';
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, screen } from 'electron';
 
 import { applyDocking, dockedBounds } from './docking';
 
 export function createOverlayWindow(collapsed: boolean): BrowserWindow {
   const window = new BrowserWindow({
-    ...dockedBounds(collapsed),
+    ...dockedBounds(screen, collapsed),
 
     frame: false,
     transparent: true,
@@ -96,5 +96,5 @@ export function setClickThrough(window: BrowserWindow, enabled: boolean): void {
 }
 
 export function setCollapsed(window: BrowserWindow, collapsed: boolean): void {
-  applyDocking(window, collapsed);
+  applyDocking(window, screen, collapsed);
 }

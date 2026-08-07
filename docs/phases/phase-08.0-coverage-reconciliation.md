@@ -55,13 +55,13 @@ Nine rows went up. None went down. `src/renderer/render` was declared at 50% bec
 
 ## Milestones
 
-| #     | Milestone                                         | Ships                                                                                                                                                 | Status        |
-| ----- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| 08.0a | Policy and mechanism                              | The criterion, `TESTING.md` §4 rewritten, per-area gates actually enforced, the register test                                                         | **Delivered** |
-| 08.0b | `src/persistence` to 95 / 90                      | Quarantine's own structure, eleven untested §5 repair rules, and hydration's guards                                                                   | **Delivered** |
-| 08.0c | The gaps the criterion exposes                    | `pointer-actions.ts` (68), `console/builtins.ts` (63), `overlay-controller.ts` (25), `docking.ts` (15), `main/settings.ts` (8), `ipc/contract.ts` (3) | Pending       |
-| 08.0d | `src/sim` branch margin, and the mutation control | Margin above 85%, and evidence the added tests have teeth                                                                                             | Pending       |
-| 08.0e | Close                                             | Gate green, debt #1 resolved, `PLAN.md` §2.2, `CHANGELOG.md`                                                                                          | Pending       |
+| #     | Milestone                                         | Ships                                                                                         | Status        |
+| ----- | ------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------- |
+| 08.0a | Policy and mechanism                              | The criterion, `TESTING.md` §4 rewritten, per-area gates actually enforced, the register test | **Delivered** |
+| 08.0b | `src/persistence` to 95 / 90                      | Quarantine's own structure, eleven untested §5 repair rules, and hydration's guards           | **Delivered** |
+| 08.0c | The gaps the criterion exposes                    | Six untested modules, +124 tests; two brought to a testable shape without behaviour change    | **Delivered** |
+| 08.0d | `src/sim` branch margin, and the mutation control | Margin above 85%, and evidence the added tests have teeth                                     | Pending       |
+| 08.0e | Close                                             | Gate green, debt #1 resolved, `PLAN.md` §2.2, `CHANGELOG.md`                                  | Pending       |
 
 **The coverage gate is red until 08.0e, by construction.** It is the deliverable. `npm test`, `npm run typecheck`, `npm run lint`, `check:boundaries` and `check:cycles` are green at every commit; a future session reading a red `test:coverage` mid-phase is reading the work in progress, not a broken tree.
 
@@ -143,6 +143,69 @@ Every other area passes. `src/devtools/**` clears 85 / 75 on aggregate despite `
 ### One line left uncovered, deliberately
 
 `validate.ts:340` — the rethrow of a non-`Structural` error. Every decode failure is already converted to `Structural` inside the helper, so that line is reachable only through a genuine bug in the module; forcing it would require an input `JSON.parse` cannot produce. One line of 355, in a file now at 99.7%.
+
+---
+
+## 08.0c — what shipped
+
+Six modules that failed the §4.2 criterion and simply had no test. **+124 tests.**
+
+| Module                               | Was | Tests | What they pin                                                                            |
+| ------------------------------------ | --- | ----- | ---------------------------------------------------------------------------------------- |
+| `bootstrap/pointer-actions.ts`       | 0%  | 22    | Click-versus-drag slop, presses over the HUD, placement mode, worker selection, teardown |
+| `devtools/console/builtins.ts`       | 3%  | 36    | All twelve builtins — the only way E2E can fund a farm or skip growth                    |
+| `main/docking.ts`                    | 0%  | 14    | Docking to the work area, not the screen; re-dock on display change                      |
+| `main/settings-store.ts`             | new | 10    | First run, truncated JSON, unwritable directory — none of them fatal                     |
+| `renderer/app/overlay-controller.ts` | 0%  | 15    | Optimistic collapse, and click-through de-duplication                                    |
+| `shared/ipc/contract.ts`             | 0%  | 3     | No two channels collide — a duplicate crashes `ipcMain.handle` at launch                 |
+
+### Two production modules changed shape, and none changed behaviour
+
+`docking.ts` and `settings.ts` imported `electron` at module scope, so no part of either could be loaded by a unit test — including `dockedBounds`, which is pure arithmetic, and the settings read/write, whose failure modes are all filesystem ones. `TESTING.md` §2 rules out answering that with a mock, and `save-store.ts` already states the alternative as doctrine: _"the directory is a parameter, not `app.getPath` — this module is pure Node, so the sequence is testable."_
+
+Both were brought to that shape, by the route that touched fewest call sites:
+
+- **`docking.ts` was parameterised.** It now takes the work area and a `DisplaySource`, imports only erased _types_ from `electron`, and is fully testable — including `watchDisplayChanges`, the re-dock-on-display-change path that its own comment calls "a class of bug that only shows up on someone else's machine", and which could not be tested at all before. Four call sites, in two files.
+- **`settings.ts` was split.** `settings-store.ts` takes the directory and holds the read and write; `settings.ts` keeps `loadSettings`/`saveSettings` unchanged and answers only "where is `userData`". Zero call sites changed — the alternative would have edited eight. It joins the §4.2 register with `settings-store.ts` as its `logic`.
+
+The plain-write asymmetry `save-store.ts` calls out — preferences are cheap to lose, saves are the product — is preserved and documented, not quietly closed.
+
+### Mutation controls
+
+| Mutation                                       | Result                                                      |
+| ---------------------------------------------- | ----------------------------------------------------------- |
+| `CLICK_SLOP_PX` 4 → 0                          | 1 test fails — _still clicks after jitter within the slop_  |
+| Dock to screen bounds instead of the work area | 2 tests fail — the taskbar-on-top and negative-offset cases |
+
+### A shipped behaviour documented rather than changed
+
+`tick 2.5e` advances two ticks. `Number.parseInt` stops at the first non-digit, so the "positive integer" guard passes on trailing garbage. Harmless in a developer console and **not this phase's to change** — 08.0c alters no behaviour. It now has a test that says so by name, so tightening the parse later is a deliberate act with a failing test to prompt it.
+
+---
+
+## Blocking defect found, not introduced
+
+The full suite surfaced a **real over-credit in catch-up** — `PLAN.md` §8 release-gate criterion 14, _"catch-up never over-credits"_:
+
+```
+tests/catch-up.test.ts > holds at n = 50,000 across arbitrary farms
+AssertionError: expected 12 to be less than or equal to 11
+{ seed: 1435051507, path: "5:0:0:1:1:1:5:4:5:5:4:5:5:6:5:9:9" }
+Counterexample: one worker, a seed bin, two crops, 10 wheat seeds, 2 turnip seeds
+```
+
+Catch-up credited one more harvest than running the ticks for real does.
+
+**It is not 08.0c's.** The counterexample reproduces identically with every 08.0c production change reverted (`git stash` of `docking.ts`, `settings.ts`, `index.ts`, `overlay-window.ts`, then the same pinned seed) — and nothing in this milestone is imported by `src/sim` or `src/persistence` at all.
+
+**Why it appeared now.** The two `assertNeverOver` properties are the only ones in the file with **no pinned seed** — its other five pin 424242, 7, 7, 11, 99. So they sample different farms on every run, and this counterexample had simply never come up. `TESTING.md` §6.2 requires the opposite: _"Always pass an explicit seed."_ The gate has therefore been probabilistic since phase-07d, which is a second finding and arguably the more important one: a release-gate criterion that passes by sampling is not a gate.
+
+**Recommended, not done here** (a simulation-accounting fix is not a coverage phase's work, and the phase's hard constraint forbids it):
+
+1. Fix the over-credit in `catch-up.ts`, with the counterexample above as the regression test.
+2. Then pin seeds on both `assertNeverOver` properties per §6.2, and treat new counterexamples as findings to fix rather than as noise between runs.
+
+Until (1) lands, `PLAN.md` §8's coverage gate can go green while criterion 14 cannot — so **08.0e cannot close**, and that is now the phase's critical path rather than any remaining coverage work.
 
 ---
 

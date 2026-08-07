@@ -71,6 +71,13 @@ export const HOST_BINDINGS: readonly HostBinding[] = [
     detectors: [OVERLAY],
   },
   {
+    path: 'src/main/settings.ts',
+    reason:
+      'Answers only where `userData` is — `app.getPath`. Phase-08.0c moved the read and write themselves into `settings-store.ts`, which takes the directory as a parameter and is unit-tested against real temp directories.',
+    logic: 'src/main/settings-store.ts',
+    detectors: ['tests/e2e/companion.spec.ts', OVERLAY],
+  },
+  {
     path: 'src/preload/index.ts',
     reason: 'The contextBridge surface. Exists only in a preload realm.',
     logic: 'src/shared/ipc/contract.ts',

@@ -25,5 +25,13 @@ export default {
   test: {
     ...test,
     exclude: [...(test.exclude ?? []), 'tests/memory-longrun.test.ts'],
+    coverage: {
+      ...(test.coverage ?? {}),
+      // Report even when a test fails. Phase-08.0c: an unrelated red test
+      // otherwise suppresses the whole coverage report, so the one number this
+      // config exists to produce disappears exactly when someone is mid-fix and
+      // needs to know whether their coverage work landed.
+      reportOnFailure: true,
+    },
   },
 };

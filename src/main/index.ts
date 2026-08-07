@@ -7,7 +7,7 @@
 
 import { join } from 'node:path';
 
-import { app, ipcMain, Menu, nativeImage, Tray, type BrowserWindow } from 'electron';
+import { app, ipcMain, Menu, nativeImage, screen, Tray, type BrowserWindow } from 'electron';
 
 import { serializeSave } from '../persistence/serialize';
 import { parseSaveDocument } from '../persistence/validate';
@@ -84,7 +84,7 @@ let quitSaveSettled = false;
 const QUIT_SAVE_TIMEOUT_MS = 3_000;
 
 function overlayState(): OverlayState {
-  const bounds = dockedBounds(settings.overlay.collapsed);
+  const bounds = dockedBounds(screen, settings.overlay.collapsed);
   return { collapsed: settings.overlay.collapsed, width: bounds.width, height: bounds.height };
 }
 
@@ -390,7 +390,7 @@ function bootstrap(): void {
   // Opacity applies before first show — the window never flashes at 100% on
   // its way to the player's preference (fix/0.1/1.8.md acceptance 2).
   applyOpacity(overlay, settings.desktop);
-  stopWatchingDisplays = watchDisplayChanges(() => settings.overlay.collapsed, overlay);
+  stopWatchingDisplays = watchDisplayChanges(screen, () => settings.overlay.collapsed, overlay);
 
   overlay.on('closed', () => {
     stopWatchingDisplays?.();

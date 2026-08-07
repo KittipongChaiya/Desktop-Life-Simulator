@@ -132,6 +132,7 @@ The criterion is not new. `save-store.ts` states it as doctrine — the save dir
 | ------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------- |
 | `src/main/index.ts`                        | —                                              | `overlay`, `background-tick`, `save`, `companion` specs               |
 | `src/main/overlay-window.ts`               | —                                              | `overlay.spec.ts`                                                     |
+| `src/main/settings.ts`                     | `src/main/settings-store.ts`                   | `companion.spec.ts`, `overlay.spec.ts`                                |
 | `src/preload/index.ts`                     | `src/shared/ipc/contract.ts`                   | `overlay.spec.ts`, `companion.spec.ts`                                |
 | `src/renderer/entry/main.tsx`              | —                                              | `tests/boundaries.test.ts`, `overlay.spec.ts`                         |
 | `src/renderer/bootstrap/start.tsx`         | —                                              | `overlay.spec.ts`, `hud-layout.spec.ts`                               |
