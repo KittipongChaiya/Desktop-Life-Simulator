@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
+import { AREA_THRESHOLDS, HOST_BINDINGS, PROJECT_THRESHOLD } from './coverage-policy.config';
+
 export default defineConfig({
   // Required for the automatic JSX runtime in component tests; without it JSX
   // compiles to classic `React.createElement` and every render throws
@@ -43,13 +45,34 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/**/*.ts', 'src/**/*.tsx'],
-      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/renderer/index.html'],
-      // Thresholds per TESTING.md §4. Raised progressively as phases land;
-      // src/sim reaches 90% once systems exist (phase-03+).
+      // `plugins/**` is measured from phase-08.0, BEFORE phase-08 puts anything
+      // in it. Core content registration moves out of `src/sim` and into
+      // `plugins/core/` there (ADR-019); an unmeasured destination would drop
+      // well-covered lines out of the total on a pure refactor, which is the
+      // drift this phase exists to end.
+      include: ['src/**/*.ts', 'src/**/*.tsx', 'plugins/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx',
+        'plugins/**/*.test.ts',
+        'src/renderer/index.html',
+        // Host bindings, each with a named detector. The register and the
+        // criterion admitting anything to it: `coverage-policy.config.ts`.
+        ...HOST_BINDINGS.map((binding) => binding.path),
+      ],
+      // Every threshold in one place, checked against TESTING.md §4 by
+      // `tests/coverage-policy.test.ts`. Before phase-08.0 this object held a
+      // single global pair while §4 declared seven per-area rows, so six of them
+      // had never been enforced.
       thresholds: {
-        lines: 80,
-        branches: 75,
+        lines: PROJECT_THRESHOLD.lines,
+        branches: PROJECT_THRESHOLD.branches,
+        ...Object.fromEntries(
+          AREA_THRESHOLDS.map((area) => [
+            area.glob,
+            { lines: area.lines, branches: area.branches },
+          ]),
+        ),
       },
     },
   },

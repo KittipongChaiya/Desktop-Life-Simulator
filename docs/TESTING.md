@@ -91,23 +91,72 @@ tests/
 
 Enforced in CI. A PR below any threshold does not merge.
 
-| Area                     | Line    | Branch  | Rationale                                               |
-| ------------------------ | ------- | ------- | ------------------------------------------------------- |
-| `src/sim/**`             | **90%** | **85%** | Pure and trivially testable. No exemptions granted      |
-| `src/persistence/**`     | **95%** | **90%** | Highest in the project — this code protects player data |
-| `src/shared/**`          | 85%     | 80%     | Mostly types; logic is small                            |
-| `src/renderer/app/**`    | 70%     | 60%     | Behavior over pixels                                    |
-| `src/renderer/render/**` | 50%     | 40%     | Visual output is verified by E2E and by eye             |
-| `src/main/**`            | 60%     | 50%     | Electron APIs are covered by E2E                        |
-| **Project total**        | **80%** | **75%** | `AI_RULES.md` §3.3                                      |
+The numbers live in `coverage-policy.config.ts`, `vitest.config.ts` derives its gates from there, and `tests/coverage-policy.test.ts` asserts that this table and that file agree. A threshold changed in one place and not the other fails the suite.
+
+| Area                        | Line / Branch | Rationale                                                                        |
+| --------------------------- | ------------- | -------------------------------------------------------------------------------- |
+| `src/sim/**`                | **90 / 85**   | Pure and trivially testable. No exemptions granted                               |
+| `src/persistence/**`        | **95 / 90**   | Highest in the project — this code protects player data                          |
+| `src/shared/**`             | 90 / 85       | Mostly types; the logic that is there is small and pure                          |
+| `src/renderer/app/**`       | 85 / 75       | Behavior over pixels — panels render a snapshot and dispatch intents             |
+| `src/renderer/render/**`    | 95 / 85       | What remains after §4.2 is the extracted logic, and it is ordinary to test       |
+| `src/renderer/bootstrap/**` | 85 / 75       | Composition and input translation; the host mounts are in §4.2                   |
+| `src/main/**`               | 90 / 80       | What remains after §4.2 takes its host dependency as a parameter                 |
+| `src/devtools/**`           | 85 / 75       | Dev-only, but real code with real tests (ADR-018)                                |
+| `src/preload/**`            | E2E           | Every file is a host binding — see §4.2                                          |
+| `plugins/**`                | 90 / 85       | Content registration is sim-adjacent and pure; measured before phase-08 fills it |
+| **Project total**           | **90 / 85**   | `AI_RULES.md` §3.3                                                               |
 
 ### 4.1 On the numbers
 
 `src/persistence` carries the highest bar because a bug there destroys a player's months of progress, and because it is exactly the code that is never exercised by casual play — a broken migration surfaces only when someone loads an old save.
 
-`src/renderer/render` carries the lowest because asserting on GPU output in a unit test produces brittle tests that verify nothing meaningful. Its real gates are the draw-call and idle-frame assertions in §7.
+`src/sim` carries 90/85 with no exemption because it is pure, headless, and needs no setup to test (§1.1). It is also the area with the least margin: at phase-08.0 it cleared its branch gate by a single branch, so a new uncovered branch there turns the strictest gate in the project red.
+
+**Every row above went up at phase-08.0, or stayed.** That is not a rewrite of the standard; it is what happened once §4.2 stopped counting host bindings as untested logic. `src/renderer/render` was declared at 50/40 and measured 34% — because the row averaged extracted, well-tested logic against Pixi files that a unit test cannot reach at all. Measuring only the first gives 98.94%, and the row that could honestly be asked for rose to 95/85. `src/main` moved the same way, from a declared 60% measuring 31% to 90/80.
 
 **Coverage is a floor, not a goal.** 90% coverage with tests that assert nothing is worse than 70% with tests that would catch a regression. Do not add assertion-free tests to hit a number.
+
+### 4.2 What is not measured, and what covers it instead
+
+A file leaves the measured set only when **both** hold:
+
+1. it is a **host binding** — its body exists to call Pixi, Electron, or the DOM host, and cannot be imported in the unit environment without one; **and**
+2. a named test does exercise it.
+
+A file that fails either test and is uncovered is a **gap**, not an exclusion, and the answer is a test. This register is checked by `tests/coverage-policy.test.ts`: every path must exist, appear in `coverage-policy.config.ts`, and name at least one detector that itself exists.
+
+The criterion is not new. `save-store.ts` states it as doctrine — the save directory is a parameter rather than `app.getPath`, so the whole atomic sequence is testable against a real temp directory — and §2 states its consequence: reaching for a mock is a design signal, not a testing need. Most rows below therefore carry a **Logic** column: the decisions were extracted long ago, and what is excluded is the sprite or window binding left over.
+
+| File                                       | Logic lives in                                 | Detector                                                              |
+| ------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------- |
+| `src/main/index.ts`                        | —                                              | `overlay`, `background-tick`, `save`, `companion` specs               |
+| `src/main/overlay-window.ts`               | —                                              | `overlay.spec.ts`                                                     |
+| `src/preload/index.ts`                     | `src/shared/ipc/contract.ts`                   | `overlay.spec.ts`, `companion.spec.ts`                                |
+| `src/renderer/entry/main.tsx`              | —                                              | `tests/boundaries.test.ts`, `overlay.spec.ts`                         |
+| `src/renderer/bootstrap/start.tsx`         | —                                              | `overlay.spec.ts`, `hud-layout.spec.ts`                               |
+| `src/renderer/bootstrap/world-mount.ts`    | —                                              | `render-budget.spec.ts` — criterion 18 cycles it twenty times         |
+| `src/renderer/bootstrap/devtools-mount.ts` | —                                              | `devtools-excluded-from-production`, `inspector`, `performance-panel` |
+| `src/renderer/render/app.ts`               | —                                              | `render-budget.spec.ts` — criterion 1                                 |
+| `src/renderer/render/layers.ts`            | —                                              | `render-budget.spec.ts`                                               |
+| `src/renderer/render/world-view.ts`        | `src/renderer/render/dirty-gate.ts`            | `render-budget.spec.ts` — criteria 5, 8                               |
+| `src/renderer/render/worker-view.ts`       | `src/renderer/render/worker-render.ts`         | `worker.spec.ts`, `render-budget.spec.ts`                             |
+| `src/renderer/render/crop-view.ts`         | `src/renderer/render/crop-anim.ts`             | `economy.spec.ts`, `render-budget.spec.ts`                            |
+| `src/renderer/render/building-view.ts`     | —                                              | `placement.spec.ts`, `render-budget.spec.ts`                          |
+| `src/renderer/render/building-ghost.ts`    | —                                              | `placement.spec.ts`                                                   |
+| `src/renderer/render/decor-view.ts`        | `src/renderer/render/decor.ts`                 | `render-budget.spec.ts`                                               |
+| `src/renderer/render/particle-view.ts`     | `src/renderer/render/particle-pool.ts`         | `render-budget.spec.ts`                                               |
+| `src/renderer/render/terrain-renderer.ts`  | `src/renderer/render/terrain-chunks.ts`        | `render-budget.spec.ts` — criterion 7                                 |
+| `src/renderer/render/floating-numbers.ts`  | `src/renderer/render/floating-number-state.ts` | `render-budget.spec.ts`                                               |
+| `src/renderer/render/effects.ts`           | `src/renderer/render/effect-state.ts`          | `render-budget.spec.ts`                                               |
+| `src/renderer/render/highlight.ts`         | —                                              | `inspector.spec.ts`, `render-budget.spec.ts`                          |
+| `src/renderer/render/chunk-debug.ts`       | —                                              | `chunk-debug.spec.ts`                                                 |
+| `src/renderer/render/path-debug.ts`        | —                                              | `path-debug.spec.ts`                                                  |
+| `src/renderer/render/world-debug.ts`       | —                                              | `inspector.spec.ts`                                                   |
+
+**23 files, 1,378 lines, of which unit tests reached 34.** That ratio is the argument: the set is denominator with almost no numerator, so removing it moved nine thresholds up and none down. If a future addition to this register would lower a threshold, it is the wrong addition.
+
+**`bootstrap/web-audio.ts` is deliberately absent.** It is a host binding by the criterion's first test — it is the one module that knows a sound is a file — but no test names it, so the second test refuses it and it stays measured at 0%. ADR-023 replaces it wholesale in phase-13; writing tests for a module with a scheduled deletion is not the answer, and neither is excluding it without a detector.
 
 ---
 
