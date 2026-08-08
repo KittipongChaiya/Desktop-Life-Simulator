@@ -10,7 +10,7 @@
  * loaded" sends a player to a forum, naming the cause sends them to the fix.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { SourceReport } from '../source-report';
@@ -70,5 +70,58 @@ describe('SourcesSection', () => {
       <SourcesSection report={report({ refused: [{ source: 'broken', reason: 'a cycle' }] })} />,
     );
     expect(screen.queryByText('Loaded')).toBeNull();
+  });
+});
+
+describe('the enable/disable toggle', () => {
+  it('dispatches a command rather than writing state (ADR-010 §1)', () => {
+    const calls: { source: string; enabled: boolean }[] = [];
+    render(
+      <SourcesSection
+        report={report({ installed: ['moonmelon'] })}
+        onSetEnabled={(source, enabled) => calls.push({ source, enabled })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(calls).toEqual([{ source: 'moonmelon', enabled: false }]);
+  });
+
+  it('shows a disabled source as unchecked, and re-enabling asks for enabled', () => {
+    const calls: { source: string; enabled: boolean }[] = [];
+    render(
+      <SourcesSection
+        report={report({ installed: ['moonmelon'] })}
+        disabled={new Set(['moonmelon'])}
+        onSetEnabled={(source, enabled) => calls.push({ source, enabled })}
+      />,
+    );
+
+    const box = screen.getByRole('checkbox');
+    expect(box.checked).toBe(false);
+
+    fireEvent.click(box);
+    expect(calls).toEqual([{ source: 'moonmelon', enabled: true }]);
+  });
+
+  it('offers NO toggle for core — the engine refuses to disable it', () => {
+    // A disabled control would invite the click and then refuse it. Rendering
+    // none says the same thing without the dead end.
+    render(<SourcesSection report={report({ installed: ['core'] })} onSetEnabled={() => {}} />);
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByText('Loaded')).toBeDefined();
+  });
+
+  it('stays read-only when no handler is supplied', () => {
+    render(<SourcesSection report={report({ installed: ['moonmelon'] })} />);
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('labels each toggle with its source, so it is reachable by name', () => {
+    render(
+      <SourcesSection report={report({ installed: ['moonmelon'] })} onSetEnabled={() => {}} />,
+    );
+    expect(screen.getByLabelText('moonmelon')).toBeDefined();
   });
 });

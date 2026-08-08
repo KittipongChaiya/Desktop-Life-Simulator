@@ -29,7 +29,7 @@ import {
 import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
 import type { SaveState } from '../save-controller';
 import { sourceReport } from '../source-report';
-import { useCompanion, useSave } from '../store-context';
+import { useCompanion, usePlayer, useSave } from '../store-context';
 
 import styles from './SettingsPanel.module.css';
 import { SourcesSection } from './SourcesSection';
@@ -61,6 +61,13 @@ const SAVE_LABELS: Readonly<Record<SaveState, string>> = {
 export function SettingsPanel(): ReactNode {
   const companion = useCompanion();
   const save = useSave();
+  const player = usePlayer();
+
+  // Mirrors `world.disabledSources` for the controls above. Seeded empty
+  // because a source disabled in a previous session is not installed in this
+  // one, so it has no row here to be unchecked — see the phase-09 document for
+  // the load-time half, which is not built.
+  const [disabledSources, setDisabledSources] = useState<ReadonlySet<string>>(new Set());
   const [open, setOpen] = useState(false);
 
   const opacity = useSyncExternalStore(
@@ -109,7 +116,27 @@ export function SettingsPanel(): ReactNode {
 
       {open && (
         <div className={styles['panel']}>
-          <SourcesSection report={sourceReport()} />
+          <SourcesSection
+            report={sourceReport()}
+            disabled={disabledSources}
+            onSetEnabled={(source, enabled) => {
+              // A command, not a state write (ADR-010 §1). The dispatcher
+              // validates it and may refuse — an unknown source, or core.
+              const result = player.submit({ type: 'setSourceEnabled', source, enabled });
+
+              // The control follows the WORLD, not the click: a refused command
+              // leaves the box where it was, rather than showing a change that
+              // did not happen.
+              if (!result.ok) return;
+
+              setDisabledSources((previous) => {
+                const next = new Set(previous);
+                if (enabled) next.delete(source);
+                else next.add(source);
+                return next;
+              });
+            }}
+          />
 
           <div className={styles['section']}>Desktop Companion</div>
           <div className={styles['row']}>

@@ -96,11 +96,12 @@ Buildings and tile kinds carry engine-side consequences — walkability, storage
 
 ## Remaining
 
-| Item                                                | Why it is not done                                                                                                                                                                      |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Enable/disable a source                             | World state (ADR-019 §7), so it travels through a **command** (ADR-010 §1), not a checkbox. The command does not exist, and a toggle that silently did nothing would be worse than none |
-| Per-source configuration                            | Untouched                                                                                                                                                                               |
-| `PLUGIN_GUIDE.md` §2 walkthrough                    | Unblocked by `a05c1be`; should be written by someone following it, which is the gate `PLAN.md` §3 actually measures                                                                     |
-| Namespace-scoped quarantine wired to source removal | The index was deferred in phase-08a because its only consumer is source removal; that consumer now exists                                                                               |
+| Item                                                | Why it is not done                                                                                                                                                                                                                     |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enablement HONOURED AT LOAD                         | The command and the toggle exist (`12020b4`, `this`), and `world.disabledSources` is saved. Nothing READS it when installing sources, so a disabled source still loads on the next start. That is the half that makes the feature real |
+| The panel reads enablement from world state         | The toggle mirrors accepted commands within a session rather than reading a snapshot slice, because no slice publishes `disabledSources`. Correct while the panel is open; not restored on reload                                      |
+| Per-source configuration                            | Untouched                                                                                                                                                                                                                              |
+| `PLUGIN_GUIDE.md` §2 walkthrough                    | Unblocked by `a05c1be`; should be written by someone following it, which is the gate `PLAN.md` §3 actually measures                                                                                                                    |
+| Namespace-scoped quarantine wired to source removal | The index was deferred in phase-08a because its only consumer is source removal; that consumer now exists                                                                                                                              |
 
 **Nothing above is a blocker for phase 10** (time simulation), which depends on phase 08, not 09.

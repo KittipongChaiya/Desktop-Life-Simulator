@@ -10,11 +10,14 @@
  * likely to be asking "why is my mod not working" than admiring the list of
  * ones that are, and the answer should not be below a scroll.
  *
- * Read-only for now, and deliberately so: enabling and disabling a source is
- * world state (ADR-019 §7), which means it travels through a command like every
- * other world mutation (ADR-010 §1) rather than being a checkbox that writes
- * directly. That command does not exist yet, and a toggle that silently did
- * nothing would be worse than no toggle.
+ * The toggle DISPATCHES A COMMAND rather than writing state (ADR-010 §1):
+ * enablement is world state (ADR-019 §7), so it goes through the same path as
+ * every other world mutation and is validated, rejectable, and replayable.
+ *
+ * `core` has no toggle at all, because it may not be disabled — a world with no
+ * crops, items or tile kinds is not a state a player could undo from the very
+ * UI that caused it. Rendering a disabled control would invite the click and
+ * then refuse it; rendering none says the same thing without the dead end.
  */
 
 import type { SourceReport } from '../source-report';
@@ -23,10 +26,22 @@ import styles from './SettingsPanel.module.css';
 
 export interface SourcesSectionProps {
   readonly report: SourceReport;
+  /** Sources currently switched off, from world state. */
+  readonly disabled?: ReadonlySet<string>;
+  /** Dispatches the enablement change. Absent renders the list read-only. */
+  readonly onSetEnabled?: (source: string, enabled: boolean) => void;
 }
 
-export function SourcesSection({ report }: SourcesSectionProps): React.JSX.Element {
+/** Sources the engine refuses to disable, so no toggle is offered for them. */
+const UNDISABLEABLE = new Set(['core']);
+
+export function SourcesSection({
+  report,
+  disabled,
+  onSetEnabled,
+}: SourcesSectionProps): React.JSX.Element {
   const { installed, refused } = report;
+  const off = disabled ?? new Set<string>();
 
   return (
     <>
@@ -43,8 +58,21 @@ export function SourcesSection({ report }: SourcesSectionProps): React.JSX.Eleme
 
       {installed.map((source) => (
         <div className={styles['row']} key={`installed-${source}`}>
-          <span className={styles['name']}>{source}</span>
-          <span>Loaded</span>
+          <label className={styles['name']} htmlFor={`source-${source}`}>
+            {source}
+          </label>
+          {onSetEnabled === undefined || UNDISABLEABLE.has(source) ? (
+            <span>Loaded</span>
+          ) : (
+            <input
+              id={`source-${source}`}
+              type="checkbox"
+              checked={!off.has(source)}
+              onChange={(event) => {
+                onSetEnabled(source, event.target.checked);
+              }}
+            />
+          )}
         </div>
       ))}
 
