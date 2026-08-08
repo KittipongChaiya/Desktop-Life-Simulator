@@ -25,6 +25,7 @@ import { DEFAULT_BINDINGS, ShortcutAction } from '../shared/shortcuts';
 import { applyHidden, applyOpacity, globalShortcutRegistrar } from './desktop-companion';
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
+import { discoverSources } from './plugin-discovery';
 import { atomicWriteSave, readSavesForLoad, slotPath } from './save-store';
 import { createSaveCoordinator, type SaveCoordinator } from './save-triggers';
 import { loadSettings, saveSettings } from './settings';
@@ -36,6 +37,11 @@ import {
   type AppSettings,
 } from './settings-schema';
 import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
+
+/** `userData/plugins` — where installed content sources live (phase-09d). */
+function pluginsDir(): string {
+  return join(app.getPath('userData'), 'plugins');
+}
 
 /** `userData/saves` — never hardcoded (`PROJECT_STRUCTURE.md` §7). */
 function savesDir(): string {
@@ -334,6 +340,8 @@ function registerIpc(): void {
     // hydration run in the renderer (ARCHITECTURE.md 4.3).
     return readSavesForLoad(savesDir());
   });
+
+  ipcMain.handle(InvokeChannel.PluginsDiscover, () => discoverSources(pluginsDir()));
 
   ipcMain.handle(InvokeChannel.SaveWrite, (_event, payload: unknown): SaveWriteOutcome => {
     const path = slotPath(savesDir());

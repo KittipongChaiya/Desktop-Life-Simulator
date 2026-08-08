@@ -16,6 +16,13 @@ export const InvokeChannel = {
   /** Current overlay state, for hydrating the UI on load. */
   GetOverlayState: 'overlay:get-state',
   /**
+   * Content sources found on disk (phase-09d, ADR-019 §6).
+   *
+   * Returns BYTES AND PATHS, never judgements: main may not import `src/sim`,
+   * so the renderer's composition root validates and resolves what this finds.
+   */
+  PluginsDiscover: 'plugins:discover',
+  /**
    * Sets the desktop-companion opacity dial, in percent (phase-01.8a).
    * Main sanitizes to the dial's range/step and applies instantly (ADR-014 §2).
    */
@@ -146,6 +153,19 @@ export interface CompanionState {
  * failure discovered AFTER migration also falls back to `.bak` (§5.1) — the
  * renderer needs the backup in hand without a second round trip.
  */
+/**
+ * What main found in the plugins directory (phase-09d).
+ *
+ * Deliberately unvalidated: `manifest` is whatever `JSON.parse` produced, and
+ * the renderer decides what it means. `failed` carries directories that look
+ * like sources but could not be read, so a plugin never vanishes without a
+ * reason someone can show its author.
+ */
+export interface SourceDiscovery {
+  readonly sources: readonly { readonly directory: string; readonly manifest: unknown }[];
+  readonly failed: readonly { readonly directory: string; readonly reason: string }[];
+}
+
 export interface SavesOnDisk {
   /** Parsed `slot-0.json`, or null if absent or unparseable. */
   readonly primary: unknown;
@@ -181,6 +201,7 @@ export interface IpcContract {
   [InvokeChannel.SetVolume]: { request: number; response: CompanionState };
   [InvokeChannel.SetMotion]: { request: Partial<MotionSettings>; response: CompanionState };
   [InvokeChannel.ToggleMuted]: { request: void; response: CompanionState };
+  [InvokeChannel.PluginsDiscover]: { request: void; response: SourceDiscovery };
   [InvokeChannel.SaveLoad]: { request: void; response: SavesOnDisk };
   [InvokeChannel.SaveWrite]: { request: unknown; response: SaveWriteOutcome };
   [InvokeChannel.Quit]: { request: void; response: void };

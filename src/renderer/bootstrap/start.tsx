@@ -14,6 +14,7 @@
 // sources are assembled — `src/sim` may not import them (ARCHITECTURE.md §14.1),
 // and a world created before this import would have no content at all.
 import '../../../plugins/core';
+
 import { observeCommands, observeExecutionFailure } from '@devtools/commands/observer';
 import {
   createCommandRing,
@@ -67,6 +68,7 @@ import { createWorldDebug } from '../render/world-debug';
 import { createPlayerInputSource } from './command-dispatch';
 import { mountDevTools } from './devtools-mount';
 import { createGameLoop } from './game-loop';
+import { installDiscoveredSources } from './install-sources';
 import { ghostFor } from './placement-preview';
 import { createPlayerInput } from './player-input';
 import { attachPointerActions, toHighlight } from './pointer-actions';
@@ -202,6 +204,21 @@ async function bootApplication(): Promise<void> {
           actionFeedback.report(error);
         },
   };
+
+  // Content sources BEFORE the world: `createWorld` reads the installed set,
+  // so a source discovered after it would not appear in the farm it was meant
+  // to add to. Core is already installed — this module imports it at the top
+  // for that side effect — and discovery adds whatever else is on disk.
+  const discovery = await window.desktopLife.plugins.discover();
+  const installOutcome = installDiscoveredSources(discovery);
+  // `installOutcome.refused` names every source that did not load and why.
+  // It is deliberately NOT reported from here: this layer has no logging
+  // channel, and inventing one would be the wrong place anyway — a refusal is
+  // something the PLAYER needs to see, in the plugin settings panel that lists
+  // installed and refused sources with their reasons (phase-09's third
+  // boundary). Until that lands the reasons are produced and tested but not yet
+  // displayed, which is recorded rather than papered over.
+  void installOutcome;
 
   const saves = await window.desktopLife.save.load();
   let world: World;

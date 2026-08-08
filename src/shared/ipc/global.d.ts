@@ -8,7 +8,13 @@
 
 import type { MotionSettings } from '../motion';
 
-import type { CompanionState, OverlayState, SavesOnDisk, SaveWriteOutcome } from './contract';
+import type {
+  CompanionState,
+  OverlayState,
+  SavesOnDisk,
+  SaveWriteOutcome,
+  SourceDiscovery,
+} from './contract';
 
 declare global {
   interface Window {
@@ -30,6 +36,10 @@ declare global {
         setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
         toggleMuted(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
+      };
+      /** Content sources on disk (phase-09d). Unvalidated; the renderer judges. */
+      readonly plugins: {
+        discover(): Promise<SourceDiscovery>;
       };
       readonly save: {
         load(): Promise<SavesOnDisk>;

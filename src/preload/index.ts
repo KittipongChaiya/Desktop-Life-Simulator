@@ -15,6 +15,7 @@ import {
   type CompanionState,
   type OverlayState,
   type SavesOnDisk,
+  type SourceDiscovery,
   type SaveWriteOutcome,
 } from '../shared/ipc/contract';
 import type { MotionSettings } from '../shared/motion';
@@ -47,6 +48,11 @@ export interface DesktopLifeApi {
     onStateChanged(listener: (state: CompanionState) => void): () => void;
   };
   /** Save/load transport (phase-07c). Disk stays in main (ADR-003 §3). */
+  /** Content sources on disk (phase-09d). Unvalidated; the renderer judges. */
+  readonly plugins: {
+    discover(): Promise<SourceDiscovery>;
+  };
+
   readonly save: {
     /** Both save files, parsed, with `.bak` routing done (`SAVE_FORMAT.md` §4.3 step 1). */
     load(): Promise<SavesOnDisk>;
@@ -118,6 +124,11 @@ const api: DesktopLifeApi = {
         ipcRenderer.off(EventChannel.CompanionStateChanged, handler);
       };
     },
+  },
+
+  plugins: {
+    /** Content sources found on disk. Unvalidated — the renderer judges them. */
+    discover: () => ipcRenderer.invoke(InvokeChannel.PluginsDiscover) as Promise<SourceDiscovery>,
   },
 
   save: {
