@@ -311,6 +311,19 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       req(isStr(entry['version']), `${path}.version`, 'a string');
     });
 
+    // v3 (ADR-020 §2, §3). Both are frozen per world, so a corrupt value here
+    // would renumber every past day rather than fail loudly later.
+    req(
+      isInt(world['ticksPerDay']) && world['ticksPerDay'] > 0,
+      'world.ticksPerDay',
+      'a positive integer',
+    );
+    req(Array.isArray(world['dayPhases']), 'world.dayPhases', 'an array');
+    req((world['dayPhases'] as unknown[]).length > 0, 'world.dayPhases', 'a non-empty array');
+    (world['dayPhases'] as unknown[]).forEach((phase, i) => {
+      req(isStr(phase), `world.dayPhases[${i}]`, 'a string');
+    });
+
     req(Array.isArray(world['disabledSources']), 'world.disabledSources', 'an array');
     (world['disabledSources'] as unknown[]).forEach((value2, i) => {
       req(isStr(value2), `world.disabledSources[${i}]`, 'a string');

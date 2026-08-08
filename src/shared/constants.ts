@@ -100,3 +100,12 @@ export const VOLUME_DEFAULT_PERCENT = 60;
  * one-constant decision, deliberately recorded as such.
  */
 export const AUDIO_MUTED_BY_DEFAULT = true;
+
+/**
+ * The day's length for a NEW world, in ticks. Phase-10b — ADR-020 §2.
+ *
+ * 24,000 ticks is twenty minutes at 20 Hz. It is a DEFAULT, not a constant the
+ * simulation reads: every world freezes its own value at creation, so changing
+ * this rebalances new worlds without touching anyone's past (ADR-020 §2).
+ */
+export const DEFAULT_TICKS_PER_DAY = 24_000;

@@ -456,8 +456,11 @@ describe('the compatibility policy (7.2 §Compatibility Rules)', () => {
     // `grid.moisture`. What this pins is that the chain reaches the current
     // version in unbroken single steps, which is what makes a removal safe
     // when one finally lands.
-    expect(MIGRATIONS.map((m) => [m.from, m.to])).toEqual([[1, 2]]);
-    expect(CURRENT_SCHEMA_VERSION).toBe(2);
+    expect(MIGRATIONS.map((m) => [m.from, m.to])).toEqual([
+      [1, 2],
+      [2, 3],
+    ]);
+    expect(CURRENT_SCHEMA_VERSION).toBe(3);
   });
 });
 

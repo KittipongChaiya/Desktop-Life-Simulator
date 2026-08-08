@@ -32,7 +32,7 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
 
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "magic": "desktop-life-simulator/save",
 
   "meta": {
@@ -117,6 +117,19 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     // invisible. World state, not a preference — two players with one seed and
     // different sets have different worlds.
     "disabledSources": [],
+
+    // v3 — ADR-020 §2. The day's LENGTH and its PHASE SET, frozen when the
+    // world is created. The calendar itself is not stored: day, time-of-day and
+    // phase are pure functions of `tick` and these two values (ADR-020 §1), so
+    // there is no day counter to drift out of step with the tick.
+    //
+    // They are per-world rather than constants because changing either
+    // reinterprets the whole past: halve `ticksPerDay` and a player on day 40
+    // is silently on day 80, with every "planted on day 12" memory now wrong.
+    // A rebalance may change the default for NEW worlds; existing ones keep
+    // what they were built with.
+    "ticksPerDay": 24000,
+    "dayPhases": ["dawn", "day", "dusk", "night"],
   },
 
   "quarantine": {
@@ -137,20 +150,22 @@ Finalized in phase-07a against the shipped `World`, exactly as `src/persistence/
 
 ### 2.1 Field rules
 
-| Rule                                                | Reason                                                                                                       |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `schemaVersion` is first                            | Identifiable in a corrupt file                                                                               |
-| `magic` is second, and constant forever             | The format's identity (ADR-015 §1); a file without it is not a save                                          |
-| `meta.gameVersion` never drives logic               | Only `schemaVersion` controls migration; version strings drift and get reused (ADR-015 §2)                   |
-| `meta.createdAtUnixMs` is written once              | World creation time — preserved verbatim by every save and every migration                                   |
-| `rngState` is saved, not just `seed`                | Determinism must resume mid-stream, not restart (ADR-007)                                                    |
-| Grid arrays are base64 typed arrays                 | A 4,096-element JSON number array is ~8× larger and slower to parse; 32-bit words are explicit little-endian |
-| Sparse stores serialize as arrays of records        | Maps are not JSON-native; arrays preserve order deterministically                                            |
-| Entity IDs are plain numbers in the save            | Branded types (`CODE_STYLE.md` §1.4) are compile-time only                                                   |
-| Container capacities are **not** persisted          | Constants and definitions own them — a rebalance reaches old saves without a migration (ADR-004 §5)          |
-| Container stack **order** is preserved verbatim     | Partial-stack top-up order is behavior — order is state, not presentation                                    |
-| `ids` — the allocator counters, persisted verbatim  | `max + 1` reconstruction reissues freed IDs and breaks continue-identically (ADR-015 §6)                     |
-| Content is referenced by `ContentId`, never inlined | ADR-004 §5 — rebalancing must not require a migration                                                        |
+| Rule                                                | Reason                                                                                                               |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `schemaVersion` is first                            | Identifiable in a corrupt file                                                                                       |
+| `magic` is second, and constant forever             | The format's identity (ADR-015 §1); a file without it is not a save                                                  |
+| `meta.gameVersion` never drives logic               | Only `schemaVersion` controls migration; version strings drift and get reused (ADR-015 §2)                           |
+| `meta.createdAtUnixMs` is written once              | World creation time — preserved verbatim by every save and every migration                                           |
+| `rngState` is saved, not just `seed`                | Determinism must resume mid-stream, not restart (ADR-007)                                                            |
+| Grid arrays are base64 typed arrays                 | A 4,096-element JSON number array is ~8× larger and slower to parse; 32-bit words are explicit little-endian         |
+| Sparse stores serialize as arrays of records        | Maps are not JSON-native; arrays preserve order deterministically                                                    |
+| Entity IDs are plain numbers in the save            | Branded types (`CODE_STYLE.md` §1.4) are compile-time only                                                           |
+| Container capacities are **not** persisted          | Constants and definitions own them — a rebalance reaches old saves without a migration (ADR-004 §5)                  |
+| Container stack **order** is preserved verbatim     | Partial-stack top-up order is behavior — order is state, not presentation                                            |
+| `ids` — the allocator counters, persisted verbatim  | `max + 1` reconstruction reissues freed IDs and breaks continue-identically (ADR-015 §6)                             |
+| Content is referenced by `ContentId`, never inlined | ADR-004 §5 — rebalancing must not require a migration                                                                |
+| The **calendar** is derived, never stored           | Day and phase are functions of `tick` (ADR-020 §1); a stored counter can disagree with the tick, a derivation cannot |
+| `ticksPerDay` **is** stored, and is frozen          | The one calendar input a rebalance must not reach — changing it renumbers every past day (ADR-020 §2)                |
 
 ### 2.2 Never persisted
 

@@ -63,6 +63,8 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
   const world = createWorld(saved.seed, {
     ...options,
     disabledSources: saved.disabledSources,
+    ticksPerDay: saved.ticksPerDay,
+    dayPhases: saved.dayPhases,
   });
 
   world.tick = saved.tick;

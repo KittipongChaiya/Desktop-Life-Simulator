@@ -139,6 +139,8 @@ export function toSaveDocument(
         }))
         .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
       disabledSources: [...world.disabledSources].sort(),
+      ticksPerDay: world.ticksPerDay,
+      dayPhases: [...world.dayPhases],
       crops,
       workers,
       buildings,

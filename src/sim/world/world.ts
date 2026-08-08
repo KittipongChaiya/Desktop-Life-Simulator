@@ -10,6 +10,7 @@
  * (AI_RULES.md §3.2).
  */
 
+import { DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
 import type { BuildingId, ContentId, TileIndex } from '../../shared/ids';
 import { registerBuildingCommands } from '../commands/building-commands';
 import { registerCommerceCommands } from '../commands/commerce-commands';
@@ -31,6 +32,7 @@ import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
 import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
 import { createSnapshotState, type SnapshotState } from '../snapshot/state';
+import { DAY_PHASES } from '../time/game-clock';
 
 import { createBuildingStore, type BuildingStore } from './building';
 import { createContainer, type Container } from './container';
@@ -160,6 +162,17 @@ export interface World {
    * worlds.
    */
   readonly disabledSources: Set<string>;
+
+  /**
+   * This world's day length, in ticks. Frozen at creation (ADR-020 §2).
+   *
+   * Read by the calendar derivations, never written after construction: change
+   * it on a live world and every past day renumbers underneath the player.
+   */
+  readonly ticksPerDay: number;
+
+  /** This world's day phases, in order. Frozen at creation (ADR-020 §3). */
+  readonly dayPhases: readonly string[];
 }
 
 /** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
@@ -187,6 +200,13 @@ export interface WorldOptions {
    * what a fresh world starts as.
    */
   readonly disabledSources?: readonly string[];
+  /**
+   * The day's length, restored from a save. Absent means a NEW world, which
+   * takes the current default and freezes it (ADR-020 §2).
+   */
+  readonly ticksPerDay?: number;
+  /** The day's phases, restored from a save. Absent means the current set. */
+  readonly dayPhases?: readonly string[];
 }
 
 /**
@@ -226,6 +246,8 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   const world: World = {
     seed,
     sources: installedSources(),
+    ticksPerDay: options.ticksPerDay ?? DEFAULT_TICKS_PER_DAY,
+    dayPhases: options.dayPhases ?? [...DAY_PHASES],
     disabledSources: new Set(options.disabledSources ?? []),
     tick: 0,
     rng: createRng(seed),

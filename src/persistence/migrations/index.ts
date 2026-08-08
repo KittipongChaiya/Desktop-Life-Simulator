@@ -18,9 +18,13 @@
 import type { Migration } from '../migrate';
 
 import { v1ToV2 } from './v1-to-v2';
+import { v2ToV3 } from './v2-to-v3';
 
 export const MIGRATIONS: readonly Migration[] = [
   // Phase-09b: the first link. Records the world's content sources (ADR-026 §4)
   // and its disabled set (ADR-019 §7).
   v1ToV2,
+  // Phase-10b: the day is derived, but its length and phases are frozen per
+  // world so a rebalance cannot renumber anyone's past (ADR-020 §2).
+  v2ToV3,
 ];

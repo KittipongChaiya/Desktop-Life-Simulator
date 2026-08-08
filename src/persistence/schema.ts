@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -229,6 +229,24 @@ export interface SaveWorld {
    * worlds (ADR-014 §4's boundary, applied rather than broken).
    */
   readonly disabledSources: readonly string[];
+  /**
+   * The day's length for THIS world, frozen at creation (v3, ADR-020 §2).
+   *
+   * Written once and never changed. A derived calendar has no history to
+   * corrupt, which is exactly why this rule is needed: change it on an existing
+   * world and every past day silently renumbers — a player on day 40 becomes a
+   * player on day 13. Freezing it per world lets a rebalance change the default
+   * for new worlds without rewriting anyone's past.
+   */
+  readonly ticksPerDay: number;
+  /**
+   * The day's phases, in order, frozen at creation (v3, ADR-020 §3).
+   *
+   * Stored for the same reason as `ticksPerDay`: the phases a past day passed
+   * through are part of what that day WAS. Adding a phase to the engine must
+   * not reinterpret a save written before it existed.
+   */
+  readonly dayPhases: readonly string[];
 }
 
 /**
