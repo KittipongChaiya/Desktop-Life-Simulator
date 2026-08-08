@@ -129,6 +129,31 @@ let lastCatchUp: CatchUpReport | null = null;
  */
 let lastSummary: ReturnSummaryReport | null = null;
 
+/**
+ * The disabled-source set from a save, read before anything hydrates it.
+ *
+ * Deliberately defensive: this is a raw document straight off disk, which
+ * `AI_RULES.md` §2.4 defines as untrusted, and it has not been through
+ * migration or validation yet — it cannot be, because validating it needs a
+ * world and building a world needs the sources this decides. Anything that is
+ * not a list of strings reads as "nothing disabled", which fails toward a
+ * playable farm rather than an empty one.
+ */
+function savedDisabledSources(saves: { primary: unknown; backup: unknown }): ReadonlySet<string> {
+  for (const candidate of [saves.primary, saves.backup]) {
+    if (typeof candidate !== 'object' || candidate === null) continue;
+    const world = (candidate as { world?: unknown }).world;
+    if (typeof world !== 'object' || world === null) continue;
+
+    const disabled = (world as { disabledSources?: unknown }).disabledSources;
+    if (!Array.isArray(disabled)) continue;
+
+    return new Set(disabled.filter((entry): entry is string => typeof entry === 'string'));
+  }
+
+  return new Set();
+}
+
 export function startApplication(): void {
   // Loading is async (an IPC round trip), so the composition happens inside.
   // A boot failure must be VISIBLE, not a blank overlay.
@@ -206,19 +231,22 @@ async function bootApplication(): Promise<void> {
         },
   };
 
-  // Content sources BEFORE the world: `createWorld` reads the installed set,
-  // so a source discovered after it would not appear in the farm it was meant
-  // to add to. Core is already installed — this module imports it at the top
-  // for that side effect — and discovery adds whatever else is on disk.
+  // THE SAVE COMES FIRST, and the ordering is load-bearing three ways.
+  // `createWorld` reads the installed set, so sources must install before the
+  // world; enablement is world state, so the save must be read before sources
+  // install; and the save cannot be hydrated first because hydrating it builds
+  // a world. So the disabled set is read from the RAW document — untrusted,
+  // like everything else off disk — and the ordinary load runs afterwards.
+  const saves = await window.desktopLife.save.load();
+
   const discovery = await window.desktopLife.plugins.discover();
-  const installOutcome = installDiscoveredSources(discovery);
+  const installOutcome = installDiscoveredSources(discovery, savedDisabledSources(saves));
   // Every source that did not load, and why, reaches the settings panel from
   // here. The loader has always known; until phase-09f nothing said so out loud
   // (ADR-019 §6 requires a refusal to be reported, and a reason nobody can read
   // is not a report).
   setSourceReport(installOutcome);
 
-  const saves = await window.desktopLife.save.load();
   let world: World;
   let session: SaveSession;
 

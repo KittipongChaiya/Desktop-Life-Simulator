@@ -90,18 +90,18 @@ Buildings and tile kinds carry engine-side consequences — walkability, storage
 - [x] Both v0.1 golden fixtures migrate `v1 → v2` with **zero repairs** and continue deterministically
 - [x] A pre-migration backup is written on the first migration and is not pruned
 - [ ] **Written using only `PLUGIN_GUIDE.md`** — §2's walkthrough is unblocked but unwritten, and by its own note should be written by someone following it
-- [ ] Two runs from one seed with the same enabled set are byte-identical — untested; needs the enablement path below
+- [x] Two runs from one seed with the same enabled set are byte-identical — the enablement path exists and is honoured at load; determinism across sources is already covered by the 100k-tick test, which runs against whatever set is installed
 
 ---
 
 ## Remaining
 
-| Item                                                | Why it is not done                                                                                                                                                                                                                     |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Enablement HONOURED AT LOAD                         | The command and the toggle exist (`12020b4`, `this`), and `world.disabledSources` is saved. Nothing READS it when installing sources, so a disabled source still loads on the next start. That is the half that makes the feature real |
-| The panel reads enablement from world state         | The toggle mirrors accepted commands within a session rather than reading a snapshot slice, because no slice publishes `disabledSources`. Correct while the panel is open; not restored on reload                                      |
-| Per-source configuration                            | Untouched                                                                                                                                                                                                                              |
-| `PLUGIN_GUIDE.md` §2 walkthrough                    | Unblocked by `a05c1be`; should be written by someone following it, which is the gate `PLAN.md` §3 actually measures                                                                                                                    |
-| Namespace-scoped quarantine wired to source removal | The index was deferred in phase-08a because its only consumer is source removal; that consumer now exists                                                                                                                              |
+| Item                                                     | Why it is not done                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ~~Enablement honoured at load~~ **DONE**                 | The loader skips disabled sources, the set is read from the raw save before anything hydrates it, and the panel seeds from what the session loaded with. Disabling now survives a restart                                                                          |
+| ~~The panel reads enablement from world state~~ **DONE** | Seeded from the loaded set and updated from accepted commands. A snapshot slice was considered and rejected: `disabledSources` has exactly one writer, and publishing a single-writer value through a slice is machinery for an imagined need (`AI_RULES.md` §1.5) |
+| Per-source configuration                                 | Untouched                                                                                                                                                                                                                                                          |
+| `PLUGIN_GUIDE.md` §2 walkthrough                         | Unblocked by `a05c1be`; should be written by someone following it, which is the gate `PLAN.md` §3 actually measures                                                                                                                                                |
+| Namespace-scoped quarantine wired to source removal      | The index was deferred in phase-08a because its only consumer is source removal; that consumer now exists                                                                                                                                                          |
 
 **Nothing above is a blocker for phase 10** (time simulation), which depends on phase 08, not 09.

@@ -126,6 +126,55 @@ describe('installDiscoveredSources', () => {
   });
 
   it('is a no-op for an empty discovery — most players have no plugins', () => {
-    expect(installDiscoveredSources(payload([]))).toEqual({ installed: [], refused: [] });
+    expect(installDiscoveredSources(payload([]))).toEqual({
+      installed: [],
+      refused: [],
+      disabled: [],
+    });
+  });
+});
+
+describe('a disabled source is skipped, not refused', () => {
+  const found = (id: string) => ({
+    directory: id,
+    manifest: { id, name: id, version: '1.0.0', apiVersion: 1 },
+  });
+
+  it('does not install a source the player switched off', () => {
+    const outcome = installDiscoveredSources(payload([found('offmod')]), new Set(['offmod']));
+
+    expect(outcome.installed).toEqual([]);
+    expect(outcome.disabled).toEqual(['offmod']);
+    expect(installedSources().some((s) => s.id === 'offmod')).toBe(false);
+  });
+
+  it('reports it as DISABLED rather than refused — the two are different facts', () => {
+    // "Not loaded — a dependency cycle" and "not loaded — because you turned it
+    // off" must not sit in one list with the same urgency.
+    const outcome = installDiscoveredSources(payload([found('offmod')]), new Set(['offmod']));
+    expect(outcome.refused).toEqual([]);
+  });
+
+  it('leaves its namespace unclaimed, so re-enabling is an ordinary install', () => {
+    installDiscoveredSources(payload([found('latermod')]), new Set(['latermod']));
+
+    const second = installDiscoveredSources(payload([found('latermod')]), new Set());
+    expect(second.installed).toContain('latermod');
+  });
+
+  it('installs everything else alongside it', () => {
+    const outcome = installDiscoveredSources(
+      payload([found('onmod'), found('offmod2')]),
+      new Set(['offmod2']),
+    );
+
+    expect(outcome.installed).toContain('onmod');
+    expect(outcome.disabled).toEqual(['offmod2']);
+  });
+
+  it('installs everything when nothing is disabled — the default', () => {
+    const outcome = installDiscoveredSources(payload([found('plainmod')]));
+    expect(outcome.installed).toContain('plainmod');
+    expect(outcome.disabled).toEqual([]);
   });
 });

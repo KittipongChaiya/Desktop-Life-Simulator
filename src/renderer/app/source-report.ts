@@ -19,9 +19,11 @@ export interface SourceReport {
   readonly installed: readonly string[];
   /** Sources that did not, each with the reason its author would need. */
   readonly refused: readonly { readonly source: string; readonly reason: string }[];
+  /** Sources the player has switched off, from the save this session loaded. */
+  readonly disabled: readonly string[];
 }
 
-const EMPTY: SourceReport = { installed: [], refused: [] };
+const EMPTY: SourceReport = { installed: [], refused: [], disabled: [] };
 
 let report: SourceReport = EMPTY;
 

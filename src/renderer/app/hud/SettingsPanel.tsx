@@ -63,11 +63,17 @@ export function SettingsPanel(): ReactNode {
   const save = useSave();
   const player = usePlayer();
 
-  // Mirrors `world.disabledSources` for the controls above. Seeded empty
-  // because a source disabled in a previous session is not installed in this
-  // one, so it has no row here to be unchecked — see the phase-09 document for
-  // the load-time half, which is not built.
-  const [disabledSources, setDisabledSources] = useState<ReadonlySet<string>>(new Set());
+  // Mirrors `world.disabledSources` for the controls above. Seeded from the
+  // set this session LOADED with, so a source switched off in an earlier
+  // session shows as off — and updated from accepted commands after that.
+  //
+  // A snapshot slice would be the orthodox source, but nothing else mutates
+  // this set: it is written only by `setSourceEnabled`, and every acceptance
+  // is applied below. Adding a slice to publish a value with one writer is
+  // machinery for an imagined need (`AI_RULES.md` §1.5).
+  const [disabledSources, setDisabledSources] = useState<ReadonlySet<string>>(
+    () => new Set(sourceReport().disabled),
+  );
   const [open, setOpen] = useState(false);
 
   const opacity = useSyncExternalStore(

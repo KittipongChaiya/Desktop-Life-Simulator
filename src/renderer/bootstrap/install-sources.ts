@@ -46,6 +46,16 @@ export interface InstallOutcome {
   readonly installed: readonly string[];
   /** Everything refused, each with the reason an author would need. */
   readonly refused: readonly { readonly source: string; readonly reason: string }[];
+  /**
+   * Sources the player switched off, which were found and deliberately not
+   * installed.
+   *
+   * A THIRD bucket, not a refusal: refusing means "this could not load and here
+   * is what to fix". A disabled source loaded fine and the player said no.
+   * Collapsing the two would put "not loaded — a cycle" and "not loaded —
+   * because you turned it off" in the same list with the same urgency.
+   */
+  readonly disabled: readonly string[];
 }
 
 /** A manifest becomes the source record the registry owns. */
@@ -67,7 +77,10 @@ function toContentSource(manifest: SourceManifest): ContentSource {
  * v1 a source is data, so there is nothing to execute here — phase-09's loader
  * parses and validates, and never evaluates (ADR-019 §4).
  */
-export function installDiscoveredSources(discovered: DiscoveredPayload): InstallOutcome {
+export function installDiscoveredSources(
+  discovered: DiscoveredPayload,
+  disabledSources: ReadonlySet<string> = new Set(),
+): InstallOutcome {
   const refused: { source: string; reason: string }[] = discovered.failed.map((failure) => ({
     source: failure.directory,
     reason: failure.reason,
@@ -120,7 +133,18 @@ export function installDiscoveredSources(discovered: DiscoveredPayload): Install
   }
 
   const installed: string[] = [];
+  const disabled: string[] = [];
+
   for (const manifest of resolution.loaded) {
+    // Enablement is world state read from the save (ADR-019 §7). A disabled
+    // source is skipped BEFORE it claims its namespaces, so re-enabling it is
+    // an ordinary install rather than an unwind — and its saved entities take
+    // the same quarantine path an uninstalled source's do (ADR-026 §3).
+    if (disabledSources.has(manifest.id)) {
+      disabled.push(manifest.id);
+      continue;
+    }
+
     // The installer runs PER WORLD, not here: definitions are data, but the
     // registries they land in belong to a world. `registerContent` enforces
     // that a source may only register inside namespaces it owns, so a manifest
@@ -132,5 +156,5 @@ export function installDiscoveredSources(discovered: DiscoveredPayload): Install
     else refused.push({ source: manifest.id, reason: result.error.message });
   }
 
-  return { installed, refused };
+  return { installed, refused, disabled };
 }
