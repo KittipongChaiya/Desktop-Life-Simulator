@@ -75,6 +75,23 @@ tilledAt    : tick          (Uint32, 0 = not tilled)
 
 Crops are stored separately, keyed by tile index (ADR-004 §2) — most tiles have no crop, so a sparse store is correct.
 
+### 2.4 The day (v0.2, phase-10)
+
+A day is **24,000 ticks — 20 real minutes** at 20 Hz, and passes through four named phases:
+
+| Phase | Runs from | Length    | Looks like             |
+| ----- | --------- | --------- | ---------------------- |
+| Dawn  | 0%        | 5 minutes | A warm, light wash     |
+| Day   | 25%       | 9 minutes | No tint at all         |
+| Dusk  | 70%       | 2 minutes | A deeper orange        |
+| Night | 80%       | 4 minutes | A dim blue, never dark |
+
+**Nothing in the game depends on the time of day**, and that is a design choice rather than an unfinished one. No crop stops growing at night; no worker refuses to work in the dark. `VISION.md` §2.2 forbids punishing absence, and a night that halted production would punish exactly the player who leaves the game running overnight — the player this product is for. Time-gated behaviour arrives, if ever, with the tier that needs it (v0.3 NPC schedules).
+
+Night is a **legible dim, not a dark screen**. A player must be able to see that a crop is ready at 3am without waiting for dawn.
+
+The day's length is fixed when a world is created and never changes for that world: altering it would silently renumber every day the player has already spent (ADR-020 §2).
+
 ---
 
 ## 3. Crops
@@ -459,17 +476,17 @@ Hidden and click-through compose over any base state; work mode is a variant of 
 
 Where each future system attaches. **Designed for, not built** (`VISION.md` §4.2).
 
-| Future system    | Attaches via                                        | Cost paid in v0.1                              |
-| ---------------- | --------------------------------------------------- | ---------------------------------------------- |
-| Seasons, weather | Growth-rate modifiers; render layers 4–5            | Moisture already modifies growth; layers exist |
-| Day/night        | Lighting layer; worker schedules                    | Layer 5 exists; energy cycle exists            |
-| NPCs (v0.3)      | Worker state machine generalizes to any actor       | FSM is data-driven, not worker-specific        |
-| Town, contracts  | Economy price multipliers become demand curves      | Dynamic pricing already exists                 |
-| Trading          | Item registry + price model                         | Both exist                                     |
-| Factory (v0.4)   | Buildings that consume and produce items            | Building + inventory model supports it         |
-| Exploration      | World grid extends beyond the owned plot            | Grid is already 64× the starting plot          |
-| Combat (v1.0)    | `health` side-table over entity stores (ADR-004 §4) | Composition model supports it                  |
-| Mods             | Content registries + namespaced IDs                 | ADR-003 §6                                     |
+| Future system                  | Attaches via                                        | Cost paid in v0.1                              |
+| ------------------------------ | --------------------------------------------------- | ---------------------------------------------- |
+| Seasons, weather               | Growth-rate modifiers; render layers 4–5            | Moisture already modifies growth; layers exist |
+| ~~Day/night~~ **BUILT (v0.2)** | Lighting layer; worker schedules                    | Layer 5 claimed in phase-10c; see §2.4         |
+| NPCs (v0.3)                    | Worker state machine generalizes to any actor       | FSM is data-driven, not worker-specific        |
+| Town, contracts                | Economy price multipliers become demand curves      | Dynamic pricing already exists                 |
+| Trading                        | Item registry + price model                         | Both exist                                     |
+| Factory (v0.4)                 | Buildings that consume and produce items            | Building + inventory model supports it         |
+| Exploration                    | World grid extends beyond the owned plot            | Grid is already 64× the starting plot          |
+| Combat (v1.0)                  | `health` side-table over entity stores (ADR-004 §4) | Composition model supports it                  |
+| Mods                           | Content registries + namespaced IDs                 | ADR-003 §6                                     |
 
 **None of these may add v0.1 scope.** Each phase document's _Out of Scope_ section is binding (`AI_RULES.md` §3.2).
 

@@ -10,9 +10,11 @@
  * confirmation ring draw there, with no re-layering migration required. That
  * is what reserving it bought.
  *
- * Layer 5 (`lighting`) is still EMPTY and stays that way until day/night and
- * weather arrive in v0.2. Do not put anything in it before then — that would
- * be the scope inflation `AI_RULES.md` §8 forbids.
+ * Layer 5 (`lighting`) was claimed in phase-10c by the day/night tint, on the
+ * same terms layer 4 was: reserved empty through v0.1, filled by the feature
+ * that needed it, with no re-layering migration. Weather (phase 12) draws here
+ * too. Nothing else belongs in it — a layer above the world that is not LIGHT
+ * is a layer that will fight the one that is.
  */
 
 import { Container } from 'pixi.js';

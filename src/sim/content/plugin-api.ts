@@ -39,6 +39,7 @@ import { err, ok, type Result } from '../../shared/result';
 import type { BuildingDefinition, BuildingRegistry } from './buildings';
 import type { CropDefinition, CropRegistry } from './crops';
 import type { ItemDefinition, ItemRegistry } from './items';
+import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
 import type { ContentSource } from './sources';
 import type { TileKindDefinition, TileKindRegistry } from './tile-kinds';
 
@@ -56,6 +57,7 @@ export interface ContentTargets {
   readonly items: ItemRegistry;
   readonly buildings: BuildingRegistry;
   readonly tileKinds: TileKindRegistry;
+  readonly phaseTints: PhaseTintRegistry;
 }
 
 /**
@@ -69,6 +71,8 @@ export interface ContentBundle {
   readonly items?: readonly ItemDefinition[];
   readonly buildings?: readonly BuildingDefinition[];
   readonly tileKinds?: readonly TileKindDefinition[];
+  /** Phase → tint, for the lighting layer. Presentation only (ADR-020 §4). */
+  readonly phaseTints?: readonly PhaseTintDefinition[];
 }
 
 export interface PluginApi {
@@ -124,6 +128,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('crop', bundle.crops, targets.crops),
     ...of('item', bundle.items, targets.items),
     ...of('building', bundle.buildings, targets.buildings),
+    ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
   ];
 }
 

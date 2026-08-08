@@ -73,13 +73,23 @@ At 20 Hz, a 0.5 ms tick costs 1% of a core. This is the single largest fixed cos
 
 These are the mechanisms that make the collapsed and idle budgets achievable. Both are enforced by automated tests, and **deleting or skipping either test invalidates ADR-001 or ADR-005 respectively.**
 
-| Invariant                                                                                                 | Test                                                                 |
-| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| No `requestAnimationFrame` fires when the world is static (ADR-001 §1)                                    | `tests/e2e/render-budget.spec.ts` — "a static world draws no frames" |
-| No React commit occurs when no snapshot slice changed (ADR-005 §2)                                        | Same file                                                            |
-| Ambient motion enabled, pointer idle past `AMBIENT_IDLE_TIMEOUT_MS` → still zero (ADR-017 §2 condition 4) | `tests/e2e/perf-harness.spec.ts` — criterion 8                       |
-| A debug overlay drawn INTO the world does not hold the loop open (ADR-018 §8)                             | `tests/e2e/chunk-debug.spec.ts`, `tests/e2e/path-debug.spec.ts`      |
-| An open performance panel does not inflate the frame rate it plots (ADR-018 §8)                           | `tests/e2e/performance-panel.spec.ts`                                |
+| Invariant                                                                                                 | Test                                                                                        |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| No `requestAnimationFrame` fires when the world is static (ADR-001 §1)                                    | `tests/e2e/render-budget.spec.ts` — "a static world draws no frames"                        |
+| No React commit occurs when no snapshot slice changed (ADR-005 §2)                                        | Same file                                                                                   |
+| Ambient motion enabled, pointer idle past `AMBIENT_IDLE_TIMEOUT_MS` → still zero (ADR-017 §2 condition 4) | `tests/e2e/perf-harness.spec.ts` — criterion 8                                              |
+| A debug overlay drawn INTO the world does not hold the loop open (ADR-018 §8)                             | `tests/e2e/chunk-debug.spec.ts`, `tests/e2e/path-debug.spec.ts`                             |
+| An open performance panel does not inflate the frame rate it plots (ADR-018 §8)                           | `tests/e2e/performance-panel.spec.ts`                                                       |
+| A day/night phase transition releases its animation lease and stops (ADR-020 §3)                          | `src/renderer/render/lighting-view.test.ts` — "RELEASES the lease once the transition ends" |
+
+**Why the lighting row is a unit test and not an e2e one (phase-10c).** A phase
+boundary is 6,000 ticks away — five real minutes at 20 Hz — so an e2e assertion
+across one would have to sit idle for five minutes or acquire a way to fast-forward
+the simulation from the harness, which does not exist. The unit test runs against
+the **real** `createDirtyGate`, so `animationCount()` is the same number the render
+loop consults and the same one the debug overlay reports as `0 anim`. It also drives
+ten seconds of frames past the settled transition and asserts the scene never goes
+dirty again. Mutating `lease.sync(running)` to `lease.sync(true)` fails six tests.
 
 > **Corrected 2026-08-01 (phase-07.7k).** The first two rows named
 > `tests/e2e/idle-cost.spec.ts`, which does not exist and never has. Both

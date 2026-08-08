@@ -43,6 +43,7 @@ import { ok, type Result } from '../../shared/result';
 import { createBuildingRegistry } from './buildings';
 import { createCropRegistry } from './crops';
 import { createItemRegistry } from './items';
+import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
 import { createSourceRegistry, type ContentSource } from './sources';
 import { createTileKindRegistry } from './tile-kinds';
@@ -114,6 +115,7 @@ export function createInstalledRegistries(): ContentTargets {
     items: createItemRegistry(),
     buildings: createBuildingRegistry(),
     tileKinds: createTileKindRegistry(),
+    phaseTints: createPhaseTintRegistry(),
   };
 
   const installed = applyInstalledSources(targets);

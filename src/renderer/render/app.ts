@@ -114,8 +114,10 @@ export async function createRenderApp(options: RenderAppOptions): Promise<Render
     // with no working GPU path still gets a playable game.
     //
     // The canvas renderer has no filters or blend modes, which is exactly the
-    // "reduced visual fidelity, layers 0-3 and 6" scope the ADR describes —
-    // layers 4 and 5 (effects, lighting) are empty until v0.2 anyway.
+    // "reduced visual fidelity, layers 0-3 and 6" scope the ADR describes.
+    // Layer 5's day/night tint is deliberately a plain alpha-filled rectangle
+    // rather than a blend mode, so the degraded path gets a dimmer night rather
+    // than no night at all (phase-10c).
     preference: ['webgpu', 'webgl', 'canvas'],
 
     // The overlay window is transparent; an opaque background would paint a

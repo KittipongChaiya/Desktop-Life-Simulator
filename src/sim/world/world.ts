@@ -26,6 +26,7 @@ import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
 import { createInstalledRegistries, installedSources } from '../content/installed';
 import type { ItemRegistry } from '../content/items';
+import type { PhaseTintRegistry } from '../content/lighting';
 import type { ContentSource } from '../content/sources';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
@@ -84,6 +85,15 @@ export interface World {
 
   /** Registered building definitions. Instances reference these by id. */
   readonly buildingRegistry: BuildingRegistry;
+  /**
+   * Phase → tint, for the lighting layer only.
+   *
+   * Carried here because this is where a world's registries live, NOT because
+   * the simulation uses it: ADR-020 §4 forbids any simulation system reading
+   * lighting, and nothing in `src/sim` does. A rule that wants "it is dark"
+   * reads the phase.
+   */
+  readonly phaseTintRegistry: PhaseTintRegistry;
 
   /** Placed buildings, keyed by id. Sparse. Each blocks its tile's walkability. */
   readonly buildings: BuildingStore;
@@ -232,6 +242,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     items: itemRegistry,
     buildings: buildingRegistry,
     tileKinds,
+    phaseTints: phaseTintRegistry,
   } = createInstalledRegistries();
 
   const tiles = createTileGrid();
@@ -259,6 +270,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     itemRegistry,
     inventory: createContainer(BASE_INVENTORY_SLOTS),
     buildingRegistry,
+    phaseTintRegistry,
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
     cropStats,

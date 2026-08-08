@@ -64,6 +64,22 @@ This is the same move `CropStage` makes and for the same reason: `src/sim/conten
 
 **A phase change is an event** (`dayPhaseChanged`), published by the tick's `postUpdate` and consumed by the lighting view. It obeys ADR-008's producer-and-consumer rule from its first commit.
 
+> **Amended in phase-10c: the event was never built, and should not be.** Its
+> only named consumer is the lighting view, and by the time that view existed
+> the `time` snapshot slice already delivered the phase to it — through the same
+> republish-on-change path every other view uses. Two things settle it. **A save
+> resuming mid-day publishes but does not fire:** load a world at dusk and the
+> slice's first projection says "dusk", whereas an event-driven view would sit
+> at its default tint until the next boundary, possibly hours later. And the
+> event would carry nothing the slice lacks — a view that knows its current tint
+> knows what it is transitioning from.
+>
+> `tileTilled` earns its place as an event because `tilledAt` reaches no slice.
+> Nothing equivalent is true here: the phase _is_ published. Adding the event
+> anyway would be a producer with no subscriber, which `src/sim/events/types.ts`
+> exists to prevent. The rule this ADR stated — producer and consumer in the
+> same commit — is what ruled the event out; it was applied, not waived.
+
 ### 4. Lighting is presentation, and holds no authority
 
 Layer 5 was reserved by ADR-001 and has been empty since phase-02. It is claimed here.

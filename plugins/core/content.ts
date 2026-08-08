@@ -29,6 +29,7 @@ import {
   DEFAULT_STACK_SIZE,
   type ItemDefinition,
 } from '../../src/sim/content/items';
+import { phaseTintId, type PhaseTintDefinition } from '../../src/sim/content/lighting';
 import {
   CORE_GRASS,
   CORE_PATH,
@@ -36,7 +37,7 @@ import {
   CORE_WATER,
   type TileKindDefinition,
 } from '../../src/sim/content/tile-kinds';
-import { secondsToTicks } from '../../src/sim/time/game-clock';
+import { DayPhase, secondsToTicks } from '../../src/sim/time/game-clock';
 
 /**
  * Registers the v0.1 crops.
@@ -198,4 +199,28 @@ export function coreTileKinds(): readonly TileKindDefinition[] {
     { id: CORE_PATH, walkable: true, tillable: false, moveCost: 0.7, sprite: 'terrain:path' },
   ];
   return kinds;
+}
+
+/**
+ * The day's tints. Phase-10c — ADR-020 §4.
+ *
+ * Four values chosen so the overlay reads as a time of day at a glance and
+ * never obscures the farm. `VISION.md` §2.1 puts this window at the bottom of
+ * a working desktop for eight hours, so night is a legible dim rather than a
+ * dark screen — a player must be able to see a crop is ready at 3am without
+ * waiting for dawn.
+ *
+ * Day is registered with zero alpha rather than omitted. An omitted phase means
+ * "no content supplied a tint" and would leave whatever the previous phase
+ * painted; an explicit transparent tint means "daylight is the absence of
+ * tint", which is what it should transition TO at dawn.
+ */
+export function corePhaseTints(): readonly PhaseTintDefinition[] {
+  const tints: readonly PhaseTintDefinition[] = [
+    { id: phaseTintId('core', DayPhase.Dawn), phase: DayPhase.Dawn, color: 0xffb27a, alpha: 0.18 },
+    { id: phaseTintId('core', DayPhase.Day), phase: DayPhase.Day, color: 0xffffff, alpha: 0 },
+    { id: phaseTintId('core', DayPhase.Dusk), phase: DayPhase.Dusk, color: 0xff8c5a, alpha: 0.22 },
+    { id: phaseTintId('core', DayPhase.Night), phase: DayPhase.Night, color: 0x1b2a6b, alpha: 0.4 },
+  ];
+  return tints;
 }

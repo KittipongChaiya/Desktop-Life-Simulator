@@ -63,6 +63,7 @@ import { createEffects, type Effects } from './effects';
 import { createFloatingNumberPool, type FloatingKind } from './floating-number-state';
 import { createFloatingNumberRenderer, type FloatingNumberRenderer } from './floating-numbers';
 import { createHighlight, type Highlight, type HighlightState } from './highlight';
+import { createLightingRenderer, type LightingRenderer } from './lighting-view';
 import { createParticlePool } from './particle-pool';
 import { createParticleRenderer, type ParticleRenderer } from './particle-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
@@ -415,6 +416,18 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     },
   });
 
+  // Layer 5, claimed (ADR-001 §Layers). It is parented to the app stage
+  // rather than the camera-transformed world, because a day/night wash is a
+  // property of the light, not of where the player has panned to.
+  const lighting: LightingRenderer = createLightingRenderer({
+    layer: app.layers.lighting,
+    registry: options.world.phaseTintRegistry,
+    gate,
+    width: options.width,
+    height: options.height,
+    intensity: options.motionIntensity,
+  });
+
   // The build ghost shares the worldUi layer with the highlight (ADR-001
   // §Layers). Created after it so the translucent building draws over the
   // hover box on the same tile.
@@ -581,6 +594,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // The slice republishes on a stage change, so this is a reference
       // comparison on all but four frames of a crop's life.
       crops.update(options.world.snapshots.crops.value);
+      // Republishes four times a day, so this is a string comparison on every
+      // other frame of the world's life.
+      lighting.update(options.world.snapshots.time.value);
 
       // Decor is static until the plot grows, so it is re-planned only when
       // the expansion counter moves — never per frame. A tile that becomes
@@ -608,6 +624,9 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Crops animate per frame but reconcile only on a slice change; this
       // holds a lease for exactly as long as something is actually moving.
       crops.animate(performance.now());
+      // Finite by construction: a phase transition runs for a fixed duration and
+      // drops its lease, so the idle state is zero frames (ADR-020 §3).
+      lighting.animate(performance.now());
 
       if (!gate.shouldRender()) return false;
 
@@ -643,6 +662,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         y: clampCameraY(camera.y, limits, camera.zoom),
       };
       app.resize(width, height);
+      lighting.resize(width, height);
       applyCamera();
       gate.markDirty();
     },
@@ -751,6 +771,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       workers.destroy();
       buildings.destroy();
       crops.destroy();
+      lighting.destroy();
       ghost.destroy();
       highlight.destroy();
       // A glide's lease must not outlive the view that owns it.
