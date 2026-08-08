@@ -257,21 +257,34 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     budget -= done * CYCLE_HANDLING_TICKS;
     harvests += done;
     if (done > 0) {
+      const lastHarvestAt = firstAt + (done - 1) * cycle;
       const replanted = Math.min(done - 1, seedsLeft(seedItem));
-      // A final replant leaves the tile growing when a seed remains.
+      // A final replant leaves the tile growing when a seed remains AND there
+      // is time to get it into the ground before the window closes.
+      //
+      // THE TIME CHECK IS THE FIX FOR THE 09c OVER-CREDIT. Without it this
+      // credited a planting the real simulation had no time to perform, and
+      // then back-dated it to `end` with a `Math.min` — which is the shape of
+      // the bug: a clamp that quietly accepts an impossible timestamp instead
+      // of refusing the action that produced it. It over-credited
+      // `cropStats.planted` by exactly one whenever the last harvest landed
+      // within `CYCLE_HANDLING_TICKS` of the end of the gap, which is why it
+      // took an unseeded property test months to find.
       const finalReplant =
-        replantAllowed && seedsLeft(seedItem) - replanted > 0 && blocked === null;
+        replantAllowed &&
+        seedsLeft(seedItem) - replanted > 0 &&
+        blocked === null &&
+        lastHarvestAt + CYCLE_HANDLING_TICKS <= end;
       const consumed = replanted + (finalReplant ? 1 : 0);
       if (consumed > 0) {
         seedsConsumed.set(seedItem, (seedsConsumed.get(seedItem) ?? 0) + consumed);
         replants += consumed;
       }
-      const lastHarvestAt = firstAt + (done - 1) * cycle;
       if (finalReplant) {
         world.crops.set(crop.tile, {
           cropId: crop.cropId,
           tile: crop.tile,
-          plantedTick: Math.min(lastHarvestAt + CYCLE_HANDLING_TICKS, end),
+          plantedTick: lastHarvestAt + CYCLE_HANDLING_TICKS,
         });
       } else {
         world.crops.delete(crop.tile); // harvested out, nothing to replant

@@ -202,6 +202,32 @@ describe('catch-up never over-credits versus the real simulation (crit 14)', () 
     expect(report.coinsEarned).toBe(model.wallet.coins - coinsBefore);
   };
 
+  // Regression, phase-09c. fast-check found this farm on seed 1435051507 and
+  // it over-credited cropStats.PLANTED by one: the model credited a final
+  // replant for which the window had no time, then back-dated it to `end` with
+  // a Math.min. Pinned rather than left to sampling, per TESTING.md §6.2.
+  it('does not credit a replant the window had no time for (over-credit regression)', () => {
+    assertNeverOver(
+      {
+        seed: 1,
+        startTick: 0,
+        workerCount: 1,
+        hasShed: false,
+        hasStall: false,
+        hasRestHut: false,
+        hasSeedBin: true,
+        crops: [
+          { kind: 0, ageFraction: 0 },
+          { kind: 1, ageFraction: 0 },
+        ],
+        wheatSeeds: 10,
+        turnipSeeds: 2,
+        depressedWheat: false,
+      },
+      50_000,
+    );
+  });
+
   it('holds at n = 100 and n = 1,000 across arbitrary farms', () => {
     fc.assert(fc.property(farmArb, fc.constantFrom(100, 1_000), assertNeverOver), { numRuns: 24 });
   });
