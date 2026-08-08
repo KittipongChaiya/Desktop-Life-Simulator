@@ -50,6 +50,7 @@ import { createReturnSummary, type ReturnSummaryReport } from '../app/return-sum
 import { createSaveController } from '../app/save-controller';
 import { createSeedSelection } from '../app/seed-selection';
 import { Sound } from '../app/sounds';
+import { setSourceReport } from '../app/source-report';
 import { AppProviders } from '../app/store-context';
 import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
@@ -211,14 +212,11 @@ async function bootApplication(): Promise<void> {
   // for that side effect — and discovery adds whatever else is on disk.
   const discovery = await window.desktopLife.plugins.discover();
   const installOutcome = installDiscoveredSources(discovery);
-  // `installOutcome.refused` names every source that did not load and why.
-  // It is deliberately NOT reported from here: this layer has no logging
-  // channel, and inventing one would be the wrong place anyway — a refusal is
-  // something the PLAYER needs to see, in the plugin settings panel that lists
-  // installed and refused sources with their reasons (phase-09's third
-  // boundary). Until that lands the reasons are produced and tested but not yet
-  // displayed, which is recorded rather than papered over.
-  void installOutcome;
+  // Every source that did not load, and why, reaches the settings panel from
+  // here. The loader has always known; until phase-09f nothing said so out loud
+  // (ADR-019 §6 requires a refusal to be reported, and a reason nobody can read
+  // is not a report).
+  setSourceReport(installOutcome);
 
   const saves = await window.desktopLife.save.load();
   let world: World;

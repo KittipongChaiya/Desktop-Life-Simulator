@@ -28,9 +28,11 @@ import {
 } from '../../../shared/motion';
 import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
 import type { SaveState } from '../save-controller';
+import { sourceReport } from '../source-report';
 import { useCompanion, useSave } from '../store-context';
 
 import styles from './SettingsPanel.module.css';
+import { SourcesSection } from './SourcesSection';
 
 /**
  * Display names for the stable action identifiers. The KEYS come from the
@@ -107,6 +109,8 @@ export function SettingsPanel(): ReactNode {
 
       {open && (
         <div className={styles['panel']}>
+          <SourcesSection report={sourceReport()} />
+
           <div className={styles['section']}>Desktop Companion</div>
           <div className={styles['row']}>
             <label className={styles['name']} htmlFor="companion-opacity">
