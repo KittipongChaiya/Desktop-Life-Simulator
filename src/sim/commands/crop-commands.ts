@@ -28,8 +28,9 @@ import {
   type TileIndex,
 } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
-import { isMature } from '../content/crops';
+import { isInSeason, isMature } from '../content/crops';
 import { stackSizeOf } from '../content/items';
+import { dayFor, seasonFor } from '../time/game-clock';
 import {
   acceptable,
   addItems,
@@ -53,6 +54,11 @@ import type { CommandWorld, ValidationResult } from './types';
  * tile, no seed held. Checked in that order so the most specific cause is
  * reported.
  */
+/** The season a command world is in. Derived, never stored (ADR-021 §1). */
+function seasonOf(world: CommandWorld): string | undefined {
+  return seasonFor(dayFor(world.tick, world.ticksPerDay), world.daysPerSeason, world.seasons);
+}
+
 export function validatePlant(
   world: CommandWorld,
   tile: TileIndex,
@@ -71,6 +77,19 @@ export function validatePlant(
 
   if (world.crops.has(tile)) {
     return err(appError(ErrorCode.TileWrongKind, 'tile already has a crop', { tile }));
+  }
+
+  // Out of season is a REJECTION, not a silent no-op: the player pressed a
+  // button, and "nothing happened" is the worst answer a command can give
+  // (ADR-010 §5). It sits before the seed check so a player told "no seed"
+  // never buys one only to be told "wrong season" (ADR-021 §2).
+  if (!isInSeason(definition.value, seasonOf(world))) {
+    return err(
+      appError(ErrorCode.OutOfSeason, 'crop cannot be planted in this season', {
+        cropId,
+        season: seasonOf(world) ?? 'none',
+      }),
+    );
   }
 
   // Planting costs 1 seed (§8.1) drawn from the farm stock — the player

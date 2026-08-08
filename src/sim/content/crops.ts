@@ -104,3 +104,28 @@ export function stageFor(definition: CropDefinition, elapsedTicks: number): Crop
 export function isMature(definition: CropDefinition, elapsedTicks: number): boolean {
   return elapsedTicks >= definition.growthTicks;
 }
+
+/**
+ * Whether a crop may be planted in a season. Phase-11b — ADR-021 §2.
+ *
+ * Two absences both mean "no restriction", and they are different absences:
+ *
+ * - **An empty `seasons` list** is the crop saying it grows year-round. That
+ *   reading was fixed in phase-03, when the field was added as data ahead of
+ *   the system: *"An empty array is the honest v0.1 answer, not a placeholder."*
+ * - **No season at all** is the WORLD having no season system — a content set
+ *   that registered none. A seasonal crop in a world with no seasons is not
+ *   unplantable, it is unrestricted: there is no calendar to be out of step
+ *   with. Returning false here would leave such a world unable to plant
+ *   anything, which is a worse answer than the one nobody asked for.
+ *
+ * This is a plantability rule and nothing more. A standing crop is never
+ * consulted — ADR-021 §3 is emphatic that a crop planted in season and left
+ * through a boundary matures unchanged, because anything else punishes the
+ * absent player `VISION.md` §2.2 exists to protect.
+ */
+export function isInSeason(definition: CropDefinition, season: string | undefined): boolean {
+  if (definition.seasons.length === 0) return true;
+  if (season === undefined) return true;
+  return definition.seasons.includes(season);
+}

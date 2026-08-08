@@ -75,6 +75,10 @@ export function coreCrops(): readonly CropDefinition[] {
       harvestYield: [{ item: asContentId('core:turnip'), quantity: 1 }],
       seedItem: asContentId('core:turnip_seed'),
       seedCost: 5,
+      // YEAR-ROUND, and this is load-bearing rather than a tuning choice. The
+      // turnip is `WORKER_DEFAULT_CROP`, so if it ever went out of season a
+      // farm with no seed bin would have nothing to sow for a whole season —
+      // a worker idled by the calendar, which ADR-021 §4 forbids outright.
       seasons: [],
       tags: ['root'],
     },
@@ -86,7 +90,7 @@ export function coreCrops(): readonly CropDefinition[] {
       harvestYield: [{ item: asContentId('core:wheat'), quantity: 1 }],
       seedItem: asContentId('core:wheat_seed'),
       seedCost: 12,
-      seasons: [],
+      seasons: [CORE_SPRING, CORE_SUMMER],
       tags: ['grain'],
     },
     {
@@ -97,7 +101,7 @@ export function coreCrops(): readonly CropDefinition[] {
       harvestYield: [{ item: asContentId('core:carrot'), quantity: 1 }],
       seedItem: asContentId('core:carrot_seed'),
       seedCost: 25,
-      seasons: [],
+      seasons: [CORE_SUMMER, CORE_AUTUMN],
       tags: ['root'],
     },
     {
@@ -108,7 +112,7 @@ export function coreCrops(): readonly CropDefinition[] {
       harvestYield: [{ item: asContentId('core:pumpkin'), quantity: 1 }],
       seedItem: asContentId('core:pumpkin_seed'),
       seedCost: 60,
-      seasons: [],
+      seasons: [CORE_AUTUMN, CORE_WINTER],
       tags: ['gourd'],
     },
   ];

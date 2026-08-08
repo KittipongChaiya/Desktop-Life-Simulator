@@ -33,6 +33,8 @@
 import { OFFLINE_CAP_TICKS, TICK_MS } from '../shared/constants';
 import type { ContentId } from '../shared/ids';
 import { CORE_MARKET_STALL, CORE_REST_HUT, CORE_SEED_BIN } from '../sim/content/buildings';
+import { isInSeason, type CropDefinition } from '../sim/content/crops';
+import { dayFor, seasonsBetween } from '../sim/time/game-clock';
 import {
   acceptable,
   addItems,
@@ -109,6 +111,46 @@ export function computeElapsedTicks(savedAtUnixMs: number, nowMs: number): numbe
 }
 
 /** Advances `world` by `elapsedTicks` of closed-form offline progress. */
+
+/**
+ * Whether a crop was plantable for the WHOLE of a gap. Phase-11b — ADR-021 §5.
+ *
+ * The rule is deliberately blunt: if the gap touched any season the crop
+ * cannot be sown in, no replant is credited for that tile at all — not even
+ * for the part of the gap that was in season.
+ *
+ * A finer model would segment the gap and credit each in-season stretch. It
+ * would also have to decide what a worker was doing at each boundary, with
+ * every wrong guess landing on the side that credits work the real simulation
+ * would have refused. ADR-021 §5 settles it: *"where the model cannot be
+ * certain it credits nothing."* The cost is under-crediting a player who was
+ * away across a boundary; the alternative is the over-credit that took a
+ * property test months to find in phase-09.
+ *
+ * The first harvest of a standing crop is unaffected — it consumes no seed and
+ * plants nothing, and ADR-021 §3 guarantees a standing crop matures regardless
+ * of season.
+ */
+function plantableThroughout(
+  world: World,
+  definition: CropDefinition,
+  startTick: number,
+  endTick: number,
+): boolean {
+  if (definition.seasons.length === 0) return true;
+
+  const touched = seasonsBetween(
+    dayFor(startTick, world.ticksPerDay),
+    dayFor(endTick, world.ticksPerDay),
+    world.daysPerSeason,
+    world.seasons.length,
+  );
+  // No season system at all — nothing to be out of step with.
+  if (touched.length === 0) return true;
+
+  return touched.every((index) => isInSeason(definition, world.seasons[index]));
+}
+
 export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport {
   if (elapsedTicks <= 0) return EMPTY_REPORT(0);
 
@@ -254,7 +296,10 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     const byGrowth = 1 + Math.floor(Math.max(0, end - firstAt - 1) / cycle);
     const bySeeds = 1 + seedsLeft(seedItem); // first harvest needs no seed
     const byBudget = Math.floor(budget / CYCLE_HANDLING_TICKS);
-    const replantAllowed = hasSeedBin && world.lastPlanted.get(crop.tile) === crop.cropId;
+    const replantAllowed =
+      hasSeedBin &&
+      world.lastPlanted.get(crop.tile) === crop.cropId &&
+      plantableThroughout(world, definition.value, start, end);
     const count = replantAllowed
       ? Math.min(byGrowth, bySeeds, byBudget)
       : Math.min(1, byGrowth, byBudget);

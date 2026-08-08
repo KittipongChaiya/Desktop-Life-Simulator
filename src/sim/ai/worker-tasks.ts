@@ -16,9 +16,10 @@ import { type ContentId, type TileIndex } from '../../shared/ids';
 import { unwrap } from '../../shared/result';
 import { type Command } from '../commands/types';
 import { CORE_SEED_BIN } from '../content/buildings';
-import { isMature, type CropRegistry } from '../content/crops';
+import { isInSeason, isMature, type CropRegistry } from '../content/crops';
 import { CORE_TURNIP } from '../content/crops';
 import { type TileKindRegistry } from '../content/tile-kinds';
+import { dayFor, seasonFor } from '../time/game-clock';
 import { type BuildingStore } from '../world/building';
 import { containerCount, type Container } from '../world/container';
 import { elapsedTicks, type CropStore } from '../world/crop';
@@ -49,6 +50,14 @@ export interface TaskContext {
   /** Per-tile last-planted memory, the seed bin's data (06c). */
   readonly lastPlanted: ReadonlyMap<TileIndex, ContentId>;
   readonly tick: number;
+
+  /**
+   * The calendar's frozen inputs. Task selection reads the season to decide
+   * what may be SOWN — never what may be harvested or tended (ADR-021 §3).
+   */
+  readonly ticksPerDay: number;
+  readonly daysPerSeason: number;
+  readonly seasons: readonly string[];
 }
 
 /** Owned tiles, in ascending index order — the deterministic scan order. */
@@ -131,17 +140,40 @@ function hasSeedBin(ctx: TaskContext): boolean {
 }
 
 /**
+ * Whether a worker could actually put this crop in the ground right now.
+ *
+ * Seeds AND season, together, because the two failures have the same
+ * consequence for task selection and must take the same path: the tile is not
+ * a plant candidate, and the worker moves on. **A season may never be the
+ * reason a worker stops** (ADR-021 §4) — so out-of-season joins the
+ * no-seeds branch phase-06b already built, rather than becoming a new one.
+ */
+function canSow(ctx: TaskContext, cropId: ContentId): boolean {
+  if (!hasSeedFor(ctx, cropId)) return false;
+
+  const definition = ctx.cropRegistry.get(cropId);
+  if (!definition.ok) return false;
+
+  const season = seasonFor(dayFor(ctx.tick, ctx.ticksPerDay), ctx.daysPerSeason, ctx.seasons);
+  return isInSeason(definition.value, season);
+}
+
+/**
  * The crop a worker would sow on `tile`, honouring the seed bin's chain (06c,
- * §5): with a bin, the tile's last crop if its seed is in stock; falling back
- * to the default when there is no record or no matching seed. Returns null
- * when no sowable crop has seeds — the tile is not a plant candidate.
+ * §5): with a bin, the tile's last crop if its seed is in stock AND in season;
+ * falling back to the default otherwise. Returns null when nothing is sowable —
+ * the tile is not a plant candidate.
+ *
+ * The seed bin's memory survives an out-of-season fall-through: `lastPlanted`
+ * is not cleared, so when the season turns the tile goes back to its remembered
+ * crop with no intervention (ADR-021 §4).
  */
 function plantCropFor(ctx: TaskContext, tile: TileIndex, binStands: boolean): ContentId | null {
   if (binStands) {
     const remembered = ctx.lastPlanted.get(tile);
-    if (remembered !== undefined && hasSeedFor(ctx, remembered)) return remembered;
+    if (remembered !== undefined && canSow(ctx, remembered)) return remembered;
   }
-  return hasSeedFor(ctx, WORKER_DEFAULT_CROP) ? WORKER_DEFAULT_CROP : null;
+  return canSow(ctx, WORKER_DEFAULT_CROP) ? WORKER_DEFAULT_CROP : null;
 }
 
 export function selectTask(

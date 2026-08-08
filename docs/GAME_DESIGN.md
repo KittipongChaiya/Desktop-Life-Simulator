@@ -107,6 +107,29 @@ The day's length is fixed when a world is created and never changes for that wor
 
 **Rebalanced in 07.9: every growth time doubled.** At 45 seconds a turnip spent under twelve seconds in each of its four stages — the crop read as a progress bar, and the loop asked for attention faster than an idle game should. The multiplier is UNIFORM by design: coins/sec/tile scales by the same 0.5 for every crop, so the ordering below and the 1.82× spread between the ends of the table are exactly what they were. Prices, seed costs and yields are untouched — this pass moved time, not money.
 
+### 3.1a Seasons (v0.2, phase-11)
+
+Each crop declares the seasons it may be **planted** in. Nothing else about a crop changes with the calendar.
+
+| Crop           | Seasons        | Why                                                              |
+| -------------- | -------------- | ---------------------------------------------------------------- |
+| `core:turnip`  | **All year**   | The staple, and the crop workers sow by default                  |
+| `core:wheat`   | Spring, Summer | The early-game step up from turnips                              |
+| `core:carrot`  | Summer, Autumn | Mid-game, overlapping wheat on one side and pumpkin on the other |
+| `core:pumpkin` | Autumn, Winter | The best crop in the game, in the half-year that has least else  |
+
+Every season has at least two crops, and **the turnip is available in all four on purpose**. It is the crop workers sow by default, so a season it could not be sown in would leave a farm without a seed bin with nothing to plant for two hours and twenty minutes of real time — a worker idled by the calendar, which ADR-021 §4 forbids outright.
+
+Winter is the leanest season, not a dead one: turnip and pumpkin. Since pumpkin is the best coins/sec in the game, winter is where the patient player does best — the §3.2 curve pointing the same way the calendar does.
+
+**Three rules bound what a season may do** (ADR-021 §2), and they are constitutional rather than tuning:
+
+1. A season gates what may be **planted**. A standing crop always matures — planting in season and returning to a harvest is the promise (§9).
+2. Nothing withers, spoils, or is destroyed by a season. Ever.
+3. A season may never leave a worker with nothing to do.
+
+The first is the only one a player experiences as a restriction, and it is a restriction on **starting** something, never on keeping it.
+
 ### 3.2 Why the curve slopes this way
 
 Longer crops yield strictly better coins-per-second. This is the opposite of most active games and is the single most important balance decision in v0.1: **it makes going away the optimal strategy.**

@@ -17,7 +17,12 @@ import { catchUpWorld, computeElapsedTicks } from '../src/persistence/catch-up';
 import { hydrateWorld } from '../src/persistence/deserialize';
 import { serializeSave, toSaveDocument } from '../src/persistence/serialize';
 import type { SaveMeta } from '../src/persistence/schema';
-import { OFFLINE_CAP_TICKS, TICK_MS } from '../src/shared/constants';
+import {
+  DEFAULT_DAYS_PER_SEASON,
+  DEFAULT_TICKS_PER_DAY,
+  OFFLINE_CAP_TICKS,
+  TICK_MS,
+} from '../src/shared/constants';
 import { asTileIndex } from '../src/shared/ids';
 import {
   CORE_MARKET_STALL,
@@ -362,6 +367,103 @@ describe('catch-up never over-credits versus the real simulation (crit 14)', () 
       seed: PROPERTY_SEED,
     });
   }, 600_000);
+
+  describe('catch-up across a season boundary (ADR-021 §5)', () => {
+    // ADR-021 §5 adds ONE bound to the model: *"catch-up may not credit a plant
+    // the real simulation would have rejected."* The mechanism is the same
+    // never-over property that has guarded this file since crit 14 — extended to
+    // gaps that cross a boundary, rather than a new promise beside it.
+    //
+    // A season is 168,000 ticks (7 days × 24,000), so the farms below start just
+    // short of one and the gap carries them over it. The default 500,000-tick
+    // `startTick` range would cross boundaries only by luck.
+    const SEASON_TICKS = DEFAULT_TICKS_PER_DAY * DEFAULT_DAYS_PER_SEASON;
+    const justBefore = (boundaries: number): number => SEASON_TICKS * boundaries - 2_000;
+
+    it('never over-credits across a single boundary', () => {
+      fc.assert(
+        fc.property(
+          farmArb.map((plan): FarmPlan => ({ ...plan, startTick: justBefore(1) })),
+          fc.constantFrom(5_000, 50_000),
+          assertNeverOver,
+        ),
+        { numRuns: 8, seed: PROPERTY_SEED },
+      );
+    }, 600_000);
+
+    it('never over-credits when the gap crosses several boundaries', () => {
+      // Two full seasons and change, so the gap crosses THREE boundaries.
+      //
+      // Not `OFFLINE_CAP_TICKS` (eight hours, 576,000 ticks), which is what
+      // this reached for first. `assertNeverOver` steps the real simulation
+      // tick by tick for the comparison, and the note on the 50,000-tick case
+      // above is explicit that V8 coverage instrumentation costs roughly 3.5×
+      // — the capped version stalled `test:coverage` while passing
+      // `npm test`, which is the exact failure that note was written about.
+      // Three boundaries prove the same property as seven.
+      fc.assert(
+        fc.property(
+          farmArb.map((plan): FarmPlan => ({ ...plan, startTick: justBefore(1) })),
+          fc.constant(SEASON_TICKS * 2 + 4_000),
+          assertNeverOver,
+        ),
+        // ONE run: this case costs 340,000 stepped ticks, and the two direct
+        // assertions below cover the semantics without stepping anything. The
+        // property is here to catch an interaction the direct tests cannot
+        // imagine, and one arbitrary farm does that.
+        { numRuns: 1, seed: PROPERTY_SEED },
+      );
+    }, 900_000);
+
+    it('credits no replant at all for a crop the gap took out of season', () => {
+      // The bound stated directly, without the property machinery. Wheat is
+      // spring/summer; a gap beginning in summer and ending in autumn touches a
+      // season wheat cannot be sown in, so the model credits the standing
+      // harvest and NO replant — even though part of the gap was legal.
+      const plan: FarmPlan = {
+        seed: 99,
+        startTick: justBefore(2), // late summer
+        workerCount: 2,
+        hasShed: true,
+        hasStall: false,
+        hasRestHut: false,
+        hasSeedBin: true,
+        crops: [{ kind: 1, ageFraction: 1 }], // wheat, already mature
+        wheatSeeds: 40,
+        turnipSeeds: 0,
+        depressedWheat: false,
+      };
+
+      const crossing = buildFarm(plan);
+      const report = catchUpWorld(crossing, 50_000);
+
+      expect(report.replants).toBe(0);
+    });
+
+    it('still replants a year-round crop across the same boundary', () => {
+      // The control. If the rule above were "no replants across a boundary", the
+      // turnip would be blocked too — and it is not, because a turnip is legal
+      // on both sides.
+      const plan: FarmPlan = {
+        seed: 99,
+        startTick: justBefore(2),
+        workerCount: 2,
+        hasShed: true,
+        hasStall: false,
+        hasRestHut: false,
+        hasSeedBin: true,
+        crops: [{ kind: 0, ageFraction: 1 }], // turnip, already mature
+        wheatSeeds: 0,
+        turnipSeeds: 40,
+        depressedWheat: false,
+      };
+
+      const crossing = buildFarm(plan);
+      const report = catchUpWorld(crossing, 50_000);
+
+      expect(report.replants).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe('accuracy at saturation (crit 15)', () => {

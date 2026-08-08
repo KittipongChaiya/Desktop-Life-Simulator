@@ -226,6 +226,14 @@ export interface CommandWorld {
    * `plantCrop`; read by worker task selection when a seed bin stands.
    */
   readonly lastPlanted: Map<TileIndex, ContentId>;
+
+  /**
+   * The calendar's frozen inputs, for the out-of-season plant rejection
+   * (ADR-021 §2). Read, never written — the season is derived from the tick.
+   */
+  readonly ticksPerDay: number;
+  readonly daysPerSeason: number;
+  readonly seasons: readonly string[];
 }
 
 /**

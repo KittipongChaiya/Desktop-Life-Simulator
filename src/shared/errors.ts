@@ -10,6 +10,8 @@ export const ErrorCode = {
   TileNotOwned: 'tile_not_owned',
   TileWrongKind: 'tile_wrong_kind',
   MissingItem: 'missing_item',
+  /** The crop cannot be planted in the current season (ADR-021 §2). */
+  OutOfSeason: 'out_of_season',
   InventoryFull: 'inventory_full',
   InsufficientFunds: 'insufficient_funds',
   UnknownContent: 'unknown_content',

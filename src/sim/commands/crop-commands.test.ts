@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_DAYS_PER_SEASON, DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
 import { ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asContentId, type ContentId, type TileIndex } from '../../shared/ids';
@@ -514,7 +515,14 @@ describe('determinism and offline progression', () => {
 
   it('leaves a crop planted before an eight-hour gap ready after it', () => {
     const world = readyWorld();
-    plantCrop(world, OWNED, CORE_PUMPKIN);
+    // Into autumn before planting: phase-11b made `core:pumpkin` an
+    // autumn/winter crop, so a spring planting is now refused. The test is
+    // about a gap, not about the calendar — it keeps the longest crop and
+    // plants it in its own season.
+    world.tick = DEFAULT_TICKS_PER_DAY * DEFAULT_DAYS_PER_SEASON * 2;
+    tillTile(world, OWNED);
+    expect(plantCrop(world, OWNED, CORE_PUMPKIN).ok).toBe(true);
+
     world.tick += 20 * 60 * 60 * 8;
 
     expect(harvestCrop(world, OWNED).ok).toBe(true);

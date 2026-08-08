@@ -228,3 +228,38 @@ export function seasonFor(
 ): string | undefined {
   return seasons[seasonIndexFor(day, daysPerSeason, seasons.length)];
 }
+
+/**
+ * Every season a day range touches, as indices. Phase-11b — ADR-021 §5.
+ *
+ * Offline catch-up needs to know whether a crop was plantable for the WHOLE of
+ * a gap, not merely at one end of it. A gap of arbitrary length can touch at
+ * most one full year, so the result is bounded by the season count no matter
+ * how long the player was away.
+ *
+ * Inclusive of both ends: a gap that begins on the last day of autumn and ends
+ * on the first day of winter touched both.
+ */
+export function seasonsBetween(
+  startDay: number,
+  endDay: number,
+  daysPerSeason: number,
+  seasonCount: number,
+): readonly number[] {
+  if (seasonCount <= 0 || daysPerSeason <= 0) return [];
+
+  const firstBlock = Math.floor(Math.min(startDay, endDay) / daysPerSeason);
+  const lastBlock = Math.floor(Math.max(startDay, endDay) / daysPerSeason);
+
+  // A range spanning a whole year touches everything; short-circuit so the
+  // loop below can never run longer than one year however long the gap was.
+  if (lastBlock - firstBlock + 1 >= seasonCount) {
+    return Array.from({ length: seasonCount }, (_, index) => index);
+  }
+
+  const touched = new Set<number>();
+  for (let block = firstBlock; block <= lastBlock; block += 1) {
+    touched.add(((block % seasonCount) + seasonCount) % seasonCount);
+  }
+  return [...touched].sort((a, b) => a - b);
+}
