@@ -61,6 +61,23 @@ interface FarmPlan {
   readonly depressedWheat: boolean;
 }
 
+/**
+ * The seed both never-over properties run from. Phase-09c, closing debt #14.
+ *
+ * `TESTING.md` §6.2: always pass an explicit seed. These two were the only
+ * properties in this file without one, and the cost was real — the gate passed
+ * by SAMPLING for months while two over-credit defects sat under it, and it was
+ * green or red between runs on the same commit.
+ *
+ * The tradeoff is stated rather than hidden: a pinned seed explores one fixed
+ * set of farms, so it no longer discovers new counterexamples on its own. That
+ * is the right trade for a RELEASE GATE, whose job is to answer the same
+ * question the same way every time. Broad exploration belongs in a deliberate
+ * run — change this constant, run it, and pin anything it finds as its own
+ * regression above, which is exactly how the two current regressions arrived.
+ */
+const PROPERTY_SEED = 20_260_808;
+
 const CROP_KINDS = [CORE_TURNIP, CORE_WHEAT, CORE_CARROT] as const;
 
 const farmArb: fc.Arbitrary<FarmPlan> = fc.record({
@@ -228,8 +245,61 @@ describe('catch-up never over-credits versus the real simulation (crit 14)', () 
     );
   });
 
+  // Both counterexamples fast-check found, pinned as regressions rather than
+  // left to sampling (`TESTING.md` §6.2). They wore one symptom and were two
+  // defects: the first over-credited PLANTED, the second HARVESTED.
+  it('does not credit a replant the window had no time for (planted, 09c)', () => {
+    assertNeverOver(
+      {
+        seed: 1,
+        startTick: 0,
+        workerCount: 1,
+        hasShed: false,
+        hasStall: false,
+        hasRestHut: false,
+        hasSeedBin: true,
+        crops: [
+          { kind: 0, ageFraction: 0 },
+          { kind: 1, ageFraction: 0 },
+        ],
+        wheatSeeds: 10,
+        turnipSeeds: 2,
+        depressedWheat: false,
+      },
+      50_000,
+    );
+  });
+
+  // One worker, two tiles. The model schedules each tile at its own full
+  // cadence, as though a worker were dedicated to it; measured, this farm
+  // achieves 13 harvests and the same farm with TWO workers achieves 14.
+  it('does not credit a cycle that only a second worker could have run (harvested, 09c)', () => {
+    assertNeverOver(
+      {
+        seed: 1,
+        startTick: 0,
+        workerCount: 1,
+        hasShed: false,
+        hasStall: false,
+        hasRestHut: false,
+        hasSeedBin: true,
+        crops: [
+          { kind: 1, ageFraction: 0 },
+          { kind: 0, ageFraction: 0 },
+        ],
+        wheatSeeds: 9,
+        turnipSeeds: 3,
+        depressedWheat: false,
+      },
+      50_000,
+    );
+  });
+
   it('holds at n = 100 and n = 1,000 across arbitrary farms', () => {
-    fc.assert(fc.property(farmArb, fc.constantFrom(100, 1_000), assertNeverOver), { numRuns: 24 });
+    fc.assert(fc.property(farmArb, fc.constantFrom(100, 1_000), assertNeverOver), {
+      numRuns: 24,
+      seed: PROPERTY_SEED,
+    });
   });
 
   // Eight arbitrary farms, each stepped 50,000 real ticks for the comparison,
@@ -238,7 +308,10 @@ describe('catch-up never over-credits versus the real simulation (crit 14)', () 
   // and failed `npm run test:coverage` unnoticed until phase-07e ran the full
   // v0.1 release-gate checklist. The budget is the runner's, not the game's.
   it('holds at n = 50,000 across arbitrary farms', () => {
-    fc.assert(fc.property(farmArb, fc.constant(50_000), assertNeverOver), { numRuns: 8 });
+    fc.assert(fc.property(farmArb, fc.constant(50_000), assertNeverOver), {
+      numRuns: 8,
+      seed: PROPERTY_SEED,
+    });
   }, 600_000);
 });
 

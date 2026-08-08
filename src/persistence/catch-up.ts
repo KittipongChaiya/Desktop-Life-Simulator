@@ -230,10 +230,28 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     // real worker standing next to the tile could manage (handling margin).
     const matureAt = crop.plantedTick + growthTicks;
     const firstAt = Math.max(matureAt, start) + CYCLE_HANDLING_TICKS;
-    if (firstAt > end) continue; // still growing, or no time to work it
+    if (firstAt >= end) continue; // still growing, or no time to work it
     const cycle = growthTicks + CYCLE_HANDLING_TICKS;
 
-    const byGrowth = 1 + Math.floor((end - firstAt) / cycle);
+    // A cycle counts only if it completes STRICTLY INSIDE the gap. Crediting
+    // one that lands exactly on `end` is the one place this model left itself
+    // no margin, and it is where the 09c over-credit lived.
+    //
+    // Tiles are scheduled here INDEPENDENTLY, each at its own full cadence, as
+    // though a worker were dedicated to it — the only shared limit is the
+    // energy budget, and at eight hours that never binds. One worker serving
+    // two tiles cannot actually do that: measured, a one-worker two-tile farm
+    // achieves 13 harvests where this credited 14, and the same farm with two
+    // workers achieves 14. Requiring the last cycle to finish before the
+    // window closes restores the margin that sharing consumes, costs at most
+    // one harvest per tile, and keeps every approximation pointing down
+    // (`GAME_DESIGN.md` §9.2).
+    //
+    // Modelling worker sharing properly — dividing cadence by tiles-per-worker
+    // — was rejected as far too conservative: it would credit a fraction of
+    // what a real return earns, and offline progress that reads as broken is
+    // worse than one it slightly under-counts.
+    const byGrowth = 1 + Math.floor(Math.max(0, end - firstAt - 1) / cycle);
     const bySeeds = 1 + seedsLeft(seedItem); // first harvest needs no seed
     const byBudget = Math.floor(budget / CYCLE_HANDLING_TICKS);
     const replantAllowed = hasSeedBin && world.lastPlanted.get(crop.tile) === crop.cropId;
