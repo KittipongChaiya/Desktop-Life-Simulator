@@ -149,6 +149,18 @@ export interface ExpandLandCommand {
  * A new gameplay action is a new member here plus a registered handler — never
  * a new exported mutator (ADR-010 §Consequences).
  */
+/**
+ * Enable or disable a content source (phase-09g, ADR-019 §7).
+ *
+ * World state rather than a preference: two players with one seed and different
+ * enabled sets have different worlds.
+ */
+export interface SetSourceEnabledCommand {
+  readonly type: 'setSourceEnabled';
+  readonly source: string;
+  readonly enabled: boolean;
+}
+
 export type Command =
   | TillTileCommand
   | PlantCropCommand
@@ -160,7 +172,8 @@ export type Command =
   | BuySeedsCommand
   | SellBuildingCommand
   | GrantCoinsCommand
-  | ExpandLandCommand;
+  | ExpandLandCommand
+  | SetSourceEnabledCommand;
 
 export type CommandType = Command['type'];
 
@@ -180,6 +193,10 @@ export type CommandOf<T extends CommandType> = Extract<Command, { readonly type:
  */
 export interface CommandWorld {
   readonly tick: number;
+  /** Installed content sources, for validating an enablement change (09g). */
+  readonly sources: readonly { readonly id: string }[];
+  /** Sources switched off. The only thing `setSourceEnabled` writes. */
+  readonly disabledSources: Set<string>;
   readonly tiles: TileGrid;
   /** Tile-kind definitions, for the walkability check when placing a building. */
   readonly tileKinds: TileKindRegistry;

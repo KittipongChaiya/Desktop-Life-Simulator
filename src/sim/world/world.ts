@@ -19,6 +19,7 @@ import {
   type CommandDispatcher,
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
+import { registerSourceCommands } from '../commands/source-commands';
 import { registerWorkerCommands } from '../commands/worker-commands';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
@@ -260,6 +261,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   // import order (ADR-010 §8).
   registerCropCommands(world.commands);
   registerWorkerCommands(world.commands);
+  registerSourceCommands(world.commands);
   registerBuildingCommands(world.commands);
   registerCommerceCommands(world.commands);
 
