@@ -102,3 +102,95 @@ export function readClock(getTick: () => number): GameClock {
     elapsedMs: ticksToMs(tick),
   };
 }
+
+// ---------------------------------------------------------------------------
+// The calendar. Phase-10a — ADR-020.
+//
+// Derived from `world.tick` and nothing else: no mutable state, no entry in
+// `TICK_SYSTEMS`, no catch-up. Advancing the tick IS advancing the clock, for
+// the same reason there is no `growthSystem` — a derivation has nothing for a
+// system to do (ADR-009 §2).
+//
+// What falls out for free is the whole argument: no new save field, offline
+// time exact because advancing past a gap is the catch-up, no accuracy contract
+// because there is no approximation to bound, and determinism untouched because
+// a derivation reads no clock and no generator.
+// ---------------------------------------------------------------------------
+
+/**
+ * The named phases of a day, in order.
+ *
+ * QUANTIZED STATES, never a fraction of a day — the same move `CropStage`
+ * makes, for the same reason (ADR-020 §3). A four-phase day dirties the
+ * lighting layer four times per day; a continuous one would dirty it 1,728,000
+ * times, and render-on-demand (ADR-001 §1) would be a memory.
+ *
+ * Order is the day's order, and it is load-bearing: `phaseFor` walks these
+ * boundaries in sequence, and the renderer reads the index to pick a tint.
+ */
+export const DayPhase = {
+  Dawn: 'dawn',
+  Day: 'day',
+  Dusk: 'dusk',
+  Night: 'night',
+} as const;
+
+export type DayPhase = (typeof DayPhase)[keyof typeof DayPhase];
+
+/** Every phase, in the order a day passes through them. */
+export const DAY_PHASES: readonly DayPhase[] = [
+  DayPhase.Dawn,
+  DayPhase.Day,
+  DayPhase.Dusk,
+  DayPhase.Night,
+];
+
+/**
+ * Where each phase begins, as a fraction of the day.
+ *
+ * Fractions rather than tick counts so the set survives a different
+ * `ticksPerDay` — the phase boundaries are a shape, and the day's length is a
+ * world constant (ADR-020 §2).
+ *
+ * INDEX 0 IS NOT READ. `phaseFor` walks backwards and falls through to the
+ * first phase, so "no tick belongs to no phase" is structural rather than a
+ * rule about this data — there is no value here that could open a gap. It is
+ * written as 0 because that is what it means, and a mutation changing it
+ * correctly fails nothing.
+ */
+const PHASE_STARTS: readonly number[] = [0, 0.25, 0.7, 0.8];
+
+/** The day a tick falls in, counting from zero. */
+export function dayFor(tick: number, ticksPerDay: number): number {
+  return Math.floor(tick / ticksPerDay);
+}
+
+/** Ticks elapsed within the current day. */
+export function timeOfDayFor(tick: number, ticksPerDay: number): number {
+  return ((tick % ticksPerDay) + ticksPerDay) % ticksPerDay;
+}
+
+/**
+ * The phase a tick falls in.
+ *
+ * Walks the boundaries from the last backwards, so every instant belongs to
+ * exactly one phase and the final phase runs to the end of the day. A tick can
+ * never fall between two phases, which is what makes the "covers every phase
+ * exactly once per day, in order, with no gap" acceptance provable rather than
+ * asserted.
+ */
+export function phaseFor(tick: number, ticksPerDay: number): DayPhase {
+  const fraction = timeOfDayFor(tick, ticksPerDay) / ticksPerDay;
+
+  for (let index = PHASE_STARTS.length - 1; index > 0; index -= 1) {
+    if (fraction >= (PHASE_STARTS[index] ?? 0)) return DAY_PHASES[index] ?? DayPhase.Dawn;
+  }
+
+  return DAY_PHASES[0] ?? DayPhase.Dawn;
+}
+
+/** The tick a phase begins on, within a day. Used to test boundaries exactly. */
+export function phaseStartTick(phase: DayPhase, ticksPerDay: number): number {
+  const index = DAY_PHASES.indexOf(phase);
+  return Math.floor((PHASE_STARTS[index] ?? 0) * ticksPerDay);
+}
