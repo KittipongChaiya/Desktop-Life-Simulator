@@ -194,3 +194,37 @@ export function phaseStartTick(phase: DayPhase, ticksPerDay: number): number {
   const index = DAY_PHASES.indexOf(phase);
   return Math.floor((PHASE_STARTS[index] ?? 0) * ticksPerDay);
 }
+
+/**
+ * The season a day falls in, as an index into the world's ordered season list.
+ *
+ * The engine owns the CYCLE; the names are content (ADR-021 §1, §Alternatives
+ * D), which is why this takes a count rather than a season table. A content
+ * source shipping a two-season world changes nothing here.
+ *
+ * Returns 0 for a degenerate list rather than dividing by zero. A world with no
+ * seasons is not reachable through the public API — `core` registers four and
+ * cannot be disabled — but a total function is cheaper than a proof.
+ */
+export function seasonIndexFor(day: number, daysPerSeason: number, seasonCount: number): number {
+  if (seasonCount <= 0 || daysPerSeason <= 0) return 0;
+
+  const elapsed = Math.floor(day / daysPerSeason);
+  // Wraps, so the cycle repeats forever without a year counter to store.
+  return ((elapsed % seasonCount) + seasonCount) % seasonCount;
+}
+
+/**
+ * The season a day falls in, or `undefined` if the world has no seasons.
+ *
+ * `undefined` rather than a fallback name: a missing season means no content
+ * supplied one, and inventing "spring" would put a season in a world that
+ * declared none — the same reasoning as `tintFor`.
+ */
+export function seasonFor(
+  day: number,
+  daysPerSeason: number,
+  seasons: readonly string[],
+): string | undefined {
+  return seasons[seasonIndexFor(day, daysPerSeason, seasons.length)];
+}

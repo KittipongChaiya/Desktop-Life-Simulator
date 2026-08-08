@@ -16,7 +16,16 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { DAY_PHASES, DayPhase, dayFor, phaseFor, phaseStartTick, timeOfDayFor } from './game-clock';
+import {
+  DAY_PHASES,
+  DayPhase,
+  dayFor,
+  phaseFor,
+  phaseStartTick,
+  seasonFor,
+  seasonIndexFor,
+  timeOfDayFor,
+} from './game-clock';
 
 /** A day short enough to walk exhaustively, and not a multiple of the phases. */
 const TICKS_PER_DAY = 2_000;
@@ -127,5 +136,76 @@ describe('it is a derivation, not a system', () => {
       expect(phaseFor(0, length)).toBe(DayPhase.Dawn);
       expect(phaseFor(length - 1, length)).toBe(DayPhase.Night);
     }
+  });
+});
+
+describe('the season cycle (ADR-021 §1)', () => {
+  const YEAR = ['core:spring', 'core:summer', 'core:autumn', 'core:winter'];
+  const DAYS = 7;
+
+  it('starts a world in the first season', () => {
+    expect(seasonIndexFor(0, DAYS, YEAR.length)).toBe(0);
+    expect(seasonFor(0, DAYS, YEAR)).toBe('core:spring');
+  });
+
+  it('turns on the day the season length says, not a day early or late', () => {
+    // The boundary is the whole feature: day 6 is still spring, day 7 is not.
+    expect(seasonFor(DAYS - 1, DAYS, YEAR)).toBe('core:spring');
+    expect(seasonFor(DAYS, DAYS, YEAR)).toBe('core:summer');
+  });
+
+  it('covers every season exactly once per year, in order, with no gap', () => {
+    // ADR-021 §Validation, stated as the derivation test it asks for. A gap
+    // would be a day belonging to no season; an overlap would be a day
+    // belonging to two.
+    const seen: string[] = [];
+    let previous: string | undefined;
+
+    for (let day = 0; day < DAYS * YEAR.length; day += 1) {
+      const season = seasonFor(day, DAYS, YEAR);
+      expect(season, `day ${String(day)} has no season`).toBeDefined();
+      if (season !== previous) {
+        seen.push(season as string);
+        previous = season;
+      }
+    }
+
+    expect(seen).toEqual(YEAR);
+  });
+
+  it('repeats forever without a year counter to store', () => {
+    // Several years, as ADR-021 §Validation asks. Nothing accumulates, so the
+    // only way this drifts is arithmetic.
+    for (let year = 0; year < 12; year += 1) {
+      for (const [index, expected] of YEAR.entries()) {
+        const day = year * DAYS * YEAR.length + index * DAYS;
+        expect(seasonFor(day, DAYS, YEAR), `year ${String(year)}, ${expected}`).toBe(expected);
+      }
+    }
+  });
+
+  it('agrees with the day derivation it is built on', () => {
+    // The season must be a function of the DAY, not of the tick directly —
+    // otherwise a change to the day length would move seasons independently.
+    const ticksPerDay = 24_000;
+    const tick = ticksPerDay * 10 + 500;
+
+    expect(seasonFor(dayFor(tick, ticksPerDay), DAYS, YEAR)).toBe('core:summer');
+  });
+
+  it('honours a content source shipping a two-season year', () => {
+    const short = ['mod:wet', 'mod:dry'];
+
+    expect(seasonFor(0, 3, short)).toBe('mod:wet');
+    expect(seasonFor(3, 3, short)).toBe('mod:dry');
+    expect(seasonFor(6, 3, short)).toBe('mod:wet');
+  });
+
+  it('is total on a degenerate year rather than dividing by zero', () => {
+    // Unreachable through the public API — `core` registers four seasons and
+    // cannot be disabled — but a total function is cheaper than a proof.
+    expect(seasonIndexFor(5, 7, 0)).toBe(0);
+    expect(seasonIndexFor(5, 0, 4)).toBe(0);
+    expect(seasonFor(5, 7, [])).toBeUndefined();
   });
 });

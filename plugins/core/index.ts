@@ -23,7 +23,14 @@
 import { installSource } from '../../src/sim/content/installed';
 import { Provenance, type ContentSource } from '../../src/sim/content/sources';
 
-import { coreBuildings, coreCrops, coreItems, corePhaseTints, coreTileKinds } from './content';
+import {
+  coreBuildings,
+  coreCrops,
+  coreItems,
+  corePhaseTints,
+  coreSeasons,
+  coreTileKinds,
+} from './content';
 
 /**
  * The source record for built-in content.
@@ -55,6 +62,7 @@ const installed = installSource(CORE_SOURCE, (api) =>
     items: coreItems(),
     buildings: coreBuildings(),
     phaseTints: corePhaseTints(),
+    seasons: coreSeasons(),
   }),
 );
 

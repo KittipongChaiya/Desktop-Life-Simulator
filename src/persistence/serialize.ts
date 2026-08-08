@@ -141,6 +141,8 @@ export function toSaveDocument(
       disabledSources: [...world.disabledSources].sort(),
       ticksPerDay: world.ticksPerDay,
       dayPhases: [...world.dayPhases],
+      daysPerSeason: world.daysPerSeason,
+      seasons: [...world.seasons],
       crops,
       workers,
       buildings,

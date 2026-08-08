@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -247,6 +247,21 @@ export interface SaveWorld {
    * not reinterpret a save written before it existed.
    */
   readonly dayPhases: readonly string[];
+  /**
+   * The season's length in days, frozen at creation (v4, ADR-021 §1).
+   *
+   * `ticksPerDay`'s rule one level up: a season is a run of days, so changing
+   * this reinterprets which season every past day belonged to.
+   */
+  readonly daysPerSeason: number;
+  /**
+   * The year's seasons, in order, frozen at creation (v4, ADR-021 §1).
+   *
+   * Stored rather than read from the registry because the registry is whatever
+   * content is installed TODAY. A source adding a fifth season must not change
+   * which season a save's day 30 fell in.
+   */
+  readonly seasons: readonly string[];
 }
 
 /**

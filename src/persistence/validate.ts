@@ -324,6 +324,19 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       req(isStr(phase), `world.dayPhases[${i}]`, 'a string');
     });
 
+    // v4 (ADR-021 §1). Frozen per world for the same reason, one level up: a
+    // corrupt value here reinterprets which season every past day belonged to.
+    req(
+      isInt(world['daysPerSeason']) && world['daysPerSeason'] > 0,
+      'world.daysPerSeason',
+      'a positive integer',
+    );
+    req(Array.isArray(world['seasons']), 'world.seasons', 'an array');
+    req((world['seasons'] as unknown[]).length > 0, 'world.seasons', 'a non-empty array');
+    (world['seasons'] as unknown[]).forEach((season, i) => {
+      req(isStr(season), `world.seasons[${i}]`, 'a string');
+    });
+
     req(Array.isArray(world['disabledSources']), 'world.disabledSources', 'an array');
     (world['disabledSources'] as unknown[]).forEach((value2, i) => {
       req(isStr(value2), `world.disabledSources[${i}]`, 'a string');

@@ -45,6 +45,7 @@ import { createCropRegistry } from './crops';
 import { createItemRegistry } from './items';
 import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
+import { createSeasonRegistry } from './seasons';
 import { createSourceRegistry, type ContentSource } from './sources';
 import { createTileKindRegistry } from './tile-kinds';
 
@@ -116,6 +117,7 @@ export function createInstalledRegistries(): ContentTargets {
     buildings: createBuildingRegistry(),
     tileKinds: createTileKindRegistry(),
     phaseTints: createPhaseTintRegistry(),
+    seasons: createSeasonRegistry(),
   };
 
   const installed = applyInstalledSources(targets);

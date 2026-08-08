@@ -65,6 +65,8 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     disabledSources: saved.disabledSources,
     ticksPerDay: saved.ticksPerDay,
     dayPhases: saved.dayPhases,
+    daysPerSeason: saved.daysPerSeason,
+    seasons: saved.seasons,
   });
 
   world.tick = saved.tick;

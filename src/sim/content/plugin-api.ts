@@ -40,6 +40,7 @@ import type { BuildingDefinition, BuildingRegistry } from './buildings';
 import type { CropDefinition, CropRegistry } from './crops';
 import type { ItemDefinition, ItemRegistry } from './items';
 import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
+import type { SeasonDefinition, SeasonRegistry } from './seasons';
 import type { ContentSource } from './sources';
 import type { TileKindDefinition, TileKindRegistry } from './tile-kinds';
 
@@ -58,6 +59,7 @@ export interface ContentTargets {
   readonly buildings: BuildingRegistry;
   readonly tileKinds: TileKindRegistry;
   readonly phaseTints: PhaseTintRegistry;
+  readonly seasons: SeasonRegistry;
 }
 
 /**
@@ -73,6 +75,13 @@ export interface ContentBundle {
   readonly tileKinds?: readonly TileKindDefinition[];
   /** Phase → tint, for the lighting layer. Presentation only (ADR-020 §4). */
   readonly phaseTints?: readonly PhaseTintDefinition[];
+  /**
+   * The year's seasons, in the order they occur (ADR-021 §1).
+   *
+   * Order is significant: it IS the year. Appending is safe; reordering gives
+   * every new world a different year to every world made before it.
+   */
+  readonly seasons?: readonly SeasonDefinition[];
 }
 
 export interface PluginApi {
@@ -129,6 +138,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('item', bundle.items, targets.items),
     ...of('building', bundle.buildings, targets.buildings),
     ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
+    ...of('season', bundle.seasons, targets.seasons),
   ];
 }
 

@@ -31,6 +31,13 @@ import {
 } from '../../src/sim/content/items';
 import { phaseTintId, type PhaseTintDefinition } from '../../src/sim/content/lighting';
 import {
+  CORE_AUTUMN,
+  CORE_SPRING,
+  CORE_SUMMER,
+  CORE_WINTER,
+  type SeasonDefinition,
+} from '../../src/sim/content/seasons';
+import {
   CORE_GRASS,
   CORE_PATH,
   CORE_STONE,
@@ -223,4 +230,26 @@ export function corePhaseTints(): readonly PhaseTintDefinition[] {
     { id: phaseTintId('core', DayPhase.Night), phase: DayPhase.Night, color: 0x1b2a6b, alpha: 0.4 },
   ];
   return tints;
+}
+
+/**
+ * The four seasons. Phase-11a — ADR-021 §1.
+ *
+ * ORDER IS THE YEAR. Spring, summer, autumn, winter is the order this list is
+ * registered in, and that is the only thing that makes it the order they occur
+ * in — there is no `order` field to disagree with it. Appending a fifth season
+ * is safe; reordering these four would give every new world a different year to
+ * every world created before it, with nothing to catch it.
+ *
+ * Existing saves are immune either way: a world freezes the list at creation
+ * (`world.seasons`).
+ */
+export function coreSeasons(): readonly SeasonDefinition[] {
+  const seasons: readonly SeasonDefinition[] = [
+    { id: CORE_SPRING, displayName: 'Spring' },
+    { id: CORE_SUMMER, displayName: 'Summer' },
+    { id: CORE_AUTUMN, displayName: 'Autumn' },
+    { id: CORE_WINTER, displayName: 'Winter' },
+  ];
+  return seasons;
 }

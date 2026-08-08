@@ -10,7 +10,7 @@
  * (AI_RULES.md §3.2).
  */
 
-import { DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
+import { DEFAULT_DAYS_PER_SEASON, DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
 import type { BuildingId, ContentId, TileIndex } from '../../shared/ids';
 import { registerBuildingCommands } from '../commands/building-commands';
 import { registerCommerceCommands } from '../commands/commerce-commands';
@@ -27,6 +27,7 @@ import type { CropRegistry } from '../content/crops';
 import { createInstalledRegistries, installedSources } from '../content/installed';
 import type { ItemRegistry } from '../content/items';
 import type { PhaseTintRegistry } from '../content/lighting';
+import { seasonOrder, type SeasonRegistry } from '../content/seasons';
 import type { ContentSource } from '../content/sources';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
@@ -94,6 +95,15 @@ export interface World {
    * reads the phase.
    */
   readonly phaseTintRegistry: PhaseTintRegistry;
+
+  /**
+   * The seasons a content source registered.
+   *
+   * Distinct from `seasons`, which is this world's FROZEN order: the registry
+   * is what is installed now, the list is what this world was built with. They
+   * agree on a fresh world and may not on a loaded one, which is the point.
+   */
+  readonly seasonRegistry: SeasonRegistry;
 
   /** Placed buildings, keyed by id. Sparse. Each blocks its tile's walkability. */
   readonly buildings: BuildingStore;
@@ -183,6 +193,23 @@ export interface World {
 
   /** This world's day phases, in order. Frozen at creation (ADR-020 §3). */
   readonly dayPhases: readonly string[];
+
+  /**
+   * The season's length in days, frozen at creation (ADR-021 §1).
+   *
+   * Same rule as `ticksPerDay`, one level up: change it on a live world and
+   * every season the player has lived through renumbers.
+   */
+  readonly daysPerSeason: number;
+
+  /**
+   * This world's seasons, in the order they occur. Frozen at creation.
+   *
+   * Taken from the season registry once, so the year a world runs on is the
+   * one it was created with — not the one today's installed content would
+   * produce (ADR-021 §1).
+   */
+  readonly seasons: readonly string[];
 }
 
 /** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
@@ -217,6 +244,10 @@ export interface WorldOptions {
   readonly ticksPerDay?: number;
   /** The day's phases, restored from a save. Absent means the current set. */
   readonly dayPhases?: readonly string[];
+  /** The season's length, restored from a save. Absent takes the default. */
+  readonly daysPerSeason?: number;
+  /** The season order, restored from a save. Absent takes the registry's. */
+  readonly seasons?: readonly string[];
 }
 
 /**
@@ -243,6 +274,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildings: buildingRegistry,
     tileKinds,
     phaseTints: phaseTintRegistry,
+    seasons: seasonRegistry,
   } = createInstalledRegistries();
 
   const tiles = createTileGrid();
@@ -259,6 +291,8 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     sources: installedSources(),
     ticksPerDay: options.ticksPerDay ?? DEFAULT_TICKS_PER_DAY,
     dayPhases: options.dayPhases ?? [...DAY_PHASES],
+    daysPerSeason: options.daysPerSeason ?? DEFAULT_DAYS_PER_SEASON,
+    seasons: options.seasons ?? seasonOrder(seasonRegistry),
     disabledSources: new Set(options.disabledSources ?? []),
     tick: 0,
     rng: createRng(seed),
@@ -271,6 +305,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     inventory: createContainer(BASE_INVENTORY_SLOTS),
     buildingRegistry,
     phaseTintRegistry,
+    seasonRegistry,
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
     cropStats,

@@ -109,3 +109,21 @@ export const AUDIO_MUTED_BY_DEFAULT = true;
  * this rebalances new worlds without touching anyone's past (ADR-020 §2).
  */
 export const DEFAULT_TICKS_PER_DAY = 24_000;
+
+/**
+ * The season's length for a NEW world, in days. Phase-11a — ADR-021 §1.
+ *
+ * Seven days is two hours twenty of real time at the default day length, so a
+ * full four-season year is nine hours twenty — just over the working day
+ * `VISION.md` §2.1 says this window sits beside. A player who leaves it running
+ * for a day sees a whole year, which is what makes a seasonal restriction feel
+ * like a choice rather than a lockout.
+ *
+ * The longest crop, `core:pumpkin`, matures in exactly one day, so a season
+ * holds seven of them end to end (`GAME_DESIGN.md` §3.1).
+ *
+ * A DEFAULT, not a constant the simulation reads: every world freezes its own
+ * value at creation, because changing it on a live world renumbers every season
+ * the player has already lived through (ADR-021 §1, ADR-020 §2).
+ */
+export const DEFAULT_DAYS_PER_SEASON = 7;
