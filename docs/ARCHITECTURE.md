@@ -198,6 +198,14 @@ times per day; a continuous fraction would republish a slice 20 times a second
 forever, which ADR-005 §2 names a defect and ADR-001 §1 would pay for in frames.
 This is the same move `CropStage` makes, for the same reason.
 
+**Views read the `time` slice, never the clock.** `projectTime` publishes
+`{ day, phase }` from `world.tick` and `world.ticksPerDay`, and the slice
+republishes only when one of them changes — four times a day on the shipped
+phase set. A view calling `phaseFor` itself would have to be told when to call
+it, which is the subscription the slice already is. The projection deliberately
+carries no `timeOfDay`: it would be correct, cheap, and would republish on every
+one of a day's 24,000 ticks (phase-10b).
+
 ### 3.5 Events
 
 > **Status: BUILT (phase-02.5).** ADR-008 records the decision. Queue-and-flush,

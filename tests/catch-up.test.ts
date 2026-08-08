@@ -28,6 +28,7 @@ import {
 import { CORE_CARROT, CORE_TURNIP, CORE_WHEAT } from '../src/sim/content/crops';
 import { CORE_TURNIP_SEED, CORE_WHEAT_SEED } from '../src/sim/content/items';
 import { stepSimulationBy } from '../src/sim/tick';
+import { dayFor, phaseFor } from '../src/sim/time/game-clock';
 import { addItems, containerTotal } from '../src/sim/world/container';
 import { multiplierOf } from '../src/sim/world/economy';
 import { setBlocked, setOwned } from '../src/sim/world/tile-grid';
@@ -201,6 +202,54 @@ describe('catchUpWorld — exact halves', () => {
       ),
       { numRuns: 30 },
     );
+  });
+});
+
+describe('the calendar survives an offline gap exactly (ADR-020 §Validation)', () => {
+  // The acceptance is *"loading a save and advancing past an 8-hour gap yields
+  // the same day and phase as running the ticks"*. It reads like a claim about
+  // catch-up; it is really a claim about DERIVATION — day and phase are
+  // functions of the tick, and catch-up's whole job is landing the tick in the
+  // right place. This test is what makes that reasoning falsifiable rather than
+  // merely convincing.
+  const EIGHT_HOURS_TICKS = Math.floor((8 * 60 * 60 * 1000) / TICK_MS);
+
+  it('lands on the same day and phase as running every tick', () => {
+    const plan = fc.sample(farmArb, { numRuns: 1, seed: 11 })[0]!;
+    const model = buildFarm({ ...plan, workerCount: 0, hasStall: false });
+    const real = cloneWorld(model);
+
+    // Capped, because an 8-hour gap exceeds the offline cap on purpose
+    // (ADR-007 §6) and the two paths must agree on the CAPPED tick.
+    const gap = Math.min(EIGHT_HOURS_TICKS, OFFLINE_CAP_TICKS);
+    catchUpWorld(model, gap);
+    stepSimulationBy(real, gap);
+
+    expect(model.tick).toBe(real.tick);
+    expect(dayFor(model.tick, model.ticksPerDay)).toBe(dayFor(real.tick, real.ticksPerDay));
+    expect(phaseFor(model.tick, model.ticksPerDay)).toBe(phaseFor(real.tick, real.ticksPerDay));
+  });
+
+  it('survives the save round-trip the gap actually happens across', () => {
+    // The real sequence is save → quit → 8 hours → load → catch up, so the day
+    // has to survive serialization too.
+    //
+    // A NON-DEFAULT DAY LENGTH IS THE WHOLE POINT. Built with the default, this
+    // test passes even if `deserialize` drops the field entirely, because the
+    // fallback is the value it was meant to restore. 9,000 ticks is a day no
+    // constant would supply.
+    const world = createWorld(12, { ticksPerDay: 9_000 });
+    stepSimulationBy(world, 5_000);
+
+    const document = toSaveDocument(world, META);
+    const loaded = hydrateWorld(document);
+
+    const gap = Math.min(EIGHT_HOURS_TICKS, OFFLINE_CAP_TICKS);
+    catchUpWorld(loaded, gap);
+    stepSimulationBy(world, gap);
+
+    expect(loaded.ticksPerDay).toBe(world.ticksPerDay);
+    expect(phaseFor(loaded.tick, loaded.ticksPerDay)).toBe(phaseFor(world.tick, world.ticksPerDay));
   });
 });
 

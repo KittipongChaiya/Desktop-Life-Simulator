@@ -17,6 +17,7 @@ import type { BuildingView } from './buildings-slice';
 import type { CropView } from './crops-slice';
 import type { EconomyView, WalletView } from './economy-slice';
 import type { InventoryView } from './inventory-slice';
+import type { TimeView } from './time-slice';
 import type { WorkerView } from './workers-slice';
 
 /**
@@ -48,6 +49,8 @@ export interface SliceMap {
   readonly wallet: WalletView;
   /** Live integer prices and the expansion counter. Phase-06d. */
   readonly economy: EconomyView;
+  /** The day and its phase. Republishes on a PHASE boundary only. Phase-10b. */
+  readonly time: TimeView;
 }
 
 export type SliceName = keyof SliceMap;
@@ -60,6 +63,7 @@ export const SLICE_NAMES = [
   'inventory',
   'wallet',
   'economy',
+  'time',
 ] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */

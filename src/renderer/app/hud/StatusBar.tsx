@@ -16,6 +16,7 @@ import { useSlice } from '../hooks/use-slice';
 import { useOverlay } from '../store-context';
 
 import { CoinCounter } from './CoinCounter';
+import { DayReadout } from './DayReadout';
 import styles from './StatusBar.module.css';
 import { ToolBar } from './ToolBar';
 
@@ -59,6 +60,10 @@ export function StatusBar({ children }: StatusBarProps): ReactNode {
       <span className={styles['muted']} title="Simulation ticks elapsed">
         {status.tick.toLocaleString()} ticks
       </span>
+
+      {/* Subscribes to `time` itself rather than reading it here, so a phase
+          change re-renders one span instead of this whole bar (10b). */}
+      <DayReadout />
 
       <CoinCounter />
 

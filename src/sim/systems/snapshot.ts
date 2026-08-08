@@ -17,8 +17,10 @@ import {
   projectStatus,
   projectWallet,
   projectWorkers,
+  projectTime,
   publishIfChanged,
   statusEquals,
+  timeEquals,
   walletEquals,
   workersEqual,
 } from '../snapshot/state';
@@ -41,4 +43,7 @@ export function snapshotSystem(world: World): void {
   // never per recovery period, let alone per tick (crit 16).
   publishIfChanged(world.snapshots.wallet, projectWallet(world), walletEquals);
   publishIfChanged(world.snapshots.economy, projectEconomy(world), economyEquals);
+  // The calendar is DERIVED from the tick, so this projects on every tick and
+  // republishes on four of them per day — once per phase boundary (ADR-020 §3).
+  publishIfChanged(world.snapshots.time, projectTime(world), timeEquals);
 }

@@ -7,6 +7,8 @@
  * polls versions per frame (ADR-005 §2).
  */
 
+import { DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
+
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
 import { cropsEqual, projectCrops, type CropView } from './crops-slice';
 import {
@@ -19,6 +21,7 @@ import {
 } from './economy-slice';
 import { inventoryEqual, projectInventory, type InventoryView } from './inventory-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
+import { projectTime, timeEquals, type TimeView } from './time-slice';
 import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
 
 export interface VersionedSlice<T> {
@@ -35,6 +38,7 @@ export interface SnapshotState {
   readonly inventory: VersionedSlice<InventoryView>;
   readonly wallet: VersionedSlice<WalletView>;
   readonly economy: VersionedSlice<EconomyView>;
+  readonly time: VersionedSlice<TimeView>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -50,6 +54,11 @@ export function createSnapshotState(): SnapshotState {
     // Corrected to the real balance and price list on the first tick.
     wallet: { version: 0, value: { coins: 0 } },
     economy: { version: 0, value: { prices: [], expansionsPurchased: 0, nextExpansionCost: null } },
+    // Exact rather than a placeholder: tick 0 is day 0 in the first phase under
+    // ANY day length, so the length passed here cannot change the answer. A
+    // save resuming mid-day corrects it on its first tick, like every other
+    // slice.
+    time: { version: 0, value: projectTime({ tick: 0, ticksPerDay: DEFAULT_TICKS_PER_DAY }) },
   };
 }
 
@@ -80,6 +89,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     inventory: state.inventory.version,
     wallet: state.wallet.version,
     economy: state.economy.version,
+    time: state.time.version,
   };
 }
 
@@ -98,4 +108,6 @@ export {
   projectWallet,
   economyEquals,
   projectEconomy,
+  timeEquals,
+  projectTime,
 };
