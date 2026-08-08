@@ -23,15 +23,21 @@
  * claiming `core` is refused here rather than at registration.
  */
 
+import { mergeBundles, parseDefinitionFile } from '../../sim/content/definitions';
 import { installedSources, installSource } from '../../sim/content/installed';
 import { parseManifest } from '../../sim/content/manifest';
 import type { SourceManifest } from '../../sim/content/manifest';
+import type { ContentBundle } from '../../sim/content/plugin-api';
 import { resolveSources } from '../../sim/content/resolve';
 import type { ContentSource } from '../../sim/content/sources';
 
 /** What main hands over: bytes and paths, no judgements. */
 export interface DiscoveredPayload {
-  readonly sources: readonly { readonly directory: string; readonly manifest: unknown }[];
+  readonly sources: readonly {
+    readonly directory: string;
+    readonly manifest: unknown;
+    readonly definitions?: Readonly<Record<string, unknown>>;
+  }[];
   readonly failed: readonly { readonly directory: string; readonly reason: string }[];
 }
 
@@ -68,13 +74,36 @@ export function installDiscoveredSources(discovered: DiscoveredPayload): Install
   }));
 
   const manifests: SourceManifest[] = [];
+  const bundles = new Map<string, ContentBundle>();
+
   for (const found of discovered.sources) {
     const parsed = parseManifest(found.manifest);
     if (!parsed.ok) {
       refused.push({ source: found.directory, reason: parsed.error.message });
       continue;
     }
+
+    // Every declared file is validated BEFORE the source is admitted. A source
+    // whose third definition file is malformed must not register its first two
+    // — half its content is a world whose saves reference definitions that do
+    // not exist.
+    const parsedFiles: ContentBundle[] = [];
+    let contentOk = true;
+
+    for (const [file, contents] of Object.entries(found.definitions ?? {})) {
+      const bundle = parseDefinitionFile(contents, file);
+      if (!bundle.ok) {
+        refused.push({ source: parsed.value.id, reason: bundle.error.message });
+        contentOk = false;
+        break;
+      }
+      parsedFiles.push(bundle.value);
+    }
+
+    if (!contentOk) continue;
+
     manifests.push(parsed.value);
+    bundles.set(parsed.value.id, mergeBundles(parsedFiles));
   }
 
   // Namespaces already owned before discovery — core, and anything a previous
@@ -92,11 +121,12 @@ export function installDiscoveredSources(discovered: DiscoveredPayload): Install
 
   const installed: string[] = [];
   for (const manifest of resolution.loaded) {
-    // A v1 source registers no content of its own yet: definition FILES are
-    // named in the manifest and loading them is the next capability, not this
-    // commit's. Installing the source claims its namespaces and puts it in load
-    // order, which is what makes it visible to the save's source manifest.
-    const result = installSource(toContentSource(manifest), () => ({ ok: true, value: undefined }));
+    // The installer runs PER WORLD, not here: definitions are data, but the
+    // registries they land in belong to a world. `registerContent` enforces
+    // that a source may only register inside namespaces it owns, so a manifest
+    // claiming `alpha` cannot ship a `core:` crop.
+    const bundle = bundles.get(manifest.id) ?? {};
+    const result = installSource(toContentSource(manifest), (api) => api.registerContent(bundle));
 
     if (result.ok) installed.push(manifest.id);
     else refused.push({ source: manifest.id, reason: result.error.message });

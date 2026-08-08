@@ -123,3 +123,85 @@ describe('enumeration order is stable but carries no meaning', () => {
     expect(discoverSources(dir).failed.map((f) => f.directory)).toEqual(['alpha', 'zulu']);
   });
 });
+
+describe('a manifest cannot read outside its own directory', () => {
+  it('refuses a definition path that escapes the source', () => {
+    // The manifest is downloaded, and `readFileSync` will happily follow
+    // `../../../` out of the plugins directory. This is the only place that can
+    // stop it, so it is tested rather than assumed.
+    writeFileSync(join(dir, 'secret.json'), '{"stolen":true}', 'utf8');
+    mkdirSync(join(dir, 'nosy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'nosy', MANIFEST_FILENAME),
+      JSON.stringify({
+        id: 'nosy',
+        name: 'Nosy',
+        version: '1.0.0',
+        apiVersion: 1,
+        content: { definitions: ['../secret.json'] },
+      }),
+      'utf8',
+    );
+
+    const discovery = discoverSources(dir);
+    expect(discovery.sources).toEqual([]);
+    expect(discovery.failed[0]?.reason).toContain('escapes the source');
+  });
+
+  it('refuses an absolute definition path outright', () => {
+    mkdirSync(join(dir, 'absolute'), { recursive: true });
+    writeFileSync(
+      join(dir, 'absolute', MANIFEST_FILENAME),
+      JSON.stringify({
+        id: 'absolute',
+        name: 'Absolute',
+        version: '1.0.0',
+        apiVersion: 1,
+        content: { definitions: [join(dir, 'secret.json')] },
+      }),
+      'utf8',
+    );
+
+    expect(discoverSources(dir).sources).toEqual([]);
+  });
+
+  it('reads a definition file that stays inside', () => {
+    mkdirSync(join(dir, 'polite', 'data'), { recursive: true });
+    writeFileSync(join(dir, 'polite', 'data', 'crops.json'), '{"crops":[]}', 'utf8');
+    writeFileSync(
+      join(dir, 'polite', MANIFEST_FILENAME),
+      JSON.stringify({
+        id: 'polite',
+        name: 'Polite',
+        version: '1.0.0',
+        apiVersion: 1,
+        content: { definitions: ['data/crops.json'] },
+      }),
+      'utf8',
+    );
+
+    const [found] = discoverSources(dir).sources;
+    expect(found?.definitions['data/crops.json']).toEqual({ crops: [] });
+  });
+
+  it('refuses the whole source when one declared file is missing', () => {
+    // Half a source is a world whose saves reference definitions that do not
+    // exist — all or nothing.
+    mkdirSync(join(dir, 'partial'), { recursive: true });
+    writeFileSync(
+      join(dir, 'partial', MANIFEST_FILENAME),
+      JSON.stringify({
+        id: 'partial',
+        name: 'Partial',
+        version: '1.0.0',
+        apiVersion: 1,
+        content: { definitions: ['gone.json'] },
+      }),
+      'utf8',
+    );
+
+    const discovery = discoverSources(dir);
+    expect(discovery.sources).toEqual([]);
+    expect(discovery.failed[0]?.reason).toContain('missing');
+  });
+});

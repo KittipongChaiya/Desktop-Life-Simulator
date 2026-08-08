@@ -28,7 +28,7 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 /** The manifest filename inside a source's directory. */
 export const MANIFEST_FILENAME = 'plugin.json';
@@ -38,6 +38,14 @@ export interface DiscoveredSource {
   readonly directory: string;
   /** The parsed manifest, unvalidated — validation is `src/sim`'s. */
   readonly manifest: unknown;
+  /**
+   * Contents of each file the manifest named under `content.definitions`,
+   * keyed by the path as written. Parsed JSON, unvalidated.
+   *
+   * Files that escaped the source directory, went missing, or would not parse
+   * are absent here and named in `failed` instead — never half-loaded.
+   */
+  readonly definitions: Readonly<Record<string, unknown>>;
 }
 
 export interface UnreadableSource {
@@ -52,6 +60,41 @@ export interface Discovery {
 }
 
 const EMPTY: Discovery = { sources: [], failed: [] };
+
+/**
+ * The definition paths a manifest names, defensively.
+ *
+ * The manifest is untrusted JSON; this reads `content.definitions` without
+ * assuming any of it exists or has the right shape, because validating it is
+ * `src/sim`'s job and this layer must not duplicate policy.
+ */
+function declaredDefinitionPaths(manifest: unknown): string[] {
+  if (typeof manifest !== 'object' || manifest === null) return [];
+  const content = (manifest as { content?: unknown }).content;
+  if (typeof content !== 'object' || content === null) return [];
+  const declared = (content as { definitions?: unknown }).definitions;
+  if (!Array.isArray(declared)) return [];
+  return declared.filter((entry): entry is string => typeof entry === 'string');
+}
+
+/**
+ * Resolves a manifest-declared path inside the source directory, or null.
+ *
+ * PATH TRAVERSAL IS A REAL RISK HERE and this is the only place that can stop
+ * it: the path comes from a downloaded manifest, and `readFileSync` will
+ * happily follow `../../../` out of the plugins directory and hand a plugin
+ * the contents of anything the app can read. A source may only reach its own
+ * files, and an absolute path is refused outright.
+ */
+function resolveInside(root: string, declared: string): string | null {
+  if (isAbsolute(declared)) return null;
+
+  const target = resolve(root, declared);
+  const inside = relative(resolve(root), target);
+  if (inside.startsWith('..') || isAbsolute(inside)) return null;
+
+  return target;
+}
 
 /**
  * Reads every source directory under `pluginsDir`.
@@ -96,13 +139,43 @@ export function discoverSources(pluginsDir: string): Discovery {
       continue;
     }
 
+    let manifest: unknown;
     try {
-      sources.push({ directory, manifest: JSON.parse(text) });
+      manifest = JSON.parse(text);
     } catch {
       // Reported, not thrown: one unparseable manifest refuses one source and
       // leaves the rest discoverable.
       failed.push({ directory, reason: `${MANIFEST_FILENAME} is not valid JSON` });
+      continue;
     }
+
+    const definitions: Record<string, unknown> = {};
+    let usable = true;
+
+    for (const declared of declaredDefinitionPaths(manifest)) {
+      const target = resolveInside(root, declared);
+      if (target === null) {
+        failed.push({ directory, reason: `definition path escapes the source: ${declared}` });
+        usable = false;
+        break;
+      }
+      if (!existsSync(target)) {
+        failed.push({ directory, reason: `definition file is missing: ${declared}` });
+        usable = false;
+        break;
+      }
+      try {
+        definitions[declared] = JSON.parse(readFileSync(target, 'utf8'));
+      } catch {
+        failed.push({ directory, reason: `definition file is not valid JSON: ${declared}` });
+        usable = false;
+        break;
+      }
+    }
+
+    // All or nothing: a source missing half its content would register a
+    // partial world its saves then reference.
+    if (usable) sources.push({ directory, manifest, definitions });
   }
 
   return { sources, failed };
