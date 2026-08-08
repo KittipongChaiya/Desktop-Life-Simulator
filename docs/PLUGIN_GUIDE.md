@@ -26,6 +26,17 @@ That is a real constraint and this guide will not pretend otherwise. What it buy
 
 This is the walkthrough the `PLAN.md` §3 gate is measured against, so it is written last, by someone following it.
 
+> **Blocked, and on what.** The engine can already validate a manifest, resolve
+> load order, register a third-party crop through the public API, and keep that
+> crop safe when the source is uninstalled — `tests/source-isolation.test.ts`
+> proves the last one against a real second source. What does not exist yet is
+> **discovery**: nothing reads a plugin directory off disk, so "install it and
+> see it in game" has no mechanism behind it.
+>
+> This section stays unwritten until it does. A walkthrough whose final step
+> cannot be followed is worse than an absent one — it reads as a working feature
+> and costs an author an afternoon before they conclude the fault is theirs.
+
 ---
 
 ## 3. Choosing your namespace
@@ -77,6 +88,34 @@ Pick something you will still want in two years.
 - Declare other sources you require, with API-version-compatible ranges.
 - Resolution is **dependency-topological**, ties broken by namespace ascending — never by filesystem order, so your plugin loads the same way on every machine (`PLUGIN_API.md` §11).
 - A missing dependency or a cycle **refuses your source and names it**, then loads everything else. Your plugin failing never takes down someone's game.
+
+### 8.1 Version ranges: only three forms are understood — _shipped, Phase 09_
+
+`dependencies` maps a source id to a range over **their `version`**, and the engine understands exactly three forms:
+
+| Range      | Means                           |
+| ---------- | ------------------------------- |
+| `"*"`      | Any version                     |
+| `"1.2.3"`  | Exactly that version            |
+| `"^1.2.3"` | At least `1.2.3`, below `2.0.0` |
+
+**Anything else is refused rather than guessed at** — `>=1.0.0`, `~1.2.3`, `1.x` and `latest` all fail, and your source is refused by name. That is deliberate: a range the engine misreads tells you nothing and surfaces later as content that is simply not there, which is far harder to diagnose than an outright refusal at load.
+
+If you need a form that is not here, say so — widening this is a small change, and guessing at it is not.
+
+### 8.2 What a refusal looks like
+
+Every refusal names your source and the reason, and leaves every other source loaded. The cases you can actually hit:
+
+| Cause                                       | What happens                                                |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| Dependency missing, or itself refused       | Your source is refused; the dependency is named             |
+| Dependency version outside your range       | Refused, with the range you asked for and the version found |
+| Dependency cycle                            | Every source on the cycle is refused, by name               |
+| `apiVersion` newer than the engine supports | Refused, with the version you targeted                      |
+| Your namespace claimed by another source    | **Both** claimants are refused — see §3                     |
+
+The last one is worth reading twice. A contested namespace refuses _everyone_ who claimed it, rather than picking a winner: any tie-break the engine could apply would decide whose content survives by something arbitrary, and the loser's players would silently lose a farm.
 
 ---
 
