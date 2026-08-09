@@ -7,7 +7,11 @@
  * polls versions per frame (ADR-005 §2).
  */
 
-import { DEFAULT_DAYS_PER_SEASON, DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
+import {
+  DEFAULT_DAYS_PER_SEASON,
+  DEFAULT_TICKS_PER_DAY,
+  DEFAULT_TICKS_PER_WEATHER_PERIOD,
+} from '../../shared/constants';
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
 import { cropsEqual, projectCrops, type CropView } from './crops-slice';
@@ -68,6 +72,9 @@ export function createSnapshotState(): SnapshotState {
         // its own frozen list, and this seed exists only until the first tick
         // projects the real one.
         seasons: [],
+        ticksPerWeatherPeriod: DEFAULT_TICKS_PER_WEATHER_PERIOD,
+        seed: 0,
+        weatherKindRegistry: { all: () => [] },
       }),
     },
   };

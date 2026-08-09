@@ -34,6 +34,7 @@ import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
 import { seasonTint } from '../../sim/content/seasons';
 import { CORE_GRASS } from '../../sim/content/tile-kinds';
+import { isRaining } from '../../sim/content/weather-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
 
@@ -67,6 +68,7 @@ import { createHighlight, type Highlight, type HighlightState } from './highligh
 import { createLightingRenderer, type LightingRenderer } from './lighting-view';
 import { createParticlePool } from './particle-pool';
 import { createParticleRenderer, type ParticleRenderer } from './particle-view';
+import { createRainRenderer, type RainRenderer } from './rain-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
@@ -429,6 +431,15 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     intensity: options.motionIntensity,
   });
 
+  // Layer 4, shared with the feedback effects phase-07.5b put there. Rain is
+  // ambient, so it answers to the same presence gate the swaying decor does.
+  const rain: RainRenderer = createRainRenderer({
+    layer: app.layers.effects,
+    gate,
+    width: options.width,
+    height: options.height,
+  });
+
   // The build ghost shares the worldUi layer with the highlight (ADR-001
   // §Layers). Created after it so the translucent building draws over the
   // hover box on the same tile.
@@ -622,6 +633,11 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       decor.sway(ambientNow, ambient);
       ambientLease.sync(ambient);
 
+      // Rain asks the SAME presence answer, so it can never outlive the
+      // conditions that permit it (ADR-022 §6). Whether it is raining is
+      // simulation state, read from the slice like every other view.
+      rain.update(isRaining(options.world), ambient, ambientNow);
+
       // Effects animate in REAL time, not simulation time: they acknowledge
       // an event to a person, so they must not stretch when the sim is
       // time-scaled in devtools. This also releases the animation lease the
@@ -671,6 +687,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       };
       app.resize(width, height);
       lighting.resize(width, height);
+      rain.resize(width, height);
       applyCamera();
       gate.markDirty();
     },
@@ -780,6 +797,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       buildings.destroy();
       crops.destroy();
       lighting.destroy();
+      rain.destroy();
       ghost.destroy();
       highlight.destroy();
       // A glide's lease must not outlive the view that owns it.

@@ -23,7 +23,9 @@
  * subscribes only to what it reads).
  */
 
+import type { WeatherKindDefinition } from '../content/weather-kinds';
 import { dayFor, phaseFor, seasonFor, type DayPhase } from '../time/game-clock';
+import { weatherFor, weatherPeriodFor } from '../time/weather';
 
 /** The calendar as a view sees it. */
 export interface TimeView {
@@ -41,6 +43,15 @@ export interface TimeView {
    * that never happens.
    */
   readonly season: string | undefined;
+  /**
+   * The current weather kind's id, or `undefined` if none can occur.
+   *
+   * Rides here for the season's reason: it changes four times a day at the
+   * shipped defaults, which is the same order as the phase, so it adds no
+   * republish anyone pays for. A `weatherChanged` event was not built — see
+   * ADR-022 §6's amendment and the phase doc; presentation reads slices.
+   */
+  readonly weather: string | undefined;
 }
 
 /**
@@ -56,16 +67,28 @@ export interface TimeProjectionSource {
   /** Frozen per world (ADR-021 §1), like `ticksPerDay`. */
   readonly daysPerSeason: number;
   readonly seasons: readonly string[];
+  /** Frozen per world (ADR-022 §1). */
+  readonly ticksPerWeatherPeriod: number;
+  readonly seed: number;
+  readonly weatherKindRegistry: { all(): readonly WeatherKindDefinition[] };
 }
 
 /** The current day and phase. Pure — no clock read, no generator (ADR-007 §1). */
 export function projectTime(source: TimeProjectionSource): TimeView {
   const day = dayFor(source.tick, source.ticksPerDay);
 
+  const season = seasonFor(day, source.daysPerSeason, source.seasons);
+
   return {
     day,
     phase: phaseFor(source.tick, source.ticksPerDay),
-    season: seasonFor(day, source.daysPerSeason, source.seasons),
+    season,
+    weather: weatherFor(
+      source.seed,
+      weatherPeriodFor(source.tick, source.ticksPerWeatherPeriod),
+      season,
+      source.weatherKindRegistry.all(),
+    )?.id,
   };
 }
 
@@ -78,5 +101,5 @@ export function projectTime(source: TimeProjectionSource): TimeView {
  * this comparison should silently depend on.
  */
 export function timeEquals(a: TimeView, b: TimeView): boolean {
-  return a.day === b.day && a.phase === b.phase && a.season === b.season;
+  return a.day === b.day && a.phase === b.phase && a.season === b.season && a.weather === b.weather;
 }

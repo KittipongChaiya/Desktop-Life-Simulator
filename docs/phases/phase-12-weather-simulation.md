@@ -3,7 +3,7 @@
 > **Delivers:** weather that is derived rather than simulated, exact offline, and costs nothing when nobody is watching.
 > **Governing decisions:** ADR-022 (weather), ADR-009 §2 (derive, never accumulate), ADR-017 §5 (derived variation, never rolled), ADR-021 (the seasons weather is biased by), ADR-027 (save evolution).
 > **Schema:** v4 → v5, and the first **removal**.
-> **Status:** **In progress.** Boundaries 1–3 landed; presentation remains.
+> **Status:** **Delivered.** All four boundaries landed.
 
 ---
 
@@ -21,6 +21,28 @@
 ---
 
 ## Decisions worth carrying forward
+
+### Rain added no mechanism, which was the point
+
+ADR-022 §6 says weather visuals _"join it under the existing rules, with no new mechanism"_, and that held literally. Rain asks the **same** `ambientAllowed` the swaying decor asks, in the same frame, and syncs a lease from the same boolean it draws on. All four of ADR-017 §2's conditions therefore apply without being re-stated: off by default and never in work mode arrive resolved in that flag, never-while-collapsed is structural because collapsing destroys the renderer, and the idle surrender is presence's job.
+
+Because the lease and the drawing come from one boolean, they cannot disagree — which is the whole reason the acceptance holds rather than being carefully maintained. Mutating `raining && ambient` to `raining` fails three tests.
+
+### `weatherChanged` was not built — the third amendment of its kind
+
+ADR-020 §3, ADR-021 §6, and now ADR-022 §6. Three phases, three events specified beside a slice, three times the slice turned out to be the whole mechanism. The deciding argument is identical each time: **a save resuming during a downpour publishes but does not fire**, so an event-driven view would show clear skies until the next period.
+
+At this point it is a pattern worth naming rather than three coincidences: in this codebase presentation is driven by slice republication, and an event earns its place only when the fact it carries reaches no slice — which is what `tileTilled` has and none of these three did.
+
+### Weather in the `time` slice cost the republish counters their isolation
+
+Weather changes about four times a day, the same order as the phase, so it adds no republish anyone pays for. It does mean the phase-10 republish counters were suddenly counting phase changes **plus** weather changes and calling the total "phase boundaries".
+
+Both now build their world with a weather period longer than the run. That keeps each test about the one thing it names — and is a smaller intervention than making the counters weather-aware, which would have made them agree with whatever the code did.
+
+### `isRaining` reads the declared rainfall, not a list of ids
+
+The renderer could have asked "is the weather `core:rain`". It asks the registry whether the current kind's **declared** `rainfall` is above zero — the same number growth reads. A content source shipping `mod:drizzle` gets rain drawn without touching engine code, which is ADR-022 §2's modifier vocabulary doing its job rather than being described.
 
 ### Phase-12b's wetness model was wrong, and this phase found it
 
@@ -128,6 +150,6 @@ Clear and rain. Snow and storms are in the ADR's prose and are not here: snow ra
 - [x] `world.rng` is byte-identical with and without weather over a long run — asserted against two live streams
 - [x] With a constant rate, rainfall over a span equals the span exactly — `src/sim/time/wetness.test.ts`. Growth MODULATION itself is boundary 3's decision
 - [x] Growth is a derivation with no state between calls, so advancing past a gap needs no catch-up — `src/sim/time/growth.test.ts`
-- [ ] Weather visuals on, pointer idle past the timeout → zero `requestAnimationFrame` callbacks — boundary 4
+- [x] Weather visuals on, pointer idle past the timeout → zero `requestAnimationFrame` callbacks — `src/renderer/render/rain-view.test.ts`, against the real dirty gate
 - [x] A farm that never sees rain completes its loop and earns across a long run — `tests/dry-farm.test.ts`
 - [x] `v4 → v5` migrates every fixture, dropping `moisture` and defaulting `wateredAt`, with zero repairs — `tests/migration-v4-to-v5.test.ts`

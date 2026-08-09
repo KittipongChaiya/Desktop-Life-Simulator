@@ -107,6 +107,22 @@ Layer 4 (`effects`) was reserved by ADR-001 and claimed by phase-07.5b's feedbac
 
 - **Rain, snow, and wind particles are ambient** by ADR-017 §2's definition — they do not end. They therefore inherit all four conditions unchanged: off by default, never while collapsed, never in work mode, and **surrendered when the pointer has been idle past `AMBIENT_IDLE_TIMEOUT_MS`**. A player watching the farm sees rain; a player who alt-tabbed sees a still world and the frame loop stops.
 - **A weather _change_ is finite** — the transition takes a lease and releases it, like a day-phase transition (ADR-020 §3).
+
+> **Amended in phase-12d: `weatherChanged` was not built.** The third amendment
+> of its kind, after ADR-020 §3 and ADR-021 §6, and by now the pattern is the
+> finding rather than the exception: the v0.2 architecture pass specified an
+> event beside a slice three times, and all three times the slice was the whole
+> mechanism.
+>
+> Weather rides in the `time` slice. The rain view reads it there, exactly as
+> the lighting view reads the phase and the terrain reads the season. **A save
+> resuming during a downpour publishes but does not fire**, so an event-driven
+> view would show clear skies until the next period. `src/sim/events/types.ts`
+> forbids a producer with no subscriber, and there is no subscriber.
+>
+> Phase 13's audio beds are the next candidate consumer. If a bed needs
+> something the slice cannot give it, the event lands there, with it.
+
 - **Everything is pooled** with a fixed ceiling, allocating nothing after construction (ADR-017 §4).
 - **All variation is derived, never rolled** (ADR-017 §5) — a raindrop's position hashes presentation inputs and never touches `world.rng`.
 

@@ -76,3 +76,24 @@ export function weightIn(kind: WeatherKindDefinition, season: string | undefined
   // treated as absent rather than trusted (content is untrusted input).
   return weight > 0 ? weight : 0;
 }
+
+/**
+ * Whether the world's current weather delivers rain.
+ *
+ * Lives here rather than in the renderer so "is it raining" is answered from
+ * the weather's DECLARED rainfall — the same number growth reads — instead of
+ * from a hardcoded list of ids the renderer would have to keep in step with
+ * content (ADR-022 §2).
+ */
+export function isRaining(source: {
+  readonly snapshots: {
+    readonly time: { readonly value: { readonly weather: string | undefined } };
+  };
+  readonly weatherKindRegistry: WeatherKindRegistry;
+}): boolean {
+  const id = source.snapshots.time.value.weather;
+  if (id === undefined) return false;
+
+  const kind = source.weatherKindRegistry.all().find((entry) => entry.id === id);
+  return kind !== undefined && kind.rainfall > 0;
+}

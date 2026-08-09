@@ -126,7 +126,9 @@ describe('what the player reads', () => {
 
 describe('idle cost across a full day (ADR-005 §2)', () => {
   it('commits four times over a day, not once per tick', () => {
-    const world = createWorld(1);
+    // A weather period longer than the run, so this counts phase changes
+    // rather than phase changes plus weather changes (phase-12d).
+    const world = createWorld(1, { ticksPerWeatherPeriod: 1_000_000_000 });
     // Settle the first tick before mounting: the time slice corrects its
     // seeded (season-less) value once at world start, and this test is about
     // STEADY-STATE ticks.

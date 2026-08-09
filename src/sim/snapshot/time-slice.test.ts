@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_DAYS_PER_SEASON, DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
+import {
+  DEFAULT_DAYS_PER_SEASON,
+  DEFAULT_TICKS_PER_DAY,
+  DEFAULT_TICKS_PER_WEATHER_PERIOD,
+} from '../../shared/constants';
 import { stepSimulationBy } from '../tick';
 import { DAY_PHASES, DayPhase, phaseStartTick } from '../time/game-clock';
 import { createWorld } from '../world/world';
@@ -17,7 +21,30 @@ import { createWorld } from '../world/world';
 import { projectTime, timeEquals } from './time-slice';
 
 const DAY = DEFAULT_TICKS_PER_DAY;
+
+/**
+ * A weather period longer than any test run, so the weather never changes.
+ *
+ * Phase-12d put the weather in this slice, which means a republish counter
+ * that did not pin it would be counting phase changes AND weather changes and
+ * calling the total "phase boundaries". The counts below are about the day.
+ */
+const STILL_WEATHER = 1_000_000_000;
 const YEAR: readonly string[] = ['core:spring', 'core:summer', 'core:autumn', 'core:winter'];
+
+/**
+ * Weather inputs for a world where no kind is registered.
+ *
+ * These tests are about the DAY and the PHASE. Weather rides in the same slice
+ * from phase-12d, so it has to be supplied — and supplying an empty registry
+ * keeps it out of the way rather than making every assertion also a statement
+ * about the weather.
+ */
+const NO_WEATHER = {
+  seed: 0,
+  ticksPerWeatherPeriod: DEFAULT_TICKS_PER_WEATHER_PERIOD,
+  weatherKindRegistry: { all: () => [] },
+} as const;
 
 describe('projecting the calendar', () => {
   it('reports day zero at tick zero', () => {
@@ -27,8 +54,9 @@ describe('projecting the calendar', () => {
         ticksPerDay: DAY,
         daysPerSeason: DEFAULT_DAYS_PER_SEASON,
         seasons: YEAR,
+        ...NO_WEATHER,
       }),
-    ).toEqual({ day: 0, phase: DayPhase.Dawn, season: 'core:spring' });
+    ).toEqual({ day: 0, phase: DayPhase.Dawn, season: 'core:spring', weather: undefined });
   });
 
   it('counts days from the world start, not from one', () => {
@@ -38,6 +66,7 @@ describe('projecting the calendar', () => {
         ticksPerDay: DAY,
         daysPerSeason: DEFAULT_DAYS_PER_SEASON,
         seasons: YEAR,
+        ...NO_WEATHER,
       }).day,
     ).toBe(1);
     expect(
@@ -46,6 +75,7 @@ describe('projecting the calendar', () => {
         ticksPerDay: DAY,
         daysPerSeason: DEFAULT_DAYS_PER_SEASON,
         seasons: YEAR,
+        ...NO_WEATHER,
       }).day,
     ).toBe(40);
   });
@@ -59,6 +89,7 @@ describe('projecting the calendar', () => {
         ticksPerDay: 50,
         daysPerSeason: DEFAULT_DAYS_PER_SEASON,
         seasons: YEAR,
+        ...NO_WEATHER,
       }).day,
     ).toBe(2);
   });
@@ -69,17 +100,19 @@ describe('projecting the calendar', () => {
       ticksPerDay: DAY,
       daysPerSeason: DEFAULT_DAYS_PER_SEASON,
       seasons: YEAR,
+      ...NO_WEATHER,
     });
 
     expect(DAY_PHASES).toContain(view.phase);
-    expect(Object.keys(view).sort()).toEqual(['day', 'phase', 'season']);
+    expect(Object.keys(view).sort()).toEqual(['day', 'phase', 'season', 'weather']);
   });
 });
 
 describe('a world whose content registered no seasons', () => {
   it('reports no season rather than inventing one', () => {
     expect(
-      projectTime({ tick: 0, ticksPerDay: DAY, daysPerSeason: 7, seasons: [] }).season,
+      projectTime({ tick: 0, ticksPerDay: DAY, daysPerSeason: 7, seasons: [], ...NO_WEATHER })
+        .season,
     ).toBeUndefined();
   });
 });
@@ -88,8 +121,8 @@ describe('the change test', () => {
   it('holds two equal views equal', () => {
     expect(
       timeEquals(
-        { day: 3, phase: DayPhase.Dusk, season: undefined },
-        { day: 3, phase: DayPhase.Dusk, season: undefined },
+        { day: 3, phase: DayPhase.Dusk, season: undefined, weather: undefined },
+        { day: 3, phase: DayPhase.Dusk, season: undefined, weather: undefined },
       ),
     ).toBe(true);
   });
@@ -97,8 +130,8 @@ describe('the change test', () => {
   it('separates a phase change', () => {
     expect(
       timeEquals(
-        { day: 3, phase: DayPhase.Dusk, season: undefined },
-        { day: 3, phase: DayPhase.Night, season: undefined },
+        { day: 3, phase: DayPhase.Dusk, season: undefined, weather: undefined },
+        { day: 3, phase: DayPhase.Night, season: undefined, weather: undefined },
       ),
     ).toBe(false);
   });
@@ -106,8 +139,8 @@ describe('the change test', () => {
   it('separates a day change', () => {
     expect(
       timeEquals(
-        { day: 3, phase: DayPhase.Dawn, season: undefined },
-        { day: 4, phase: DayPhase.Dawn, season: undefined },
+        { day: 3, phase: DayPhase.Dawn, season: undefined, weather: undefined },
+        { day: 4, phase: DayPhase.Dawn, season: undefined, weather: undefined },
       ),
     ).toBe(false);
   });
@@ -119,7 +152,7 @@ describe('republishing over a full simulated day', () => {
     // rather than a projection loop — the defect it guards against is the
     // snapshot SYSTEM publishing too often, which a pure-function test cannot
     // see.
-    const world = createWorld(7);
+    const world = createWorld(7, { ticksPerWeatherPeriod: STILL_WEATHER });
     // Settle the first tick before counting. Every slice documents a one-time
     // first-tick correction, and phase-11c gave this one its own: the initial
     // value is seeded with an EMPTY season list, because the seasons a world
@@ -134,7 +167,7 @@ describe('republishing over a full simulated day', () => {
   });
 
   it('leaves the version untouched across a run inside one phase', () => {
-    const world = createWorld(7);
+    const world = createWorld(7, { ticksPerWeatherPeriod: STILL_WEATHER });
     const dusk = phaseStartTick(DayPhase.Dusk, DAY);
 
     stepSimulationBy(world, dusk + 1);
@@ -155,13 +188,11 @@ describe('republishing over a full simulated day', () => {
   });
 
   it('crosses midnight into the next day', () => {
-    const world = createWorld(7);
+    const world = createWorld(7, { ticksPerWeatherPeriod: STILL_WEATHER });
     stepSimulationBy(world, DAY);
 
-    expect(world.snapshots.time.value).toEqual({
-      day: 1,
-      phase: DayPhase.Dawn,
-      season: 'core:spring',
-    });
+    expect(world.snapshots.time.value.day).toBe(1);
+    expect(world.snapshots.time.value.phase).toBe(DayPhase.Dawn);
+    expect(world.snapshots.time.value.season).toBe('core:spring');
   });
 });
