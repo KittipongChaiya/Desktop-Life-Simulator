@@ -10,7 +10,11 @@
  * (AI_RULES.md §3.2).
  */
 
-import { DEFAULT_DAYS_PER_SEASON, DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
+import {
+  DEFAULT_DAYS_PER_SEASON,
+  DEFAULT_TICKS_PER_DAY,
+  DEFAULT_TICKS_PER_WEATHER_PERIOD,
+} from '../../shared/constants';
 import type { BuildingId, ContentId, TileIndex } from '../../shared/ids';
 import { registerBuildingCommands } from '../commands/building-commands';
 import { registerCommerceCommands } from '../commands/commerce-commands';
@@ -30,6 +34,7 @@ import type { PhaseTintRegistry } from '../content/lighting';
 import { seasonOrder, type SeasonRegistry } from '../content/seasons';
 import type { ContentSource } from '../content/sources';
 import type { TileKindRegistry } from '../content/tile-kinds';
+import type { WeatherKindRegistry } from '../content/weather-kinds';
 import { createIdAllocator, type IdAllocator } from '../entities/id-allocator';
 import { createEventBus, type EventBus } from '../events/bus';
 import { createRng, type Rng } from '../rng/rng';
@@ -210,6 +215,26 @@ export interface World {
    * produce (ADR-021 §1).
    */
   readonly seasons: readonly string[];
+
+  /**
+   * The weather period's length in ticks, frozen at creation (ADR-022 §1).
+   *
+   * Persisted in v5 for the same reason as the day and season constants:
+   * changing it re-derives every past period, which changes the rainfall
+   * history phase-12b computes wetness from.
+   */
+  readonly ticksPerWeatherPeriod: number;
+
+  /**
+   * Weather kinds a content source registered.
+   *
+   * NOT frozen into the save, unlike `seasons`. A world's weather history is
+   * recomputed from whatever kinds are installed, so adding a kind changes what
+   * it rained last Tuesday. That is tolerable exactly because ADR-022 §5 makes
+   * rain a convenience and never a requirement — and it is recorded rather than
+   * assumed in `docs/phases/phase-12-weather-simulation.md`.
+   */
+  readonly weatherKindRegistry: WeatherKindRegistry;
 }
 
 /** Base inventory slots, before any storage shed. GAME_DESIGN.md §7. */
@@ -248,6 +273,8 @@ export interface WorldOptions {
   readonly daysPerSeason?: number;
   /** The season order, restored from a save. Absent takes the registry's. */
   readonly seasons?: readonly string[];
+  /** The weather period's length, restored from a save. */
+  readonly ticksPerWeatherPeriod?: number;
 }
 
 /**
@@ -275,6 +302,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     tileKinds,
     phaseTints: phaseTintRegistry,
     seasons: seasonRegistry,
+    weatherKinds: weatherKindRegistry,
   } = createInstalledRegistries();
 
   const tiles = createTileGrid();
@@ -293,6 +321,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     dayPhases: options.dayPhases ?? [...DAY_PHASES],
     daysPerSeason: options.daysPerSeason ?? DEFAULT_DAYS_PER_SEASON,
     seasons: options.seasons ?? seasonOrder(seasonRegistry),
+    ticksPerWeatherPeriod: options.ticksPerWeatherPeriod ?? DEFAULT_TICKS_PER_WEATHER_PERIOD,
     disabledSources: new Set(options.disabledSources ?? []),
     tick: 0,
     rng: createRng(seed),
@@ -306,6 +335,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildingRegistry,
     phaseTintRegistry,
     seasonRegistry,
+    weatherKindRegistry,
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
     cropStats,

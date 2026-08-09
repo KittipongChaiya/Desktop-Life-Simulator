@@ -29,6 +29,7 @@
  */
 
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
+import { mix32 } from '../../shared/hash';
 import { asTileIndex, type TileIndex } from '../../shared/ids';
 import { getKind, isBlocked, isOwned, type TileGrid } from '../../sim/world/tile-grid';
 
@@ -75,19 +76,12 @@ export const MAX_DECOR = 220;
 /**
  * A stable 32-bit hash of (seed, tile).
  *
- * Deliberately not the world RNG — see rule 2 in the module header. Any
- * well-mixed integer hash would do; this is the standard xorshift-style
- * finaliser, chosen because it is four lines and needs no state.
+ * Deliberately not the world RNG — see rule 2 in the module header. Moved to
+ * `shared/hash.ts` in phase-12a, where weather needs the same primitive for
+ * the same reason (ADR-022 §1). Same function, byte for byte: decor placement
+ * in an existing world must not move.
  */
-function hash(seed: number, tile: number): number {
-  let value = (seed ^ (tile * 0x9e37_79b9)) >>> 0;
-  value ^= value >>> 16;
-  value = Math.imul(value, 0x85eb_ca6b) >>> 0;
-  value ^= value >>> 13;
-  value = Math.imul(value, 0xc2b2_ae35) >>> 0;
-  value ^= value >>> 16;
-  return value >>> 0;
-}
+const hash = mix32;
 
 /**
  * Chooses where decoration goes for this world.

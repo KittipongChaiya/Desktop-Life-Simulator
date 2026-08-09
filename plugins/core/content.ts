@@ -44,6 +44,11 @@ import {
   CORE_WATER,
   type TileKindDefinition,
 } from '../../src/sim/content/tile-kinds';
+import {
+  CORE_CLEAR,
+  CORE_RAIN,
+  type WeatherKindDefinition,
+} from '../../src/sim/content/weather-kinds';
 import { DayPhase, secondsToTicks } from '../../src/sim/time/game-clock';
 
 /**
@@ -261,4 +266,39 @@ export function coreSeasons(): readonly SeasonDefinition[] {
     { id: CORE_WINTER, displayName: 'Winter', tint: 0xdde8ff },
   ];
   return seasons;
+}
+
+/**
+ * The weather. Phase-12a — ADR-022 §1.
+ *
+ * Two kinds, because two is what wetness can currently tell apart: it rains or
+ * it does not. Snow, wind and storms are in ADR-022 §2's table and are not
+ * here, because each would be a kind whose declared modifiers nothing reads —
+ * the dead-state problem that ADR was written about.
+ *
+ * WEIGHTS ARE PER SEASON, and the shape is the point: rain is common in spring
+ * and autumn, rare in high summer, moderate in winter. A player who notices
+ * that autumn is wet has read a real pattern rather than a random one.
+ *
+ * Order matters — selection walks this list — so appending a kind is safe and
+ * reordering these two changes every world's weather history.
+ */
+export function coreWeatherKinds(): readonly WeatherKindDefinition[] {
+  const kinds: readonly WeatherKindDefinition[] = [
+    {
+      id: CORE_CLEAR,
+      displayName: 'Clear',
+      weights: { [CORE_SPRING]: 60, [CORE_SUMMER]: 85, [CORE_AUTUMN]: 55, [CORE_WINTER]: 70 },
+      rainfall: 0,
+    },
+    {
+      id: CORE_RAIN,
+      displayName: 'Rain',
+      weights: { [CORE_SPRING]: 40, [CORE_SUMMER]: 15, [CORE_AUTUMN]: 45, [CORE_WINTER]: 30 },
+      // One wetness unit per tick. The unit is defined by what reads it
+      // (phase-12b), so this number is a rate, not a quantity.
+      rainfall: 1,
+    },
+  ];
+  return kinds;
 }

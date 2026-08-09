@@ -48,6 +48,7 @@ import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-a
 import { createSeasonRegistry } from './seasons';
 import { createSourceRegistry, type ContentSource } from './sources';
 import { createTileKindRegistry } from './tile-kinds';
+import { createWeatherKindRegistry } from './weather-kinds';
 
 /**
  * What a source does when a world asks it for its content.
@@ -118,6 +119,7 @@ export function createInstalledRegistries(): ContentTargets {
     tileKinds: createTileKindRegistry(),
     phaseTints: createPhaseTintRegistry(),
     seasons: createSeasonRegistry(),
+    weatherKinds: createWeatherKindRegistry(),
   };
 
   const installed = applyInstalledSources(targets);

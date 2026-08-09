@@ -127,3 +127,19 @@ export const DEFAULT_TICKS_PER_DAY = 24_000;
  * the player has already lived through (ADR-021 §1, ADR-020 §2).
  */
 export const DEFAULT_DAYS_PER_SEASON = 7;
+
+/**
+ * The weather period's length for a NEW world, in ticks. Phase-12a — ADR-022 §1.
+ *
+ * 6,000 ticks is five real minutes — a quarter of a day, so a day sees four
+ * weather periods just as it sees four phases. **This is the whole persistence
+ * mechanism**: each period's weather is drawn independently, so the period's
+ * length is what stops rain flickering. Five minutes of rain reads as weather;
+ * five seconds reads as a bug.
+ *
+ * A DEFAULT, not a constant the simulation reads: every world freezes its own
+ * value at creation, because changing it re-derives every past period and so
+ * changes the rainfall history that wetness is computed from (ADR-020 §2's rule,
+ * one system along).
+ */
+export const DEFAULT_TICKS_PER_WEATHER_PERIOD = 6_000;

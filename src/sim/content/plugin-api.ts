@@ -43,6 +43,7 @@ import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
 import type { SeasonDefinition, SeasonRegistry } from './seasons';
 import type { ContentSource } from './sources';
 import type { TileKindDefinition, TileKindRegistry } from './tile-kinds';
+import type { WeatherKindDefinition, WeatherKindRegistry } from './weather-kinds';
 
 /**
  * The API version a source targets.
@@ -60,6 +61,7 @@ export interface ContentTargets {
   readonly tileKinds: TileKindRegistry;
   readonly phaseTints: PhaseTintRegistry;
   readonly seasons: SeasonRegistry;
+  readonly weatherKinds: WeatherKindRegistry;
 }
 
 /**
@@ -82,6 +84,12 @@ export interface ContentBundle {
    * every new world a different year to every world made before it.
    */
   readonly seasons?: readonly SeasonDefinition[];
+  /**
+   * Weather kinds and their per-season weights (ADR-022 §1).
+   *
+   * Order is significant: selection walks it. Appending is safe.
+   */
+  readonly weatherKinds?: readonly WeatherKindDefinition[];
 }
 
 export interface PluginApi {
@@ -139,6 +147,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('building', bundle.buildings, targets.buildings),
     ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
     ...of('season', bundle.seasons, targets.seasons),
+    ...of('weatherKind', bundle.weatherKinds, targets.weatherKinds),
   ];
 }
 

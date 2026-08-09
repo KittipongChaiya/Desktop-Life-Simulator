@@ -29,6 +29,7 @@ import {
   coreItems,
   corePhaseTints,
   coreSeasons,
+  coreWeatherKinds,
   coreTileKinds,
 } from './content';
 
@@ -63,6 +64,7 @@ const installed = installSource(CORE_SOURCE, (api) =>
     buildings: coreBuildings(),
     phaseTints: corePhaseTints(),
     seasons: coreSeasons(),
+    weatherKinds: coreWeatherKinds(),
   }),
 );
 
