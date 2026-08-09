@@ -208,6 +208,9 @@ describe('describeTile', () => {
       'Crop',
       'Stage',
       'Age',
+      // Phase-12c: growth and age diverge once rain accelerates growth, so the
+      // inspector reports both. One number would make the other look wrong.
+      'Grown',
       'Occupants',
     ]);
   });

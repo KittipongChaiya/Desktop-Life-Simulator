@@ -21,6 +21,7 @@ import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
 import type { ItemRegistry } from '../content/items';
 import type { TileKindRegistry } from '../content/tile-kinds';
+import type { WeatherKindRegistry } from '../content/weather-kinds';
 import type { IdAllocator } from '../entities/id-allocator';
 import type { EventBus } from '../events/bus';
 import type { BuildingStore } from '../world/building';
@@ -234,6 +235,14 @@ export interface CommandWorld {
   readonly ticksPerDay: number;
   readonly daysPerSeason: number;
   readonly seasons: readonly string[];
+
+  /**
+   * What weather-modulated growth reads (ADR-022 §4). `World` satisfies this
+   * structurally, so no caller changed — the fields were already there.
+   */
+  readonly seed: number;
+  readonly ticksPerWeatherPeriod: number;
+  readonly weatherKindRegistry: WeatherKindRegistry;
 }
 
 /**

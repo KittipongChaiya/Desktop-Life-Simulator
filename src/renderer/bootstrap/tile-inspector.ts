@@ -30,6 +30,7 @@ import type { TileIndex } from '../../shared/ids';
 import { isMature, stageFor, type CropRegistry } from '../../sim/content/crops';
 import type { TileKindRegistry } from '../../sim/content/tile-kinds';
 import { enterCost, isWalkable } from '../../sim/pathing/astar';
+import { growthProgress, type GrowthSource } from '../../sim/time/growth';
 import type { BuildingStore } from '../../sim/world/building';
 import { elapsedTicks, type CropStore } from '../../sim/world/crop';
 import { getKind, isBlocked, isOwned, type TileGrid } from '../../sim/world/tile-grid';
@@ -40,7 +41,7 @@ import type { WorkerStore } from '../../sim/world/worker';
  * What the inspector reads. `World` satisfies it structurally, which is the
  * idiom the snapshot projections and `PathContext` already use.
  */
-export interface TileInspectSource {
+export interface TileInspectSource extends GrowthSource {
   readonly tiles: TileGrid;
   readonly tileKinds: TileKindRegistry;
   readonly crops: CropStore;
@@ -54,6 +55,8 @@ export interface TileInspectSource {
 export interface TileCropFacts {
   readonly id: string;
   readonly ageTicks: number;
+  /** Growth accrued, which exceeds the age when it has rained (ADR-022 §4). */
+  readonly grownTicks: number;
   /** Null when the crop's definition is missing — uninstalled content. */
   readonly stage: number | null;
   /** Null for the same reason. Maturity of an unknown crop is not derivable. */
@@ -96,6 +99,7 @@ export function readTileFacts(source: TileInspectSource, x: number, y: number): 
     kind: kind?.id ?? null,
     state: tileStateAt(
       {
+        ...source,
         grid: source.tiles,
         crops: source.crops,
         cropRegistry: source.cropRegistry,
@@ -116,20 +120,29 @@ function readCrop(source: TileInspectSource, index: TileIndex): TileCropFacts | 
   const crop = source.crops.get(index);
   if (crop === undefined) return null;
 
+  // AGE and GROWTH are different numbers from phase-12c: rain accelerates
+  // growth, so a crop can be 1,000 ticks old with 1,250 ticks of progress
+  // (ADR-022 §4). Age is what a person means by "how long has this been
+  // there"; growth is what the stage and maturity are computed from. An
+  // inspector that showed only one of them would make the other look broken.
   const ageTicks = elapsedTicks(crop, source.tick);
+  const grownTicks = growthProgress(source, crop, source.tick);
   const definition = source.cropRegistry.get(crop.cropId);
 
   // Content that has vanished — an uninstalled plugin — keeps its instance
   // (SAVE_FORMAT.md §5.3 quarantines rather than deletes). The id is real and
   // is reported; the stage depends on a definition that is gone, so it is not
   // guessed at.
-  if (!definition.ok) return { id: crop.cropId, ageTicks, stage: null, mature: null };
+  if (!definition.ok) {
+    return { id: crop.cropId, ageTicks, grownTicks, stage: null, mature: null };
+  }
 
   return {
     id: crop.cropId,
     ageTicks,
-    stage: stageFor(definition.value, ageTicks),
-    mature: isMature(definition.value, ageTicks),
+    grownTicks,
+    stage: stageFor(definition.value, grownTicks),
+    mature: isMature(definition.value, grownTicks),
   };
 }
 
@@ -176,6 +189,9 @@ export function describeTile(facts: TileFacts): InspectSection {
         return crop.mature === true ? `${String(crop.stage)} · mature` : String(crop.stage);
       }),
       field('Age', () => (facts.crop === null ? NONE : `${String(facts.crop.ageTicks)} ticks`)),
+      field('Grown', () =>
+        facts.crop === null ? NONE : `${String(Math.floor(facts.crop.grownTicks))} ticks`,
+      ),
       field('Occupants', () => (facts.occupants.length === 0 ? NONE : facts.occupants.join(', '))),
     ],
   };

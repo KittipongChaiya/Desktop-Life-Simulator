@@ -14,7 +14,13 @@ import { describe, expect, it } from 'vitest';
 import { asContentId } from '../../shared/ids';
 import { ANY_SEASON, type WeatherKindDefinition } from '../content/weather-kinds';
 
-import { DRYING_PER_TICK, rainfallOver, wetnessAt, type WetnessSource } from './wetness';
+import {
+  rainfallOver,
+  WATERING_UNITS,
+  wetnessAt,
+  WETNESS_MEMORY_TICKS,
+  type WetnessSource,
+} from './wetness';
 
 const PERIOD = 100;
 
@@ -100,17 +106,43 @@ describe('rainfall over a span (ADR-022 §3)', () => {
 });
 
 describe('wetness at a tick', () => {
-  it('is zero before the tile was watered', () => {
-    expect(wetnessAt(SOURCE, ALWAYS_RAIN, 500, 400)).toBe(0);
-    expect(wetnessAt(SOURCE, ALWAYS_RAIN, 500, 500)).toBe(0);
+  it(`is zero at the world's first tick`, () => {
+    expect(wetnessAt(SOURCE, ALWAYS_RAIN, 0, 0)).toBe(0);
   });
 
-  it('rises with rain and falls with time', () => {
-    // One unit of rain per tick against a quarter unit of drying: net 0.75.
-    expect(wetnessAt(SOURCE, ALWAYS_RAIN, 0, 100)).toBeCloseTo(100 * (1 - DRYING_PER_TICK), 6);
+  it('rises with rain in the memory window', () => {
+    expect(wetnessAt(SOURCE, ALWAYS_RAIN, 0, 100)).toBe(100);
   });
 
-  it('dries to nothing without rain, and never goes negative', () => {
+  it('REMEMBERS ONLY THE WINDOW, so rain cannot accumulate forever', () => {
+    // Phase-12b's model summed rain from `wateredAt` — which is 0 on an
+    // untouched tile — minus a drying rate. With core content raining about a
+    // third of the time, accumulation outran drying and every tile saturated
+    // at the cap permanently: an accumulator wearing a derivation's clothes.
+    //
+    // A window cannot do that. However long the world runs, wetness is bounded
+    // by what the window can hold.
+    const early = wetnessAt(SOURCE, ALWAYS_RAIN, 0, WETNESS_MEMORY_TICKS * 2);
+    const late = wetnessAt(SOURCE, ALWAYS_RAIN, 0, WETNESS_MEMORY_TICKS * 900);
+
+    expect(late).toBe(early);
+    expect(late).toBeLessThanOrEqual(WETNESS_MEMORY_TICKS);
+  });
+
+  it('forgets a watering once it leaves the window', () => {
+    const watered = 10_000;
+    expect(wetnessAt(SOURCE, NEVER_RAIN, watered, watered + 1)).toBe(WATERING_UNITS);
+    expect(wetnessAt(SOURCE, NEVER_RAIN, watered, watered + WETNESS_MEMORY_TICKS + 1)).toBe(0);
+  });
+
+  it('takes the greater of rain and watering, never their sum', () => {
+    // A watered tile in a downpour is wet, not twice as wet. Adding them would
+    // leave the cap as the only thing between this and an accumulator.
+    const both = wetnessAt(SOURCE, ALWAYS_RAIN, 5_000, 5_001);
+    expect(both).toBe(WATERING_UNITS);
+  });
+
+  it('is zero without rain and without watering', () => {
     expect(wetnessAt(SOURCE, NEVER_RAIN, 0, 10)).toBe(0);
     expect(wetnessAt(SOURCE, NEVER_RAIN, 0, 1_000_000)).toBe(0);
   });
@@ -130,6 +162,15 @@ describe('wetness at a tick', () => {
     const soaked = wetnessAt(SOURCE, ALWAYS_RAIN, 0, 10_000_000);
     expect(Number.isFinite(soaked)).toBe(true);
     expect(soaked).toBeLessThanOrEqual(6_000);
+  });
+
+  it('is a pure function of the tick, called in any order', () => {
+    const ticks = [50, 900, 120, 40_000, 75, 40_000, 900];
+    const answers = ticks.map((tick) => wetnessAt(SOURCE, ALWAYS_RAIN, 0, tick));
+
+    for (const [index, tick] of ticks.entries()) {
+      expect(wetnessAt(SOURCE, ALWAYS_RAIN, 0, tick)).toBe(answers[index]);
+    }
   });
 
   it('advancing the tick past a gap equals asking directly (ADR-007 §6)', () => {

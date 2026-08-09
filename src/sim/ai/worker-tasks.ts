@@ -19,10 +19,12 @@ import { CORE_SEED_BIN } from '../content/buildings';
 import { isInSeason, isMature, type CropRegistry } from '../content/crops';
 import { CORE_TURNIP } from '../content/crops';
 import { type TileKindRegistry } from '../content/tile-kinds';
+import type { WeatherKindRegistry } from '../content/weather-kinds';
 import { dayFor, seasonFor } from '../time/game-clock';
+import { growthProgress } from '../time/growth';
 import { type BuildingStore } from '../world/building';
 import { containerCount, type Container } from '../world/container';
-import { elapsedTicks, type CropStore } from '../world/crop';
+import { type CropStore } from '../world/crop';
 import { getKind, isOwned, ownedBounds, tilesInRect, type TileGrid } from '../world/tile-grid';
 import { isTilled } from '../world/tile-state';
 import { WorkerTaskKind, type WorkerTask } from '../world/worker';
@@ -58,6 +60,14 @@ export interface TaskContext {
   readonly ticksPerDay: number;
   readonly daysPerSeason: number;
   readonly seasons: readonly string[];
+
+  /**
+   * What weather-modulated growth reads (ADR-022 §4). `World` satisfies this
+   * structurally, so no caller changed — the fields were already there.
+   */
+  readonly seed: number;
+  readonly ticksPerWeatherPeriod: number;
+  readonly weatherKindRegistry: WeatherKindRegistry;
 }
 
 /** Owned tiles, in ascending index order — the deterministic scan order. */
@@ -86,7 +96,7 @@ function isHarvestable(ctx: TaskContext, tile: TileIndex): boolean {
   const crop = ctx.crops.get(tile);
   if (crop === undefined) return false;
   const definition = ctx.cropRegistry.get(crop.cropId);
-  return definition.ok && isMature(definition.value, elapsedTicks(crop, ctx.tick));
+  return definition.ok && isMature(definition.value, growthProgress(ctx, crop, ctx.tick));
 }
 
 /**

@@ -39,13 +39,26 @@ import { seasonFor, dayFor } from './game-clock';
 import { weatherFor, weatherPeriodFor } from './weather';
 
 /**
- * Wetness lost per tick with no rain, in the same units `rainfall` adds.
+ * How far back wetness remembers, in ticks. Phase-12c.
  *
- * Chosen so a tile soaked by one full period of rain dries out over roughly
- * four periods — long enough that rain matters after it stops, short enough
- * that a farm is not permanently wet after one shower.
+ * **A bounded WINDOW, not a decay rate**, and the correction matters. Phase-12b
+ * shipped this as `rainfall since wateredAt, minus drying × elapsed`, which is
+ * wrong in a way that only shows up over hours: `wateredAt` is 0 on an
+ * untouched tile, so the span ran from the world's first tick and rain
+ * integrated forever. With core content raining about a third of the time,
+ * accumulation outruns drying and **every tile saturates at the cap and stays
+ * there** — permanently wet, which is the accumulator behaviour ADR-022 §3
+ * exists to prevent, wearing a derivation's clothes.
+ *
+ * A window fixes it by construction: rain leaves the window as time passes, so
+ * there is nothing to accumulate. 12,000 ticks is half a day and two weather
+ * periods at the shipped defaults, which is also what bounds the cost — the sum
+ * is over two or three periods however long the world has been running.
  */
-export const DRYING_PER_TICK = 0.25;
+export const WETNESS_MEMORY_TICKS = 12_000;
+
+/** Wetness a fresh watering delivers. Sized so watering reads as one soaking. */
+export const WATERING_UNITS = 6_000;
 
 /** The most wetness a tile can hold. Rain beyond this is runoff. */
 export const WETNESS_CAP = 6_000;
@@ -106,11 +119,12 @@ export function rainfallOver(
 }
 
 /**
- * A tile's wetness at a tick.
+ * A tile's wetness at a tick, from rain in the memory window and any watering
+ * inside it.
  *
- * `wateredAt` of 0 means never watered, so the span runs from the world's
- * start — which is correct: rain that fell before anyone touched the tile still
- * fell on it.
+ * Rain and watering are combined by `max`, not by adding: a watered tile in a
+ * downpour is wet, not twice as wet. Adding them would make the cap the only
+ * thing standing between the model and an accumulator.
  */
 export function wetnessAt(
   source: WetnessSource,
@@ -118,14 +132,12 @@ export function wetnessAt(
   wateredAt: number,
   tick: number,
 ): number {
-  const elapsed = tick - wateredAt;
-  if (elapsed <= 0) return 0;
+  if (tick <= 0) return 0;
 
-  const rain = rainfallOver(source, kinds, wateredAt, tick);
-  const dried = elapsed * DRYING_PER_TICK;
+  const windowStart = Math.max(0, tick - WETNESS_MEMORY_TICKS);
+  const rain = rainfallOver(source, kinds, windowStart, tick);
+  // `wateredAt` of 0 means never watered, and tick 0 is not a watering.
+  const watered = wateredAt > 0 && wateredAt >= windowStart ? WATERING_UNITS : 0;
 
-  // Capped AFTER drying rather than before: a cap applied to the rain alone
-  // would make a long dry spell forget how wet the tile once was, which is the
-  // accumulator behaviour this design exists to avoid.
-  return Math.max(0, Math.min(WETNESS_CAP, rain - dried));
+  return Math.min(WETNESS_CAP, Math.max(rain, watered));
 }

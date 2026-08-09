@@ -14,7 +14,8 @@
  */
 
 import { stageFor, type CropRegistry } from '../content/crops';
-import { elapsedTicks, type CropStore } from '../world/crop';
+import { growthProgress, type GrowthSource } from '../time/growth';
+import { type CropStore } from '../world/crop';
 
 /** One planted crop, projected for rendering. */
 export interface CropView {
@@ -24,7 +25,7 @@ export interface CropView {
 }
 
 /** The world state the projection reads. `World` satisfies this structurally. */
-export interface CropProjectionSource {
+export interface CropProjectionSource extends GrowthSource {
   readonly crops: CropStore;
   readonly cropRegistry: CropRegistry;
   readonly tick: number;
@@ -40,7 +41,7 @@ export function projectCrops(source: CropProjectionSource): readonly CropView[] 
       // rather than throwing inside a frame (SAVE_FORMAT.md §5.3 quarantines).
       if (!definition.ok) return { tile: crop.tile, sprite: '' };
 
-      const stage = stageFor(definition.value, elapsedTicks(crop, source.tick));
+      const stage = stageFor(definition.value, growthProgress(source, crop, source.tick));
       return { tile: crop.tile, sprite: definition.value.stageSprites[stage] ?? '' };
     });
 }

@@ -3,7 +3,7 @@
 > **Delivers:** weather that is derived rather than simulated, exact offline, and costs nothing when nobody is watching.
 > **Governing decisions:** ADR-022 (weather), ADR-009 §2 (derive, never accumulate), ADR-017 §5 (derived variation, never rolled), ADR-021 (the seasons weather is biased by), ADR-027 (save evolution).
 > **Schema:** v4 → v5, and the first **removal**.
-> **Status:** **In progress.** Boundaries 1 and 2 landed.
+> **Status:** **In progress.** Boundaries 1–3 landed; presentation remains.
 
 ---
 
@@ -21,6 +21,36 @@
 ---
 
 ## Decisions worth carrying forward
+
+### Phase-12b's wetness model was wrong, and this phase found it
+
+Boundary 2 shipped `wetness = rainfall since wateredAt − drying × elapsed`. It is wrong in a way that only appears after hours: `wateredAt` is 0 on an untouched tile, so the span ran from the world's first tick and rain integrated **forever**. With core content raining about a third of the time, accumulation outruns drying and every tile saturates at the cap and stays there — permanently wet.
+
+That is an accumulator wearing a derivation's clothes, in the phase whose whole purpose was removing an accumulator-shaped field. It was found by building the consumer: a rate that is wet everywhere, always, is not a modifier.
+
+The fix is a bounded **window** rather than a decay rate. Rain leaves the window as time passes, so there is nothing to accumulate and no cap to lean on. It also bounds the cost — two or three periods however long the world has run.
+
+### A silent zero, caught by four tests failing the same way
+
+`growthProgress` guarded its period length with `if (length <= 0) return to - from`. `undefined <= 0` is **false**, so a source missing the field fell through to a loop bounded by `NaN`, which runs zero times — reporting a crop that never grows.
+
+Four tests failed with crops frozen at stage 0, which is what made it obvious; a single failure would have looked like a timing shift. The guard now tests finiteness. Worth recording because the failure mode is the worst available here: a silent zero stops the game rather than degrading it, and the surrounding code has no way to notice.
+
+### Age and growth are different numbers now
+
+The tile inspector reported one number and used it for age, stage and maturity. Once rain accelerates growth those diverge — a crop can be 1,000 ticks old with 1,250 ticks of progress — so it reports both. Showing only one would make the other look broken to whoever next debugs a stage boundary.
+
+### Rain accelerates and drought never stalls, which is why nothing needed rebalancing
+
+The rate is 1 when dry and 1.25 when wet, **never below 1**. So a dry world grows at exactly the speed it grew at before this phase existed, and every crop time in `GAME_DESIGN.md` §3.1 is still true as written. That is not caution: ADR-022 §5 makes it the ceiling, because weather is the purest form of a thing the player cannot control and cannot be present for. A drought that slowed a farm would punish someone for a hash of a number they never saw.
+
+Five tests fail if the dry rate drops below 1, confirmed by mutation.
+
+### The dry-farm test was wrong twice, and both mistakes are worth keeping
+
+First attempt: doctor the weather registry and hand back a **spread copy** of the world. `createWorld` binds its command dispatcher to the object it returns, so every command executed against the original while the test inspected the copy — and the farm looked stalled when it had never been asked to do anything. **A spread copy of a `World` is not a `World`.**
+
+Second attempt: the rebuilt version asserts its own dryness, and the assertion immediately failed — the seed it used rains. That is the test working: a dry-farm test that quietly runs against a rainy world proves nothing, and this one cannot.
 
 ### The removal was safe because the field carried no information
 
@@ -97,7 +127,7 @@ Clear and rain. Snow and storms are in the ADR's prose and are not here: snow ra
 - [x] Weather queried for a past period equals what was observed live at that period — `src/sim/time/weather.test.ts`, 200 periods walked forward then re-queried
 - [x] `world.rng` is byte-identical with and without weather over a long run — asserted against two live streams
 - [x] With a constant rate, rainfall over a span equals the span exactly — `src/sim/time/wetness.test.ts`. Growth MODULATION itself is boundary 3's decision
-- [ ] Load + advance past an 8-hour gap is byte-identical to running the ticks, including crop progress — boundary 2
+- [x] Growth is a derivation with no state between calls, so advancing past a gap needs no catch-up — `src/sim/time/growth.test.ts`
 - [ ] Weather visuals on, pointer idle past the timeout → zero `requestAnimationFrame` callbacks — boundary 4
-- [ ] A farm that never sees rain completes its loop and earns across a long run — boundary 3
+- [x] A farm that never sees rain completes its loop and earns across a long run — `tests/dry-farm.test.ts`
 - [x] `v4 → v5` migrates every fixture, dropping `moisture` and defaulting `wateredAt`, with zero repairs — `tests/migration-v4-to-v5.test.ts`

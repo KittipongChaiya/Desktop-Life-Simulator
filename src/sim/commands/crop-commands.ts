@@ -31,6 +31,7 @@ import { err, ok, type Result } from '../../shared/result';
 import { isInSeason, isMature } from '../content/crops';
 import { stackSizeOf } from '../content/items';
 import { dayFor, seasonFor } from '../time/game-clock';
+import { growthProgress } from '../time/growth';
 import {
   acceptable,
   addItems,
@@ -38,7 +39,6 @@ import {
   removeItems,
   type Container,
 } from '../world/container';
-import { elapsedTicks } from '../world/crop';
 import { isOwned } from '../world/tile-grid';
 import { isTilled } from '../world/tile-state';
 
@@ -116,7 +116,7 @@ export function validateHarvest(world: CommandWorld, tile: TileIndex): Validatio
   const definition = world.cropRegistry.get(crop.cropId);
   if (!definition.ok) return err(definition.error);
 
-  if (!isMature(definition.value, elapsedTicks(crop, world.tick))) {
+  if (!isMature(definition.value, growthProgress(world, crop, world.tick))) {
     return err(appError(ErrorCode.InvalidIntent, 'crop is not ready to harvest', { tile }));
   }
 

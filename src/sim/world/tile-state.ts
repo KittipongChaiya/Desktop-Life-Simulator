@@ -13,8 +13,9 @@
 
 import type { TileIndex } from '../../shared/ids';
 import { isMature, stageFor, type CropRegistry } from '../content/crops';
+import { growthProgress, type GrowthSource } from '../time/growth';
 
-import { elapsedTicks, type CropStore } from './crop';
+import { type CropStore } from './crop';
 import { isOwned, type TileGrid } from './tile-grid';
 
 export const TileState = {
@@ -32,7 +33,7 @@ export const TileState = {
 
 export type TileState = (typeof TileState)[keyof typeof TileState];
 
-export interface TileQuery {
+export interface TileQuery extends GrowthSource {
   readonly grid: TileGrid;
   readonly crops: CropStore;
   readonly cropRegistry: CropRegistry;
@@ -65,7 +66,8 @@ export function tileStateAt(query: TileQuery, tile: TileIndex): TileState {
     // (SAVE_FORMAT.md §5.3 quarantines rather than deletes).
     if (!definition.ok) return TileState.Planted;
 
-    const elapsed = elapsedTicks(crop, query.tick);
+    // GROWTH, not age: rain accelerates it (ADR-022 §4).
+    const elapsed = growthProgress(query, crop, query.tick);
     if (isMature(definition.value, elapsed)) return TileState.HarvestReady;
     return stageFor(definition.value, elapsed) === 0 ? TileState.Planted : TileState.Growing;
   }
