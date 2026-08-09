@@ -1,20 +1,34 @@
 /**
- * The audio device. Phase-07.5a — ADR-016.
+ * The audio device. Phase-07.5a — ADR-016; rebuilt on Web Audio in phase-13a.
  *
  * The ONE place that knows a sound is a file. Everything above it names
  * sounds (`sounds.ts`) or decides audibility (`audio.ts`), which is what keeps
  * both testable in Node and what lets the placeholder set be replaced without
  * a call site changing.
  *
- * `HTMLAudioElement` rather than the Web Audio API: the bus already coalesces
- * bursts, so nothing here needs a mixing graph, and an element per sound is
- * both simpler and impossible to leak. Elements are constructed once at boot
- * and rewound on each play — allocating one per harvest would churn the heap
- * of an app whose whole pitch is that you can leave it running.
+ * ## Why Web Audio replaced `HTMLAudioElement`
  *
- * Every failure is swallowed. A machine with no audio device, a codec the
- * build did not expect, an autoplay policy — none of them are worth a broken
- * farm, and the bus treats silence as a perfectly good degraded state.
+ * The original choice was right for what it had to do: the bus coalesces
+ * bursts, so nothing needed a mixing graph, and an element per sound is simple
+ * and impossible to leak. ADR-023 §4 changes the requirements — category buses,
+ * declared ducking, per-sound variation, and overlapping instances of one sound
+ * all need a graph, and an element cannot play twice at once at all.
+ *
+ * What that costs is bounded deliberately. A `BufferSourceNode` is single-use,
+ * so playing a sound means allocating a node, and an eight-hour farm harvesting
+ * continuously would churn the heap ADR-017 §4 protects. `voice-pool.ts` fixes
+ * the number in flight; this file honours its verdict.
+ *
+ * ## Nothing is built until something is played
+ *
+ * An `AudioContext` is a thread. Sound ships muted (ADR-016 §3), so most
+ * sessions must never create one — and phase-07.5a already measured what eager
+ * construction costs, turning two E2E specs flaky the day audio landed. The
+ * context, the buffers, and the graph are all built on first play.
+ *
+ * Every failure is swallowed. A machine with no audio device, a codec the build
+ * did not expect, an autoplay policy — none are worth a broken farm, and the
+ * bus treats silence as a perfectly good degraded state.
  */
 
 import coinUrl from '@assets/audio/coin.wav';
@@ -30,6 +44,7 @@ import uiClickUrl from '@assets/audio/ui-click.wav';
 
 import type { AudioPorts } from '../app/audio';
 import { Sound } from '../app/sounds';
+import { createVoicePool } from '../audio/voice-pool';
 
 /**
  * Catalogue key → bundled URL.
@@ -50,40 +65,115 @@ const SOUND_URL: Readonly<Record<Sound, string>> = {
   [Sound.Error]: errorUrl,
 };
 
-export function createWebAudioPorts(): AudioPorts {
-  // Elements are built on FIRST PLAY, not at boot.
-  //
-  // Sound ships muted (ADR-016 §3), so the overwhelming majority of sessions
-  // never construct a single one — eight media loads competing with the
-  // renderer's first paint, for nothing. Building them eagerly measurably
-  // slowed startup under load: it turned two E2E specs flaky the day audio
-  // landed, both waiting on UI that took longer to become interactive.
-  //
-  // The cost is a small delay on the first play of each sound, once per
-  // session, on files of a few kilobytes each.
-  const elements = new Map<Sound, HTMLAudioElement>();
+/**
+ * How the device layer reaches the host, and the only reason it is testable.
+ *
+ * `TESTING.md` §2 rules out a mocking framework, and phase-08.0 already
+ * established what to do instead: `docking.ts` and `settings.ts` took their
+ * host as a parameter rather than importing it, and became testable without
+ * changing behaviour. This is the same move for `AudioContext` — the default
+ * is the real one, and a test hands in a hand-written fake.
+ *
+ * Without it this file would be a host binding with **no detector**, which
+ * `TESTING.md` §4.2 does not permit an exclusion for: a file leaves the
+ * measured set only if a named test does exercise it.
+ */
+export interface AudioDeviceOptions {
+  /** Builds the host context. Returns null when the machine has no audio. */
+  readonly createContext?: () => AudioContext | null;
+  /** Fetches and decodes a sound. Split out for the same reason. */
+  readonly loadBuffer?: (url: string, context: AudioContext) => Promise<AudioBuffer>;
+}
 
-  const elementFor = (sound: Sound): HTMLAudioElement | undefined => {
-    const existing = elements.get(sound);
-    if (existing !== undefined) return existing;
+export function createWebAudioPorts(options: AudioDeviceOptions = {}): AudioPorts {
+  // Built on FIRST PLAY, never at boot — see the header.
+  let context: AudioContext | null = null;
+  let master: GainNode | null = null;
+  const buffers = new Map<Sound, AudioBuffer>();
+  const pending = new Set<Sound>();
+  const pool = createVoicePool();
 
-    const url = SOUND_URL[sound];
-    const created = new Audio(url);
-    elements.set(sound, created);
-    return created;
+  /** The context and its master gain, created once, or null if unavailable. */
+  const graph = (): { context: AudioContext; master: GainNode } | null => {
+    if (context !== null && master !== null) return { context, master };
+
+    try {
+      const created = options.createContext?.() ?? new AudioContext();
+      if (created === null) return null;
+      const gain = created.createGain();
+      gain.connect(created.destination);
+      context = created;
+      master = gain;
+      return { context: created, master: gain };
+    } catch {
+      // No device, or a policy that forbids one. Silence is a valid state.
+      return null;
+    }
+  };
+
+  /**
+   * Decodes a sound into a buffer, once.
+   *
+   * The first play of each sound is silent while its fetch and decode run —
+   * the same one-off cost the element version paid, and preferable to
+   * decoding ten files at boot for a session that is probably muted.
+   */
+  const load = (sound: Sound, ctx: AudioContext): AudioBuffer | undefined => {
+    const ready = buffers.get(sound);
+    if (ready !== undefined) return ready;
+    if (pending.has(sound)) return undefined;
+
+    pending.add(sound);
+    const fetchAndDecode =
+      options.loadBuffer ??
+      (async (url: string, context: AudioContext): Promise<AudioBuffer> =>
+        fetch(url)
+          .then(async (response) => response.arrayBuffer())
+          .then(async (bytes) => context.decodeAudioData(bytes)));
+
+    void fetchAndDecode(SOUND_URL[sound], ctx)
+      .then((decoded) => {
+        buffers.set(sound, decoded);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        pending.delete(sound);
+      });
+
+    return undefined;
   };
 
   return {
     play(sound, gain) {
-      const element = elementFor(sound);
-      if (element === undefined) return;
+      const built = graph();
+      if (built === null) return;
 
-      element.volume = Math.max(0, Math.min(1, gain));
-      element.currentTime = 0;
-      // `play()` returns a promise that rejects on a blocked autoplay policy.
-      // Swallowed here rather than in the bus, because this is the layer that
-      // knows the rejection is a device concern and not a game one.
-      void element.play().catch(() => undefined);
+      const buffer = load(sound, built.context);
+      if (buffer === undefined) return; // still decoding; drop this one
+
+      // The pool decides whether this sound may sound at all. `recycled` is
+      // not acted on here: Web Audio has already scheduled the stolen voice,
+      // and cutting it short would need a reference this layer deliberately does
+      // not keep. The bound that matters is on NODES IN FLIGHT, and claiming a
+      // slot is what enforces it.
+      const nowMs = performance.now();
+      pool.claim(nowMs, nowMs + buffer.duration * 1000);
+
+      try {
+        const source = built.context.createBufferSource();
+        const voice = built.context.createGain();
+        source.buffer = buffer;
+        voice.gain.value = Math.max(0, Math.min(1, gain));
+        source.connect(voice);
+        voice.connect(built.master);
+        source.onended = () => {
+          source.disconnect();
+          voice.disconnect();
+        };
+        source.start();
+      } catch {
+        // A context suspended by policy, most likely. Not a game concern.
+      }
     },
 
     now: () => performance.now(),
