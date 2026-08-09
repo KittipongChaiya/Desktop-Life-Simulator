@@ -3,7 +3,7 @@
 > **Delivers:** the calendar starts mattering — through opportunity, never through loss.
 > **Governing decisions:** ADR-021 (seasonal simulation), ADR-020 (the calendar it derives from), ADR-009 §2 (why growth rate is absent), ADR-013 §4 (the price pipeline), ADR-027 (save evolution).
 > **Schema:** v3 → v4.
-> **Status:** **In progress.** Boundaries 1 and 2 landed.
+> **Status:** **Delivered.** All three boundaries landed. What was deliberately left out is named below.
 
 ---
 
@@ -20,6 +20,44 @@
 ---
 
 ## Decisions worth carrying forward
+
+### `seasonChanged` was not built either, and ADR-021 §6 says so now
+
+The same finding as phase 10's, reached the same way. Every consumer ADR-021 §6 names — terrain palette, seasonal decoration, audio beds — is presentation, and presentation here is driven by slice republication, not event subscription. The season rides in the `time` slice and the terrain reads it there.
+
+The decisive argument is the one that settled `dayPhaseChanged`: **a save resuming in autumn publishes but does not fire.** The slice's first projection says "autumn" and the ground is painted correctly; an event-driven view would hold spring's colour for up to two hours twenty of play.
+
+Two amendments in two phases is a pattern rather than a coincidence. The v0.2 architecture pass specified an event beside a slice in both ADR-020 and ADR-021, and in both cases the slice turned out to be the whole mechanism. Phase 12's weather ADR should be read with that in mind before its event is built.
+
+### The season rides in the `time` slice rather than a slice of its own
+
+A slice exists so a consumer does not re-render on changes it does not read. The season changes **once a week of game time** against the phase's four times a day, so putting it in the existing slice adds no republish anyone pays for. A `season` slice would be a second subscription to save nothing.
+
+It did cost one thing, and it is worth recording: the slice's seeded value now carries an **empty** season list, because `createSnapshotState` has no world to ask which seasons it runs on. So the first tick corrects it — one republish at world start, the same one-time correction `inventory` and `wallet` already document. Two republish-counting tests had to settle a tick before counting, which is the convention `StatusBar.test.tsx` already used.
+
+### Ground and light are two surfaces, so neither needs a composition rule
+
+The season tints the **terrain**; the phase tints the **scene** (layer 5). Had both gone to layer 5 they would have needed a rule for how two tints combine, and every such rule is a decision someone has to remember. Keeping them on different surfaces means the answer is just "both apply", which is also what they mean physically.
+
+The tint is set on the chunk **sprites**, never baked into their cached textures. Baking would invalidate every chunk four times a year, which is the single thing `terrain-renderer.ts` exists to avoid. A chunk created after a season change arrives already tinted, so scrolling onto new ground cannot show last season's colour.
+
+### The seasonal price band never exceeds 1.00, and that is not a style choice
+
+ADR-013 §4 makes the base price the ceiling — _"prices recover to the memorized value"_ — so a seasonal **premium** would break the one number a player is allowed to memorize. The modifier is therefore a discount: **[0.90, 1.00]**, giving an effective price in [0.45, 1.00] of base once multiplied with the sale multiplier's [0.50, 1.00].
+
+**There is a real tension here and it should be stated rather than smoothed over.** Any modifier that is not identically 1.00 reduces someone's income, and `VISION.md` §2.2 forbids punishing absence. The case that could suffer is a crop maturing after its season turned while the player was away. Three things bound it:
+
+- A player selling through a market stall never meets it. Produce is sold as it is harvested, in the season it grew in.
+- It is reachable by **holding stock across a boundary**, which is a choice, not an absence.
+- Ten percent is enough to notice in a ledger and far too little to make being away a mistake.
+
+If playtesting shows otherwise, the fix is to raise the floor to 1.00 — the band is one constant and the bounds test states it.
+
+### The modifier reads the crop that YIELDS an item, not an id that matches it
+
+Core names produce after its crop (`core:wheat` the item comes from `core:wheat` the crop), and reading that convention would have been one line shorter. It is a convention of `plugins/core`, not a rule any third-party source agreed to: a source shipping `mod:melon` yielding `mod:melon_flesh` would have got no seasonal price at all, silently and forever. The lookup goes through `harvestYield`.
+
+Seeds get no seasonal modifier. A seed's price is what a crop costs to **start**, and that is already gated by plantability — discounting it too would be the same rule charged twice.
 
 ### The out-of-season worker path is reachable ONLY through the seed bin
 
@@ -95,6 +133,19 @@ So this boundary's round-trip test builds a world with **3 days a season and a t
 
 - [x] A crop planted in season and left standing across a boundary matures normally, with a world byte-identical to one where the boundary did not fall — `tests/seasons.test.ts`
 - [x] A farm with only out-of-season seeds keeps its workers working and resumes planting when the season turns, unattended — `tests/seasons.test.ts`
-- [ ] Effective prices stay inside the product of the declared bands, every season — boundary 3
+- [x] Effective prices stay inside the product of the declared bands, every season — `tests/season-pricing.test.ts`, exhaustive over every item in every season at both extremes
 - [x] Catch-up never over-credits across one or several boundaries — `tests/catch-up.test.ts`, the never-over property extended to boundary-spanning gaps
 - [x] `v3 → v4` migrates every fixture with zero repairs — `tests/migration-v3-to-v4.test.ts`
+
+---
+
+## Left out, deliberately
+
+| Item                                | Why                                                                                                                                                                                                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Seasonal harvest-yield modifier** | ADR-021 §2 declares three modifier surfaces and this phase built two. A yield multiplier is the one that most directly reduces what a player gets for work already done, and `VISION.md` §2.2 makes that the hardest to justify. It needs a design decision, not an implementation |
+| **Seasonal decoration**             | Decor is planned from the owned plot and replanned when it expands. Making it seasonal means a second trigger and a per-season decor table — a content kind this phase did not need                                                                                                |
+| **Seasonal audio beds**             | Phase 13 owns the bus, the mixer, and the first ambient bed (ADR-016, ADR-023). A seasonal bed before there is a bed is nothing                                                                                                                                                    |
+| **`displayName` reaching the HUD**  | The readout capitalises the id's name part, which is right for every shipped season and worse than it should be for `mod:the_long_dark`. Closing it means routing `displayName` through the slice — a change to the slice's shape, not to the component                            |
+
+The first is the only one with product consequences, and it is named here rather than left implicit so that "phase 11 shipped two of three declared surfaces" is on the record.

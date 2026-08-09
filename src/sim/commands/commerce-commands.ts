@@ -27,6 +27,7 @@ import {
   type Container,
 } from '../world/container';
 import {
+  seasonalMultiplier,
   expansionCost,
   multiplierOf,
   plotSizeAfter,
@@ -157,7 +158,12 @@ export function sellItems(world: CommandWorld, itemId: ContentId, quantity: numb
   // batch at one multiplier even when the units come out of several containers
   // — where a good was stored is not a pricing input.
   const coins =
-    quantity * salePrice(definition.value.basePrice, multiplierOf(world.economy, itemId));
+    quantity *
+    salePrice(
+      definition.value.basePrice,
+      multiplierOf(world.economy, itemId),
+      seasonalMultiplier(world, itemId),
+    );
 
   // Drain in order: the player's own inventory, then sheds by id. The total was
   // validated above, so this always takes exactly `quantity` units. Each call is

@@ -129,3 +129,21 @@ export function isInSeason(definition: CropDefinition, season: string | undefine
   if (season === undefined) return true;
   return definition.seasons.includes(season);
 }
+
+/**
+ * The crop whose harvest produces an item, if any. Phase-11c.
+ *
+ * Seasonal pricing needs to know what season a SOLD ITEM belongs to, and an
+ * item does not know. The link is the crop's `harvestYield`, so this reads it
+ * rather than assuming `core:wheat` the item comes from `core:wheat` the crop
+ * — true for core content by convention (`items.ts`), and not a rule any
+ * third-party source agreed to. A source shipping `mod:melon` yielding
+ * `mod:melon_flesh` would otherwise get no seasonal price at all, silently.
+ *
+ * Linear in the crop count, called per item priced. With four crops that is
+ * nothing; if a content set ever makes it matter, memoize on the registry,
+ * which is immutable once installed.
+ */
+export function cropYielding(registry: CropRegistry, item: ContentId): CropDefinition | undefined {
+  return registry.all().find((crop) => crop.harvestYield.some((entry) => entry.item === item));
+}

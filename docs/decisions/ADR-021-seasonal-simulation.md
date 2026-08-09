@@ -77,6 +77,24 @@ Seasons add one bound to that model: **catch-up may not credit a plant the real 
 
 A season change publishes `seasonChanged` (ADR-008, producer and consumer in the same commit) and appears in the `time` slice beside the day and phase.
 
+> **Amended in phase-11c: the event was not built, and should not be.** This is
+> the same finding as ADR-020 §3's, reached the same way and for the same
+> reason. Every consumer this section names — terrain palette, seasonal
+> decoration, audio beds — is presentation, and presentation in this codebase is
+> driven by slice republication rather than event subscription. The season rides
+> in the `time` slice, and the terrain reads it there.
+>
+> Two things settle it. **A save resuming in autumn publishes but does not
+> fire:** the slice's first projection says "autumn" and the ground is painted
+> correctly, whereas an event-driven view would hold spring's colour until the
+> next boundary — up to two hours twenty of play. And the event would carry
+> nothing the slice lacks.
+>
+> The rule this ADR invoked is what ruled the event out: producer and consumer
+> in the same commit. There is no consumer, so there is no event. Audio beds
+> arrive in phase 13; if they need something the slice cannot give them, the
+> event lands then, with them.
+
 Terrain palette shifts, seasonal decoration, and audio beds are views of that fact. They hold no authority, and no gameplay outcome may depend on any of them — the ADR-020 §4 rule, restated because a seasonal repaint is a tempting place to hang a rule.
 
 ---

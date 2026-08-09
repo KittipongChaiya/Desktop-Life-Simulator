@@ -49,6 +49,18 @@ export interface TerrainRenderer {
   update(firstColumn: number, lastColumn: number): number;
   /** Sprites currently parented, i.e. draw calls contributed by terrain. */
   visibleChunkCount(): number;
+  /**
+   * Tints the whole terrain, for the season. Phase-11c — ADR-021 §6.
+   *
+   * Applied to the chunk SPRITES, not baked into their textures, so a season
+   * change costs a tint assignment per visible chunk and **no chunk redraw at
+   * all**. Baking it would invalidate every cached texture four times a year,
+   * which is the one thing this renderer exists to avoid.
+   *
+   * Multiplies over the owned/unowned tint already baked in, so `0xffffff`
+   * leaves the terrain exactly as it was.
+   */
+  setSeasonTint(color: number): void;
   destroy(): void;
 }
 
@@ -67,6 +79,8 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
 
   const textures = new Map<number, RenderTexture>();
   const sprites = new Map<number, Sprite>();
+  /** White until a season sets one — i.e. terrain exactly as v0.1 drew it. */
+  let seasonTint = 0xffffff;
 
   /** Reused scratch container — allocating one per chunk redraw would churn. */
   const scratch = new Container();
@@ -112,6 +126,10 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
       display = new Sprite(target);
       display.x = origin.x * TILE_SIZE;
       display.y = origin.y * TILE_SIZE;
+      // A chunk created after the season was set must arrive already tinted —
+      // otherwise scrolling into new ground shows last season's colour until
+      // the next boundary, hours away.
+      display.tint = seasonTint;
       layer.addChild(display);
       sprites.set(chunk, display);
     } else {
@@ -120,6 +138,12 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
   };
 
   return {
+    setSeasonTint(color) {
+      if (color === seasonTint) return; // change-gated: four times a year
+      seasonTint = color;
+      for (const sprite of sprites.values()) sprite.tint = color;
+    },
+
     update(firstColumn, lastColumn) {
       const stale = tracker.staleVisible(firstColumn, lastColumn);
       for (const chunk of stale) {

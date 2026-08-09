@@ -29,6 +29,23 @@ const PHASE_LABELS: Record<DayPhase, string> = {
   [DayPhase.Night]: 'Night',
 };
 
+/**
+ * A season's label, from its id.
+ *
+ * Derived from the id rather than looked up in the season registry, and that
+ * is a deliberate limit rather than an oversight: the registry holds a
+ * `displayName`, but this component is handed a `TimeView` and nothing else,
+ * and reaching into content from here would give the HUD a second route to
+ * simulation state. Capitalising `core:spring` reads correctly for every
+ * shipped season; a source shipping `mod:the_long_dark` gets a worse label
+ * than it deserves, and closing that means routing `displayName` through the
+ * slice — which is a change to the slice, not to this line.
+ */
+function seasonLabel(season: string): string {
+  const name = season.slice(season.indexOf(':') + 1).replace(/_/gu, ' ');
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export function DayReadout(): React.JSX.Element {
   const time = useSlice('time');
 
@@ -38,6 +55,7 @@ export function DayReadout(): React.JSX.Element {
           (ADR-020 §1) — and are shown from one, because no player has ever
           spent a "day 0" on a farm. */}
       Day {time.day + 1} · {PHASE_LABELS[time.phase]}
+      {time.season !== undefined && ` · ${seasonLabel(time.season)}`}
     </span>
   );
 }

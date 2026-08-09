@@ -18,6 +18,7 @@ import {
   CORE_WINTER,
   createSeasonRegistry,
   seasonOrder,
+  seasonTint,
 } from './seasons';
 
 describe('the season registry', () => {
@@ -74,5 +75,37 @@ describe('core ships a four-season year', () => {
     for (const season of createInstalledRegistries().seasons.all()) {
       expect(season.displayName.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('a season carries its ground colour (ADR-021 §6)', () => {
+  it('resolves a registered season to its tint', () => {
+    const registry = createSeasonRegistry();
+    registry.register({ id: CORE_AUTUMN, displayName: 'Autumn', tint: 0xffdcae });
+
+    expect(seasonTint(registry, CORE_AUTUMN)).toBe(0xffdcae);
+  });
+
+  it('leaves the terrain alone when there is no season', () => {
+    // White is the identity for a multiplied tint, so a world with no seasons
+    // draws exactly as it did before seasons existed.
+    expect(seasonTint(createSeasonRegistry(), undefined)).toBe(0xffffff);
+  });
+
+  it('leaves the terrain alone for a season nothing registered', () => {
+    // A save naming a season whose source has been uninstalled: the ground
+    // goes neutral rather than a guessed colour, matching how a missing phase
+    // tint paints nothing.
+    expect(seasonTint(createSeasonRegistry(), 'mod:monsoon')).toBe(0xffffff);
+  });
+
+  it('gives every shipped season a tint, and only spring the identity', () => {
+    // Spring is the neutral one; if a second season were also white the
+    // boundary into it would be invisible.
+    const registry = createInstalledRegistries().seasons;
+    const tints = registry.all().map((season) => season.tint);
+
+    expect(tints).toHaveLength(4);
+    expect(tints.filter((tint) => tint === 0xffffff)).toHaveLength(1);
   });
 });

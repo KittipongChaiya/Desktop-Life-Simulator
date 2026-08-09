@@ -22,6 +22,7 @@
 import { CORE_MARKET_STALL } from '../content/buildings';
 import { removeItems } from '../world/container';
 import {
+  seasonalMultiplier,
   multiplierOf,
   RECOVERY_PERIOD_TICKS,
   recordSale,
@@ -53,7 +54,11 @@ function sweepStalls(world: World): void {
 
       const unit = Math.floor(
         STALL_SALE_FRACTION *
-          salePrice(definition.value.basePrice, multiplierOf(world.economy, stack.item)),
+          salePrice(
+            definition.value.basePrice,
+            multiplierOf(world.economy, stack.item),
+            seasonalMultiplier(world, stack.item),
+          ),
       );
       removeItems(container, stack.item, stack.quantity);
       addCoins(world.wallet, unit * stack.quantity);

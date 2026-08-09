@@ -23,7 +23,7 @@
  * subscribes only to what it reads).
  */
 
-import { dayFor, phaseFor, type DayPhase } from '../time/game-clock';
+import { dayFor, phaseFor, seasonFor, type DayPhase } from '../time/game-clock';
 
 /** The calendar as a view sees it. */
 export interface TimeView {
@@ -31,6 +31,16 @@ export interface TimeView {
   readonly day: number;
   /** The named phase the world is in — never a fraction (ADR-020 §3). */
   readonly phase: DayPhase;
+  /**
+   * The season, or `undefined` in a world whose content registered none.
+   *
+   * It rides here rather than in a slice of its own because it changes far
+   * LESS often than the phase — once a week of game time against four times a
+   * day — so it adds no republish at all. A slice exists to stop a consumer
+   * re-rendering on changes it does not read; nothing re-renders on a change
+   * that never happens.
+   */
+  readonly season: string | undefined;
 }
 
 /**
@@ -43,13 +53,19 @@ export interface TimeView {
 export interface TimeProjectionSource {
   readonly tick: number;
   readonly ticksPerDay: number;
+  /** Frozen per world (ADR-021 §1), like `ticksPerDay`. */
+  readonly daysPerSeason: number;
+  readonly seasons: readonly string[];
 }
 
 /** The current day and phase. Pure — no clock read, no generator (ADR-007 §1). */
 export function projectTime(source: TimeProjectionSource): TimeView {
+  const day = dayFor(source.tick, source.ticksPerDay);
+
   return {
-    day: dayFor(source.tick, source.ticksPerDay),
+    day,
     phase: phaseFor(source.tick, source.ticksPerDay),
+    season: seasonFor(day, source.daysPerSeason, source.seasons),
   };
 }
 
@@ -62,5 +78,5 @@ export function projectTime(source: TimeProjectionSource): TimeView {
  * this comparison should silently depend on.
  */
 export function timeEquals(a: TimeView, b: TimeView): boolean {
-  return a.day === b.day && a.phase === b.phase;
+  return a.day === b.day && a.phase === b.phase && a.season === b.season;
 }

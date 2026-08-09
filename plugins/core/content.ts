@@ -250,10 +250,15 @@ export function corePhaseTints(): readonly PhaseTintDefinition[] {
  */
 export function coreSeasons(): readonly SeasonDefinition[] {
   const seasons: readonly SeasonDefinition[] = [
-    { id: CORE_SPRING, displayName: 'Spring' },
-    { id: CORE_SUMMER, displayName: 'Summer' },
-    { id: CORE_AUTUMN, displayName: 'Autumn' },
-    { id: CORE_WINTER, displayName: 'Winter' },
+    // Tints are multiplied over the terrain, so white is "leave it alone" and
+    // every other value darkens. They are kept close to white on purpose: the
+    // ground should read as the same farm in a different month, not as a
+    // different biome, and `VISION.md` §2.1 puts this window beside real work
+    // for hours at a time.
+    { id: CORE_SPRING, displayName: 'Spring', tint: 0xffffff },
+    { id: CORE_SUMMER, displayName: 'Summer', tint: 0xfff6dd },
+    { id: CORE_AUTUMN, displayName: 'Autumn', tint: 0xffdcae },
+    { id: CORE_WINTER, displayName: 'Winter', tint: 0xdde8ff },
   ];
   return seasons;
 }

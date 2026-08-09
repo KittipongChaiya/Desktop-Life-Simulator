@@ -13,6 +13,8 @@
 
 import type { ItemRegistry } from '../content/items';
 import {
+  seasonalMultiplier,
+  type SeasonalPricingSource,
   expansionCost,
   multiplierOf,
   plotSizeAfter,
@@ -45,7 +47,7 @@ export interface EconomyView {
 }
 
 /** The world state the projections read. `World` satisfies this structurally. */
-export interface EconomyProjectionSource {
+export interface EconomyProjectionSource extends SeasonalPricingSource {
   readonly wallet: Wallet;
   readonly economy: EconomyState;
   readonly itemRegistry: ItemRegistry;
@@ -67,7 +69,11 @@ export function projectEconomy(source: EconomyProjectionSource): EconomyView {
     .all()
     .map((definition) => ({
       item: definition.id,
-      price: salePrice(definition.basePrice, multiplierOf(source.economy, definition.id)),
+      price: salePrice(
+        definition.basePrice,
+        multiplierOf(source.economy, definition.id),
+        seasonalMultiplier(source, definition.id),
+      ),
       basePrice: definition.basePrice,
     }))
     .sort((a, b) => (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));

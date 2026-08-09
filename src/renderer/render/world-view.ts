@@ -32,6 +32,7 @@ import { FEATURE_DEBUG } from '../../shared/build-flags';
 import { TILE_SIZE } from '../../shared/constants';
 import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
+import { seasonTint } from '../../sim/content/seasons';
 import { CORE_GRASS } from '../../sim/content/tile-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
 import type { World } from '../../sim/world/world';
@@ -597,6 +598,13 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Republishes four times a day, so this is a string comparison on every
       // other frame of the world's life.
       lighting.update(options.world.snapshots.time.value);
+      // The season paints the GROUND; the phase paints the LIGHT. Two surfaces
+      // rather than one, so neither needs a rule for how it composes with the
+      // other (ADR-021 §6). Change-gated inside the renderer — this runs every
+      // frame and does something four times a year.
+      terrain.setSeasonTint(
+        seasonTint(options.world.seasonRegistry, options.world.snapshots.time.value.season),
+      );
 
       // Decor is static until the plot grows, so it is re-planned only when
       // the expansion counter moves — never per frame. A tile that becomes

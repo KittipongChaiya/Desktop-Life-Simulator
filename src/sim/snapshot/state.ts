@@ -7,7 +7,7 @@
  * polls versions per frame (ADR-005 §2).
  */
 
-import { DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
+import { DEFAULT_DAYS_PER_SEASON, DEFAULT_TICKS_PER_DAY } from '../../shared/constants';
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
 import { cropsEqual, projectCrops, type CropView } from './crops-slice';
@@ -58,7 +58,18 @@ export function createSnapshotState(): SnapshotState {
     // ANY day length, so the length passed here cannot change the answer. A
     // save resuming mid-day corrects it on its first tick, like every other
     // slice.
-    time: { version: 0, value: projectTime({ tick: 0, ticksPerDay: DEFAULT_TICKS_PER_DAY }) },
+    time: {
+      version: 0,
+      value: projectTime({
+        tick: 0,
+        ticksPerDay: DEFAULT_TICKS_PER_DAY,
+        daysPerSeason: DEFAULT_DAYS_PER_SEASON,
+        // Empty rather than the shipped year: the season a world runs on is
+        // its own frozen list, and this seed exists only until the first tick
+        // projects the real one.
+        seasons: [],
+      }),
+    },
   };
 }
 

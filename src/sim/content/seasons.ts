@@ -31,6 +31,20 @@ export interface SeasonDefinition {
   readonly id: ContentId;
   /** What a player reads. Presentation only — no rule may branch on it. */
   readonly displayName: string;
+  /**
+   * Ground colour for the season, packed `0xRRGGBB`. Presentation only.
+   *
+   * It rides on the definition rather than in a registry of its own — the way
+   * a crop carries its `stageSprites` — because a season and its colour are
+   * one content decision, and splitting them would let a source register a
+   * season with no colour or a colour for no season.
+   *
+   * Multiplied over the terrain, so `0xffffff` is "unchanged" and every other
+   * value darkens. **No simulation rule may read this** (ADR-021 §6): a
+   * seasonal repaint is a tempting place to hang a rule, and it is exactly the
+   * ADR-020 §4 prohibition restated one system along.
+   */
+  readonly tint: number;
 }
 
 export const CORE_SPRING = asContentId('core:spring');
@@ -42,6 +56,13 @@ export type SeasonRegistry = ContentRegistry<SeasonDefinition>;
 
 export function createSeasonRegistry(): SeasonRegistry {
   return createContentRegistry<SeasonDefinition>('season');
+}
+
+/** A season's ground tint, or white if the season is not registered. */
+export function seasonTint(registry: SeasonRegistry, season: string | undefined): number {
+  if (season === undefined) return 0xffffff;
+  const definition = registry.get(asContentId(season));
+  return definition.ok ? definition.value.tint : 0xffffff;
 }
 
 /**

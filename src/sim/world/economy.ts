@@ -19,6 +19,8 @@
  */
 
 import type { ContentId } from '../../shared/ids';
+import { cropYielding, isInSeason, type CropRegistry } from '../content/crops';
+import { dayFor, seasonFor } from '../time/game-clock';
 
 /** Multiplier lost per unit sold (`GAME_DESIGN.md` §6.2). */
 export const SALE_DECAY_PER_UNIT = 0.002;
@@ -60,10 +62,38 @@ export function multiplierOf(state: EconomyState, item: ContentId): number {
   return state.multipliers.get(item) ?? MULTIPLIER_CAP;
 }
 
-/** The current sale price: `floor(basePrice × multiplier)` (§6.2). Integer, always. */
-export function salePrice(basePrice: number, multiplier: number): number {
-  return Math.floor(basePrice * multiplier);
+/**
+ * The current sale price: `floor(basePrice × Π modifiers)` (ADR-013 §4).
+ *
+ * VARIADIC since phase-11c, and floored exactly ONCE at the end. Flooring per
+ * modifier would compound rounding and make the declared band a lie — the
+ * predictability guarantee is that the effective price cannot leave the product
+ * of the bands, which only holds if the product is taken first.
+ */
+export function salePrice(basePrice: number, ...modifiers: readonly number[]): number {
+  return Math.floor(modifiers.reduce((price, modifier) => price * modifier, basePrice));
 }
+
+/**
+ * The seasonal price modifier's floor. Phase-11c — ADR-021 §2, ADR-013 §4.
+ *
+ * Band **[0.90, 1.00]**: produce sells at its base price in a season its crop
+ * can be grown in, and at nine tenths otherwise. Combined with the sale
+ * multiplier's [0.50, 1.00], the effective price lives in [0.45, 1.00] of base
+ * — the product of the declared bands, which is the whole predictability
+ * guarantee (ADR-013 §4).
+ *
+ * **It never exceeds 1.00, and that is deliberate.** ADR-013 §4 makes the base
+ * price the ceiling — *"prices recover to the memorized value"* — so a seasonal
+ * PREMIUM would break the one number a player is allowed to memorize.
+ *
+ * **The band is shallow on purpose.** A player selling through a market stall
+ * never meets it: produce is sold as it is harvested, in the season it grew in.
+ * It is reachable by holding stock across a boundary, which is a choice. Ten
+ * percent is enough to notice in the ledger and far too little to make being
+ * away a mistake (`VISION.md` §2.2).
+ */
+export const SEASON_MULTIPLIER_FLOOR = 0.9;
 
 /** The multiplier after selling `units`: down `units × 0.002`, floored at 0.50. */
 export function decayedMultiplier(multiplier: number, units: number): number {
@@ -118,4 +148,37 @@ export function expansionCost(purchased: number): number {
 /** Plot side length after `purchased` expansions — one ring (+2) each (§6.3). */
 export function plotSizeAfter(purchased: number): number {
   return BASE_PLOT_SIZE + 2 * purchased;
+}
+
+/**
+ * What a seasonal price needs to know. `World` satisfies this structurally.
+ *
+ * The season is DERIVED here rather than passed in, so no caller can hand the
+ * pipeline a season the tick disagrees with (ADR-021 §1).
+ */
+export interface SeasonalPricingSource {
+  readonly tick: number;
+  readonly ticksPerDay: number;
+  readonly daysPerSeason: number;
+  readonly seasons: readonly string[];
+  readonly cropRegistry: CropRegistry;
+}
+
+/**
+ * The seasonal modifier for an item, in `[SEASON_MULTIPLIER_FLOOR, 1]`.
+ *
+ * Returns 1 for anything no crop yields — seeds, and any future manufactured
+ * good. A seed's price is what a crop costs to START, and gating that by season
+ * would double the plantability rule with a silent second penalty.
+ */
+export function seasonalMultiplier(source: SeasonalPricingSource, item: ContentId): number {
+  const crop = cropYielding(source.cropRegistry, item);
+  if (crop === undefined) return 1;
+
+  const season = seasonFor(
+    dayFor(source.tick, source.ticksPerDay),
+    source.daysPerSeason,
+    source.seasons,
+  );
+  return isInSeason(crop, season) ? 1 : SEASON_MULTIPLIER_FLOOR;
 }

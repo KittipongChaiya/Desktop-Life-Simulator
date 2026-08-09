@@ -43,6 +43,7 @@ import {
   type Container,
 } from '../sim/world/container';
 import {
+  seasonalMultiplier,
   MULTIPLIER_CAP,
   RECOVERY_PERIOD_TICKS,
   decayedMultiplier,
@@ -380,7 +381,11 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
       multiplierAtSave.get(item) ?? multiplierOf(world.economy, item),
       units,
     );
-    coinsEarned += units * salePrice(definition.value.basePrice, floorMultiplier);
+    // The season at the END of the gap, which is where the sale lands. Using
+    // the season at the start would credit a price the market no longer pays.
+    coinsEarned +=
+      units *
+      salePrice(definition.value.basePrice, floorMultiplier, seasonalMultiplier(world, item));
     const endMultiplier = recoveredMultiplier(floorMultiplier, periods);
     if (endMultiplier >= MULTIPLIER_CAP) world.economy.multipliers.delete(item);
     else world.economy.multipliers.set(item, endMultiplier);

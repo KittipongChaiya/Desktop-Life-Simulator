@@ -15,7 +15,11 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { Profiler, StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_TICKS_PER_DAY, UI_UPDATE_HZ } from '../../../shared/constants';
+import {
+  DEFAULT_DAYS_PER_SEASON,
+  DEFAULT_TICKS_PER_DAY,
+  UI_UPDATE_HZ,
+} from '../../../shared/constants';
 import { stepSimulationBy } from '../../../sim/tick';
 import { DayPhase, phaseStartTick } from '../../../sim/time/game-clock';
 import { createWorld } from '../../../sim/world/world';
@@ -75,9 +79,14 @@ afterEach(() => {
 describe('what the player reads', () => {
   it('shows the first day as day 1, not day 0', () => {
     const world = createWorld(1);
+    // One tick, so the slice holds the world's own season rather than the
+    // season-less value `createSnapshotState` seeds it with.
+    stepSimulationBy(world, 1);
     mount(createSnapshotStore(world.snapshots), () => undefined);
 
-    expect(screen.getByTitle('In-game day and time of day').textContent).toBe('Day 1 · Dawn');
+    expect(screen.getByTitle('In-game day and time of day').textContent).toBe(
+      'Day 1 · Dawn · Spring',
+    );
   });
 
   it('names the phase the world is in', () => {
@@ -85,7 +94,9 @@ describe('what the player reads', () => {
     stepSimulationBy(world, phaseStartTick(DayPhase.Dusk, DAY));
     mount(createSnapshotStore(world.snapshots), () => undefined);
 
-    expect(screen.getByTitle('In-game day and time of day').textContent).toBe('Day 1 · Dusk');
+    expect(screen.getByTitle('In-game day and time of day').textContent).toBe(
+      'Day 1 · Dusk · Spring',
+    );
   });
 
   it('follows the world across a phase boundary', () => {
@@ -95,7 +106,9 @@ describe('what the player reads', () => {
 
     advance(store, world, phaseStartTick(DayPhase.Night, DAY));
 
-    expect(screen.getByTitle('In-game day and time of day').textContent).toBe('Day 1 · Night');
+    expect(screen.getByTitle('In-game day and time of day').textContent).toBe(
+      'Day 1 · Night · Spring',
+    );
   });
 
   it('rolls over to the next day at midnight', () => {
@@ -105,13 +118,19 @@ describe('what the player reads', () => {
 
     advance(store, world, DAY);
 
-    expect(screen.getByTitle('In-game day and time of day').textContent).toBe('Day 2 · Dawn');
+    expect(screen.getByTitle('In-game day and time of day').textContent).toBe(
+      'Day 2 · Dawn · Spring',
+    );
   });
 });
 
 describe('idle cost across a full day (ADR-005 §2)', () => {
   it('commits four times over a day, not once per tick', () => {
     const world = createWorld(1);
+    // Settle the first tick before mounting: the time slice corrects its
+    // seeded (season-less) value once at world start, and this test is about
+    // STEADY-STATE ticks.
+    stepSimulationBy(world, 1);
     const store = createSnapshotStore(world.snapshots);
 
     let commits = 0;
@@ -127,7 +146,8 @@ describe('idle cost across a full day (ADR-005 §2)', () => {
       advance(store, world, DAY / 100);
     }
 
-    expect(world.tick).toBe(DAY);
+    // A full day beyond the settling tick.
+    expect(world.tick).toBe(DAY + 1);
     expect(commits - afterMount).toBe(4);
   });
 
@@ -146,5 +166,26 @@ describe('idle cost across a full day (ADR-005 §2)', () => {
     advance(store, world, 1000);
 
     expect(commits).toBe(afterMount);
+  });
+});
+
+describe('the season in the readout (phase-11c)', () => {
+  it('names the season alongside the day and phase', () => {
+    const world = createWorld(1);
+    world.tick = DEFAULT_TICKS_PER_DAY * DEFAULT_DAYS_PER_SEASON * 2 + 100;
+    stepSimulationBy(world, 1);
+    mount(createSnapshotStore(world.snapshots), () => undefined);
+
+    expect(screen.getByTitle('In-game day and time of day').textContent).toContain('Autumn');
+  });
+
+  it('omits it entirely in a world whose content registered no seasons', () => {
+    // Not "Season: none" — a world without seasons should read as a world
+    // that simply has a day, which is what v0.2 looked like one phase ago.
+    const world = createWorld(1, { seasons: [] });
+    stepSimulationBy(world, 1);
+    mount(createSnapshotStore(world.snapshots), () => undefined);
+
+    expect(screen.getByTitle('In-game day and time of day').textContent).toBe('Day 1 · Dawn');
   });
 });
