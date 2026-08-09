@@ -124,7 +124,7 @@ export function toSaveDocument(
         kind: encodeBytes(world.tiles.kind),
         owned: encodeBytes(world.tiles.owned),
         tilledAt: encodeUint32(world.tiles.tilledAt),
-        moisture: encodeBytes(world.tiles.moisture),
+        wateredAt: encodeUint32(world.tiles.wateredAt),
         // `blocked` is derived from the building store — recomputed on load,
         // never persisted (SAVE_FORMAT.md §2.2).
       },
@@ -143,6 +143,7 @@ export function toSaveDocument(
       dayPhases: [...world.dayPhases],
       daysPerSeason: world.daysPerSeason,
       seasons: [...world.seasons],
+      ticksPerWeatherPeriod: world.ticksPerWeatherPeriod,
       crops,
       workers,
       buildings,

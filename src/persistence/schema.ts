@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -61,8 +61,12 @@ export interface SaveGrid {
   readonly owned: string;
   /** Uint32 per tile, little-endian — tick tilled, or 0. */
   readonly tilledAt: string;
-  /** Uint8 per tile. */
-  readonly moisture: string;
+  /**
+   * Uint32 per tile, little-endian — tick last watered, or 0 (v5).
+   *
+   * REPLACES `moisture`, which was persisted from v1 and read by nothing.
+   */
+  readonly wateredAt: string;
 }
 
 /** A crop instance — ADR-009 §2: no accumulator, growth derives from the tick. */
@@ -262,6 +266,15 @@ export interface SaveWorld {
    * which season a save's day 30 fell in.
    */
   readonly seasons: readonly string[];
+  /**
+   * The weather period's length in ticks, frozen at creation (v5, ADR-022 §1).
+   *
+   * Weather itself is never stored — it is a hash of (seed, period). This is
+   * the one input to that hash a rebalance must not reach: change it and every
+   * past period re-derives, so the rainfall history wetness is computed from
+   * changes underneath a standing crop.
+   */
+  readonly ticksPerWeatherPeriod: number;
 }
 
 /**

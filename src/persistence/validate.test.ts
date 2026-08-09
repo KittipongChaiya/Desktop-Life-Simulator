@@ -124,7 +124,7 @@ describe('parseSaveDocument (structural, §5.1)', () => {
     expect(
       parseSaveDocument(
         tampered(
-          (d: { world: { grid: { moisture: string } } }) => (d.world.grid.moisture = 'AAAA'),
+          (d: { world: { grid: { wateredAt: string } } }) => (d.world.grid.wateredAt = 'AAAA'),
         ),
       ).ok,
     ).toBe(false); // valid base64, wrong length

@@ -3,7 +3,7 @@
 > **Delivers:** weather that is derived rather than simulated, exact offline, and costs nothing when nobody is watching.
 > **Governing decisions:** ADR-022 (weather), ADR-009 §2 (derive, never accumulate), ADR-017 §5 (derived variation, never rolled), ADR-021 (the seasons weather is biased by), ADR-027 (save evolution).
 > **Schema:** v4 → v5, and the first **removal**.
-> **Status:** **In progress.** Boundary 1 landed.
+> **Status:** **In progress.** Boundaries 1 and 2 landed.
 
 ---
 
@@ -14,13 +14,47 @@
 | Order | Boundary                                                         | Commit |
 | ----- | ---------------------------------------------------------------- | ------ |
 | 1     | `weatherFor`, weather kinds as content, the period constant      | _this_ |
-| 2     | Schema v5 — `moisture` out, `wateredAt` in — and derived wetness | —      |
+| 2     | Schema v5 — `moisture` out, `wateredAt` in — and derived wetness | _this_ |
 | 3     | A real consumer for wetness, or rain does not ship               | —      |
 | 4     | Layer 4 particles under ADR-017 §2's four conditions             | —      |
 
 ---
 
 ## Decisions worth carrying forward
+
+### The removal was safe because the field carried no information
+
+`SAVE_FORMAT.md` §11.2 predicted this link and set the test: `grid.moisture` was persisted from v1, serialized, validated, and **read by nothing**. So this dropped an array of zeros rather than discarding player value.
+
+That distinction is the whole rule for a removal, and §11.2 already warns that the next one will not have it. Worth restating here because this one went so smoothly that it could be mistaken for a template: a field somebody reads needs a successor decision, not a migration.
+
+The replacement is a different **shape**, not a rename. `moisture` was a 0–100 level — an accumulator, the exact thing ADR-009 §2 spent phase-03 removing from crops. `wateredAt` is a recorded tick with `tilledAt`'s shape, so wetness is derived and nothing accumulates.
+
+### The migration sizes `wateredAt` from the DOCUMENT
+
+`new Uint32Array(width * height)` reads the width and height out of the save being migrated, not from `WORLD_WIDTH`. A migration describes the save it was handed; if the world size ever changes, an old save must not be retro-resized into a different farm. Pinned by a test that migrates a doctored 4×4 grid and expects 16 words, and confirmed by mutation.
+
+### A latent weakness in an existing test, surfaced rather than introduced
+
+`save-fixtures.test.ts`'s "continues deterministically after loading" hydrated the **raw** fixture document without migrating it. That worked for four schema versions because every field the older versions lacked happened to be one hydration defaulted — until `wateredAt`, which is decoded rather than defaulted, and it threw.
+
+The test now migrates first, which is what the real load path does (`readSavesForLoad` → migrate → validate → hydrate) and what the sibling test three lines above already did. Hydrating an unmigrated document is not a path the game can take.
+
+This is worth recording because the failure looked like the migration breaking an old save, and it was not: it was a test asserting a path that does not exist.
+
+### The three earlier migration tests now exempt `grid`
+
+Each asserts "keeps every field it already had", which a chain containing a removal cannot claim in general. They skip `grid` and point at `migration-v4-to-v5.test.ts`, which checks the grid field by field — `moisture` gone, `wateredAt` present and correctly sized, everything else byte-for-byte.
+
+### Wetness costs periods, not ticks
+
+The eight-hour offline cap is 576,000 ticks and **96 weather periods**. `rainfallOver` sums one term per period plus two partials, so the offline case is a 96-term sum rather than a 576,000-step loop — which is what makes ADR-022 §3's decomposition worth having rather than merely correct.
+
+The property that guards it is **additivity across an arbitrary split**: rainfall over `[0, n)` must equal rainfall over `[0, k)` plus `[k, n)` for every `k`, including ones that land mid-period. If that failed, a tile's wetness would depend on when the player happened to save.
+
+### The constant-rate reduction is asserted, not argued
+
+ADR-022 §4 claims the modulated integral reduces to `tick − plantedTick` when the rate is constant, so ADR-009's shipped behaviour is the special case rather than something replaced. With a single always-on weather kind the rate is constant by construction, and `rainfallOver` returns exactly `to − from` over every span tested. That is the reduction, executed.
 
 ### The hash moved to `shared/`, and that was not tidying
 
@@ -62,8 +96,8 @@ Clear and rain. Snow and storms are in the ADR's prose and are not here: snow ra
 
 - [x] Weather queried for a past period equals what was observed live at that period — `src/sim/time/weather.test.ts`, 200 periods walked forward then re-queried
 - [x] `world.rng` is byte-identical with and without weather over a long run — asserted against two live streams
-- [ ] With a constant rate, growth progress equals `tick − plantedTick` exactly — boundary 2
+- [x] With a constant rate, rainfall over a span equals the span exactly — `src/sim/time/wetness.test.ts`. Growth MODULATION itself is boundary 3's decision
 - [ ] Load + advance past an 8-hour gap is byte-identical to running the ticks, including crop progress — boundary 2
 - [ ] Weather visuals on, pointer idle past the timeout → zero `requestAnimationFrame` callbacks — boundary 4
 - [ ] A farm that never sees rain completes its loop and earns across a long run — boundary 3
-- [ ] `v4 → v5` migrates every fixture, dropping `moisture` and defaulting `wateredAt`, with zero repairs — boundary 2
+- [x] `v4 → v5` migrates every fixture, dropping `moisture` and defaulting `wateredAt`, with zero repairs — `tests/migration-v4-to-v5.test.ts`

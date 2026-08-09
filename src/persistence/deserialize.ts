@@ -67,6 +67,7 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     dayPhases: saved.dayPhases,
     daysPerSeason: saved.daysPerSeason,
     seasons: saved.seasons,
+    ticksPerWeatherPeriod: saved.ticksPerWeatherPeriod,
   });
 
   world.tick = saved.tick;
@@ -83,12 +84,16 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
   }
   copyBytes(world.tiles.kind, saved.grid.kind, 'kind');
   copyBytes(world.tiles.owned, saved.grid.owned, 'owned');
-  copyBytes(world.tiles.moisture, saved.grid.moisture, 'moisture');
   const tilledAt = decodeUint32(saved.grid.tilledAt);
   if (tilledAt.length !== world.tiles.tilledAt.length) {
     throw new Error(`grid tilledAt: expected ${world.tiles.tilledAt.length} words`);
   }
   world.tiles.tilledAt.set(tilledAt);
+  const wateredAt = decodeUint32(saved.grid.wateredAt);
+  if (wateredAt.length !== world.tiles.wateredAt.length) {
+    throw new Error(`grid wateredAt: expected ${world.tiles.wateredAt.length} words`);
+  }
+  world.tiles.wateredAt.set(wateredAt);
   world.tiles.blocked.fill(0);
 
   for (const crop of saved.crops) {

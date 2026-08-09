@@ -32,7 +32,7 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
 
 ```jsonc
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "magic": "desktop-life-simulator/save",
 
   "meta": {
@@ -54,7 +54,11 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
       "kind": "<base64 Uint8Array,  4096 bytes>",
       "owned": "<base64 bitfield,    512 bytes>",
       "tilledAt": "<base64 Uint32Array LE, 16384 bytes>",
-      "moisture": "<base64 Uint8Array,  4096 bytes>",
+      // v5 — ADR-022 §3. Tick last watered, or 0. REPLACES `moisture`, which
+      // was a 0-100 level: an accumulator, and read by nothing. This is a
+      // recorded fact with `tilledAt`'s shape, and wetness derives from it
+      // plus the rainfall since (§6.3).
+      "wateredAt": "<base64 Uint32Array LE, 16384 bytes>",
       // `blocked` is deliberately absent — derived from buildings (§2.2)
     },
 
@@ -140,6 +144,13 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     // fifth season must not change which season this save's day 30 fell in.
     "daysPerSeason": 7,
     "seasons": ["core:spring", "core:summer", "core:autumn", "core:winter"],
+
+    // v5 — ADR-022 §1. The weather PERIOD's length. Weather itself is never
+    // stored: it is a hash of (seed, period), so it needs no field, no
+    // migration and no catch-up. This is the one input to that hash a
+    // rebalance must not reach — change it and every past period re-derives,
+    // moving the rainfall history wetness is summed from.
+    "ticksPerWeatherPeriod": 6000,
   },
 
   "quarantine": {
@@ -178,6 +189,7 @@ Finalized in phase-07a against the shipped `World`, exactly as `src/persistence/
 | `ticksPerDay` **is** stored, and is frozen                                 | The one calendar input a rebalance must not reach — changing it renumbers every past day (ADR-020 §2)                |
 | The **season** is derived; `daysPerSeason` and the season order are stored | Same rule one level up — a season is a run of days (ADR-021 §1)                                                      |
 | A migration never reads a live registry                                    | It must be a pure function of the document, or one save migrates two ways on two machines (`v3-to-v4`)               |
+| A removal drops the field and populates its replacement explicitly         | A tolerant reader hides the change; the migration is where it is stated (`v4-to-v5`)                                 |
 
 ### 2.2 Never persisted
 
@@ -573,7 +585,7 @@ Each link ships under §9's checklist, in one commit. Migrated v0.1 saves defaul
 
 ### 11.2 Removing a field
 
-`v4 → v5` is the first **removal**. `grid.moisture` is persisted today and read by nothing — it was written for a moisture model deferred by ADR-009 and never built, so the migration removes an empty array rather than discarding player value.
+`v4 → v5` is the first **removal**, and it landed in phase-12b exactly as specified. `grid.moisture` was persisted from v1 and read by nothing — it was written for a moisture model deferred by ADR-009 and never built, so the migration removes an empty array rather than discarding player value.
 
 The pattern every future removal copies (ADR-015 §4: _"Readers never silently skip fields"_):
 

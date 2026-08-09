@@ -63,6 +63,11 @@ describe('the v2 golden fixtures', () => {
     const after = migrated(name).world as unknown as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(before.world)) {
+      // `grid` is exempt from phase-12b: `v4 → v5` REMOVES `grid.moisture`,
+      // which is the chain's first removal and the one thing a
+      // preserves-everything assertion cannot also claim. What the grid keeps
+      // is asserted field by field in `migration-v4-to-v5.test.ts`.
+      if (key === 'grid') continue;
       expect(JSON.stringify(after[key]), `${name}: world.${key} changed`).toBe(
         JSON.stringify(value),
       );

@@ -130,19 +130,19 @@ function reqGrid(value: unknown): void {
   req(isInt(grid['width']) && grid['width'] > 0, 'world.grid.width', 'a positive integer');
   req(isInt(grid['height']) && grid['height'] > 0, 'world.grid.height', 'a positive integer');
   const tiles = (grid['width'] as number) * (grid['height'] as number);
-  for (const field of ['kind', 'owned', 'tilledAt', 'moisture'] as const) {
+  for (const field of ['kind', 'owned', 'tilledAt', 'wateredAt'] as const) {
     req(isStr(grid[field]), `world.grid.${field}`, 'a base64 string');
   }
   // Decode HERE so a corrupt encoding is a validation error, not a crash.
   let kind: Uint8Array;
   let owned: Uint8Array;
-  let moisture: Uint8Array;
   let tilledAt: Uint32Array;
+  let wateredAt: Uint32Array;
   try {
     kind = decodeBytes(grid['kind'] as string);
     owned = decodeBytes(grid['owned'] as string);
-    moisture = decodeBytes(grid['moisture'] as string);
     tilledAt = decodeUint32(grid['tilledAt'] as string);
+    wateredAt = decodeUint32(grid['wateredAt'] as string);
   } catch (thrown) {
     throw new Structural(
       `world.grid: ${thrown instanceof Error ? thrown.message : 'undecodable encoding'}`,
@@ -150,8 +150,8 @@ function reqGrid(value: unknown): void {
   }
   req(kind.length === tiles, 'world.grid.kind', `${tiles} bytes`);
   req(owned.length === Math.ceil(tiles / 8), 'world.grid.owned', `${Math.ceil(tiles / 8)} bytes`);
-  req(moisture.length === tiles, 'world.grid.moisture', `${tiles} bytes`);
   req(tilledAt.length === tiles, 'world.grid.tilledAt', `${tiles} words`);
+  req(wateredAt.length === tiles, 'world.grid.wateredAt', `${tiles} words`);
 }
 
 /**
@@ -336,6 +336,14 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
     (world['seasons'] as unknown[]).forEach((season, i) => {
       req(isStr(season), `world.seasons[${i}]`, 'a string');
     });
+
+    // v5 (ADR-022 §1). Frozen per world: change it and every past weather
+    // period re-derives, moving the rainfall history wetness is summed from.
+    req(
+      isInt(world['ticksPerWeatherPeriod']) && world['ticksPerWeatherPeriod'] > 0,
+      'world.ticksPerWeatherPeriod',
+      'a positive integer',
+    );
 
     req(Array.isArray(world['disabledSources']), 'world.disabledSources', 'an array');
     (world['disabledSources'] as unknown[]).forEach((value2, i) => {

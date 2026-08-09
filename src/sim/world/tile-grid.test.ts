@@ -27,7 +27,7 @@ describe('layout', () => {
 
     expect(grid.kind.length).toBe(WORLD_TILE_COUNT);
     expect(grid.tilledAt.length).toBe(WORLD_TILE_COUNT);
-    expect(grid.moisture.length).toBe(WORLD_TILE_COUNT);
+    expect(grid.wateredAt.length).toBe(WORLD_TILE_COUNT);
   });
 
   it('packs ownership one bit per tile', () => {

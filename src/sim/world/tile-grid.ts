@@ -28,8 +28,17 @@ export interface TileGrid {
   readonly owned: Uint8Array;
   /** Tick the tile was tilled, or 0. Phase-03. */
   readonly tilledAt: Uint32Array;
-  /** 0–100. Phase-03. */
-  readonly moisture: Uint8Array;
+  /**
+   * Tick the tile was last watered, or 0. Phase-12b — ADR-022 §3.
+   *
+   * Replaces `moisture`, and the shape change is the point: `moisture` was a
+   * 0–100 LEVEL, which is an accumulator, and nothing ever read it. This is a
+   * recorded FACT with the same shape as `tilledAt`, so wetness is derived
+   * from it and the rainfall since (ADR-009 §1's orthogonal recorded facts).
+   *
+   * Zero means "never watered", exactly as it does for `tilledAt`.
+   */
+  readonly wateredAt: Uint32Array;
   /**
    * One bit per tile: a building occupies it and it cannot be walked. Phase-05.
    * Buildings contribute to walkability HERE, in the tile model — pathfinding
@@ -46,7 +55,7 @@ export function createTileGrid(): TileGrid {
     kind: new Uint8Array(WORLD_TILE_COUNT),
     owned: new Uint8Array(Math.ceil(WORLD_TILE_COUNT / 8)),
     tilledAt: new Uint32Array(WORLD_TILE_COUNT),
-    moisture: new Uint8Array(WORLD_TILE_COUNT),
+    wateredAt: new Uint32Array(WORLD_TILE_COUNT),
     blocked: new Uint8Array(Math.ceil(WORLD_TILE_COUNT / 8)),
   };
 }

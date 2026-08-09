@@ -130,7 +130,10 @@ function buildWorld(plan: WorldPlan): World {
 
   for (const [i, tile] of tilledTiles.entries()) {
     world.tiles.tilledAt[tile] = Math.max(0, plan.tick - i * 7);
-    world.tiles.moisture[tile] = (i * 37) % 101;
+    // Phase-12b: `moisture` was removed and `wateredAt` replaces it. Populated
+    // here for the same reason moisture was — a grid field that is always zero
+    // round-trips correctly even when the codec is wrong.
+    world.tiles.wateredAt[tile] = Math.max(0, plan.tick - i * 11);
   }
 
   for (const [i, tile] of cropTiles.entries()) {

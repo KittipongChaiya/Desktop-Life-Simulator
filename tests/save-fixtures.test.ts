@@ -167,7 +167,18 @@ describe.each(FIXTURES)('golden fixture $name', ({ name, build }) => {
   });
 
   it('continues deterministically after loading', () => {
-    const document = JSON.parse(fixtureText(name, build)) as SaveDocument;
+    // MIGRATED first, which is what the real load path does
+    // (`readSavesForLoad` → migrate → validate → hydrate). This used to hydrate
+    // the raw fixture, which worked only because hydration happened to tolerate
+    // every field the older versions lacked — until phase-12b's `wateredAt`,
+    // which is decoded rather than defaulted. Hydrating an unmigrated document
+    // is not a path the game can take, so the test should not either.
+    const parsed = JSON.parse(fixtureText(name, build)) as UnknownSave;
+    const run = runMigrations(parsed, MIGRATIONS, CURRENT_SCHEMA_VERSION);
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+    const document = run.value.document as unknown as SaveDocument;
+
     const first = hydrateWorld(document);
     const second = hydrateWorld(document);
     stepSimulationBy(first, 200);
