@@ -20,6 +20,7 @@
  */
 
 import { asBuildingId, asContentId, asTileIndex, asWorkerId } from '../shared/ids';
+import type { DayPhase } from '../sim/time/game-clock';
 import { createContainer, type Container } from '../sim/world/container';
 import { setBlocked } from '../sim/world/tile-grid';
 import {
@@ -120,6 +121,23 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
           ? { kind, tile }
           : { kind, tile, cropId: asContentId(worker.task.cropId) };
     }
+    const schedule: {
+      taskKinds?: readonly WorkerTaskKind[];
+      zone?: ReadonlySet<number>;
+      shift?: readonly DayPhase[];
+      priority?: readonly WorkerTaskKind[];
+    } = {};
+    if (worker.schedule.taskKinds !== undefined) {
+      schedule.taskKinds = worker.schedule.taskKinds as readonly WorkerTaskKind[];
+    }
+    if (worker.schedule.zone !== undefined) schedule.zone = new Set(worker.schedule.zone);
+    if (worker.schedule.shift !== undefined) {
+      schedule.shift = worker.schedule.shift as readonly DayPhase[];
+    }
+    if (worker.schedule.priority !== undefined) {
+      schedule.priority = worker.schedule.priority as readonly WorkerTaskKind[];
+    }
+
     const record: Worker = {
       id: asWorkerId(worker.id),
       position: asTileIndex(worker.position),
@@ -130,6 +148,7 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
       actionProgress: worker.actionProgress,
       energy: worker.energy,
       energyTimer: worker.energyTimer,
+      schedule,
       carrying,
       replanTick: worker.replanTick,
     };

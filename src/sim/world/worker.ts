@@ -13,6 +13,7 @@
  */
 
 import type { ContentId, TileIndex, WorkerId } from '../../shared/ids';
+import type { DayPhase } from '../time/game-clock';
 
 import { createContainer, type Container } from './container';
 
@@ -60,6 +61,41 @@ export interface WorkerTask {
   readonly cropId?: ContentId;
 }
 
+/**
+ * What a worker may do, as data.
+ *
+ * Every field is optional, and absent means UNCONSTRAINED. That is the
+ * difference between "no zone" and "an empty zone": the first is a worker who
+ * may work anywhere, the second is a worker who may work nowhere, and
+ * conflating them is how a schedule silently idles a farm.
+ */
+export interface WorkerSchedule {
+  /** Task kinds this worker may perform. Absent means all of them. */
+  readonly taskKinds?: readonly WorkerTaskKind[];
+  /** Tiles this worker may work. Absent means the whole world. */
+  readonly zone?: ReadonlySet<number>;
+  /** Day phases this worker is on shift. Absent means always. */
+  readonly shift?: readonly DayPhase[];
+  /**
+   * Task kinds in the order this worker prefers them.
+   *
+   * An ORDERING input, never a filter (ADR-024 §3). Kinds missing from the
+   * list sort after the ones present, so a partial ordering is legal and a
+   * deprioritised kind is still reachable.
+   */
+  readonly priority?: readonly WorkerTaskKind[];
+}
+
+/**
+ * A worker with no schedule at all — every constraint absent.
+ *
+ * Lives here rather than in `constraints.ts` so this file imports nothing from
+ * the AI layer: the schedule is worker STATE, the predicates over it are AI,
+ * and having the state depend on its own evaluators was a genuine import cycle
+ * the dependency checker caught.
+ */
+export const UNCONSTRAINED: WorkerSchedule = {};
+
 export interface Worker {
   readonly id: WorkerId;
   /** The tile the worker occupies. Mutable sim hot state (CODE_STYLE.md §2.2). */
@@ -75,6 +111,16 @@ export interface Worker {
   actionProgress: number;
   /** 0–100. Throttles, never fails (§4.5). */
   energy: number;
+  /**
+   * What this worker may do, and in what order. Phase-14b — ADR-024 §4.
+   *
+   * SIMULATION STATE, not a preference: two players with one seed and
+   * different schedules have different farms, so it is saved with the world
+   * and changed only through commands. Putting it in `settings.json` would
+   * make the simulation depend on a file the save system never touches, and
+   * determinism and replay would both be gone.
+   */
+  schedule: WorkerSchedule;
   /**
    * Sub-period accumulator for the "per 20 ticks" energy rates (§4.5).
    *
@@ -202,6 +248,8 @@ export function createWorker(id: WorkerId, position: TileIndex): Worker {
     energy: MAX_ENERGY,
     energyTimer: 0,
     carrying: createContainer(WORKER_CARRY_CAPACITY, WORKER_CARRY_CAPACITY),
+    // A new hire may do anything, anywhere, at any hour (ADR-024 §1).
+    schedule: UNCONSTRAINED,
     replanTick: 0,
   };
 }

@@ -3,7 +3,7 @@
 > **Delivers:** the player directs the farm — and the architecture accepts zones, roles, shifts, permissions and overrides later without being redesigned.
 > **Governing decisions:** ADR-024 (scheduling), ADR-010 (commands are the only write path), ADR-019 §3 (roles as content), ADR-027 (save evolution).
 > **Schema:** v5 → v6.
-> **Status:** **In progress.** Boundary 1 landed.
+> **Status:** **In progress.** Boundaries 1 and 2 landed.
 
 ---
 
@@ -21,6 +21,18 @@
 ---
 
 ## Decisions worth carrying forward
+
+### The migration is one decision: , not
+
+Absent means unconstrained; empty means constrained to nothing. A v5 worker could do anything, anywhere, at any hour, so the empty record states that exactly — and would have **silently idled every worker on every existing save**. The whole link is that one choice, and the test asserts it directly rather than asserting the field exists.
+
+The codec carries the distinction too: absent fields stay absent through serialize and hydrate, which is why the round-trip test uses a NON-DEFAULT schedule — a worker with round-trips correctly even if the codec drops the field entirely. The zone is sorted on write, because a Set has insertion order and the bytes must not.
+
+### The dependency checker caught a real cycle
+
+Putting in and importing it into made the state depend on its own evaluators, and importing back closed the loop. Both the type and its neutral value now live beside , and re-exports them — so callers still reach the vocabulary through one module while the dependency runs one way.
+
+Worth recording because the fix is not cosmetic: the schedule is worker STATE and the predicates over it are AI, and the cycle was that distinction being blurred.
 
 ### The filter stage is the whole decision
 
@@ -60,6 +72,6 @@ The "resumes when the world changes" case first put its zone on tile (40, 40), w
 - [x] A task kind ordered last is still performed when nothing else is available — same file
 - [ ] Identical seed, command stream, and schedules produce byte-identical state over 100k ticks — boundary 2, once schedules are world state
 - [ ] An unsatisfiable constraint is rejected at registration and never reaches a worker — boundary 3, with roles
-- [ ] Schedules survive save → load → save byte-identically — boundary 2
+- [x] Schedules survive save → load → save byte-identically — `tests/migration-v5-to-v6.test.ts`, at NON-DEFAULT values
 - [ ] Catch-up never over-credits across shift and zone boundaries — boundary 2
-- [ ] `v5 → v6` migrates every fixture with zero repairs — boundary 2
+- [x] `v5 → v6` migrates every fixture with zero repairs — same file

@@ -104,7 +104,14 @@ function stepIdle(world: World, worker: Worker): void {
   // budget the product stands on (PERFORMANCE.md).
   if (world.tick < worker.replanTick) return;
 
-  const task = selectTask(world, worker.position, tilesClaimedByOthers(world, worker.id));
+  // The worker's OWN schedule — the filter stage's input, now that it is
+  // world state rather than a parameter with nowhere to come from (ADR-024 §4).
+  const task = selectTask(
+    world,
+    worker.position,
+    tilesClaimedByOthers(world, worker.id),
+    worker.schedule,
+  );
   if (task === null) {
     // No work — stay Idle and schedule the next scan (never jams, bounded
     // staleness of one second).

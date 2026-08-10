@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -95,6 +95,23 @@ export interface SaveWorkerTask {
  * the authoritative set is what continue-identically needs, not what looks
  * interesting).
  */
+/**
+ * A worker's schedule, as stored (v6, ADR-024 §4).
+ *
+ * Every field optional, mirroring `WorkerSchedule`: absent means
+ * unconstrained, and an empty array means constrained to nothing. The two are
+ * different states and the save must be able to tell them apart.
+ *
+ * The zone is an ARRAY here and a Set in the world — JSON has no set, and
+ * sorting it on write is what keeps the bytes stable (`SAVE_FORMAT.md` §3.2).
+ */
+export interface SaveWorkerSchedule {
+  readonly taskKinds?: readonly string[];
+  readonly zone?: readonly number[];
+  readonly shift?: readonly string[];
+  readonly priority?: readonly string[];
+}
+
 export interface SaveWorker {
   readonly id: number;
   readonly position: number;
@@ -105,6 +122,8 @@ export interface SaveWorker {
   readonly actionProgress: number;
   readonly energy: number;
   readonly energyTimer: number;
+  /** What this worker may do (v6). Absent on a v5 save; `{}` after migration. */
+  readonly schedule: SaveWorkerSchedule;
   /** Stack ORDER is state — partial-stack top-up order is behavior. */
   readonly carrying: readonly SaveStack[];
   readonly replanTick: number;

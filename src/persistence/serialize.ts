@@ -85,6 +85,25 @@ export function toSaveDocument(
         actionProgress: worker.actionProgress,
         energy: worker.energy,
         energyTimer: worker.energyTimer,
+        // Sorted on write, and absent fields stay ABSENT — `{}` and
+
+        // `{ zone: [] }` are different schedules and the bytes must say which.
+
+        schedule: {
+          ...(worker.schedule.taskKinds === undefined
+            ? {}
+            : { taskKinds: [...worker.schedule.taskKinds] }),
+
+          ...(worker.schedule.zone === undefined
+            ? {}
+            : { zone: [...worker.schedule.zone].sort((a, b) => a - b) }),
+
+          ...(worker.schedule.shift === undefined ? {} : { shift: [...worker.schedule.shift] }),
+
+          ...(worker.schedule.priority === undefined
+            ? {}
+            : { priority: [...worker.schedule.priority] }),
+        },
         carrying: stacksOf(worker.carrying),
         replanTick: worker.replanTick,
       };

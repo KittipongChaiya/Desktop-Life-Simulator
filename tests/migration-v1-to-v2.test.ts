@@ -104,6 +104,12 @@ describe('what the migration adds', () => {
       // preserves-everything assertion cannot also claim. What the grid keeps
       // is asserted field by field in `migration-v4-to-v5.test.ts`.
       if (key === 'grid') continue;
+      // `workers` is exempt from phase-14b for the mirror reason: `v5 → v6`
+      // ADDS a schedule to every worker, so the array's elements changed
+      // shape. What each worker keeps is asserted in
+      // `migration-v5-to-v6.test.ts`, which checks the schedule is `{}` and
+      // reads the rest field by field.
+      if (key === 'workers') continue;
       expect(JSON.stringify(after[key]), `${name}: world.${key} changed`).toBe(
         JSON.stringify(value),
       );

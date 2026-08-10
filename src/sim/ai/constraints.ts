@@ -37,35 +37,13 @@
  */
 
 import type { DayPhase } from '../time/game-clock';
-import type { WorkerTaskKind } from '../world/worker';
-
-/**
- * What a worker may do, as data.
- *
- * Every field is optional, and absent means UNCONSTRAINED. That is the
- * difference between "no zone" and "an empty zone": the first is a worker who
- * may work anywhere, the second is a worker who may work nowhere, and
- * conflating them is how a schedule silently idles a farm.
- */
-export interface WorkerSchedule {
-  /** Task kinds this worker may perform. Absent means all of them. */
-  readonly taskKinds?: readonly WorkerTaskKind[];
-  /** Tiles this worker may work. Absent means the whole world. */
-  readonly zone?: ReadonlySet<number>;
-  /** Day phases this worker is on shift. Absent means always. */
-  readonly shift?: readonly DayPhase[];
-  /**
-   * Task kinds in the order this worker prefers them.
-   *
-   * An ORDERING input, never a filter (ADR-024 §3). Kinds missing from the
-   * list sort after the ones present, so a partial ordering is legal and a
-   * deprioritised kind is still reachable.
-   */
-  readonly priority?: readonly WorkerTaskKind[];
-}
+import { UNCONSTRAINED, type WorkerSchedule, type WorkerTaskKind } from '../world/worker';
 
 /** A worker with no schedule at all — every constraint absent. */
-export const UNCONSTRAINED: WorkerSchedule = {};
+// Re-exported so callers reach the vocabulary and its neutral value through
+// one module, while the dependency runs one way: constraints -> worker.
+export { UNCONSTRAINED };
+export type { WorkerSchedule };
 
 /** The `(worker, task)` pair a constraint answers about. */
 export interface WorkCandidate {

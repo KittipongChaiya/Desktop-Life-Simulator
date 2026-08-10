@@ -232,6 +232,10 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
         req(isInt(worker[field]), `${path}.${field}`, 'an integer');
       }
       reqStacks(worker['carrying'], `${path}.carrying`);
+      // v6 (ADR-024 §4). The fields inside are optional and ABSENT is not the
+      // same as empty — absent means unconstrained — so only the record's
+      // presence is structural.
+      req(isRecord(worker['schedule']), `${path}.schedule`, 'a record');
     });
 
     req(Array.isArray(world['buildings']), 'world.buildings', 'an array');
