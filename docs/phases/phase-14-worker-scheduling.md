@@ -22,15 +22,17 @@
 
 ## Decisions worth carrying forward
 
-### The migration is one decision: , not
+### The migration is one decision: `{}`, not `{ taskKinds: [] }`
 
-Absent means unconstrained; empty means constrained to nothing. A v5 worker could do anything, anywhere, at any hour, so the empty record states that exactly — and would have **silently idled every worker on every existing save**. The whole link is that one choice, and the test asserts it directly rather than asserting the field exists.
+Absent means unconstrained; empty means constrained to nothing. A v5 worker could do anything, anywhere, at any hour, so the empty record states that exactly — and `{ taskKinds: [] }` would have **silently idled every worker on every existing save**. The whole link is that one choice, and the test asserts it directly rather than asserting the field exists.
 
-The codec carries the distinction too: absent fields stay absent through serialize and hydrate, which is why the round-trip test uses a NON-DEFAULT schedule — a worker with round-trips correctly even if the codec drops the field entirely. The zone is sorted on write, because a Set has insertion order and the bytes must not.
+The codec carries the distinction too: absent fields stay absent through serialize and hydrate, which is why the round-trip test uses a NON-DEFAULT schedule — a worker with `{}` round-trips correctly even if the codec drops the field entirely, the phase-10b lesson. The zone is sorted on write, because a `Set` has insertion order and the bytes must not.
+
+`exactOptionalPropertyTypes` rejected the conditional-spread hydration, and it was right to: the distinction it protects is exactly the one this vocabulary rests on, so the schedule is built by assignment and `undefined` is never written.
 
 ### The dependency checker caught a real cycle
 
-Putting in and importing it into made the state depend on its own evaluators, and importing back closed the loop. Both the type and its neutral value now live beside , and re-exports them — so callers still reach the vocabulary through one module while the dependency runs one way.
+Putting `WorkerSchedule` in `constraints.ts` and importing it into `worker.ts` made the state depend on its own evaluators, and `worker.ts` importing `UNCONSTRAINED` back closed the loop. Both the type and its neutral value now live beside `Worker`, and `constraints.ts` re-exports them — so callers still reach the vocabulary through one module while the dependency runs one way.
 
 Worth recording because the fix is not cosmetic: the schedule is worker STATE and the predicates over it are AI, and the cycle was that distinction being blurred.
 
