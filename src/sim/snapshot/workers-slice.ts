@@ -19,10 +19,17 @@
 import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
 import { unwrap } from '../../shared/result';
+import type { RoleRegistry } from '../content/roles';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import { enterCost } from '../pathing/astar';
 import type { TileGrid } from '../world/tile-grid';
-import { WorkerState, type Worker, type WorkerStore, type WorkerTaskKind } from '../world/worker';
+import {
+  WorkerState,
+  type Worker,
+  type WorkerSchedule,
+  type WorkerStore,
+  type WorkerTaskKind,
+} from '../world/worker';
 
 /** Which way a worker sprite faces. Presentation only. */
 export const Direction = {
@@ -49,10 +56,21 @@ export interface WorkerView {
   /** A fresh copy of the current task, or null. Never the sim's own object. */
   readonly task: { readonly kind: WorkerTaskKind; readonly tile: number } | null;
   readonly energy: number;
+  /**
+   * The role this worker's schedule matches, or null for a bespoke one.
+   *
+   * A role ID rather than the schedule itself: the panel needs to name what a
+   * worker is set to, and projecting the constraint sets would put simulation
+   * shapes into a view nothing reads (ADR-005 §2). A player who edits a zone
+   * onto a role gets `null` here, which is honest — they are no longer on it.
+   */
+  readonly role: string | null;
 }
 
 /** The world state the projection reads. `World` satisfies this structurally. */
 export interface WorkerProjectionSource {
+  /** Registered roles, so a schedule can be named rather than described. */
+  readonly roleRegistry: RoleRegistry;
   readonly workers: WorkerStore;
   readonly tiles: TileGrid;
   readonly tileKinds: TileKindRegistry;
@@ -85,10 +103,38 @@ function projectWorker(source: WorkerProjectionSource, worker: Worker): WorkerVi
     state: worker.state,
     task: worker.task === null ? null : { kind: worker.task.kind, tile: worker.task.tile },
     energy: worker.energy,
+    role: roleMatching(source.roleRegistry, worker.schedule),
   };
 }
 
 /** Every worker, projected and ordered by id (deterministic). */
+
+/**
+ * The role a schedule matches, or null.
+ *
+ * Compared by VALUE over the three fields a role can express — a role sets
+ * exactly those, so a schedule that differs in any of them is not on that role
+ * however it got there. The zone is ignored, because a role cannot express one
+ * and a worker with a zone is still on their role.
+ */
+function roleMatching(registry: RoleRegistry, schedule: WorkerSchedule): string | null {
+  const same = (a: readonly string[] | undefined, b: readonly string[] | undefined): boolean =>
+    a === undefined || b === undefined
+      ? a === b
+      : a.length === b.length && a.every((value, index) => value === b[index]);
+
+  for (const role of registry.all()) {
+    if (
+      same(schedule.taskKinds, role.taskKinds) &&
+      same(schedule.shift, role.shift) &&
+      same(schedule.priority, role.priority)
+    ) {
+      return role.id;
+    }
+  }
+  return null;
+}
+
 export function projectWorkers(source: WorkerProjectionSource): readonly WorkerView[] {
   return [...source.workers.values()]
     .sort((a, b) => a.id - b.id)

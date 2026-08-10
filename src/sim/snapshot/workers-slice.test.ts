@@ -40,6 +40,10 @@ describe('projectWorkers', () => {
       state: WorkerState.Idle,
       task: null,
       energy: 100,
+      // An unconstrained worker matches `core:farmhand`, which declares no
+      // constraints — the identity role, so this is a real match rather than
+      // a fallback (phase-14d).
+      role: 'core:farmhand',
     });
   });
 

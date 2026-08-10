@@ -17,6 +17,7 @@ import { useSlice } from '../hooks/use-slice';
 import { usePlayer } from '../store-context';
 
 import styles from './WorkerPanel.module.css';
+import { WorkerRoles } from './WorkerRoles';
 
 /** Human labels for the FSM states — calm words, not jargon. */
 const STATE_LABELS: Record<string, string> = {
@@ -67,16 +68,22 @@ export function WorkerPanel(): ReactNode {
           {workers.length === 0 ? (
             <div className={styles['empty']}>No workers yet — sell a harvest first.</div>
           ) : (
-            <ul className={styles['list']}>
-              {workers.map((worker) => (
-                <li key={worker.id} className={styles['workerRow']}>
-                  <span>Worker {worker.id}</span>
-                  <span className={styles['state']}>
-                    {STATE_LABELS[worker.state] ?? worker.state}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <>
+              {/* Roles first: a player opening this panel to change how a
+                  worker behaves should not have to scroll past its state to
+                  find the control that changes it (phase-14d). */}
+              <WorkerRoles />
+              <ul className={styles['list']}>
+                {workers.map((worker) => (
+                  <li key={worker.id} className={styles['workerRow']}>
+                    <span>Worker {worker.id}</span>
+                    <span className={styles['state']}>
+                      {STATE_LABELS[worker.state] ?? worker.state}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       )}
