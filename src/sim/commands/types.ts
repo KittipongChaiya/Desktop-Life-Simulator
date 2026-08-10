@@ -15,11 +15,12 @@
  * (`CODE_STYLE.md` §1.2, `AI_RULES.md` §2.4).
  */
 
-import type { BuildingId, ContentId, TileIndex } from '../../shared/ids';
+import type { BuildingId, ContentId, TileIndex, WorkerId } from '../../shared/ids';
 import type { Result } from '../../shared/result';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
 import type { ItemRegistry } from '../content/items';
+import type { RoleRegistry } from '../content/roles';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import type { WeatherKindRegistry } from '../content/weather-kinds';
 import type { IdAllocator } from '../entities/id-allocator';
@@ -162,7 +163,23 @@ export interface SetSourceEnabledCommand {
   readonly enabled: boolean;
 }
 
+/** Assign a registered role to a worker (phase-14c, ADR-024 §2). */
+export interface AssignRoleCommand {
+  readonly type: 'assignRole';
+  readonly worker: WorkerId;
+  readonly role: ContentId;
+}
+
+/** Set or clear a worker's work zone. An empty list clears it. */
+export interface SetWorkerZoneCommand {
+  readonly type: 'setWorkerZone';
+  readonly worker: WorkerId;
+  readonly tiles: readonly TileIndex[];
+}
+
 export type Command =
+  | AssignRoleCommand
+  | SetWorkerZoneCommand
   | TillTileCommand
   | PlantCropCommand
   | HarvestCropCommand
@@ -235,6 +252,8 @@ export interface CommandWorld {
   readonly ticksPerDay: number;
   readonly daysPerSeason: number;
   readonly seasons: readonly string[];
+  /** Registered roles, for `assignRole` (phase-14c). */
+  readonly roleRegistry: RoleRegistry;
 
   /**
    * What weather-modulated growth reads (ADR-022 §4). `World` satisfies this

@@ -24,6 +24,7 @@ import {
   type CommandDispatcher,
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
+import { registerScheduleCommands } from '../commands/schedule-commands';
 import { registerSourceCommands } from '../commands/source-commands';
 import { registerWorkerCommands } from '../commands/worker-commands';
 import type { BuildingRegistry } from '../content/buildings';
@@ -31,6 +32,7 @@ import type { CropRegistry } from '../content/crops';
 import { createInstalledRegistries, installedSources } from '../content/installed';
 import type { ItemRegistry } from '../content/items';
 import type { PhaseTintRegistry } from '../content/lighting';
+import type { RoleRegistry } from '../content/roles';
 import { seasonOrder, type SeasonRegistry } from '../content/seasons';
 import type { ContentSource } from '../content/sources';
 import type { TileKindRegistry } from '../content/tile-kinds';
@@ -109,6 +111,8 @@ export interface World {
    * agree on a fresh world and may not on a loaded one, which is the point.
    */
   readonly seasonRegistry: SeasonRegistry;
+  /** Registered roles — named constraint bundles (ADR-024 §2). */
+  readonly roleRegistry: RoleRegistry;
 
   /** Placed buildings, keyed by id. Sparse. Each blocks its tile's walkability. */
   readonly buildings: BuildingStore;
@@ -302,6 +306,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     tileKinds,
     phaseTints: phaseTintRegistry,
     seasons: seasonRegistry,
+    roles: roleRegistry,
     weatherKinds: weatherKindRegistry,
   } = createInstalledRegistries();
 
@@ -335,6 +340,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildingRegistry,
     phaseTintRegistry,
     seasonRegistry,
+    roleRegistry,
     weatherKindRegistry,
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
@@ -361,6 +367,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   registerCropCommands(world.commands);
   registerWorkerCommands(world.commands);
   registerSourceCommands(world.commands);
+  registerScheduleCommands(world.commands);
   registerBuildingCommands(world.commands);
   registerCommerceCommands(world.commands);
 

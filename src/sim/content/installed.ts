@@ -45,6 +45,7 @@ import { createCropRegistry } from './crops';
 import { createItemRegistry } from './items';
 import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
+import { createRoleRegistry } from './roles';
 import { createSeasonRegistry } from './seasons';
 import { createSoundRegistry } from './sounds';
 import { createSourceRegistry, type ContentSource } from './sources';
@@ -122,6 +123,7 @@ export function createInstalledRegistries(): ContentTargets {
     seasons: createSeasonRegistry(),
     weatherKinds: createWeatherKindRegistry(),
     sounds: createSoundRegistry(),
+    roles: createRoleRegistry(),
   };
 
   const installed = applyInstalledSources(targets);

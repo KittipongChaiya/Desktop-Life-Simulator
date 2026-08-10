@@ -40,6 +40,7 @@ import type { BuildingDefinition, BuildingRegistry } from './buildings';
 import type { CropDefinition, CropRegistry } from './crops';
 import type { ItemDefinition, ItemRegistry } from './items';
 import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
+import { isSatisfiableRole, type RoleDefinition, type RoleRegistry } from './roles';
 import type { SeasonDefinition, SeasonRegistry } from './seasons';
 import { isPlayableDefinition, type RegisteredSound, type SoundRegistry } from './sounds';
 import type { ContentSource } from './sources';
@@ -64,6 +65,7 @@ export interface ContentTargets {
   readonly seasons: SeasonRegistry;
   readonly weatherKinds: WeatherKindRegistry;
   readonly sounds: SoundRegistry;
+  readonly roles: RoleRegistry;
 }
 
 /**
@@ -92,6 +94,14 @@ export interface ContentBundle {
    * Order is significant: selection walks it. Appending is safe.
    */
   readonly weatherKinds?: readonly WeatherKindDefinition[];
+  /**
+   * Reusable constraint bundles (ADR-024 §2).
+   *
+   * A role that could never permit any work is REFUSED here rather than
+   * discovered at selection, where it looks to a player like a worker that
+   * mysteriously stopped (`ROADMAP.md` §10).
+   */
+  readonly roles?: readonly RoleDefinition[];
 }
 
 /**
@@ -175,6 +185,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('building', bundle.buildings, targets.buildings),
     ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
     ...of('season', bundle.seasons, targets.seasons),
+    ...of('role', bundle.roles, targets.roles),
     ...of('weatherKind', bundle.weatherKinds, targets.weatherKinds),
   ];
 }
@@ -232,6 +243,20 @@ export function createPluginApi(source: ContentSource, targets: ContentTargets):
           );
         }
         seen.add(key);
+      }
+
+      // An unsatisfiable role can never permit a single task, on any farm, at
+      // any hour. Refused at REGISTRATION so the author is told, rather than
+      // at selection where a player sees a worker that stopped (ADR-024 §6).
+      for (const role of bundle.roles ?? []) {
+        if (!isSatisfiableRole(role)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'role can never permit any work', {
+              source: source.id,
+              id: role.id,
+            }),
+          );
+        }
       }
 
       for (const entry of entries) {

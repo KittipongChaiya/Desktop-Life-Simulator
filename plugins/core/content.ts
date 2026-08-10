@@ -31,6 +31,12 @@ import {
 } from '../../src/sim/content/items';
 import { phaseTintId, type PhaseTintDefinition } from '../../src/sim/content/lighting';
 import {
+  CORE_FARMHAND,
+  CORE_GROUNDSKEEPER,
+  CORE_HARVESTER,
+  type RoleDefinition,
+} from '../../src/sim/content/roles';
+import {
   CORE_AUTUMN,
   CORE_SPRING,
   CORE_SUMMER,
@@ -51,6 +57,7 @@ import {
   type WeatherKindDefinition,
 } from '../../src/sim/content/weather-kinds';
 import { DayPhase, secondsToTicks } from '../../src/sim/time/game-clock';
+import { WorkerTaskKind } from '../../src/sim/world/worker';
 
 /**
  * Registers the v0.1 crops.
@@ -341,4 +348,38 @@ export function coreSounds(): readonly RegisteredSound[] {
     { id: soundId('core', 'plant'), category: 'world', gain: 0.22, asset: 'plant' },
   ];
   return sounds;
+}
+
+/**
+ * The shipped roles. Phase-14c — ADR-024 §2.
+ *
+ * Three, and each expresses one thing a player might actually want:
+ * everything, harvesting only, or ground work only. A role is a NAMED
+ * SCHEDULE, so shipping them costs no mechanism — they are the same four
+ * fields the constraint vocabulary already had.
+ *
+ * `core:farmhand` declares no constraints at all, which makes it the identity
+ * role rather than a special case: assigning it returns a worker to exactly
+ * the behaviour a new hire has.
+ *
+ * None declares a zone, and none can: a zone is a set of tile indices, which
+ * are facts about one farm. A role that named them would be wrong on every
+ * world but the author's.
+ */
+export function coreRoles(): readonly RoleDefinition[] {
+  const roles: readonly RoleDefinition[] = [
+    { id: CORE_FARMHAND, displayName: 'Farmhand' },
+    {
+      id: CORE_HARVESTER,
+      displayName: 'Harvester',
+      taskKinds: [WorkerTaskKind.Harvest],
+    },
+    {
+      id: CORE_GROUNDSKEEPER,
+      displayName: 'Groundskeeper',
+      taskKinds: [WorkerTaskKind.Till, WorkerTaskKind.Plant],
+      priority: [WorkerTaskKind.Till],
+    },
+  ];
+  return roles;
 }
