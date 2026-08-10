@@ -20,7 +20,7 @@ import { isInSeason, isMature, type CropRegistry } from '../content/crops';
 import { CORE_TURNIP } from '../content/crops';
 import { type TileKindRegistry } from '../content/tile-kinds';
 import type { WeatherKindRegistry } from '../content/weather-kinds';
-import { dayFor, seasonFor } from '../time/game-clock';
+import { dayFor, phaseFor, seasonFor } from '../time/game-clock';
 import { growthProgress } from '../time/growth';
 import { type BuildingStore } from '../world/building';
 import { containerCount, type Container } from '../world/container';
@@ -28,6 +28,8 @@ import { type CropStore } from '../world/crop';
 import { getKind, isOwned, ownedBounds, tilesInRect, type TileGrid } from '../world/tile-grid';
 import { isTilled } from '../world/tile-state';
 import { WorkerTaskKind, type WorkerTask } from '../world/worker';
+
+import { allowsWork, priorityOf, UNCONSTRAINED, type WorkerSchedule } from './constraints';
 
 /**
  * The crop a worker replants — the fastest starter crop, so the autonomous
@@ -190,6 +192,14 @@ export function selectTask(
   ctx: TaskContext,
   from: TileIndex,
   claimed: ReadonlySet<TileIndex>,
+  /**
+   * What this worker may do. Phase-14a — ADR-024 §1's filter stage.
+   *
+   * OPTIONAL and defaulting to unconstrained, so every existing caller keeps
+   * the behaviour it had: a worker with no schedule is filtered by nothing,
+   * which is exactly the pipeline of bands that shipped in phase-06b.
+   */
+  schedule: WorkerSchedule = UNCONSTRAINED,
 ): WorkerTask | null {
   const owned = ownedTiles(ctx.tiles); // already ascending
   const binStands = hasSeedBin(ctx);
@@ -212,7 +222,29 @@ export function selectTask(
       },
     ];
 
-  for (const band of bands) {
+  // FILTER (ADR-024 §1). Discovery above knows nothing about who will do the
+  // work; this is where "may THIS worker do it NOW" is answered, and every
+  // scheduling concept lands here rather than in a new stage.
+  const phase = phaseFor(ctx.tick, ctx.ticksPerDay);
+  const permitted = bands.map((band) => ({
+    kind: band.kind,
+    tiles: band.tiles.filter((tile) => allowsWork(schedule, { kind: band.kind, tile, phase })),
+  }));
+
+  // SELECT. Priority reorders the bands and never removes one, so a kind sent
+  // to last is still reached when nothing above it has work (ADR-024 §3).
+  // Sorted by index rather than by comparator on the original array so the
+  // sort stays stable across engines — an unstable sort here would fail the
+  // determinism test rather than merely misbehave.
+  const ordered = permitted
+    .map((band, index) => ({ band, index }))
+    .sort(
+      (a, b) =>
+        priorityOf(schedule, a.band.kind) - priorityOf(schedule, b.band.kind) || a.index - b.index,
+    )
+    .map((entry) => entry.band);
+
+  for (const band of ordered) {
     const tile = nearest(from, band.tiles);
     if (tile === null) continue;
     if (band.kind !== WorkerTaskKind.Plant) return { kind: band.kind, tile };
