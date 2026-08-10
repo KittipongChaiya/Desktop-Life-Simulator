@@ -58,6 +58,17 @@ export interface AudioSettings {
   readonly volumePercent: number;
   /** Mute, independent of the dial, so unmuting restores the chosen level. */
   readonly muted: boolean;
+  /**
+   * Per-category levels, 0–100. Phase-13b — ADR-023 §2.
+   *
+   * Preferences under the same ADR-014 §4 model as the dial: no new
+   * persistence mechanism, and a save may not carry them.
+   *
+   * **`ambient` defaults to 0**, which is ADR-023 §5 condition 1 expressed as
+   * data rather than as a check somewhere. Unmuting the game does not start
+   * ambience; a player has to ask for it specifically.
+   */
+  readonly categoryPercent: Readonly<Record<string, number>>;
 }
 
 export interface AppSettings {
@@ -71,7 +82,11 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   overlay: { collapsed: false },
   desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
-  audio: { volumePercent: VOLUME_DEFAULT_PERCENT, muted: AUDIO_MUTED_BY_DEFAULT },
+  audio: {
+    volumePercent: VOLUME_DEFAULT_PERCENT,
+    muted: AUDIO_MUTED_BY_DEFAULT,
+    categoryPercent: { ui: 100, world: 100, ambient: 0, music: 100 },
+  },
   motion: DEFAULT_MOTION_SETTINGS,
 };
 
@@ -82,6 +97,30 @@ export const DEFAULT_SETTINGS: AppSettings = {
  * the slider, which keeps the player's own setting untouched.
  */
 export const WORK_MODE_OPACITY_PERCENT = 25;
+
+/**
+ * Clamps every known category to 0–100; anything else takes its default.
+ *
+ * Only the four engine categories survive. An unknown key in the file is
+ * DROPPED rather than kept, because the category set is closed (ADR-023 §2) —
+ * carrying a stray one forward would let a hand-edited settings file
+ * reintroduce a bus the engine does not have.
+ */
+function sanitizeCategoryPercent(value: unknown): Readonly<Record<string, number>> {
+  const source =
+    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const out: Record<string, number> = {};
+
+  for (const [category, fallback] of Object.entries(DEFAULT_SETTINGS.audio.categoryPercent)) {
+    const raw = source[category];
+    out[category] =
+      typeof raw === 'number' && Number.isFinite(raw)
+        ? Math.max(0, Math.min(100, Math.round(raw)))
+        : fallback;
+  }
+
+  return out;
+}
 
 /** Clamps to the dial's range and snaps to its step; anything else → default. */
 export function sanitizeOpacityPercent(value: unknown): number {
@@ -139,6 +178,7 @@ export function parseSettings(value: unknown): AppSettings {
     audio: {
       volumePercent: sanitizeVolumePercent(audio['volumePercent']),
       muted: readBoolean(audio['muted'], DEFAULT_SETTINGS.audio.muted),
+      categoryPercent: sanitizeCategoryPercent(audio['categoryPercent']),
     },
     motion: {
       intensityPercent: sanitizeMotionIntensity(motion['intensityPercent'] ?? motion['intensity']),

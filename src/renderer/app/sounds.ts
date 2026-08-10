@@ -103,3 +103,81 @@ export const SOUND_GAIN: Readonly<Record<Sound, number>> = {
   [Sound.Till]: 0.28,
   [Sound.Plant]: 0.22,
 };
+
+/**
+ * The mix categories. Phase-13b — ADR-023 §2.
+ *
+ * **Engine-owned and CLOSED.** A content source assigns a sound to one of
+ * these; it may not invent one. An open set makes the mix unpredictable and
+ * hands every plugin a way to be the loudest thing on someone's desktop.
+ *
+ * Four is the whole set, and each earns its place by being separately
+ * silenceable: a player who wants the farm's sounds without music, or ambience
+ * without UI clicks, is expressing a preference the mixer can honour without
+ * anyone inventing a fifth bus.
+ */
+export const AudioCategory = {
+  /** Buttons, panels, confirmations — anything the player caused directly. */
+  Ui: 'ui',
+  /** The farm making noise: harvests, deposits, coins, placement. */
+  World: 'world',
+  /** Continuous beds. The only category ADR-023 §5's conditions apply to. */
+  Ambient: 'ambient',
+  /** Music. Nothing registers here yet. */
+  Music: 'music',
+} as const;
+
+export type AudioCategory = (typeof AudioCategory)[keyof typeof AudioCategory];
+
+export const AUDIO_CATEGORIES: readonly AudioCategory[] = [
+  AudioCategory.Ui,
+  AudioCategory.World,
+  AudioCategory.Ambient,
+  AudioCategory.Music,
+];
+
+/**
+ * Which bus each shipped sound plays on.
+ *
+ * Exhaustive by type: a new `Sound` without a category fails the build here
+ * rather than defaulting into a bus nobody chose for it.
+ */
+export const SOUND_CATEGORY: Readonly<Record<Sound, AudioCategory>> = {
+  [Sound.Harvest]: AudioCategory.World,
+  [Sound.Deposit]: AudioCategory.World,
+  [Sound.Coin]: AudioCategory.World,
+  [Sound.Placement]: AudioCategory.World,
+  [Sound.Till]: AudioCategory.World,
+  [Sound.Plant]: AudioCategory.World,
+  [Sound.Selection]: AudioCategory.Ui,
+  [Sound.UiClick]: AudioCategory.Ui,
+  [Sound.Notification]: AudioCategory.Ui,
+  [Sound.Error]: AudioCategory.Ui,
+};
+
+/**
+ * Declared ducking: a category attenuates while another is sounding.
+ *
+ * **A static declaration, not a runtime analyser** (ADR-023 §2). An analyser is
+ * a continuously-running signal path, which is precisely what ADR-023 §5 is
+ * spending its idle budget on carefully — paying for one so that rain gets
+ * quieter under a coin would be the budget spent on the wrong thing.
+ *
+ * One entry: ambience steps back under anything the player caused or the farm
+ * did, then returns. Rain should not compete with the sound of a harvest.
+ */
+export const AUDIO_DUCKING: readonly {
+  readonly category: AudioCategory;
+  readonly under: readonly AudioCategory[];
+  /** Multiplier applied while any `under` category is sounding. */
+  readonly to: number;
+}[] = [
+  {
+    category: AudioCategory.Ambient,
+    under: [AudioCategory.Ui, AudioCategory.World],
+    to: 0.45,
+  },
+];
+
+/** How long a sound counts as "recently played" for ducking. */
+export const DUCK_HOLD_MS = 400;

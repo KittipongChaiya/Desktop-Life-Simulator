@@ -19,6 +19,20 @@ import {
   type MotionSettings,
 } from '../../shared/motion';
 
+/**
+ * Per-category levels before any setting arrives.
+ *
+ * Ambience at ZERO is ADR-023 §5 condition 1 expressed as data rather than as
+ * a check somewhere: unmuting the game does not start ambience, and a code
+ * path that forgot to ask would still get silence.
+ */
+export const DEFAULT_CATEGORY_PERCENT: Readonly<Record<string, number>> = {
+  ui: 100,
+  world: 100,
+  ambient: 0,
+  music: 100,
+};
+
 interface CompanionState {
   readonly opacityPercent: number;
   readonly workMode: boolean;
@@ -27,6 +41,15 @@ interface CompanionState {
   /** Stored motion preferences (07.7); resolved through `motion()` below. */
   readonly motion: MotionSettings;
   readonly volumePercent: number;
+  /**
+   * Per-category audio levels, 0–100 (phase-13b, ADR-023 §2).
+   *
+   * OPTIONAL because the main process does not send it yet — the schema and
+   * its defaults exist, the settings panel that edits them does not. Absent
+   * means every category at full except the default this controller holds,
+   * which keeps ambience at zero either way.
+   */
+  readonly categoryPercent?: Readonly<Record<string, number>>;
   readonly muted: boolean;
 }
 
@@ -40,6 +63,8 @@ export interface CompanionController {
   hidden(): boolean;
   /** The volume dial's position, 0–100 (07.5a). NOT the effective loudness. */
   volumePercent(): number;
+  /** A category's level, 0–100. Full when the category is unknown. */
+  categoryPercent(category: string): number;
   /**
    * What may move, with Reduced Motion and work mode already applied
    * (ADR-017 §7). Resolved here so no consumer re-derives the precedence.
@@ -102,6 +127,7 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     clickThrough: false,
     hidden: false,
     volumePercent: VOLUME_DEFAULT_PERCENT,
+    categoryPercent: DEFAULT_CATEGORY_PERCENT,
     muted: AUDIO_MUTED_BY_DEFAULT,
     motion: DEFAULT_MOTION_SETTINGS,
   };
@@ -137,6 +163,8 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     clickThrough: () => state.clickThrough,
     hidden: () => state.hidden,
     volumePercent: () => state.volumePercent,
+    categoryPercent: (category) =>
+      state.categoryPercent?.[category] ?? DEFAULT_CATEGORY_PERCENT[category] ?? 100,
 
     motion: () => effectiveMotion(state.motion, { workMode: state.workMode }),
 

@@ -3,7 +3,7 @@
 > **Delivers:** the shipped placeholder bus becomes a real audio architecture, and ADR-016 §4's deferred ambient question gets a measurement.
 > **Governing decisions:** ADR-023 (audio architecture), ADR-016 (the three layers), ADR-017 §4 (pools) and §5 (derived variation), ADR-019 §2 (proven by first-party use).
 > **Schema:** none.
-> **Status:** **In progress.** Boundary 1 landed.
+> **Status:** **In progress.** Boundaries 1 and 2 landed.
 
 ---
 
@@ -14,13 +14,39 @@
 | Order | Boundary                                           | Commit |
 | ----- | -------------------------------------------------- | ------ |
 | 1     | Web Audio device layer, and the bounded voice pool | _this_ |
-| 2     | Category buses, mixer, and per-category settings   | —      |
+| 2     | Category buses, mixer, and per-category settings   | _this_ |
 | 3     | The sound registry and `registerAudio`             | —      |
 | 4     | Rain ambience, and the measured idle budget        | —      |
 
 ---
 
 ## Decisions worth carrying forward
+
+### Ambience defaulting to zero is data, not a check
+
+ADR-023 §5 condition 1 is _"off by default — a fresh install is silent, and stays silent even after unmuting, until the player asks for ambience specifically."_
+
+That could have been a conditional somewhere in the ambience code. It is instead the `ambient: 0` entry in `DEFAULT_CATEGORY_PERCENT` and in the settings defaults, which means a code path that forgets to check still produces silence. The condition holds because the number is zero, not because someone remembered.
+
+### The mixer's category getter is optional, and that is what made this non-breaking
+
+`AudioState.categoryPercent` is optional, so every existing caller of `createSoundBus` kept working untouched and the bus's fourteen Node tests did not change. A state that does not answer is a state where every category is at full — which is exactly the mix that existed before categories did.
+
+That matters more than convenience: ADR-016 §1's property is that the bus stays pure and unit-testable in Node, and it is the acceptance test for whether this rebuild was done right. Fourteen untouched tests passing is that acceptance being met rather than asserted.
+
+### A silenced category does not stamp the coalescing window
+
+The same reasoning the mute check already carried: the 250 ms window starts when a sound is **heard**. Stamping it for a sound suppressed by a category level would mean the first audible sound after turning that category back up gets swallowed by a suppression the player never heard.
+
+### Ducking is a table and a clock, not an analyser
+
+ADR-023 §2 calls this out and it is worth restating: an analyser is a continuously-running signal path, and ADR-023 §5 is spending its idle budget carefully on the one continuous thing that earns it. Paying for an analyser so rain gets quieter under a coin would be the budget spent on the wrong thing. The rule is a static declaration; applying it costs a map lookup.
+
+### Per-category levels are in the schema but not yet in the panel
+
+The settings schema, its sanitiser, the defaults, and the controller all carry `categoryPercent`; the settings panel that edits it does not exist yet, and the main process does not send it over IPC — the field is optional on `CompanionState` for exactly that reason.
+
+Recorded rather than left implicit: a player cannot currently change these, so the mix is the defaults. Boundary 4 needs the ambience control specifically, and that is where the panel earns its place — a slider for a category with nothing registered in it would be a control that does nothing.
 
 ### `HTMLAudioElement` was the right call, and it stopped being one
 
@@ -62,7 +88,7 @@ Worth recording because the gate did its job in the way that is easiest to resen
 
 - [x] The bus's unit tests still run in Node with no browser — `audio.test.ts` untouched; `voice-pool.test.ts` joins it
 - [x] The voice pool recycles at capacity and never allocates — `voice-pool.test.ts`
-- [ ] Muted and unmuted sessions produce byte-identical worlds and `world.rng` — boundary 2
+- [x] Muted and unmuted sessions produce byte-identical worlds and `world.rng` — `audio-mixer.test.ts`, 200 steps with the bus playing throughout
 - [ ] A fresh profile is silent, and enabling sound does not enable ambience — boundary 4
 - [ ] Work mode silences everything including ambience — boundary 4
 - [ ] Ambience on, pointer idle → audio suspends and idle CPU returns to baseline, measured into `docs/perf/` — boundary 4

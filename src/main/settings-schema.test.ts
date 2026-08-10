@@ -55,7 +55,11 @@ describe('parseSettings — the categorized application settings model', () => {
     const settings = {
       overlay: { collapsed: true },
       desktop: { opacityPercent: 60, workMode: true },
-      audio: { volumePercent: 40, muted: false },
+      audio: {
+        volumePercent: 40,
+        muted: false,
+        categoryPercent: { ui: 100, world: 100, ambient: 0, music: 100 },
+      },
       motion: DEFAULT_MOTION_SETTINGS,
     };
     expect(parseSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
@@ -143,7 +147,14 @@ describe('the audio category', () => {
   it('round-trips a chosen volume and mute state', () => {
     const parsed = parseSettings({ audio: { volumePercent: 35, muted: false } });
 
-    expect(parsed.audio).toEqual({ volumePercent: 35, muted: false });
+    // `categoryPercent` is defaulted in by the tolerant parse, exactly as
+    // every other absent field is (phase-13b). Asserted rather than ignored,
+    // because ambience defaulting to 0 IS ADR-023 §5 condition 1.
+    expect(parsed.audio).toEqual({
+      volumePercent: 35,
+      muted: false,
+      categoryPercent: { ui: 100, world: 100, ambient: 0, music: 100 },
+    });
   });
 
   it('an absent category upgrades in place — every file written before 07.5a', () => {

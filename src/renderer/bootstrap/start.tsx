@@ -344,6 +344,7 @@ function composeApplication(world: World, session: SaveSession): void {
     volumePercent: () => companion.volumePercent(),
     muted: () => companion.muted(),
     workMode: () => companion.workMode(),
+    categoryPercent: (category) => companion.categoryPercent(category),
   });
   // Worker selection is presentation state, shared by the renderer (which draws
   // the selection box) and React (which shows the selected worker's state/task).
