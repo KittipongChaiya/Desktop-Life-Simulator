@@ -35,8 +35,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { OVERLAY_HEIGHT_COLLAPSED } from '../../shared/constants';
+import { asContentId } from '../../shared/ids';
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
 import { intensityScale } from '../../shared/motion';
+import { createInstalledRegistries } from '../../sim/content/installed';
 import { enterCost } from '../../sim/pathing/astar';
 import { tilesInRect } from '../../sim/world/tile-grid';
 import { createActionFeedback } from '../app/action-feedback';
@@ -345,6 +347,16 @@ function composeApplication(world: World, session: SaveSession): void {
     muted: () => companion.muted(),
     workMode: () => companion.workMode(),
     categoryPercent: (category) => companion.categoryPercent(category),
+    // The registry is the source of truth for the mix; the catalogue keys
+    // still name the sounds (phase-13c, ADR-023 §3). Hyphens become
+    // underscores because a content id admits only [a-z0-9_] while the
+    // catalogue key is a filename stem.
+    soundOf: (name) => {
+      const found = createInstalledRegistries().sounds.get(
+        asContentId(`core:${name.replace(/-/gu, '_')}`),
+      );
+      return found.ok ? { category: found.value.category, gain: found.value.gain } : undefined;
+    },
   });
   // Worker selection is presentation state, shared by the renderer (which draws
   // the selection box) and React (which shows the selected worker's state/task).

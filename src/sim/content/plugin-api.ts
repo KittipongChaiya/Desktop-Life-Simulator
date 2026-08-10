@@ -41,6 +41,7 @@ import type { CropDefinition, CropRegistry } from './crops';
 import type { ItemDefinition, ItemRegistry } from './items';
 import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
 import type { SeasonDefinition, SeasonRegistry } from './seasons';
+import { isPlayableDefinition, type RegisteredSound, type SoundRegistry } from './sounds';
 import type { ContentSource } from './sources';
 import type { TileKindDefinition, TileKindRegistry } from './tile-kinds';
 import type { WeatherKindDefinition, WeatherKindRegistry } from './weather-kinds';
@@ -62,6 +63,7 @@ export interface ContentTargets {
   readonly phaseTints: PhaseTintRegistry;
   readonly seasons: SeasonRegistry;
   readonly weatherKinds: WeatherKindRegistry;
+  readonly sounds: SoundRegistry;
 }
 
 /**
@@ -92,6 +94,18 @@ export interface ContentBundle {
   readonly weatherKinds?: readonly WeatherKindDefinition[];
 }
 
+/**
+ * Sounds a source registers. Phase-13c — ADR-019 §3's `registerAudio`.
+ *
+ * A separate bundle from `ContentBundle` rather than a field on it, because
+ * the two answer to different documents: content is ADR-004's registries,
+ * audio is ADR-023's. Keeping them apart means a source that ships only
+ * sounds does not look like a content pack with everything missing.
+ */
+export interface AudioBundle {
+  readonly sounds?: readonly RegisteredSound[];
+}
+
 export interface PluginApi {
   /** The version this API implements. A source declares what it targets. */
   readonly apiVersion: number;
@@ -106,6 +120,20 @@ export interface PluginApi {
    * definitions that do not exist.
    */
   registerContent(bundle: ContentBundle): Result<void>;
+  /**
+   * Registers sounds against engine categories.
+   *
+   * All-or-nothing like `registerContent`, and for the same reason: a source
+   * whose sounds half-registered is a source whose call sites play silence at
+   * random. A definition naming a category the engine does not have is
+   * refused — the set is closed (ADR-023 §2).
+   *
+   * **This registers DATA.** Nothing in `src/sim` plays it or reads it; the
+   * renderer resolves the asset key and owns everything that makes a noise
+   * (ADR-023 §6, and `src/shared/audio.ts`'s header for why the types live
+   * where they do).
+   */
+  registerAudio(bundle: AudioBundle): Result<void>;
 }
 
 interface BundleEntry {
@@ -212,6 +240,61 @@ export function createPluginApi(source: ContentSource, targets: ContentTargets):
         // over asserted (`CODE_STYLE.md` §1.2) — and if it ever fires, the
         // bundle really is partly registered and the message should say so.
         if (!result.ok) return err(result.error);
+      }
+
+      return ok();
+    },
+
+    registerAudio(bundle) {
+      const sounds = bundle.sounds ?? [];
+
+      // Checked in full before anything registers, so a rejected bundle
+      // leaves the registry exactly as it was.
+      for (const sound of sounds) {
+        if (!isContentId(sound.id)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'malformed sound id', {
+              source: source.id,
+              id: sound.id,
+              expected: 'namespace:name',
+            }),
+          );
+        }
+
+        const { namespace } = splitContentId(sound.id);
+        if (!owns.has(namespace)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'source does not own this namespace', {
+              source: source.id,
+              id: sound.id,
+              namespace,
+            }),
+          );
+        }
+
+        if (!isPlayableDefinition(sound)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'sound declares an unknown category or bad gain', {
+              source: source.id,
+              id: sound.id,
+              category: sound.category,
+            }),
+          );
+        }
+
+        if (targets.sounds.has(sound.id)) {
+          return err(
+            appError(ErrorCode.DuplicateContent, 'sound is already registered', {
+              source: source.id,
+              id: sound.id,
+            }),
+          );
+        }
+      }
+
+      for (const sound of sounds) {
+        const registered = targets.sounds.register(sound);
+        if (!registered.ok) return err(registered.error);
       }
 
       return ok();

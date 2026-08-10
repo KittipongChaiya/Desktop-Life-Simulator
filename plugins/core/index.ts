@@ -29,6 +29,7 @@ import {
   coreItems,
   corePhaseTints,
   coreSeasons,
+  coreSounds,
   coreWeatherKinds,
   coreTileKinds,
 } from './content';
@@ -56,8 +57,15 @@ export const CORE_SOURCE: ContentSource = {
  * three of four crop definitions is a world whose saves reference content that
  * does not exist.
  */
-const installed = installSource(CORE_SOURCE, (api) =>
-  api.registerContent({
+const installed = installSource(CORE_SOURCE, (api) => {
+  // ONE install per source: `installSource` claims namespaces, and a source
+  // may claim them once (ADR-026 §1). Audio registers inside the same
+  // installer rather than a second call, which also keeps it atomic with the
+  // content — core supplies its whole surface or none of it.
+  const audio = api.registerAudio({ sounds: coreSounds() });
+  if (!audio.ok) return audio;
+
+  return api.registerContent({
     tileKinds: coreTileKinds(),
     crops: coreCrops(),
     items: coreItems(),
@@ -65,8 +73,8 @@ const installed = installSource(CORE_SOURCE, (api) =>
     phaseTints: corePhaseTints(),
     seasons: coreSeasons(),
     weatherKinds: coreWeatherKinds(),
-  }),
-);
+  });
+});
 
 if (!installed.ok) {
   // The same judgement the four `registerCore*` functions made before this

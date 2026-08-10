@@ -37,6 +37,7 @@ import {
   CORE_WINTER,
   type SeasonDefinition,
 } from '../../src/sim/content/seasons';
+import { soundId, type RegisteredSound } from '../../src/sim/content/sounds';
 import {
   CORE_GRASS,
   CORE_PATH,
@@ -301,4 +302,43 @@ export function coreWeatherKinds(): readonly WeatherKindDefinition[] {
     },
   ];
   return kinds;
+}
+
+/**
+ * The shipped sounds, as content. Phase-13c — ADR-023 §3, ADR-019 §2.
+ *
+ * *"No capability ships that `plugins/core/` has not exercised."* This is
+ * `registerAudio`'s first caller, so the capability is proven by first-party
+ * use before any third party is invited to depend on it — the same rule that
+ * made phase-08b move core content onto `registerContent`.
+ *
+ * THE GAINS AND CATEGORIES WERE READ OUT OF THE SHIPPED CATALOGUE BY SCRIPT,
+ * not retyped. They are the MIX (`sounds.ts`'s header), balanced against
+ * placeholders and meant to survive the asset swap, so a transcription slip
+ * here would be a silent rebalance nobody could trace.
+ *
+ * THE ID AND THE ASSET KEY ARE NOT THE SAME STRING. A content id admits only
+ * [a-z0-9_] (`shared/ids.ts`), while the catalogue key is a filename stem and
+ * uses hyphens — so `core:ui_click` names the sound and `ui-click` names the
+ * file. Collapsing them would have meant either an id the registry refuses or
+ * renaming a shipped asset.
+ *
+ * The asset key is the catalogue key. ADR-016 §6's replacement path is
+ * unchanged: dropping a real `.wav` into the source tree replaces a
+ * placeholder with no code change.
+ */
+export function coreSounds(): readonly RegisteredSound[] {
+  const sounds: readonly RegisteredSound[] = [
+    { id: soundId('core', 'harvest'), category: 'world', gain: 0.35, asset: 'harvest' },
+    { id: soundId('core', 'deposit'), category: 'world', gain: 0.3, asset: 'deposit' },
+    { id: soundId('core', 'coin'), category: 'world', gain: 0.45, asset: 'coin' },
+    { id: soundId('core', 'placement'), category: 'world', gain: 0.5, asset: 'placement' },
+    { id: soundId('core', 'selection'), category: 'ui', gain: 0.25, asset: 'selection' },
+    { id: soundId('core', 'ui_click'), category: 'ui', gain: 0.2, asset: 'ui-click' },
+    { id: soundId('core', 'notification'), category: 'ui', gain: 0.5, asset: 'notification' },
+    { id: soundId('core', 'error'), category: 'ui', gain: 0.6, asset: 'error' },
+    { id: soundId('core', 'till'), category: 'world', gain: 0.28, asset: 'till' },
+    { id: soundId('core', 'plant'), category: 'world', gain: 0.22, asset: 'plant' },
+  ];
+  return sounds;
 }

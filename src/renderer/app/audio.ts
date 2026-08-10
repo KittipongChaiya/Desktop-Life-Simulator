@@ -56,6 +56,15 @@ export interface AudioState {
    */
   categoryPercent?(category: AudioCategory): number;
   /**
+   * The registered sounds, from the content registry (phase-13c).
+   *
+   * OPTIONAL, so the bus keeps working for callers that predate the registry
+   * — and so its Node tests stay free of content wiring. When absent, the
+   * shipped constants answer, which is the same mix the registry holds
+   * because `plugins/core` was generated FROM those constants.
+   */
+  soundOf?(sound: Sound): { readonly category: AudioCategory; readonly gain: number } | undefined;
+  /**
    * Work mode. Silences everything regardless of the dial, because a mode
    * that exists to stop the overlay competing for attention cannot keep
    * making noise (ADR-014).
@@ -100,7 +109,11 @@ export function createSoundBus(ports: AudioPorts, state: AudioState): SoundBus {
       const volume = state.volumePercent() / 100;
       if (volume <= 0) return;
 
-      const category = SOUND_CATEGORY[sound];
+      // The registry first, the shipped constants second. Both give the same
+      // answer today by construction; the registry is what lets a source add
+      // a sound the constants have never heard of.
+      const registered = state.soundOf?.(sound);
+      const category = registered?.category ?? SOUND_CATEGORY[sound];
       const categoryLevel = (state.categoryPercent?.(category) ?? 100) / 100;
       // A category turned off is silent, and silently so — no coalescing stamp
       // either, for the reason the mute check has none: the window must start
@@ -120,7 +133,7 @@ export function createSoundBus(ports: AudioPorts, state: AudioState): SoundBus {
       const duck = duckingFor(category, now);
 
       try {
-        ports.play(sound, volume * categoryLevel * duck * SOUND_GAIN[sound]);
+        ports.play(sound, volume * categoryLevel * duck * (registered?.gain ?? SOUND_GAIN[sound]));
         lastHeardAt.set(category, now);
       } catch {
         // A missing or busy audio device is not the player's problem, and it

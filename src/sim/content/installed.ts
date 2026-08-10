@@ -46,6 +46,7 @@ import { createItemRegistry } from './items';
 import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
 import { createSeasonRegistry } from './seasons';
+import { createSoundRegistry } from './sounds';
 import { createSourceRegistry, type ContentSource } from './sources';
 import { createTileKindRegistry } from './tile-kinds';
 import { createWeatherKindRegistry } from './weather-kinds';
@@ -120,6 +121,7 @@ export function createInstalledRegistries(): ContentTargets {
     phaseTints: createPhaseTintRegistry(),
     seasons: createSeasonRegistry(),
     weatherKinds: createWeatherKindRegistry(),
+    sounds: createSoundRegistry(),
   };
 
   const installed = applyInstalledSources(targets);
