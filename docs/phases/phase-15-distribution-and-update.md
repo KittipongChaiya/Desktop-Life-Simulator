@@ -18,9 +18,9 @@ The four become seven below, and every split falls on the same seam: a rule that
 | 1     | The schema-bounded rollback guard (§4 of the roadmap's set) | `15a`  |
 | 2     | The offer policy: pin, staged rollout, and the boundary     | `15b`  |
 | 3     | The announcement gate: when an offer may reach the player   | `15c`  |
-| 4     | The pin, as a preference that survives a restart            | _this_ |
-| 5     | Check and apply — IPC and the toast                         | —      |
-| 6     | Atomic replacement with interruption recovery               | —      |
+| 4     | The pin, as a preference that survives a restart            | `15d`  |
+| 5     | Atomic replacement with interruption recovery               | _this_ |
+| 6     | Check and apply — IPC and the toast                         | —      |
 | 7     | Signing and the publish pipeline                            | —      |
 
 ---
@@ -79,6 +79,28 @@ It is a **separate function from the verdict**, which is the decision worth carr
 
 Click-through is deliberately absent. It makes the overlay transparent to the mouse; it does not say the player is busy, and the toast surface is pointer-transparent by construction anyway, so there is nothing for an announcement to interfere with.
 
+### The replacement was proven before the wiring that triggers it
+
+Boundaries 5 and 6 swapped, and the reason is worth recording rather than silently renumbering. "Check and apply" needs something to check: with no publish pipeline and no adopted library, its IPC and its toast could only be wired to a source that does not exist yet. The replacement sequence has no such dependency — it is disk arithmetic — so the phase's own rule applied again: build what can be _proven_ before what can only be _reviewed_.
+
+It also puts the yardstick before the purchase. ADR-025 §7 says a library that cannot deliver §4's interruption recovery is not adopted; `install-store.test.ts` is what that sentence gets measured with.
+
+### Nothing installed is the window the sequence exists for
+
+`retain` moves the installed directory out of the way before `swap` moves the new one in, which means there is a moment when nothing is installed at all. That looks like the bug and it is the design: the alternative — swap first, retain after — has a moment where the previous version is already gone and the new one is not yet proven, which is a single failure with **zero** launchable states rather than two.
+
+Every step is a directory rename on one volume, so no directory ever holds half of each version. "Never a hybrid" is therefore structural, not asserted — the same property `SAVE_FORMAT.md` §7.1 step 5 buys from NTFS.
+
+### Recovery finishes the update; it does not decide to roll back
+
+A staged package is promoted **only when nothing is installed**. With `current/` present, `staged/` is a download the player has not applied, and installing it on launch would be the unasked-for update ADR-025 §5 forbids. With `current/` absent, the swap was interrupted and finishing it is completion, not a decision — the package was verified before anything moved (§4).
+
+Falling back to `previous/` is the last resort and is **not** ADR-025 §2's forbidden automatic rollback. That rule governs _choosing_ to move a player backwards; here it is the only launchable state that exists, and because the new build never ran, nothing migrated and the retained version still reads its own save. The schema hazard needs a migration to have happened, and an interrupted install is precisely the case where none did.
+
+### The save is outside the blast radius by construction
+
+`install-store.ts` takes the installation root as a parameter, so it has no way to name the save directory — the same structural argument `rollback-guard.ts` makes about not being able to touch a save. The test still plants a real save file beside a real installation and re-reads it byte-for-byte after a halt at every step, because ADR-025 §4 lists four ways an updater could touch one (moved, migrated, backed up, cleaned) and a guarantee worth having is worth failing loudly.
+
 ### An unreadable version is never acted on
 
 `compareVersions` accepts strict `major.minor.patch` and answers `null` for anything else — a pre-release suffix, a build tag, a channel name. An updater that guesses at a version it does not understand installs the wrong build, and this project ships no pre-release channel for the guess to serve. `null` propagates to a hold, so the failure mode of not understanding a release is doing nothing.
@@ -91,9 +113,9 @@ Click-through is deliberately absent. It makes the overlay transparent to the mo
 
 - [x] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched — `src/main/rollback-guard.test.ts`
 - [x] No prompt appears while pinned, halted, outside the rollout wave, hidden, or in work mode — `src/main/update-policy.test.ts`
-- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — boundary 6, against a real installation
-- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 5, once the recovery path is reachable from the UI
-- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 5, reusing phase-07e unchanged
+- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — the sequence is proven against real directories in `src/main/install-store.test.ts`; the box stays open until boundary 7 re-runs it against a **packaged** installation, which is what the criterion says
+- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 6, once the recovery path is reachable from the UI
+- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 6, reusing phase-07e unchanged
 - [ ] A tampered artifact is rejected and the installation is untouched — boundary 7
-- [ ] No prompt is an OS notification — boundary 5; the surface is `CompanionToast.tsx`, which is in-overlay by construction
-- [ ] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — boundary 6
+- [ ] No prompt is an OS notification — boundary 6; the surface is `CompanionToast.tsx`, which is in-overlay by construction
+- [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — `src/main/install-store.test.ts`
