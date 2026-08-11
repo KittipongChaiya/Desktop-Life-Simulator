@@ -12,6 +12,7 @@ import { CURRENT_SCHEMA_VERSION } from '../persistence/schema';
 
 import {
   ROLLOUT_BUCKETS,
+  announcementTiming,
   compareVersions,
   decideOffer,
   deriveRolloutBucket,
@@ -225,5 +226,31 @@ describe('the schema boundary applies to an update, not only to a rollback', () 
     );
 
     expect(verdict).toEqual({ kind: 'hold', reason: 'halted' });
+  });
+});
+
+describe('an announcement waits for a player who said they are busy', () => {
+  it('shows when the overlay is present and ordinary', () => {
+    expect(announcementTiming({ hidden: false, workMode: false })).toBe('now');
+  });
+
+  it('waits while the overlay is hidden', () => {
+    // There is nobody looking at the window. A toast into a hidden overlay is
+    // not a quiet announcement, it is a lost one.
+    expect(announcementTiming({ hidden: true, workMode: false })).toBe('wait');
+  });
+
+  it('waits in work mode', () => {
+    // ADR-014 §1: work mode is the player saying they are busy, and ADR-025 §5
+    // spends that statement on the update prompt as well as on everything else.
+    expect(announcementTiming({ hidden: false, workMode: true })).toBe('wait');
+  });
+
+  it('waits while both hold, and shows again once neither does', () => {
+    // The verdict is unchanged by presence — this is a WAIT, never a cancel.
+    // A player who leaves work mode has not declined the update; they have
+    // just become available to be asked.
+    expect(announcementTiming({ hidden: true, workMode: true })).toBe('wait');
+    expect(announcementTiming({ hidden: false, workMode: false })).toBe('now');
   });
 });

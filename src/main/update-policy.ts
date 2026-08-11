@@ -153,3 +153,39 @@ export function decideOffer(install: InstallState, release: OfferedRelease): Upd
 
   return { kind: 'offer', version: release.version };
 }
+
+/** The presence states an announcement must respect (ADR-014 §1). */
+export interface Presence {
+  readonly hidden: boolean;
+  readonly workMode: boolean;
+}
+
+/**
+ * `'wait'`, never `'never'`. The distinction is the whole rule: presence
+ * changes constantly and the verdict does not, so a player leaving work mode
+ * has not declined an update — they have become available to be asked.
+ */
+export type AnnouncementTiming = 'now' | 'wait';
+
+/**
+ * Whether an offer may reach the player *at this moment*.
+ *
+ * Deliberately separate from `decideOffer`. Whether a release applies is
+ * settled once per check and does not change until the next one; whether now
+ * is a good moment changes every time the player hides the overlay or enters
+ * work mode. Folding the two together would mean re-running the rollout and
+ * schema arithmetic on every presence toggle, and — worse — would make a
+ * presence change look like a change of verdict.
+ *
+ * Both states mean the same thing: the player has said they are busy (ADR-014
+ * §1), and ADR-025 §5 spends that statement on the update prompt too. Hiding
+ * has a second reason on top — a toast into a hidden overlay is not a quiet
+ * announcement, it is a lost one.
+ *
+ * Click-through is NOT here. It makes the overlay transparent to the mouse; it
+ * does not say the player is busy, and an announcement that never intercepts a
+ * click (`CompanionToast.tsx`) has nothing to interfere with.
+ */
+export function announcementTiming(presence: Presence): AnnouncementTiming {
+  return presence.hidden || presence.workMode ? 'wait' : 'now';
+}

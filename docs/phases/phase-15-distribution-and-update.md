@@ -14,10 +14,11 @@
 | Order | Boundary                                                    | Commit |
 | ----- | ----------------------------------------------------------- | ------ |
 | 1     | The schema-bounded rollback guard (§4 of the roadmap's set) | `15a`  |
-| 2     | The offer policy: pin, staged rollout, and the boundary     | _this_ |
-| 3     | Check, announce, and apply — IPC, settings, and the toast   | —      |
-| 4     | Atomic replacement with interruption recovery               | —      |
-| 5     | Signing and the publish pipeline                            | —      |
+| 2     | The offer policy: pin, staged rollout, and the boundary     | `15b`  |
+| 3     | The announcement gate: when an offer may reach the player   | _this_ |
+| 4     | Check and apply — IPC, the settings pin, and the toast      | —      |
+| 5     | Atomic replacement with interruption recovery               | —      |
+| 6     | Signing and the publish pipeline                            | —      |
 
 ---
 
@@ -59,6 +60,14 @@ ADR-025 §6 requires a staged rollout with no telemetry, no account, and no serv
 
 Stability is the load-bearing property, not the privacy. A bucket that re-rolled per check would let yesterday's excluded installs drift into today's wave, and a halt after a bad build would stop nothing.
 
+### The announcement waits; it never cancels
+
+`announcementTiming` answers `'now'` or `'wait'`, and the missing third value is the point. A player who hides the overlay or enters work mode has said they are busy (ADR-014 §1), not that they decline the update — so the prompt is deferred, and returns the moment they are available to be asked.
+
+It is a **separate function from the verdict**, which is the decision worth carrying. Whether a release applies is settled once per check and does not move until the next one; whether now is a good moment moves every time a hotkey is pressed. Folding them together would re-run the rollout and schema arithmetic on every presence toggle, and would make a presence change look like a change of verdict.
+
+Click-through is deliberately absent. It makes the overlay transparent to the mouse; it does not say the player is busy, and the toast surface is pointer-transparent by construction anyway, so there is nothing for an announcement to interfere with.
+
 ### An unreadable version is never acted on
 
 `compareVersions` accepts strict `major.minor.patch` and answers `null` for anything else — a pre-release suffix, a build tag, a channel name. An updater that guesses at a version it does not understand installs the wrong build, and this project ships no pre-release channel for the guess to serve. `null` propagates to a hold, so the failure mode of not understanding a release is doing nothing.
@@ -70,10 +79,10 @@ Stability is the load-bearing property, not the privacy. A bucket that re-rolled
 `ROADMAP.md` §11's list, with what each currently rests on.
 
 - [x] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched — `src/main/rollback-guard.test.ts`
-- [x] No prompt appears while pinned, halted, or outside the rollout wave — `src/main/update-policy.test.ts`; the presence half (hidden, work mode) is boundary 3
-- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — boundary 4, against a real installation
-- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 3, once the recovery path is reachable from the UI
-- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 3, reusing phase-07e unchanged
-- [ ] A tampered artifact is rejected and the installation is untouched — boundary 5
-- [ ] No prompt is an OS notification — boundary 3
-- [ ] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — boundary 4
+- [x] No prompt appears while pinned, halted, outside the rollout wave, hidden, or in work mode — `src/main/update-policy.test.ts`
+- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — boundary 5, against a real installation
+- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 4, once the recovery path is reachable from the UI
+- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 4, reusing phase-07e unchanged
+- [ ] A tampered artifact is rejected and the installation is untouched — boundary 6
+- [ ] No prompt is an OS notification — boundary 4; the surface is `CompanionToast.tsx`, which is in-overlay by construction
+- [ ] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — boundary 5
