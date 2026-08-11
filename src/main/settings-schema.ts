@@ -71,12 +71,32 @@ export interface AudioSettings {
   readonly categoryPercent: Readonly<Record<string, number>>;
 }
 
+/**
+ * The update family (phase-15, ADR-025 §6).
+ *
+ * Pinning is an application PREFERENCE, exactly like the dials above: it
+ * changes what the application does, never what the world does, so it is not
+ * save data and a save may not carry it (ADR-025 §6, under ADR-014 §4's model).
+ */
+export interface UpdateSettings {
+  /**
+   * The version the player will not be moved past, or `null` for no pin.
+   *
+   * A version rather than a boolean, because a pin is a CEILING: someone who
+   * pinned `0.2.2` for a plugin that has not caught up should still receive
+   * `0.2.1`. `update-policy.ts` reads it; this file only records it.
+   */
+  readonly pinnedVersion: string | null;
+}
+
 export interface AppSettings {
   readonly overlay: OverlaySettings;
   readonly desktop: DesktopSettings;
   readonly audio: AudioSettings;
   /** How much the overlay MOVES (phase-07.7a, ADR-017 §7). */
   readonly motion: MotionSettings;
+  /** Whether the player has held this install at a version (phase-15). */
+  readonly update: UpdateSettings;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -88,6 +108,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     categoryPercent: { ui: 100, world: 100, ambient: 0, music: 100 },
   },
   motion: DEFAULT_MOTION_SETTINGS,
+  update: { pinnedVersion: null },
 };
 
 /**
@@ -138,6 +159,27 @@ export function sanitizeVolumePercent(value: unknown): number {
   return Math.round(clamped / VOLUME_STEP_PERCENT) * VOLUME_STEP_PERCENT;
 }
 
+/**
+ * Reads a pin: a trimmed non-empty string, or `null` for no pin.
+ *
+ * It does NOT check that the version is real, and that restraint is the rule.
+ * This function answers whether the player asked to be held; `update-policy.ts`
+ * answers whether the pin can be ordered against a release, and holds when it
+ * cannot. Dropping an unreadable pin here would turn "hold me here" into
+ * "update me freely" before the policy ever saw it — moving a farm the player
+ * asked not to move, which is the precedence rule (ADR-025 §1) inverted.
+ *
+ * Blank is the one string that means nothing: a cleared field in a hand-edited
+ * file is how someone REMOVES a pin, not how they name a version. Trimming is
+ * safe for the same reason — it can only rescue ` 0.2.1 `, never invent a pin.
+ */
+function sanitizePinnedVersion(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
 }
@@ -166,6 +208,8 @@ export function parseSettings(value: unknown): AppSettings {
   const audio = asRecord(record['audio']) ?? {};
   // Likewise absent from every file written before 07.7a.
   const motion = asRecord(record['motion']) ?? {};
+  // Likewise absent from every file written before phase 15.
+  const update = asRecord(record['update']) ?? {};
 
   return {
     overlay: {
@@ -190,6 +234,9 @@ export function parseSettings(value: unknown): AppSettings {
       ),
       environmental: readBoolean(motion['environmental'], DEFAULT_MOTION_SETTINGS.environmental),
       reducedMotion: readBoolean(motion['reducedMotion'], DEFAULT_MOTION_SETTINGS.reducedMotion),
+    },
+    update: {
+      pinnedVersion: sanitizePinnedVersion(update['pinnedVersion']),
     },
   };
 }

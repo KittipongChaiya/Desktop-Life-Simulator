@@ -42,6 +42,15 @@ describe('writeSettingsTo / readSettingsFrom', () => {
     expect(readSettingsFrom(dir)).toEqual(settings);
   });
 
+  it('carries a pin across a restart — the file is the only thing that remembers', () => {
+    // The whole point of pinning being a PREFERENCE (ADR-025 §6): a player who
+    // held their install at a version must still be held after they quit. No
+    // runtime state survives a launch, so this file is the entire mechanism.
+    writeSettingsTo(dir, { ...DEFAULT_SETTINGS, update: { pinnedVersion: '0.2.2' } });
+
+    expect(readSettingsFrom(dir).update.pinnedVersion).toBe('0.2.2');
+  });
+
   it('creates the directory when it does not exist yet — first run', () => {
     const nested = join(dir, 'userData');
     writeSettingsTo(nested, DEFAULT_SETTINGS);

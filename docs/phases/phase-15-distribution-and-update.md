@@ -11,14 +11,17 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
+The four become seven below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+
 | Order | Boundary                                                    | Commit |
 | ----- | ----------------------------------------------------------- | ------ |
 | 1     | The schema-bounded rollback guard (§4 of the roadmap's set) | `15a`  |
 | 2     | The offer policy: pin, staged rollout, and the boundary     | `15b`  |
-| 3     | The announcement gate: when an offer may reach the player   | _this_ |
-| 4     | Check and apply — IPC, the settings pin, and the toast      | —      |
-| 5     | Atomic replacement with interruption recovery               | —      |
-| 6     | Signing and the publish pipeline                            | —      |
+| 3     | The announcement gate: when an offer may reach the player   | `15c`  |
+| 4     | The pin, as a preference that survives a restart            | _this_ |
+| 5     | Check and apply — IPC and the toast                         | —      |
+| 6     | Atomic replacement with interruption recovery               | —      |
+| 7     | Signing and the publish pipeline                            | —      |
 
 ---
 
@@ -47,6 +50,14 @@ The rule is therefore stated over builds, not over directions: **a build may be 
 ADR-025 §6 gives pinning a version rather than a boolean, and the version is what makes the useful reading possible. A player who pinned `0.2.2` because a plugin has not caught up still receives `0.2.1`; what they will not receive is anything past the line they drew. A frozen install would have made the pin a decision to stop receiving fixes, which is the opposite of what someone protecting a working farm wants.
 
 An **unreadable** pin holds. A pin nobody can parse is still a player saying "hold me here", and ignoring it moves a farm that was asked not to move.
+
+### The schema records the request; the policy judges the version
+
+`settings-schema.ts` keeps a pin it cannot parse. That looks like missing validation and is the opposite: the two modules answer different questions, and collapsing them loses the answer that matters.
+
+The schema answers **did the player ask to be held**. `update-policy.ts` answers **can this pin be ordered against this release**, and holds when it cannot. Sanitizing an unreadable pin to `null` in the schema would settle the first question with the second one's evidence — the pin would arrive at the policy as _no pin at all_, the hold would never happen, and a build the player refused would install. That is ADR-025 §1's precedence rule running backwards: update convenience deciding an integrity question.
+
+So exactly one string is treated as no pin: the blank one, because a cleared field is how someone **removes** a pin rather than how they name a version. Trimming is safe for the same reason — it can rescue `' 0.2.1 '`, and it cannot invent a pin that was not written.
 
 ### The order of the checks is itself a decision
 
@@ -80,9 +91,9 @@ Click-through is deliberately absent. It makes the overlay transparent to the mo
 
 - [x] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched — `src/main/rollback-guard.test.ts`
 - [x] No prompt appears while pinned, halted, outside the rollout wave, hidden, or in work mode — `src/main/update-policy.test.ts`
-- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — boundary 5, against a real installation
-- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 4, once the recovery path is reachable from the UI
-- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 4, reusing phase-07e unchanged
-- [ ] A tampered artifact is rejected and the installation is untouched — boundary 6
-- [ ] No prompt is an OS notification — boundary 4; the surface is `CompanionToast.tsx`, which is in-overlay by construction
-- [ ] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — boundary 5
+- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — boundary 6, against a real installation
+- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 5, once the recovery path is reachable from the UI
+- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 5, reusing phase-07e unchanged
+- [ ] A tampered artifact is rejected and the installation is untouched — boundary 7
+- [ ] No prompt is an OS notification — boundary 5; the surface is `CompanionToast.tsx`, which is in-overlay by construction
+- [ ] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — boundary 6

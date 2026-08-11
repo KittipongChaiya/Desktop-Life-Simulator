@@ -61,6 +61,7 @@ describe('parseSettings — the categorized application settings model', () => {
         categoryPercent: { ui: 100, world: 100, ambient: 0, music: 100 },
       },
       motion: DEFAULT_MOTION_SETTINGS,
+      update: { pinnedVersion: '0.2.2' },
     };
     expect(parseSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
   });
@@ -78,6 +79,7 @@ describe('parseSettings — the categorized application settings model', () => {
       desktop: { opacityPercent: 60, workMode: true },
       audio: DEFAULT_SETTINGS.audio,
       motion: DEFAULT_SETTINGS.motion,
+      update: DEFAULT_SETTINGS.update,
     });
   });
 
@@ -87,6 +89,7 @@ describe('parseSettings — the categorized application settings model', () => {
       desktop: { opacityPercent: OPACITY_DEFAULT_PERCENT, workMode: false },
       audio: DEFAULT_SETTINGS.audio,
       motion: DEFAULT_SETTINGS.motion,
+      update: DEFAULT_SETTINGS.update,
     });
   });
 
@@ -102,6 +105,7 @@ describe('parseSettings — the categorized application settings model', () => {
       desktop: { opacityPercent: 40, workMode: false },
       audio: DEFAULT_SETTINGS.audio,
       motion: DEFAULT_SETTINGS.motion,
+      update: DEFAULT_SETTINGS.update,
     });
   });
 
@@ -116,6 +120,7 @@ describe('parseSettings — the categorized application settings model', () => {
       desktop: { opacityPercent: 60, workMode: false },
       audio: DEFAULT_SETTINGS.audio,
       motion: DEFAULT_SETTINGS.motion,
+      update: DEFAULT_SETTINGS.update,
     });
   });
 
@@ -234,6 +239,69 @@ describe('the motion category', () => {
 
     expect(parsed.motion.environmental).toBe(false);
     expect(parsed.motion.decorativeCreatures).toBe(false);
+  });
+});
+
+/**
+ * The update category (phase-15, ADR-025 §6) — pinning, which is an
+ * application preference under ADR-014 §4's model and never save data.
+ */
+describe('the update category', () => {
+  it('defaults to no pin — nobody is held who did not ask to be', () => {
+    expect(DEFAULT_SETTINGS.update.pinnedVersion).toBeNull();
+    expect(parseSettings({}).update.pinnedVersion).toBeNull();
+  });
+
+  it('an absent category upgrades in place — every file written before phase 15', () => {
+    const parsed = parseSettings({
+      overlay: { collapsed: true },
+      desktop: { opacityPercent: 45, workMode: true },
+    });
+
+    expect(parsed.desktop).toEqual({ opacityPercent: 45, workMode: true });
+    expect(parsed.update).toEqual(DEFAULT_SETTINGS.update);
+    expect(parsed.update.pinnedVersion).toBeNull();
+  });
+
+  it('reads a stored pin back', () => {
+    expect(parseSettings({ update: { pinnedVersion: '0.2.1' } }).update.pinnedVersion).toBe(
+      '0.2.1',
+    );
+  });
+
+  it('keeps a pin it cannot parse rather than dropping it', () => {
+    // The inversion this prevents: dropping an unreadable pin turns "hold me
+    // here" into "update me freely", and moves a farm the player asked not to
+    // move. `update-policy.ts` holds on a pin it cannot read — it can only do
+    // that if the pin survives the parse.
+    expect(
+      parseSettings({ update: { pinnedVersion: 'the one that works' } }).update.pinnedVersion,
+    ).toBe('the one that works');
+  });
+
+  it('trims a hand-edited pin so stray whitespace does not freeze the install', () => {
+    expect(parseSettings({ update: { pinnedVersion: ' 0.2.1 ' } }).update.pinnedVersion).toBe(
+      '0.2.1',
+    );
+  });
+
+  it('treats blank and non-string pins as no pin at all', () => {
+    // The schema answers whether the player ASKED to be held, not whether the
+    // version is real — `update-policy.ts` owns the second question. A blank
+    // field is how someone clears one, not how they name a version.
+    for (const pinnedVersion of ['', '   ', 42, true, null, {}, []]) {
+      expect(parseSettings({ update: { pinnedVersion } }).update.pinnedVersion).toBeNull();
+    }
+  });
+
+  it('never lets a corrupt category disturb its neighbours', () => {
+    const parsed = parseSettings({
+      update: 'the one that works',
+      desktop: { opacityPercent: 70, workMode: false },
+    });
+
+    expect(parsed.update.pinnedVersion).toBeNull();
+    expect(parsed.desktop.opacityPercent).toBe(70);
   });
 });
 
