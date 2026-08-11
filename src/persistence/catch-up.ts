@@ -32,9 +32,10 @@
 
 import { OFFLINE_CAP_TICKS, TICK_MS } from '../shared/constants';
 import type { ContentId } from '../shared/ids';
+import { allowsWork } from '../sim/ai/constraints';
 import { CORE_MARKET_STALL, CORE_REST_HUT, CORE_SEED_BIN } from '../sim/content/buildings';
 import { isInSeason, type CropDefinition } from '../sim/content/crops';
-import { dayFor, seasonsBetween } from '../sim/time/game-clock';
+import { dayFor, phaseFor, seasonsBetween } from '../sim/time/game-clock';
 import {
   acceptable,
   addItems,
@@ -52,6 +53,7 @@ import {
   salePrice,
 } from '../sim/world/economy';
 import {
+  WorkerTaskKind,
   ENERGY_DRAIN_PER_PERIOD,
   ENERGY_RECOVER_PER_PERIOD,
   REST_HUT_RECOVER_PER_PERIOD,
@@ -150,6 +152,28 @@ function plantableThroughout(
   if (touched.length === 0) return true;
 
   return touched.every((index) => isInSeason(definition, world.seasons[index]));
+}
+
+/**
+ * Whether ANY worker could legally have worked this tile. Phase-14d — ADR-024.
+ *
+ * Catch-up models what workers would have done, so a schedule that forbids the
+ * work forbids the credit. The question is asked of the whole crew rather than
+ * per worker, because the model never decided WHICH worker did a cycle — and
+ * asking "could anyone" is the conservative direction: it credits at most what
+ * the real simulation could have produced, never more.
+ *
+ * A crew with no workers answers false, which is already the model's own
+ * precondition, and an unconstrained crew answers true — so a save written
+ * before schedules existed is credited exactly as it was.
+ */
+function anyWorkerMayWork(world: World, tile: number, kind: WorkerTaskKind): boolean {
+  const phase = phaseFor(world.tick, world.ticksPerDay);
+
+  for (const worker of world.workers.values()) {
+    if (allowsWork(worker.schedule, { kind, tile, phase })) return true;
+  }
+  return false;
 }
 
 export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport {
@@ -297,10 +321,16 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     const byGrowth = 1 + Math.floor(Math.max(0, end - firstAt - 1) / cycle);
     const bySeeds = 1 + seedsLeft(seedItem); // first harvest needs no seed
     const byBudget = Math.floor(budget / CYCLE_HANDLING_TICKS);
+    // A schedule that forbids the work forbids the credit (ADR-024 §4). Asked
+    // of the whole crew, which is the conservative direction — the model never
+    // decided which worker did a cycle.
+    if (!anyWorkerMayWork(world, crop.tile, WorkerTaskKind.Harvest)) continue;
+
     const replantAllowed =
       hasSeedBin &&
       world.lastPlanted.get(crop.tile) === crop.cropId &&
-      plantableThroughout(world, definition.value, start, end);
+      plantableThroughout(world, definition.value, start, end) &&
+      anyWorkerMayWork(world, crop.tile, WorkerTaskKind.Plant);
     const count = replantAllowed
       ? Math.min(byGrowth, bySeeds, byBudget)
       : Math.min(1, byGrowth, byBudget);
