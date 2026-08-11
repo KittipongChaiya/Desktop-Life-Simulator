@@ -4,7 +4,7 @@
  * ADR-025's finding was that **rollback across a schema bump orphans a save**,
  * with every component behaving correctly and the composition losing data: the
  * new build migrates a save forward, the player rolls back, and the old build
- * meets a `schemaVersion` from the future. `SAVE_FORMAT.md` §4.2 makes it
+ * meets a `schemaVersion` from the future. `SAVE_FORMAT.md` §4.3 makes it
  * refuse to load — correctly, because the alternative is reading a shape it
  * does not understand — so a player who rolled back to escape a bug finds
  * their farm unopenable, which is a worse bug.

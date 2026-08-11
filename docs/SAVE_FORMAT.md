@@ -310,7 +310,7 @@ Version-level compatibility (§4.1–4.2) governs whole documents. These rules g
 | **Additional field** | Accepted on read, **dropped by the next save**             | The writer rebuilds the document from live world state; it emits the fields it knows (§3.1) |
 | **Removed field**    | The migration chain's job — nothing to remove at version 1 | §4.2                                                                                        |
 
-**The dropping is deliberate and worth restating**: hand-written serialization is what keeps an internal refactor from becoming a silent schema change, and the price of that is that this build erases what it does not understand. It is not currently reachable in a way that loses player data — a genuinely newer save is refused before it gets here (§4.2), and adding a field without bumping `schemaVersion` is forbidden by ADR-015 §2.
+**The dropping is deliberate and worth restating**: hand-written serialization is what keeps an internal refactor from becoming a silent schema change, and the price of that is that this build erases what it does not understand. It is not currently reachable in a way that loses player data — a genuinely newer save is refused before it gets here (§4.3), and adding a field without bumping `schemaVersion` is forbidden by ADR-015 §2.
 
 The full statement of what v0.1 guarantees, with the evidence for each claim, is `save-compatibility-report.md`.
 
