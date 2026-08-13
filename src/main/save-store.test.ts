@@ -27,6 +27,7 @@ import {
   atomicWriteSave,
   BACKUPS_KEPT,
   preMigrationBackupName,
+  readSaveSchemaVersion,
   readSavesForLoad,
   writePreMigrationBackup,
   WRITE_STEPS,
@@ -271,5 +272,54 @@ describe('writePreMigrationBackup (ADR-027 §2)', () => {
       /^slot-0-\d+\.json$/.test(name),
     );
     expect(autosaves.length).toBeLessThanOrEqual(BACKUPS_KEPT);
+  });
+});
+
+describe('the schema version the updater asks about (phase-15, ADR-025 §2)', () => {
+  it('is null when there is no save, because there is nothing to orphan', () => {
+    // `decideRollback` allows a rollback for a null, and that is the point of
+    // routing "no save" and "unreadable save" to the same answer: a fresh
+    // install has no farm to strand, so refusing would strand nobody.
+    expect(readSaveSchemaVersion(dir)).toBeNull();
+  });
+
+  it('reads what the save on disk declares', () => {
+    atomicWriteSave(dir, JSON.stringify({ schemaVersion: 5, world: {} }), 1);
+
+    expect(readSaveSchemaVersion(dir)).toBe(5);
+  });
+
+  it('is null for a save that cannot be parsed', () => {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'slot-0.json'), '{ this is not json', 'utf8');
+
+    expect(readSaveSchemaVersion(dir)).toBeNull();
+  });
+
+  it('is null for a save that declares no version', () => {
+    atomicWriteSave(dir, JSON.stringify({ world: {} }), 1);
+
+    expect(readSaveSchemaVersion(dir)).toBeNull();
+  });
+
+  it('is null for a version that is not an integer', () => {
+    atomicWriteSave(dir, JSON.stringify({ schemaVersion: '5' }), 1);
+
+    expect(readSaveSchemaVersion(dir)).toBeNull();
+  });
+
+  it('never writes a pre-migration backup, unlike the load path', () => {
+    // `readSavesForLoad` copies the original aside when it sees an older
+    // schema (ADR-027 §2), and that is right for a LOAD. This is a question
+    // the updater asks in the background, possibly hours after launch —
+    // ADR-025 §4 says the updater never touches the save directory, "not
+    // moved, not migrated, not backed up, not cleaned", and a read that
+    // quietly wrote a file would break that on the most ordinary path.
+    atomicWriteSave(dir, JSON.stringify({ schemaVersion: 1, world: {} }), 1);
+    const before = readdirSync(join(dir, 'backups'));
+
+    readSaveSchemaVersion(dir);
+
+    expect(readdirSync(join(dir, 'backups'))).toEqual(before);
   });
 });

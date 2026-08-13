@@ -225,6 +225,31 @@ export function readSavesForLoad(savesDir: string): SavesOnDisk {
   };
 }
 
+/**
+ * The schema version of the save on disk, or `null`. Phase-15 — ADR-025 §2.
+ *
+ * The one number the rollback guard needs from this side: `decideOffer`
+ * compares it against the schema the offered build declares, and refuses a
+ * build that could not read the farm.
+ *
+ * **It reads and nothing else.** `readSavesForLoad` copies the original aside
+ * when it sees an older schema (ADR-027 §2), which is right for a load and
+ * wrong here — this question is asked in the background, possibly hours after
+ * launch, and ADR-025 §4 says the updater never touches the save directory:
+ * _"not moved, not migrated, not backed up by the updater, not cleaned."_ A
+ * read that quietly wrote a file would break that on the most ordinary path
+ * there is.
+ *
+ * A missing save, an unparseable one, and one declaring no version all answer
+ * `null`, which `decideRollback` reads as "allowed": there is no farm to
+ * orphan, and refusing would strand an install that has not started one.
+ */
+export function readSaveSchemaVersion(savesDir: string): number | null {
+  const slot = join(savesDir, SLOT);
+  if (!existsSync(slot)) return null;
+  return schemaVersionOf(parseOrNull(slot));
+}
+
 /** The schema version of a parsed document, or null if it declares none. */
 function schemaVersionOf(document: unknown): number | null {
   if (typeof document !== 'object' || document === null) return null;
