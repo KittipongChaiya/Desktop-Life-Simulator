@@ -10,6 +10,25 @@ files:
   - out/**/*
   - package.json
 
+# UNSIGNED under ADR-028 — the v0.2 signing exception.
+#
+# Declared rather than merely absent (ADR-028 §4): an unsigned build must be
+# distinguishable from one whose signing configuration silently broke, and a
+# missing field cannot tell you which of the two you are looking at.
+#
+# ADR-025 §3 requires a publisher signature and is NOT being relaxed as a
+# destination. What could not be met is the schedule: a signature needs an
+# OV/EV certificate or a cloud signing service, which is procurement rather
+# than code. Artifact integrity is unaffected and stays fatal — the update feed
+# carries a SHA-512 per artifact, and a mismatch discards the download before
+# anything on disk is touched.
+#
+# The exception EXPIRES AT 0.3.0 and `tests/signing-exception.test.ts` is what
+# enforces it: add any signing key below and that test goes quiet by itself.
+# Never self-sign (ADR-028 §Alternatives C) — it removes no warning, proves no
+# identity, and turns an honest absence into something that looks like
+# assurance.
+
 # Windows-only in v0.1. macOS/Linux overlay semantics differ enough that
 # pretending otherwise would compromise the Windows implementation
 # (VISION.md §5.1). Revisit no earlier than v0.3.
