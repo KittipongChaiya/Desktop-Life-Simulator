@@ -11,7 +11,7 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become twelve below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become fourteen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
 | Order | Boundary                                                       | Commit |
 | ----- | -------------------------------------------------------------- | ------ |
@@ -25,8 +25,10 @@ The four become twelve below, and every split falls on the same seam: a rule tha
 | 8     | The update state crosses the boundary — IPC, preload, main     | `15h`  |
 | 9     | The renderer's view: an announcement that does not expire      | `15i`  |
 | 10    | The announcement reaches the player: the slot's second variant | `15j`  |
-| 11    | The pin control, and the E2E that proves the boundary          | _this_ |
-| 12    | Signing and the publish pipeline                               | —      |
+| 11    | The pin control, and the E2E that proves the boundary          | `15k`  |
+| 12    | The signing exception, with an expiry that bites               | `15l`  |
+| 13    | The publish target, the dependency, and the §7 measurement     | _this_ |
+| 14    | The release source: a feed the policy can actually read        | —      |
 
 ---
 
@@ -230,3 +232,51 @@ The third case — clearing a pin — is there because `null` has to reach the s
 - [ ] A tampered artifact is rejected and the installation is untouched — the **publish** boundary
 - [x] No prompt is an OS notification — the surface is `CompanionToast.tsx`, which is in-overlay by construction: it is a `div` inside the React root, and the renderer has no path to a `Notification` at all. `src/renderer/app/hud/companion-toast.test.tsx` asserts what it shows and when
 - [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — `src/main/install-store.test.ts`
+
+### The library was measured, and it delivers one and a half of three
+
+ADR-025 §7 made the dependency conditional: a library that cannot deliver §2, §4 and §5 is not adopted. That sentence only means something if someone runs the measurement, so here is what it found — recorded in full in `TECH_STACK.md` §7.4.
+
+- **§5 restart discipline — yes, but only against its own defaults.** `autoDownload` and `autoInstallOnAppQuit` both ship as `true`. Out of the box, `electron-updater` _is_ the silent background updater ADR-025 §Alternatives A rejected: it downloads on check and installs on quit, and the second one races the quit-save.
+- **§2 schema-bounded rollback — no, and it cannot.** It has no concept of a save. `allowDowngrade: false` blocks an automatic downgrade and says nothing about whether a **forward** build can read the save on disk, which is the case §Context is actually about.
+- **§4 interruption recovery — not established.** It verifies the download and hands off to the NSIS installer, which does the replacement. That is not `install-store.ts`'s retain → swap → commit, and "an interrupted update leaves a launchable application" has not been demonstrated for it.
+
+None of this is a mark against the library. It is very good at the half nobody should hand-write — reaching a feed, resumable transfer, SHA-512 before handoff, the Windows elevation dance — and the measurement is what says where its half ends.
+
+It also vindicates the ordering this phase argued for from the first commit. The policy was written and proven before the library existed, so the gaps had answers already; had the dependency come first, §2 would have been "configured" with `allowDowngrade` and the schema hazard would have shipped.
+
+### A setting we override is not the same kind of thing as one we agree with
+
+`updater-config.ts` names the two categories separately, and the distinction is about how each decays.
+
+A setting we merely agree with survives a library upgrade that changes its default — we would start relying on the new value and lose nothing. A setting we **override** is the only thing between this product and behaviour its governing ADR rejected, so an upgrade that flipped the default back would cost a guarantee with nothing to notice.
+
+The module imports nothing at all, least of all `electron-updater`. That is the `save-store.ts` doctrine one more time: the settings carrying §2 and §5 are unit-testable without a host, and the binding that owns the library applies them and decides nothing.
+
+### The audit gate was documentation wearing a gate's clothes
+
+`TECH_STACK.md` §7.3 has said since phase-00 that _"`npm audit` runs in CI; high and critical advisories fail the build"_. There was no audit step in `ci.yml`. None. The claim was false for the entire life of the project.
+
+It was found the only way a claim like that ever gets found — by tripping it. Installing `electron-updater@6.8.9` resolved `js-yaml@4.3.0`, which carries a high advisory, and **promoted it into the shipped dependency tree**, where §7.3's policy applies. Nothing objected, because nothing was watching.
+
+This is precisely the failure phase-08.0 was created to fix for coverage: _"six of the seven were documentation wearing a gate's clothes, and nobody found out until the v0.1 release gate came due."_ The same shape, in the same document, three phases later.
+
+The fix follows 08.0's rule rather than the convenient one: the gate is scoped to what it can honestly enforce (`--omit=dev`, the tree that reaches a player, currently clean at zero) and the document now **states** that the dev tree's asset-pipeline advisories are not gated, instead of implying a coverage it does not have. A narrower true claim beats a broader false one.
+
+### The advisory was fixed by resolution, not by exception
+
+`js-yaml@4.3.1` is outside the advisory range and satisfies `electron-updater`'s own `^4.1.0`. So the lockfile moved and nothing was overridden, pinned against a declared range, or waived.
+
+Worth recording because the alternatives were all available and all worse: an `overrides` entry, an audit exception file, or lowering the gate to `critical`. Each would have left a high advisory in shipped code and a note explaining why that was fine.
+
+### The feed cannot carry the fields the policy needs
+
+The open question this phase now ends on, and it is a design decision rather than a defect.
+
+`OfferedRelease` has four fields. `electron-updater` supplies `version`. The other three do not exist in electron-builder's generated `latest.yml` and there is no supported way to add them:
+
+- **`schemaVersion`** (§2) — the `CURRENT_SCHEMA_VERSION` the offered build reads. Without it the rollback guard has nothing to compare against, and §2 is unenforceable.
+- **`halted`** (§6) — the publish-side stop. §6 requires halting an in-flight rollout _"before more installs take it"_, which is the only mitigation that works after a bad build is out.
+- **`rolloutPercent`** (§6) — the wave. The library has its own `stagingPercentage`, but it buckets installs by a persistent random id it writes to disk, where ADR-025 §6 requires a bucket derived locally and never stored as an identifier. `deriveRolloutBucket` already satisfies that and is tested.
+
+So the release source needs a source of truth the feed does not provide, and choosing it is boundary 14's decision — not something to settle by writing code and discovering the format afterwards.

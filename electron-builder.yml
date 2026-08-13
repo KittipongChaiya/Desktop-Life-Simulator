@@ -46,7 +46,14 @@ nsis:
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false # never destroy player saves on uninstall
 
-# No auto-updater in v0.1. An updater that can restart the app is a way to
-# lose player data, so it ships only after save integrity is proven in
-# phase-07. See PLAN.md §3.
-publish: null
+# v0.1 shipped `publish: null` — "an updater that can restart the app is a way
+# to lose player data, so it ships only after save integrity is proven in
+# phase-07" (PLAN.md §3). That proof landed, and phase-15 built the updater on
+# top of it, so the channel opens here.
+#
+# GitHub Releases: electron-updater reads this provider natively, so no custom
+# feed format and no infrastructure of our own. The generated `latest.yml`
+# carries a SHA-512 per artifact, which is the integrity check ADR-028 §2 keeps
+# fatal now that the publisher signature is deferred.
+publish:
+  provider: github

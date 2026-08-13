@@ -22,6 +22,21 @@ jobs:
       - name: Install
         run: npm ci
 
+      # TECH_STACK.md §7.3 has claimed since phase-00 that "npm audit runs in
+      # CI; high and critical advisories fail the build". It did not — there was
+      # no audit step, and the claim was found to be fiction while adopting
+      # electron-updater in phase-15, which briefly pulled a high advisory into
+      # the SHIPPED tree without anything objecting.
+      #
+      # Scoped to production dependencies, which is the tree the policy exists
+      # to protect and the only one that reaches a player. The dev tree
+      # currently carries high advisories in the asset pipeline (@assetpack via
+      # minimatch, gpu-tex-enc via sharp) whose fixes are breaking changes;
+      # TECH_STACK.md §7.3 now says so out loud rather than implying a gate that
+      # covers them.
+      - name: Audit shipped dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Build assets
         run: npm run assets
 
