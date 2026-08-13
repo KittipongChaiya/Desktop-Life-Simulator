@@ -62,6 +62,7 @@ export const HOST_BINDINGS: readonly HostBinding[] = [
       'tests/e2e/background-tick.spec.ts',
       'tests/e2e/save.spec.ts',
       'tests/e2e/companion.spec.ts',
+      'tests/e2e/update.spec.ts',
     ],
   },
   {
@@ -81,7 +82,7 @@ export const HOST_BINDINGS: readonly HostBinding[] = [
     path: 'src/preload/index.ts',
     reason: 'The contextBridge surface. Exists only in a preload realm.',
     logic: 'src/shared/ipc/contract.ts',
-    detectors: [OVERLAY, 'tests/e2e/companion.spec.ts'],
+    detectors: [OVERLAY, 'tests/e2e/companion.spec.ts', 'tests/e2e/update.spec.ts'],
   },
   {
     path: 'src/renderer/entry/main.tsx',

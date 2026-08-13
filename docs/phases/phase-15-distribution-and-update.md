@@ -24,8 +24,8 @@ The four become twelve below, and every split falls on the same seam: a rule tha
 | 7     | The check: the policy, the announcer, and an injected source   | `15g`  |
 | 8     | The update state crosses the boundary — IPC, preload, main     | `15h`  |
 | 9     | The renderer's view: an announcement that does not expire      | `15i`  |
-| 10    | The announcement reaches the player: the slot's second variant | _this_ |
-| 11    | The pin control, and the E2E that proves the boundary          | —      |
+| 10    | The announcement reaches the player: the slot's second variant | `15j`  |
+| 11    | The pin control, and the E2E that proves the boundary          | _this_ |
 | 12    | Signing and the publish pipeline                               | —      |
 
 ---
@@ -187,6 +187,26 @@ Boundary `15h` added the `update` namespace to `src/preload/index.ts` and stoppe
 Nothing failed. The preload compiles against its own `DesktopLifeApi`, the contract test only checks channel names, and no renderer code had asked for it yet. It surfaced here on the first line that did.
 
 Worth carrying: the boundary is described in three files and a commit that changes two of them is incomplete without saying so. The gap was invisible for exactly as long as nobody used the feature — which is the definition of the kind of gap a type system is supposed to prevent.
+
+### The pin control is a button, because a text field would invite the failure
+
+ADR-025 §6 pins a **version**, so the obvious control is a field to type one into. It is the wrong one.
+
+A player reaching for this is protecting a working farm: a plugin has not caught up, or this build is the one that works. What they mean is _not past here_, and "here" is the version they are running. The panel therefore pins `currentVersion` and clears to `null` — two states, no typing, and no way to produce a pin nobody can parse.
+
+That last part matters more than the convenience. `update-policy.ts` holds on an unreadable pin, which is correct and is also silent: the player would see a pin they believe is protecting them, and the arithmetic behind it would have declined to run. A text field would put the one person least able to notice that in charge of avoiding it.
+
+A pin **ahead** of the running build is still possible — from a hand-edited `settings.json`, or a rollback — and it is named rather than hidden behind an `On`, because "a pin is a ceiling, not a freeze" is invisible otherwise. The panel is the one place that state is ever visible.
+
+The section waits for main before rendering at all. `UNKNOWN_VERSION` is the empty string, and a panel that showed "Version" beside nothing for a frame would be reporting a fact it does not have.
+
+### The exclusion is only honest while the detector exists
+
+`src/main/index.ts` and `src/preload/index.ts` are excluded from coverage, and `coverage-policy.config.ts` allows that **only** when a named test exercises them. Boundary `15h` added handlers to both and named nothing, which left two files carrying new untested lines behind an exclusion written for old ones. That was recorded as deferred rather than done, and `tests/e2e/update.spec.ts` is the payment.
+
+It deliberately runs the whole width rather than a slice: the control, the contextBridge, the handler, the settings schema, the write, and the read back after a restart. Every unit on that path is already proven in isolation — that is what the preceding nine boundaries were. What no unit can answer is whether they are connected, and the failure it actually rules out is the one that leaves every unit test green: a handler registered on a channel nobody calls, or a panel showing a version it made up.
+
+The third case — clearing a pin — is there because `null` has to reach the schema as an explicit value. An absent key would be read as "unchanged" by the next parse, and the pin would become unremovable through the UI that set it.
 
 ### The save is outside the blast radius by construction
 

@@ -29,7 +29,7 @@ import {
 import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
 import type { SaveState } from '../save-controller';
 import { sourceReport } from '../source-report';
-import { useCompanion, usePlayer, useSave } from '../store-context';
+import { useCompanion, usePlayer, useSave, useUpdate } from '../store-context';
 
 import styles from './SettingsPanel.module.css';
 import { SourcesSection } from './SourcesSection';
@@ -62,6 +62,7 @@ export function SettingsPanel(): ReactNode {
   const companion = useCompanion();
   const save = useSave();
   const player = usePlayer();
+  const update = useUpdate();
 
   // Mirrors `world.disabledSources` for the controls above. Seeded from the
   // set this session LOADED with, so a source switched off in an earlier
@@ -107,6 +108,18 @@ export function SettingsPanel(): ReactNode {
     (listener) => companion.subscribe(listener),
     () => companion.muted(),
     () => companion.muted(),
+  );
+
+  const currentVersion = useSyncExternalStore(
+    (listener) => update.subscribe(listener),
+    () => update.currentVersion(),
+    () => update.currentVersion(),
+  );
+
+  const pinnedVersion = useSyncExternalStore(
+    (listener) => update.subscribe(listener),
+    () => update.pinnedVersion(),
+    () => update.pinnedVersion(),
   );
 
   return (
@@ -357,6 +370,55 @@ export function SettingsPanel(): ReactNode {
               {SAVE_LABELS[saveState]}
             </button>
           </div>
+
+          {/* Updating (15, ADR-025 §6). The pin is a preference exactly like
+              the ones above and lives with them — but it is the only control
+              here that waits for main: `UNKNOWN_VERSION` is the empty string,
+              and a panel that rendered "Version" beside nothing for a frame
+              would be reporting a fact it does not have yet. */}
+          {currentVersion !== '' && (
+            <div data-testid="update-section">
+              <div className={styles['section']}>Updates</div>
+              <div className={styles['row']}>
+                <span className={styles['name']}>Version</span>
+                <span className={styles['value']}>{currentVersion}</span>
+              </div>
+
+              {/* A button, not a text field. ADR-025 §6 pins a VERSION, and
+                  §5's other half is that a player protecting a working farm is
+                  saying "not past here" — the version they mean is the one they
+                  are on. A free-text box would invite exactly the unparseable
+                  pin `update-policy.ts` has to hold on, from the one person
+                  least able to tell it went wrong. */}
+              <div className={styles['row']}>
+                <label className={styles['name']} htmlFor="update-pin">
+                  Stay on this version
+                </label>
+                <button
+                  id="update-pin"
+                  type="button"
+                  className={styles['action']}
+                  aria-pressed={pinnedVersion !== null}
+                  title="Holds you at this version. Updates resume when you turn it off."
+                  onClick={() => {
+                    update.setPinnedVersion(pinnedVersion === null ? currentVersion : null);
+                  }}
+                >
+                  {pinnedVersion === null ? 'Off' : 'On'}
+                </button>
+              </div>
+              <div className={styles['hint']}>
+                {pinnedVersion === null || pinnedVersion === currentVersion
+                  ? 'You will not be moved past the version you are on.'
+                  : // A pin is a CEILING, not a freeze. This control can only
+                    // ever set it to the running version, so a pin ahead of the
+                    // build came from somewhere else — a hand-edited
+                    // settings.json, or a rollback — and an unexplained "On"
+                    // would misdescribe what is actually holding.
+                    `Held at ${pinnedVersion}. Anything up to that version may still install.`}
+              </div>
+            </div>
+          )}
 
           <div className={styles['section']}>Shortcuts</div>
           {SHORTCUT_ACTIONS.map((action) => (

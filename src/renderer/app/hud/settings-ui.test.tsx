@@ -19,6 +19,7 @@ import {
   OPACITY_MIN_PERCENT,
   OPACITY_STEP_PERCENT,
 } from '../../../shared/constants';
+import type { UpdateState } from '../../../shared/ipc/contract';
 import {
   DEFAULT_MOTION_SETTINGS,
   MOTION_INTENSITY_MAX_PERCENT,
@@ -31,6 +32,7 @@ import { createCompanionController, type CompanionBridge } from '../companion-co
 import { createSaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createUpdateController, type UpdateBridge } from '../update-controller';
 
 import { SettingsPanel } from './SettingsPanel';
 
@@ -43,7 +45,11 @@ interface Harness {
   readonly muteToggles: () => number;
   /** Motion patches the accessibility controls pushed to main (07.7L). */
   readonly setMotionCalls: Partial<MotionSettings>[];
+  /** Pins the control pushed to main (15, ADR-025 §6). */
+  readonly pinCalls: (string | null)[];
 }
+
+const RUNNING: UpdateState = { currentVersion: '0.2.0', pinnedVersion: null };
 
 function mount(
   initial = {
@@ -55,8 +61,10 @@ function mount(
     muted: true,
     motion: DEFAULT_MOTION_SETTINGS,
   },
+  update: UpdateState = RUNNING,
 ): Harness {
   const setOpacityCalls: number[] = [];
+  const pinCalls: (string | null)[] = [];
   const setVolumeCalls: number[] = [];
   const setMotionCalls: Partial<MotionSettings>[] = [];
   let muteToggles = 0;
@@ -91,6 +99,15 @@ function mount(
     onStateChanged: () => () => undefined,
   };
 
+  const updateBridge: UpdateBridge = {
+    getState: () => Promise.resolve(update),
+    setPinnedVersion(version) {
+      pinCalls.push(version);
+      return Promise.resolve({ ...update, pinnedVersion: version });
+    },
+    onAnnouncement: () => () => undefined,
+  };
+
   render(
     <StrictMode>
       <AppProviders
@@ -103,6 +120,7 @@ function mount(
         placement={undefined as never}
         seeds={undefined as never}
         companion={createCompanionController(bridge)}
+        update={createUpdateController(updateBridge)}
         save={save}
         returnSummary={undefined as never}
       >
@@ -117,6 +135,7 @@ function mount(
     setVolumeCalls,
     muteToggles: () => muteToggles,
     setMotionCalls,
+    pinCalls,
   };
 }
 
@@ -402,5 +421,76 @@ describe('the accessibility controls (07.7L, ADR-017 §7)', () => {
 
     expect(await screen.findByText('55%')).toBeDefined();
     expect(screen.getByLabelText('Ambient animation').getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+describe('the update section (15, ADR-025 §6)', () => {
+  const COMPANION = {
+    opacityPercent: 100,
+    workMode: false,
+    clickThrough: false,
+    hidden: false,
+    volumePercent: 60,
+    muted: true,
+    motion: DEFAULT_MOTION_SETTINGS,
+  };
+
+  it('says nothing until main answers with a version', () => {
+    // `UNKNOWN_VERSION` is the empty string, and a panel that rendered
+    // "Version" beside nothing for one frame would be reporting a fact it
+    // does not have yet.
+    mount(COMPANION, { currentVersion: '', pinnedVersion: null });
+    openPanel();
+
+    expect(screen.queryByTestId('update-section')).toBeNull();
+  });
+
+  it('shows the version that is running', async () => {
+    mount();
+    openPanel();
+
+    expect((await screen.findByTestId('update-section')).textContent).toContain('0.2.0');
+  });
+
+  it('pins the running version, so "hold me here" needs no typing', async () => {
+    // The pin is a VERSION (ADR-025 §6), but the control is not a text field:
+    // a player protecting a working farm is saying "not past here", and the
+    // version they mean is the one they are on. A free-text box would invite
+    // exactly the unparseable pin `update-policy.ts` has to hold on.
+    const { pinCalls } = mount();
+    openPanel();
+
+    const control = await screen.findByLabelText('Stay on this version');
+    expect(control.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(control);
+
+    expect(pinCalls).toEqual(['0.2.0']);
+    expect(control.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('clears the pin when pressed again', async () => {
+    const { pinCalls } = mount(COMPANION, { currentVersion: '0.2.0', pinnedVersion: '0.2.0' });
+    openPanel();
+
+    const control = await screen.findByLabelText('Stay on this version');
+    expect(control.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(control);
+
+    expect(pinCalls).toEqual([null]);
+    expect(control.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('names a pin that is not the running version, rather than showing a bare On', async () => {
+    // A pin is a CEILING, not a freeze: `0.2.2` still lets `0.2.1` through.
+    // The control can only ever set it to the running version, so a pin ahead
+    // of the build came from somewhere else — a hand-edited settings.json, or
+    // a rollback — and hiding it behind an On would misdescribe the state.
+    mount(COMPANION, { currentVersion: '0.2.0', pinnedVersion: '0.2.2' });
+    openPanel();
+
+    const section = await screen.findByTestId('update-section');
+    expect(section.textContent).toContain('0.2.2');
   });
 });
