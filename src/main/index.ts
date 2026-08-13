@@ -18,8 +18,14 @@ import {
   type CompanionState,
   type OverlayState,
   type SaveWriteOutcome,
+  type UpdateState,
 } from '../shared/ipc/contract';
-import { validateBoolean, validateNumber, validateVoid } from '../shared/ipc/schemas';
+import {
+  validateBoolean,
+  validateNullableString,
+  validateNumber,
+  validateVoid,
+} from '../shared/ipc/schemas';
 import { DEFAULT_BINDINGS, ShortcutAction } from '../shared/shortcuts';
 
 import { applyHidden, applyOpacity, globalShortcutRegistrar } from './desktop-companion';
@@ -135,6 +141,31 @@ function applyMotion(patch: Record<string, unknown>): CompanionState {
   broadcastCompanionState();
   saveSettings(settings);
   return companionState();
+}
+
+/** The update state the renderer sees (phase-15, ADR-025 §6). */
+function updateState(): UpdateState {
+  return {
+    currentVersion: app.getVersion(),
+    pinnedVersion: settings.update.pinnedVersion,
+  };
+}
+
+/**
+ * Sets or clears the pin, through the settings schema rather than around it.
+ *
+ * Merged then parsed, exactly as `applyMotion` is and for the same reason: the
+ * renderer is untrusted (ADR-003 §3), and re-parsing the whole category is
+ * what guarantees it cannot write a value a hand-edited file would have been
+ * refused. That the schema then KEEPS an unreadable pin is deliberate — it is
+ * the player's request to be held, and `update-policy.ts` is what declines to
+ * order it against a release.
+ */
+function applyPinnedVersion(next: string | null): UpdateState {
+  const merged = parseSettings({ ...settings, update: { pinnedVersion: next } });
+  settings = { ...settings, update: merged.update };
+  saveSettings(settings);
+  return updateState();
 }
 
 function toggleMuted(): CompanionState {
@@ -331,6 +362,17 @@ function registerIpc(): void {
   ipcMain.handle(InvokeChannel.ToggleMuted, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.ToggleMuted);
     return toggleMuted();
+  });
+
+  ipcMain.handle(InvokeChannel.GetUpdateState, (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.GetUpdateState);
+    return updateState();
+  });
+
+  ipcMain.handle(InvokeChannel.SetPinnedVersion, (_event, payload: unknown) => {
+    const parsed = validateNullableString(payload, InvokeChannel.SetPinnedVersion);
+    if (!parsed.ok) return updateState();
+    return applyPinnedVersion(parsed.value);
   });
 
   ipcMain.handle(InvokeChannel.SaveLoad, (_event, payload: unknown) => {

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { validateBoolean, validateNumber, validateVoid } from './schemas';
+import { validateBoolean, validateNullableString, validateNumber, validateVoid } from './schemas';
 
 describe('validateBoolean', () => {
   it('accepts booleans and rejects everything else', () => {
@@ -39,5 +39,31 @@ describe('validateVoid', () => {
     expect(validateVoid(null, 'ch').ok).toBe(true);
     expect(validateVoid(0, 'ch').ok).toBe(false);
     expect(validateVoid({}, 'ch').ok).toBe(false);
+  });
+});
+
+describe('validateNullableString', () => {
+  it('accepts a string and an explicit null — the pin has both states', () => {
+    const pinned = validateNullableString('0.2.2', 'ch');
+    expect(pinned.ok).toBe(true);
+    if (pinned.ok) expect(pinned.value).toBe('0.2.2');
+
+    const cleared = validateNullableString(null, 'ch');
+    expect(cleared.ok).toBe(true);
+    if (cleared.ok) expect(cleared.value).toBeNull();
+  });
+
+  it('accepts a string it cannot parse as a version', () => {
+    // Shape is this layer's business; meaning is `settings-schema.ts`'s, which
+    // deliberately keeps an unreadable pin so it can still hold. Rejecting it
+    // here would turn "hold me here" into a failed call and then no pin.
+    expect(validateNullableString('the one that works', 'ch').ok).toBe(true);
+  });
+
+  it('rejects everything that is neither', () => {
+    expect(validateNullableString(undefined, 'ch').ok).toBe(false);
+    expect(validateNullableString(42, 'ch').ok).toBe(false);
+    expect(validateNullableString({}, 'ch').ok).toBe(false);
+    expect(validateNullableString(['0.2.2'], 'ch').ok).toBe(false);
   });
 });

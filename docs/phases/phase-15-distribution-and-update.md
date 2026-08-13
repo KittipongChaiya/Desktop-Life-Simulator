@@ -11,7 +11,7 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become nine below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become ten below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
 | Order | Boundary                                                     | Commit |
 | ----- | ------------------------------------------------------------ | ------ |
@@ -21,9 +21,10 @@ The four become nine below, and every split falls on the same seam: a rule that 
 | 4     | The pin, as a preference that survives a restart             | `15d`  |
 | 5     | Atomic replacement with interruption recovery                | `15e`  |
 | 6     | The announcer: an offer that outlives a busy moment          | `15f`  |
-| 7     | The check: the policy, the announcer, and an injected source | _this_ |
-| 8     | Apply — IPC, the pin control, and the toast                  | —      |
-| 9     | Signing and the publish pipeline                             | —      |
+| 7     | The check: the policy, the announcer, and an injected source | `15g`  |
+| 8     | The update state crosses the boundary — IPC, preload, main   | _this_ |
+| 9     | The pin control and the persistent toast                     | —      |
+| 10    | Signing and the publish pipeline                             | —      |
 
 ---
 
@@ -126,6 +127,24 @@ A source that could not answer has told us nothing. A laptop on a train fails th
 ADR-025 §7 says a library that cannot deliver the guarantees is not adopted. That is only a decision anyone can make if the guarantees are executable and the library is separable from them — so the release source is injected, exactly as `save-store.ts` and `settings-store.ts` inject their directories.
 
 What is left needing a dependency is one function that returns a release. Everything upstream of it — the policy, the announcer, the check that composes them — is proven without a network, and whatever eventually fetches releases is measured against these tests rather than trusted to embody them. Validating what comes off the wire belongs to that fetcher: a release crosses a trust boundary (`AI_RULES.md` §2.4), and this module receives it already shaped.
+
+### `UpdateState` is not part of `CompanionState`
+
+The temptation was real — `CompanionState` already carries opacity, volume and motion, and the settings panel hydrates from it, so a pin could have ridden along for free.
+
+It does not, because that object has a stated meaning: the **presence family**. Its own comments justify each addition the same way — opacity governs how much the overlay intrudes on the eye, volume on the ear, motion on the attention. A version pin intrudes on none of them. Adding it would have quietly redefined `CompanionState` as "settings the panel happens to show", and the next unrelated preference would have had no argument against joining.
+
+### The announcement is pushed, because the renderer cannot know when to ask
+
+`GetUpdateState` is a poll and `UpdateAnnounced` is a push, and the asymmetry is not an oversight. The pin is a value the UI reads when it renders. The announcement is a **moment**, and the moment is decided in main: the announcer holds an offer while the player is hidden or in work mode and releases it when they return. A renderer polling for that would either miss it or have to poll constantly to catch it.
+
+The payload restates `Announcement` rather than importing it, because this is a process boundary and a main-side type may not leak across it (ADR-003 §3). A refusal crosses as a finished **message**: the wording belongs with the rule that produced it (`explainRefusal`), and the renderer's job is to show it, not to phrase it.
+
+### The boundary validates shape, and stops there
+
+`validateNullableString` accepts `'the one that works'`. That is not a gap in the guard — it is the same division of labour the settings schema draws, one layer further out. This layer answers _is this the shape of a pin_; `settings-schema.ts` answers _did the player ask to be held_; `update-policy.ts` answers _can it be ordered against a release_.
+
+Rejecting an unparseable pin here would have failed the call, left the old pin in place or none at all, and told the player nothing — an integrity question settled by a type check at the outermost layer that knows the least about it.
 
 ### The save is outside the blast radius by construction
 

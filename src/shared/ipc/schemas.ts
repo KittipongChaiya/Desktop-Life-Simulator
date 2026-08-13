@@ -37,6 +37,27 @@ export function validateNumber(value: unknown, channel: string): Result<number> 
   return ok(value);
 }
 
+/**
+ * A string or an explicit `null` — the shape of a version pin (ADR-025 §6).
+ *
+ * Shape only. Whether the string names a real version is deliberately NOT
+ * checked here: `settings-schema.ts` keeps a pin it cannot parse so that it
+ * still holds, and `update-policy.ts` is what refuses to order it. Rejecting
+ * an unparseable pin at this boundary would turn "hold me here" into a failed
+ * call and, after it, no pin at all.
+ */
+export function validateNullableString(value: unknown, channel: string): Result<string | null> {
+  if (value !== null && typeof value !== 'string') {
+    return err(
+      appError(ErrorCode.IpcRejected, 'expected a string or null payload', {
+        channel,
+        received: value === undefined ? 'undefined' : typeof value,
+      }),
+    );
+  }
+  return ok(value);
+}
+
 export function validateVoid(value: unknown, channel: string): Result<void> {
   if (value !== undefined && value !== null) {
     return err(

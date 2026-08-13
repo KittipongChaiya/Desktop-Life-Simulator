@@ -17,6 +17,8 @@ import {
   type SavesOnDisk,
   type SourceDiscovery,
   type SaveWriteOutcome,
+  type UpdateAnnouncement,
+  type UpdateState,
 } from '../shared/ipc/contract';
 import type { MotionSettings } from '../shared/motion';
 
@@ -60,6 +62,20 @@ export interface DesktopLifeApi {
     write(document: unknown): Promise<SaveWriteOutcome>;
     /** Main asks for a save — quit, tray, autosave (07e). Returns teardown. */
     onSaveRequested(listener: () => void): () => void;
+  };
+  /** Updating (phase-15, ADR-025). No download or install is reachable here. */
+  readonly update: {
+    getState(): Promise<UpdateState>;
+    /** Sets or clears the pin. `null` clears it. */
+    setPinnedVersion(version: string | null): Promise<UpdateState>;
+    /**
+     * Subscribes to announcements. Returns teardown.
+     *
+     * Pushed, never polled: main's announcer decides the moment, holding an
+     * offer while the player is hidden or in work mode, so the renderer has no
+     * way to know when asking would be right.
+     */
+    onAnnouncement(listener: (announcement: UpdateAnnouncement) => void): () => void;
   };
   readonly app: {
     quit(): Promise<void>;
@@ -144,6 +160,23 @@ const api: DesktopLifeApi = {
       ipcRenderer.on(EventChannel.SaveRequested, handler);
       return () => {
         ipcRenderer.off(EventChannel.SaveRequested, handler);
+      };
+    },
+  },
+
+  update: {
+    getState: () => ipcRenderer.invoke(InvokeChannel.GetUpdateState) as Promise<UpdateState>,
+
+    setPinnedVersion: (version) =>
+      ipcRenderer.invoke(InvokeChannel.SetPinnedVersion, version) as Promise<UpdateState>,
+
+    onAnnouncement: (listener) => {
+      const handler = (_event: unknown, announcement: UpdateAnnouncement): void => {
+        listener(announcement);
+      };
+      ipcRenderer.on(EventChannel.UpdateAnnounced, handler);
+      return () => {
+        ipcRenderer.off(EventChannel.UpdateAnnounced, handler);
       };
     },
   },

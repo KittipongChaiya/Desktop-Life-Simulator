@@ -65,6 +65,16 @@ export const InvokeChannel = {
    * §3) — then runs the §7.1 six-step sequence.
    */
   SaveWrite: 'save:write',
+  /** Current update state — the pin and this build's version (phase-15). */
+  GetUpdateState: 'update:get-state',
+  /**
+   * Sets or clears the version pin (phase-15, ADR-025 §6).
+   *
+   * `null` clears it. Main sanitizes through `parseSettings`, so a renderer
+   * cannot smuggle a value past the bounds the settings file itself is held
+   * to — the same treatment opacity and motion get.
+   */
+  SetPinnedVersion: 'update:set-pinned-version',
   /** Quit the application. */
   Quit: 'app:quit',
 } as const;
@@ -97,6 +107,15 @@ export const EventChannel = {
    * arrives as this request; the renderer serializes and invokes SaveWrite.
    */
   SaveRequested: 'save:requested',
+  /**
+   * An update has something to say (phase-15, ADR-025 §5).
+   *
+   * Push rather than poll, because the moment is decided in main: the
+   * announcer holds an offer until presence allows it, so the renderer cannot
+   * know when to ask. Never an OS notification — this arrives at the in-overlay
+   * toast surface and nowhere else (`VISION.md` §5.1).
+   */
+  UpdateAnnounced: 'update:announced',
 } as const;
 
 export type EventChannel = (typeof EventChannel)[keyof typeof EventChannel];
@@ -190,6 +209,34 @@ export interface SavesOnDisk {
 export type SaveWriteOutcome =
   { readonly ok: true } | { readonly ok: false; readonly error: string; readonly path: string };
 
+/**
+ * What the renderer knows about updating (phase-15, ADR-025 §6).
+ *
+ * Deliberately NOT part of `CompanionState`. That object is the presence
+ * family — how much the overlay intrudes on the eye, the ear, the attention —
+ * and a pin intrudes on none of them. Riding along would have made the
+ * companion state mean "settings the panel happens to show".
+ */
+export interface UpdateState {
+  /** The version running now, so the UI can show what a pin is relative to. */
+  readonly currentVersion: string;
+  /** The version the player will not be moved past, or `null` for no pin. */
+  readonly pinnedVersion: string | null;
+}
+
+/**
+ * What an announcement says. Mirrors `update-announcer.ts`'s `Announcement`,
+ * restated here because this is the process boundary and the main-side type
+ * may not leak across it (ADR-003 §3).
+ *
+ * A refusal carries a finished MESSAGE rather than the refusal record: the
+ * wording belongs with the rule that produced it (`explainRefusal`), and the
+ * renderer's job is to show it, not to phrase it.
+ */
+export type UpdateAnnouncement =
+  | { readonly kind: 'offer'; readonly version: string }
+  | { readonly kind: 'refusal'; readonly message: string };
+
 export interface IpcContract {
   [InvokeChannel.SetCollapsed]: { request: boolean; response: OverlayState };
   [InvokeChannel.GetOverlayState]: { request: void; response: OverlayState };
@@ -204,9 +251,12 @@ export interface IpcContract {
   [InvokeChannel.PluginsDiscover]: { request: void; response: SourceDiscovery };
   [InvokeChannel.SaveLoad]: { request: void; response: SavesOnDisk };
   [InvokeChannel.SaveWrite]: { request: unknown; response: SaveWriteOutcome };
+  [InvokeChannel.GetUpdateState]: { request: void; response: UpdateState };
+  [InvokeChannel.SetPinnedVersion]: { request: string | null; response: UpdateState };
   [InvokeChannel.Quit]: { request: void; response: void };
   [SendChannel.SetClickThrough]: { request: boolean };
   [EventChannel.OverlayStateChanged]: { payload: OverlayState };
   [EventChannel.CompanionStateChanged]: { payload: CompanionState };
   [EventChannel.SaveRequested]: { payload: void };
+  [EventChannel.UpdateAnnounced]: { payload: UpdateAnnouncement };
 }
