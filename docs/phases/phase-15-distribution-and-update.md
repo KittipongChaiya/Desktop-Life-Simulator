@@ -19,9 +19,10 @@ The four become seven below, and every split falls on the same seam: a rule that
 | 2     | The offer policy: pin, staged rollout, and the boundary     | `15b`  |
 | 3     | The announcement gate: when an offer may reach the player   | `15c`  |
 | 4     | The pin, as a preference that survives a restart            | `15d`  |
-| 5     | Atomic replacement with interruption recovery               | _this_ |
-| 6     | Check and apply — IPC and the toast                         | —      |
-| 7     | Signing and the publish pipeline                            | —      |
+| 5     | Atomic replacement with interruption recovery               | `15e`  |
+| 6     | The announcer: an offer that outlives a busy moment         | _this_ |
+| 7     | Check and apply — IPC and the toast                         | —      |
+| 8     | Signing and the publish pipeline                            | —      |
 
 ---
 
@@ -81,7 +82,9 @@ Click-through is deliberately absent. It makes the overlay transparent to the mo
 
 ### The replacement was proven before the wiring that triggers it
 
-Boundaries 5 and 6 swapped, and the reason is worth recording rather than silently renumbering. "Check and apply" needs something to check: with no publish pipeline and no adopted library, its IPC and its toast could only be wired to a source that does not exist yet. The replacement sequence has no such dependency — it is disk arithmetic — so the phase's own rule applied again: build what can be _proven_ before what can only be _reviewed_.
+Boundaries 5 and 6 swapped, and the reason is worth recording rather than silently renumbering. The replacement sequence is disk arithmetic and depends on nothing outside itself, so the phase's own rule applied again: build what can be _proven_ before what can only be _reviewed_.
+
+The reason first given for the swap — that "check and apply" was **blocked** on a release source nobody had built — was wrong, and the correction is the more useful half. This project already answers that objection everywhere else: `save-store.ts` and `settings-store.ts` take the path as a parameter rather than calling `app.getPath`, which is what makes them provable without a host. A release source is the same shape. Injected, everything except the fetcher itself is testable today, and the dependency decision shrinks to the one component that genuinely needs it.
 
 It also puts the yardstick before the purchase. ADR-025 §7 says a library that cannot deliver §4's interruption recovery is not adopted; `install-store.test.ts` is what that sentence gets measured with.
 
@@ -96,6 +99,18 @@ Every step is a directory rename on one volume, so no directory ever holds half 
 A staged package is promoted **only when nothing is installed**. With `current/` present, `staged/` is a download the player has not applied, and installing it on launch would be the unasked-for update ADR-025 §5 forbids. With `current/` absent, the swap was interrupted and finishing it is completion, not a decision — the package was verified before anything moved (§4).
 
 Falling back to `previous/` is the last resort and is **not** ADR-025 §2's forbidden automatic rollback. That rule governs _choosing_ to move a player backwards; here it is the only launchable state that exists, and because the new build never ran, nothing migrated and the retained version still reads its own save. The schema hazard needs a migration to have happened, and an interrupted install is precisely the case where none did.
+
+### Once per version, not once per opportunity
+
+The announcer is the only part of this phase that needs memory, and the memory exists for one rule: a release is announced **once**, however many chances to announce it go by. Presence moves all day and an available release does not, so announcing on every opportunity would turn one release into a toast on every hotkey press — `VISION.md` §5.1's notification spammer arriving through the back door rather than the front.
+
+That is why `announced` stores what was last said rather than a boolean. A release the player has already been told about is not news; a genuinely newer one is.
+
+### A halt has to catch an offer that is still queued
+
+A verdict that earns silence clears anything pending. This is the halt doing exactly what ADR-025 §6 built it for: stopping an in-flight rollout **before more installs take it**. An offer that was queued behind work mode and then announced anyway would be a halt that arrived in time for everyone except the one player it could still have helped — the install that had not taken the update yet.
+
+It also decides what `pending` means. It is not a queue of things that were true once; it is the single thing that is still true and still unsaid, re-derived from the latest check.
 
 ### The save is outside the blast radius by construction
 
@@ -113,9 +128,9 @@ Falling back to `previous/` is the last resort and is **not** ADR-025 §2's forb
 
 - [x] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched — `src/main/rollback-guard.test.ts`
 - [x] No prompt appears while pinned, halted, outside the rollout wave, hidden, or in work mode — `src/main/update-policy.test.ts`
-- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — the sequence is proven against real directories in `src/main/install-store.test.ts`; the box stays open until boundary 7 re-runs it against a **packaged** installation, which is what the criterion says
-- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 6, once the recovery path is reachable from the UI
-- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 6, reusing phase-07e unchanged
-- [ ] A tampered artifact is rejected and the installation is untouched — boundary 7
-- [ ] No prompt is an OS notification — boundary 6; the surface is `CompanionToast.tsx`, which is in-overlay by construction
+- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — the sequence is proven against real directories in `src/main/install-store.test.ts`; the box stays open until boundary 8 re-runs it against a **packaged** installation, which is what the criterion says
+- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 7, once the recovery path is reachable from the UI
+- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 7, reusing phase-07e unchanged
+- [ ] A tampered artifact is rejected and the installation is untouched — boundary 8
+- [ ] No prompt is an OS notification — boundary 7; the surface is `CompanionToast.tsx`, which is in-overlay by construction
 - [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — `src/main/install-store.test.ts`
