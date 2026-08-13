@@ -105,6 +105,7 @@ function mount(
       pinCalls.push(version);
       return Promise.resolve({ ...update, pinnedVersion: version });
     },
+    apply: () => Promise.resolve('started'),
     onAnnouncement: () => () => undefined,
   };
 

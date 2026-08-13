@@ -20,11 +20,12 @@
  * would add nothing but a way for the two to disagree.
  */
 
-import type { UpdateAnnouncement, UpdateState } from '../../shared/ipc/contract';
+import type { ApplyUpdateResult, UpdateAnnouncement, UpdateState } from '../../shared/ipc/contract';
 
 export interface UpdateBridge {
   getState(): Promise<UpdateState>;
   setPinnedVersion(version: string | null): Promise<UpdateState>;
+  apply(): Promise<ApplyUpdateResult>;
   onAnnouncement(listener: (announcement: UpdateAnnouncement) => void): () => void;
 }
 
@@ -37,6 +38,10 @@ export interface UpdateController {
   setPinnedVersion(version: string | null): void;
   /** What is being announced, or `null`. Persists until dismissed. */
   announcement(): UpdateAnnouncement | null;
+  /** Consent to apply the announced update (ADR-025 §5). */
+  apply(): void;
+  /** Whether an attempt is in flight — the button's label comes from this. */
+  applying(): boolean;
   dismiss(): void;
   /** Subscribes to update state. Returns teardown. */
   subscribe(listener: () => void): () => void;
@@ -49,6 +54,7 @@ export function createUpdateController(bridge: UpdateBridge): UpdateController {
   const listeners = new Set<() => void>();
   let state: UpdateState = { currentVersion: UNKNOWN_VERSION, pinnedVersion: null };
   let announcement: UpdateAnnouncement | null = null;
+  let applying = false;
 
   const notify = (): void => {
     for (const listener of listeners) listener();
@@ -83,6 +89,37 @@ export function createUpdateController(bridge: UpdateBridge): UpdateController {
     },
 
     announcement: () => announcement,
+    applying: () => applying,
+
+    apply: () => {
+      // Guarded here as well as in main. Main's gate is the one that matters —
+      // it is what stops two quit saves racing — but a button that stayed
+      // pressable while a request was in flight would look broken long before
+      // it was refused.
+      if (applying) return;
+
+      applying = true;
+      notify();
+
+      void bridge
+        .apply()
+        .then((result) => {
+          // `started` means the process is on its way out, so the control
+          // stays as it is: offering the action again would invite a click
+          // into a shutdown already under way. Anything else means nothing
+          // happened, and the player is still here to try again — a refusal
+          // explaining why arrives on the announcement channel.
+          if (result === 'started') return;
+          applying = false;
+          notify();
+        })
+        .catch(() => {
+          // A rejected round trip would otherwise leave the button reading
+          // "Updating…" forever, describing something that is not happening.
+          applying = false;
+          notify();
+        });
+    },
 
     dismiss: () => {
       announcement = null;

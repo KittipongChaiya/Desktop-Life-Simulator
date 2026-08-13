@@ -157,6 +157,8 @@ The criterion is not new. `save-store.ts` states it as doctrine — the save dir
 
 **23 files, 1,378 lines, of which unit tests reached 34.** That ratio is the argument: the set is denominator with almost no numerator, so removing it moved nine thresholds up and none down. If a future addition to this register would lower a threshold, it is the wrong addition.
 
+**`src/main/updater.ts` is deliberately absent (phase-15).** It is a host binding by the first test — it is the only file that imports `electron-updater`, which imports `electron` — but no test can exercise it until there is a published release to download, so the second test refuses it and it stays measured at 0%. Adding it to the register with a detector that does not yet exist is the one thing `coverage-policy.config.ts` says that file must not be used for. Every decision it could have made lives in a tested module: `updater-config.ts`, `mayDownload`, and `update-restart.ts`.
+
 **`bootstrap/web-audio.ts` is deliberately absent.** It is a host binding by the criterion's first test — it is the one module that knows a sound is a file — but no test names it, so the second test refuses it and it stays measured at 0%. ADR-023 replaces it wholesale in phase-13; writing tests for a module with a scheduled deletion is not the answer, and neither is excluding it without a detector.
 
 ---

@@ -12,6 +12,7 @@ import {
   EventChannel,
   InvokeChannel,
   SendChannel,
+  type ApplyUpdateResult,
   type CompanionState,
   type OverlayState,
   type SavesOnDisk,
@@ -68,6 +69,14 @@ export interface DesktopLifeApi {
     getState(): Promise<UpdateState>;
     /** Sets or clears the pin. `null` clears it. */
     setPinnedVersion(version: string | null): Promise<UpdateState>;
+    /**
+     * Consent to apply the announced update (ADR-025 §5).
+     *
+     * Nothing downloads or restarts until this is called: the library's own
+     * `autoDownload` and `autoInstallOnAppQuit` are both off, so this is the
+     * only path from an offer to an installed build.
+     */
+    apply(): Promise<ApplyUpdateResult>;
     /**
      * Subscribes to announcements. Returns teardown.
      *
@@ -169,6 +178,8 @@ const api: DesktopLifeApi = {
 
     setPinnedVersion: (version) =>
       ipcRenderer.invoke(InvokeChannel.SetPinnedVersion, version) as Promise<UpdateState>,
+
+    apply: () => ipcRenderer.invoke(InvokeChannel.ApplyUpdate) as Promise<ApplyUpdateResult>,
 
     onAnnouncement: (listener) => {
       const handler = (_event: unknown, announcement: UpdateAnnouncement): void => {

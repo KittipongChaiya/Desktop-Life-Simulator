@@ -8,11 +8,12 @@
  * Everything upstream is a pure function of its arguments — the policy, the
  * guard, the announcer, the manifest parser, the check that composes them. So
  * this is where the guarantees stop being arithmetic and start being a running
- * process, and it is deliberately the smallest such place. Its four
- * dependencies are injected, which keeps it provable without a host: the tests
- * run the real schedule against fake timers and never touch Electron.
+ * process, and it is deliberately the smallest such place. Every dependency is
+ * injected, which keeps it provable without a host: the tests run the real
+ * schedule against fake timers, and the apply path against stubs, never
+ * touching Electron.
  *
- * `index.ts` supplies the four closures and nothing else. It decides nothing.
+ * `index.ts` supplies the closures and nothing else. It decides nothing.
  */
 
 import {
@@ -65,23 +66,52 @@ export interface UpdateServiceDeps {
   readonly presence: () => Presence;
   /** Delivers an announcement to the player. */
   readonly announce: (announcement: Announcement) => void;
+  /**
+   * Fetches and verifies one specific version. `false` for every reason it did
+   * not happen — unreachable feed, nothing offered, a different version.
+   */
+  readonly download: (version: string) => Promise<boolean>;
+  /** Saves, then hands the process to the installer (`update-restart.ts`). */
+  readonly restart: () => Promise<unknown>;
 }
+
+/** What `apply` did. `started` means the process is on its way out. */
+export type ApplyOutcome = 'started' | 'nothing-to-apply';
+
+/**
+ * Shown when a download the player asked for did not happen.
+ *
+ * The ONE place in this system where silence would be wrong. Everywhere else a
+ * failure is invisible because the player never asked — but here they pressed
+ * a button and are waiting, and `VISION.md` §5.1's promise is about unsolicited
+ * noise, not about answering a question that was put to us.
+ */
+const DOWNLOAD_FAILED =
+  'The update could not be downloaded. Your game is untouched — it will try again later.';
 
 export interface UpdateService {
   /** Runs one check. Never rejects — see below. */
   check(): Promise<void>;
   /** The player became available; release anything that was waiting. */
   presenceChanged(): void;
+  /** Consent given: download what was announced, then restart into it. */
+  apply(): Promise<ApplyOutcome>;
   /** Begins the schedule. Returns teardown. */
   start(): () => void;
 }
 
 export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
   let state: AnnouncerState = NO_ANNOUNCEMENT;
+  // The version the player was actually shown. Not "the latest": consent was
+  // given to one specific build, judged against their save, their pin, and
+  // their rollout wave.
+  let offeredVersion: string | null = null;
 
-  const apply = (step: AnnouncerStep): void => {
+  const applyStep = (step: AnnouncerStep): void => {
     state = step.state;
-    if (step.announce !== null) deps.announce(step.announce);
+    if (step.announce === null) return;
+    if (step.announce.kind === 'offer') offeredVersion = step.announce.version;
+    deps.announce(step.announce);
   };
 
   const service: UpdateService = {
@@ -93,7 +123,7 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
       // everything else, and the result is the same either way: a check that
       // could not be made changes nothing and says nothing.
       try {
-        apply(await checkForUpdate(deps.source, deps.inputs(), state, deps.presence()));
+        applyStep(await checkForUpdate(deps.source, deps.inputs(), state, deps.presence()));
       } catch {
         // Deliberately silent (ADR-025 §5, `VISION.md` §5.1). A failed check
         // is the most ordinary event this system has.
@@ -101,7 +131,27 @@ export function createUpdateService(deps: UpdateServiceDeps): UpdateService {
     },
 
     presenceChanged() {
-      apply(announceToPresence(state, deps.presence()));
+      applyStep(announceToPresence(state, deps.presence()));
+    },
+
+    async apply() {
+      // A refusal is not an offer, and neither is a check that has never run.
+      if (offeredVersion === null) return 'nothing-to-apply';
+
+      const downloaded = await deps.download(offeredVersion);
+      if (!downloaded) {
+        // Kept, not cleared: the feed may simply have been unreachable, and
+        // the player should be able to press the button again rather than
+        // wait six hours for the offer to be re-announced.
+        deps.announce({ kind: 'refusal', message: DOWNLOAD_FAILED });
+        return 'nothing-to-apply';
+      }
+
+      // Cleared before the restart, so a second click that beats the shutdown
+      // cannot start a second download of a package already staged.
+      offeredVersion = null;
+      await deps.restart();
+      return 'started';
     },
 
     start() {

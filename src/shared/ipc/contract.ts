@@ -75,6 +75,16 @@ export const InvokeChannel = {
    * to — the same treatment opacity and motion get.
    */
   SetPinnedVersion: 'update:set-pinned-version',
+  /**
+   * Consent to apply the announced update (phase-15, ADR-025 §5).
+   *
+   * An INVOKE rather than a send, because the answer is immediate and the
+   * player is waiting on a button: `started` means the download began and the
+   * process is on its way out, `nothing-to-apply` means it did not. What
+   * happened next, if anything went wrong, arrives on `UpdateAnnounced` as a
+   * refusal — the same surface that offered the update in the first place.
+   */
+  ApplyUpdate: 'update:apply',
   /** Quit the application. */
   Quit: 'app:quit',
 } as const;
@@ -233,6 +243,14 @@ export interface UpdateState {
  * wording belongs with the rule that produced it (`explainRefusal`), and the
  * renderer's job is to show it, not to phrase it.
  */
+/**
+ * Whether consent actually started something (phase-15, ADR-025 §5).
+ *
+ * Restated here rather than importing main's `ApplyOutcome`: this is a process
+ * boundary, and a main-side type may not cross it (ADR-003 §3).
+ */
+export type ApplyUpdateResult = 'started' | 'nothing-to-apply';
+
 export type UpdateAnnouncement =
   | { readonly kind: 'offer'; readonly version: string }
   | { readonly kind: 'refusal'; readonly message: string };
@@ -253,6 +271,7 @@ export interface IpcContract {
   [InvokeChannel.SaveWrite]: { request: unknown; response: SaveWriteOutcome };
   [InvokeChannel.GetUpdateState]: { request: void; response: UpdateState };
   [InvokeChannel.SetPinnedVersion]: { request: string | null; response: UpdateState };
+  [InvokeChannel.ApplyUpdate]: { request: void; response: ApplyUpdateResult };
   [InvokeChannel.Quit]: { request: void; response: void };
   [SendChannel.SetClickThrough]: { request: boolean };
   [EventChannel.OverlayStateChanged]: { payload: OverlayState };

@@ -83,6 +83,12 @@ export function CompanionToast(): ReactNode {
     hidden: companion.hidden(),
   });
 
+  const applying = useSyncExternalStore(
+    (listener) => update.subscribe(listener),
+    () => update.applying(),
+    () => update.applying(),
+  );
+
   const announcement = useSyncExternalStore(
     (listener) => update.subscribe(listener),
     () => update.announcement(),
@@ -143,7 +149,27 @@ export function CompanionToast(): ReactNode {
       data-interactive
       data-testid="update-notice"
     >
-      <span className={styles['promptText']}>{announcementText(announcement)}</span>
+      <span className={styles['promptText']}>
+        {applying ? 'Updating — the game will restart.' : announcementText(announcement)}
+      </span>
+
+      {/* Only an OFFER can be acted on. A refusal has nothing to install, and
+          a button beside it would be offering to do the thing just explained
+          as impossible. The label says RESTART out loud: ADR-025 §5 is "never
+          restart unasked", and a button reading only "Update" would be asking
+          for one thing and doing two. */}
+      {announcement.kind === 'offer' && !applying && (
+        <button
+          type="button"
+          className={styles['action']}
+          onClick={() => {
+            update.apply();
+          }}
+        >
+          Update and restart
+        </button>
+      )}
+
       <button
         type="button"
         className={styles['dismiss']}

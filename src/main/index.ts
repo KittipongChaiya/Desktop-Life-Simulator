@@ -45,7 +45,14 @@ import {
 } from './settings-schema';
 import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
 import { manifestUrl } from './update-feed';
+import { createRestartGate } from './update-restart';
 import { createUpdateService, type UpdateService } from './update-service';
+import {
+  configureUpdater,
+  downloadApprovedUpdate,
+  installAndRestart,
+  isUpdateReady,
+} from './updater';
 
 /** `userData/plugins` — where installed content sources live (phase-09d). */
 function pluginsDir(): string {
@@ -394,6 +401,14 @@ function registerIpc(): void {
     return toggleMuted();
   });
 
+  ipcMain.handle(InvokeChannel.ApplyUpdate, async (_event, payload: unknown) => {
+    validateVoid(payload, InvokeChannel.ApplyUpdate);
+    // The one path from an offer to an installed build: the library's own
+    // `autoDownload` and `autoInstallOnAppQuit` are both off (ADR-025 §5), so
+    // nothing moves until the player says so and this handler runs.
+    return (await updates?.apply()) ?? 'nothing-to-apply';
+  });
+
   ipcMain.handle(InvokeChannel.GetUpdateState, (_event, payload: unknown) => {
     validateVoid(payload, InvokeChannel.GetUpdateState);
     return updateState();
@@ -509,6 +524,10 @@ function bootstrap(): void {
   // The update check (phase-15, ADR-025 §5, §6). Every decision it makes lives
   // in a tested module; this supplies four closures and a transport, and
   // decides nothing itself.
+  // Overrides the library's defaults before anything can act on them
+  // (`updater-config.ts` records why two of them are disqualifying).
+  configureUpdater();
+
   updates = createUpdateService({
     source: createReleaseSource((url) => fetch(url), manifestUrl()),
     // Read per check, never captured: the pin can change at any moment, and
@@ -524,6 +543,18 @@ function bootstrap(): void {
       if (overlay === null || overlay.isDestroyed()) return;
       overlay.webContents.send(EventChannel.UpdateAnnounced, announcement);
     },
+    download: (version) => downloadApprovedUpdate(version),
+    // An update restart IS a quit and takes the same path (ADR-025 §5), so the
+    // gate reuses phase-07e's coordinator rather than opening a second route
+    // to shutdown. `saves` is null only if bootstrap failed, in which case
+    // there is no world to serialize and nothing to wait for.
+    restart: () =>
+      createRestartGate({
+        isUpdateReady,
+        saveTimeoutMs: QUIT_SAVE_TIMEOUT_MS,
+        saveAndWait: (timeoutMs) => saves?.fireAndWait(timeoutMs) ?? Promise.resolve('unavailable'),
+        installAndRestart,
+      }).request(),
   });
   stopUpdates = updates.start();
 

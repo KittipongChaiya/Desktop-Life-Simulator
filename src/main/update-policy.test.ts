@@ -16,6 +16,7 @@ import {
   compareVersions,
   decideOffer,
   deriveRolloutBucket,
+  mayDownload,
   type InstallState,
   type OfferedRelease,
 } from './update-policy';
@@ -252,5 +253,36 @@ describe('an announcement waits for a player who said they are busy', () => {
     // just become available to be asked.
     expect(announcementTiming({ hidden: true, workMode: true })).toBe('wait');
     expect(announcementTiming({ hidden: false, workMode: false })).toBe('now');
+  });
+});
+
+describe('mayDownload (phase-15, ADR-025 §2, §3)', () => {
+  it('agrees when the feed offers exactly what the policy approved', () => {
+    expect(mayDownload('0.2.1', '0.2.1')).toBe(true);
+  });
+
+  it('refuses a feed offering something newer than the policy judged', () => {
+    // The two sources can disagree: our manifest is edited by hand to halt or
+    // widen a wave, electron-builder's feed is regenerated on every publish.
+    // A newer feed version is one NO rollback guard, pin, or rollout check has
+    // ever seen — downloading it would apply a build the policy never judged,
+    // which is ADR-025 §2 bypassed by a race between two files.
+    expect(mayDownload('0.2.1', '0.2.2')).toBe(false);
+  });
+
+  it('refuses a feed offering something older', () => {
+    expect(mayDownload('0.2.1', '0.2.0')).toBe(false);
+  });
+
+  it('refuses when the feed offers nothing at all', () => {
+    expect(mayDownload('0.2.1', undefined)).toBe(false);
+  });
+
+  it('compares exactly, not by ordering', () => {
+    // Deliberately `===` rather than `compareVersions`. The question is not
+    // "is this acceptable" — that was settled by `decideOffer` against a
+    // specific release. It is "is this the SAME artifact", and equality is the
+    // only answer that cannot drift from what the player was told.
+    expect(mayDownload('0.2.1', ' 0.2.1 ')).toBe(false);
   });
 });

@@ -67,6 +67,7 @@ function mount(): Harness {
     getState: () => Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: null }),
     setPinnedVersion: (version) =>
       Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: version }),
+    apply: () => Promise.resolve('started'),
     onAnnouncement(next) {
       announced = next;
       return () => {
@@ -286,5 +287,44 @@ describe('the update prompt (phase-15, ADR-025 §5)', () => {
       vi.advanceTimersByTime(3_000); // past the "Work mode off" confirmation
     });
     expect(screen.getByTestId('update-notice')).toBeDefined();
+  });
+});
+
+describe('the prompt can be acted on (phase-15, ADR-025 §5)', () => {
+  const OFFER: UpdateAnnouncement = { kind: 'offer', version: '0.2.1' };
+
+  it('offers to update and restart', () => {
+    const harness = mount();
+    harness.announce(OFFER);
+
+    expect(screen.getByRole('button', { name: /update and restart/iu })).toBeDefined();
+  });
+
+  it('says the restart out loud, because that is the part that costs something', () => {
+    // ADR-025 §5 is "never restart unasked". A button labelled only "Update"
+    // would be asking for one thing and doing two.
+    const harness = mount();
+    harness.announce(OFFER);
+
+    expect(screen.getByTestId('update-notice').textContent).toContain('restart');
+  });
+
+  it('reports that it is working once pressed', () => {
+    const harness = mount();
+    harness.announce(OFFER);
+
+    act(() => {
+      screen.getByRole('button', { name: /update and restart/iu }).click();
+    });
+
+    expect(screen.getByTestId('update-notice').textContent).toContain('Updating');
+  });
+
+  it('offers nothing to press on a refusal — there is nothing to install', () => {
+    const harness = mount();
+    harness.announce({ kind: 'refusal', message: 'This version cannot open your farm.' });
+
+    expect(screen.queryByRole('button', { name: /update and restart/iu })).toBeNull();
+    expect(screen.getByRole('button', { name: /dismiss/iu })).toBeDefined();
   });
 });

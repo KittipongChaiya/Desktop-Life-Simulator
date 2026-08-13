@@ -42,6 +42,8 @@ function harness(overrides: Partial<UpdateServiceDeps> = {}) {
     inputs: () => inputs,
     presence: () => presence,
     announce: (announcement) => announced.push(announcement),
+    download: () => Promise.resolve(true),
+    restart: () => Promise.resolve(),
     ...overrides,
   };
 
@@ -265,5 +267,104 @@ describe('the schedule', () => {
     // process someone will notice in a network monitor, which is its own kind
     // of intrusion (`VISION.md` §5.1).
     expect(CHECK_INTERVAL_MS).toBeGreaterThanOrEqual(60 * 60_000);
+  });
+});
+
+describe('applying what was announced', () => {
+  it('does nothing when no offer has been announced', async () => {
+    const download = vi.fn(() => Promise.resolve(true));
+    const h = harness({ download });
+
+    await expect(h.service.apply()).resolves.toBe('nothing-to-apply');
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it('downloads exactly the version the player was shown', async () => {
+    // Not "the latest". The player consented to a specific build, and it is
+    // the one `decideOffer` judged against their save, their pin, and their
+    // rollout wave.
+    const download = vi.fn(() => Promise.resolve(true));
+    const h = harness({ download });
+    await h.service.check();
+
+    await expect(h.service.apply()).resolves.toBe('started');
+    expect(download).toHaveBeenCalledWith('0.2.1');
+  });
+
+  it('restarts once the download has been verified', async () => {
+    const restart = vi.fn(() => Promise.resolve());
+    const h = harness({ restart });
+    await h.service.check();
+
+    await h.service.apply();
+
+    expect(restart).toHaveBeenCalledTimes(1);
+  });
+
+  it('never restarts when the download did not happen', async () => {
+    // `downloadApprovedUpdate` answers false for an unreachable feed, a feed
+    // offering nothing, and a feed offering a different version. Restarting
+    // after any of those would hand the process to an installer with no
+    // verified package behind it.
+    const restart = vi.fn(() => Promise.resolve());
+    const h = harness({ download: () => Promise.resolve(false), restart });
+    await h.service.check();
+
+    await h.service.apply();
+
+    expect(restart).not.toHaveBeenCalled();
+  });
+
+  it('tells the player when the download failed, rather than going quiet', async () => {
+    // The one place in this system where silence would be wrong. Everywhere
+    // else a failed check is invisible because the player never asked; here
+    // they clicked a button and are waiting for something to happen.
+    const h = harness({ download: () => Promise.resolve(false) });
+    await h.service.check();
+    h.announced.length = 0;
+
+    await h.service.apply();
+
+    expect(h.announced).toHaveLength(1);
+    expect(h.announced[0]?.kind).toBe('refusal');
+  });
+
+  it('says nothing extra when the download succeeded — the restart is the answer', async () => {
+    const h = harness();
+    await h.service.check();
+    h.announced.length = 0;
+
+    await h.service.apply();
+
+    expect(h.announced).toEqual([]);
+  });
+
+  it('forgets the offer once applied, so a second click cannot re-download', async () => {
+    const download = vi.fn(() => Promise.resolve(true));
+    const h = harness({ download });
+    await h.service.check();
+    await h.service.apply();
+
+    await expect(h.service.apply()).resolves.toBe('nothing-to-apply');
+    expect(download).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the offer after a failed download, so the player can try again', async () => {
+    let ok = false;
+    const h = harness({ download: () => Promise.resolve(ok) });
+    await h.service.check();
+    await h.service.apply();
+
+    ok = true;
+    await expect(h.service.apply()).resolves.toBe('started');
+  });
+
+  it('has nothing to apply after a refusal, which is not an offer', async () => {
+    const h = harness({
+      inputs: () => ({ ...INPUTS, saveVersion: 9 }),
+    });
+    await h.service.check();
+
+    await expect(h.service.apply()).resolves.toBe('nothing-to-apply');
   });
 });

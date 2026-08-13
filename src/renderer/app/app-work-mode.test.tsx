@@ -95,6 +95,7 @@ function mount(initial: BridgeState): { emit(next: BridgeState): void } {
           getState: () => Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: null }),
           setPinnedVersion: (version) =>
             Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: version }),
+          apply: () => Promise.resolve('started'),
           onAnnouncement: () => () => undefined,
         })}
         save={createSaveController({

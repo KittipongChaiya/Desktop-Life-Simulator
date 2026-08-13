@@ -11,25 +11,27 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become fifteen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become seventeen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
-| Order | Boundary                                                       | Commit |
-| ----- | -------------------------------------------------------------- | ------ |
-| 1     | The schema-bounded rollback guard (§4 of the roadmap's set)    | `15a`  |
-| 2     | The offer policy: pin, staged rollout, and the boundary        | `15b`  |
-| 3     | The announcement gate: when an offer may reach the player      | `15c`  |
-| 4     | The pin, as a preference that survives a restart               | `15d`  |
-| 5     | Atomic replacement with interruption recovery                  | `15e`  |
-| 6     | The announcer: an offer that outlives a busy moment            | `15f`  |
-| 7     | The check: the policy, the announcer, and an injected source   | `15g`  |
-| 8     | The update state crosses the boundary — IPC, preload, main     | `15h`  |
-| 9     | The renderer's view: an announcement that does not expire      | `15i`  |
-| 10    | The announcement reaches the player: the slot's second variant | `15j`  |
-| 11    | The pin control, and the E2E that proves the boundary          | `15k`  |
-| 12    | The signing exception, with an expiry that bites               | `15l`  |
-| 13    | The publish target, the dependency, and the §7 measurement     | `15m`  |
-| 14    | The release source: a manifest the policy can actually read    | _this_ |
-| 15    | The check runs: main's schedule, and a live announcement       | _this_ |
+| Order | Boundary                                                         | Commit |
+| ----- | ---------------------------------------------------------------- | ------ |
+| 1     | The schema-bounded rollback guard (§4 of the roadmap's set)      | `15a`  |
+| 2     | The offer policy: pin, staged rollout, and the boundary          | `15b`  |
+| 3     | The announcement gate: when an offer may reach the player        | `15c`  |
+| 4     | The pin, as a preference that survives a restart                 | `15d`  |
+| 5     | Atomic replacement with interruption recovery                    | `15e`  |
+| 6     | The announcer: an offer that outlives a busy moment              | `15f`  |
+| 7     | The check: the policy, the announcer, and an injected source     | `15g`  |
+| 8     | The update state crosses the boundary — IPC, preload, main       | `15h`  |
+| 9     | The renderer's view: an announcement that does not expire        | `15i`  |
+| 10    | The announcement reaches the player: the slot's second variant   | `15j`  |
+| 11    | The pin control, and the E2E that proves the boundary            | `15k`  |
+| 12    | The signing exception, with an expiry that bites                 | `15l`  |
+| 13    | The publish target, the dependency, and the §7 measurement       | `15m`  |
+| 14    | The release source: a manifest the policy can actually read      | _this_ |
+| 15    | The check runs: main's schedule, and a live announcement         | `15n`  |
+| 16    | The restart gate: a save finishes before the process is replaced | `15o`  |
+| 17    | The apply action: the binding, the button, and the round trip    | _this_ |
 
 ---
 
@@ -374,3 +376,45 @@ Neither number is in the ADR, so both are recorded here.
 So both read `package.json`'s `repository`, and `update-feed.test.ts` asserts they still agree. The failure it prevents is silent and total: a client fetching from a repository nobody publishes to checks forever, finds nothing, and is indistinguishable from a product that simply has no updates.
 
 `releases/latest/download/...` resolves server-side, so a build from v0.2.0 finds the v0.9 manifest without being rebuilt — a versioned URL would freeze each build's view of the world at the moment it compiled.
+
+### The library imports last, and imports once
+
+`src/main/updater.ts` is the only file that names `electron-updater`, and it arrived at boundary 17 of 17. Everything it could have been asked to decide had already been decided somewhere with tests:
+
+- **whether a build may be applied** — `update-policy.ts`, `rollback-guard.ts`;
+- **whether this is the artifact that was approved** — `mayDownload`;
+- **whether the process may be replaced now** — `update-restart.ts`.
+
+What is left is four small functions that configure, download, report, and hand off. That is the shape ADR-025 §7 was arguing for when it made the dependency conditional — not "use a library carefully" but "own the guarantees, and let the library own the transport."
+
+It is **not** in `coverage-policy.config.ts`. That register admits a module only when a named test exercises it, and none can until there is a published release to download. So it stays measured, uncovered, and recorded as a gap in `TESTING.md` §4.2 beside `bootstrap/web-audio.ts` — which is the honest shape rather than an exclusion bought with a promise.
+
+### The two sources can disagree, and `mayDownload` is where that is caught
+
+`update-manifest.json` is hand-edited to halt a rollout or widen a wave. `latest.yml` is regenerated on every publish. There is a window where the feed has moved on and the manifest has not, and in that window the feed's version is one **no** rollback guard, pin, or rollout check has ever seen.
+
+Downloading it would apply a build the policy never judged — ADR-025 §2's schema boundary bypassed by a race between two files, with the player told about one version and given another.
+
+It compares with `===` rather than `compareVersions`, deliberately. The question is not _is this acceptable_ — `decideOffer` settled that against one specific release. It is _is this the same artifact_, and only equality cannot drift from what the player was shown.
+
+### A restart is a quit, so it uses the quit's machinery
+
+ADR-025 §5 says so literally, and the temptation was to write a second shutdown path anyway — one that felt more "update-shaped". `update-restart.ts` instead calls phase-07e's coordinator exactly as `before-quit` does: fire the save, wait, capped at three seconds.
+
+It restarts **even when the save did not settle**, and that is not §1's precedence rule being bent. `SAVE_FORMAT.md` §7.1 keeps a previous good save on disk throughout, so a timeout costs the last few seconds of play and never the farm. The alternative — a renderer that has stopped answering can veto every future update, including the one that fixes it — is the worse save-integrity outcome, which is the same argument §Alternatives E makes about shipping an updater at all.
+
+Readiness is checked before the save, because a save blocks a renderer frame to serialize and paying that for a restart that cannot happen is a stutter in exchange for nothing.
+
+### The one place silence would have been wrong
+
+Every other failure in this system is invisible: a check that could not run says nothing, a malformed manifest says nothing, a held offer says nothing. All of that is `VISION.md` §5.1 being kept.
+
+A failed **download** is different, and it is the single exception. The player pressed a button and is watching for something to happen. §5.1's promise is about unsolicited noise, not about declining to answer a question that was put to us — so the failure comes back as a refusal on the announcement channel, on the same surface that made the offer.
+
+The offer is kept rather than cleared, so the button comes back. The feed may simply have been unreachable, and making the player wait six hours for a re-announcement would be punishing them for our network.
+
+### The button says "restart", because that is the part that costs something
+
+ADR-025 §5 is "never restart unasked". A control labelled only **Update** would be asking for one thing and doing two, and the second one closes their farm.
+
+Only an offer gets the button. A refusal has nothing to install, so putting one beside it would be offering to do the thing just explained as impossible — and it is styled differently from Dismiss, because two identical buttons where one closes a farm and the other closes a message is a mis-click waiting to happen.

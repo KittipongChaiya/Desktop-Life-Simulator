@@ -8,7 +8,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { UpdateAnnouncement } from '../../shared/ipc/contract';
+import type { ApplyUpdateResult, UpdateAnnouncement } from '../../shared/ipc/contract';
 
 import { createUpdateController, type UpdateBridge } from './update-controller';
 
@@ -21,6 +21,7 @@ function bridge(overrides: Partial<UpdateBridge> = {}) {
     getState: () => Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: null }),
     setPinnedVersion: (version) =>
       Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: version }),
+    apply: () => Promise.resolve<ApplyUpdateResult>('started'),
     onAnnouncement: (listener) => {
       announce = listener;
       return () => undefined;
@@ -171,5 +172,78 @@ describe('subscription', () => {
     fire(OFFER);
 
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe('applying', () => {
+  it('is not applying until asked', () => {
+    const { bridge: b } = bridge();
+
+    expect(createUpdateController(b).applying()).toBe(false);
+  });
+
+  it('tells main, and says so immediately', () => {
+    const apply = vi.fn(() => Promise.resolve<ApplyUpdateResult>('started'));
+    const { bridge: b } = bridge({ apply });
+    const controller = createUpdateController(b);
+    const listener = vi.fn();
+    controller.subscribe(listener);
+
+    controller.apply();
+
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(controller.applying()).toBe(true);
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it('stays applying when main says the restart started', async () => {
+    // The process is on its way out. Letting the button become pressable again
+    // would invite a second click into a shutdown already under way.
+    const { bridge: b } = bridge({ apply: () => Promise.resolve('started') });
+    const controller = createUpdateController(b);
+
+    controller.apply();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(controller.applying()).toBe(true);
+  });
+
+  it('becomes pressable again when nothing happened', async () => {
+    // A failed download answers `nothing-to-apply` and pushes a refusal to the
+    // same surface. The player is still here, so the button has to come back —
+    // otherwise the one thing they can do about it is restart the game.
+    const { bridge: b } = bridge({ apply: () => Promise.resolve('nothing-to-apply') });
+    const controller = createUpdateController(b);
+
+    controller.apply();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(controller.applying()).toBe(false);
+  });
+
+  it('does not ask twice while one attempt is in flight', () => {
+    const apply = vi.fn(() => Promise.resolve<ApplyUpdateResult>('started'));
+    const { bridge: b } = bridge({ apply });
+    const controller = createUpdateController(b);
+
+    controller.apply();
+    controller.apply();
+
+    expect(apply).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers if the bridge itself fails', async () => {
+    // An IPC round trip that rejects would otherwise leave the button stuck
+    // reading "Updating…" forever, describing something that is not happening.
+    const { bridge: b } = bridge({ apply: () => Promise.reject(new Error('no channel')) });
+    const controller = createUpdateController(b);
+
+    controller.apply();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(controller.applying()).toBe(false);
   });
 });

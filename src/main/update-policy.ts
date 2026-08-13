@@ -189,3 +189,26 @@ export type AnnouncementTiming = 'now' | 'wait';
 export function announcementTiming(presence: Presence): AnnouncementTiming {
   return presence.hidden || presence.workMode ? 'wait' : 'now';
 }
+
+/**
+ * Whether the artifact the feed is offering is the one the policy approved.
+ *
+ * Phase-15, ADR-025 §2/§3. Two sources describe a release and they can
+ * disagree: `update-manifest.json` is edited by hand to halt a rollout or
+ * widen a wave, while electron-builder's `latest.yml` is regenerated on every
+ * publish. A window exists where the feed has moved on and the manifest has
+ * not.
+ *
+ * In that window the feed's version is one **no** rollback guard, pin, or
+ * rollout check has ever seen. Downloading it would apply a build the policy
+ * never judged — §2's schema boundary bypassed by a race between two files,
+ * and the player told about one version while receiving another.
+ *
+ * Deliberately `===` and not `compareVersions`. The question here is not "is
+ * this acceptable", which `decideOffer` already settled against one specific
+ * release; it is "is this the SAME artifact", and only equality cannot drift
+ * from what the player was shown.
+ */
+export function mayDownload(approvedVersion: string, versionFromFeed: string | undefined): boolean {
+  return versionFromFeed !== undefined && versionFromFeed === approvedVersion;
+}

@@ -9,6 +9,7 @@
 import type { MotionSettings } from '../motion';
 
 import type {
+  ApplyUpdateResult,
   CompanionState,
   OverlayState,
   SavesOnDisk,
@@ -60,6 +61,7 @@ declare global {
       readonly update: {
         getState(): Promise<UpdateState>;
         setPinnedVersion(version: string | null): Promise<UpdateState>;
+        apply(): Promise<ApplyUpdateResult>;
         onAnnouncement(listener: (announcement: UpdateAnnouncement) => void): () => void;
       };
       readonly app: {
