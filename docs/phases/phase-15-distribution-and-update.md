@@ -11,7 +11,7 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become fourteen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become fifteen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
 | Order | Boundary                                                       | Commit |
 | ----- | -------------------------------------------------------------- | ------ |
@@ -27,8 +27,9 @@ The four become fourteen below, and every split falls on the same seam: a rule t
 | 10    | The announcement reaches the player: the slot's second variant | `15j`  |
 | 11    | The pin control, and the E2E that proves the boundary          | `15k`  |
 | 12    | The signing exception, with an expiry that bites               | `15l`  |
-| 13    | The publish target, the dependency, and the §7 measurement     | _this_ |
-| 14    | The release source: a feed the policy can actually read        | —      |
+| 13    | The publish target, the dependency, and the §7 measurement     | `15m`  |
+| 14    | The release source: a manifest the policy can actually read    | _this_ |
+| 15    | The check runs: main's schedule, and a live announcement       | —      |
 
 ---
 
@@ -280,3 +281,46 @@ The open question this phase now ends on, and it is a design decision rather tha
 - **`rolloutPercent`** (§6) — the wave. The library has its own `stagingPercentage`, but it buckets installs by a persistent random id it writes to disk, where ADR-025 §6 requires a bucket derived locally and never stored as an identifier. `deriveRolloutBucket` already satisfies that and is tested.
 
 So the release source needs a source of truth the feed does not provide, and choosing it is boundary 14's decision — not something to settle by writing code and discovering the format afterwards.
+
+### The halt is the reason the manifest is separate
+
+The manifest looked like a workaround for something `latest.yml` could not carry. It is the better shape, and ADR-025 §6 is what says so:
+
+> **A staged rollout can be halted.** Publishing a halt must be able to stop an in-flight rollout **before more installs take it**, which is the only mitigation that works after a bad build has been signed.
+
+Halting therefore means editing four lines of JSON and re-uploading one small file. No rebuild, no re-publish of binaries, nothing to sign, and no release cycle. A halt that had to travel inside the generated feed would have meant regenerating the artifact the download itself depends on — the slowest possible path for the one operation that has to be the fastest.
+
+The second-order benefit is that the format is ours. `schemaVersion` exists because §2's guard needs the **target build's** number, and nothing in electron-builder's output was ever going to grow that field.
+
+### One bad field refuses the whole manifest
+
+There is no repair path, and both obvious ones fail in a specific direction:
+
+- defaulting `halted` to `false` would let a manifest that **lost** its halt flag resume a rollout somebody deliberately stopped — §6's mitigation failing open, which is the one way it must never fail;
+- clamping a nonsense `rolloutPercent` would deliver a build to a population the publisher did not choose.
+
+So an unreadable manifest is not acted on, which is ADR-025 §1 at its cheapest: integrity outranks delivery, and doing nothing is always available.
+
+Exactly four fields are read and everything else is ignored. That is forward compatibility in the safe direction — a future publisher can add a field without older clients refusing every release, while an older client still never guesses at something it does not understand (`AI_RULES.md` §2.4).
+
+### The version's format is checked one layer in, and only there
+
+`parseReleaseManifest` accepts `nightly-2026-08-13`. That is not a hole.
+
+`compareVersions` accepts strict `major.minor.patch` and answers `null` for anything else, and a null propagates to a hold — so the rule exists already, at the layer that owns the comparison needing it. Restating it in the parser would put one decision in two places, which is how two places come to disagree.
+
+This is the same division the pin draws three times over: the IPC boundary asks _is this the shape of a version_, the schema asks _did the player ask for it_, and the policy asks _can it be ordered_. Each layer answers the question it can actually answer.
+
+### A 404 is not a withdrawal
+
+The source rejects on any response that is not `ok`, rather than reading a missing manifest as "nothing on offer".
+
+Both readings are defensible and one is much worse when wrong. A deleted manifest and a typo in the URL produce identical evidence, so treating the case as a withdrawal makes a **permanently broken updater indistinguishable from a permanently quiet one** — it would look exactly like a product with no updates to give, forever, and nothing would ever say otherwise.
+
+Withdrawal keeps its own unambiguous expression, `halted: true`, so §6's halt loses nothing by this being strict. And it preserves boundary 7's distinction intact: answering "nothing" is evidence, failing to answer is not.
+
+### §7's dependency turned out not to need one
+
+ADR-025 §7 named the release source as the component that would need `electron-updater`. It needs nothing: the manifest is a small JSON document over HTTPS, so the transport is `fetch` and the parsing is ours — injected, and therefore proven without a host or a network like everything else in this phase.
+
+What the library actually owns is the half after this one: download, SHA-512 verification, and handoff to the installer for the version the policy already approved. That is a narrower dependency than §7 anticipated, and it is narrow in the direction the ADR wanted — the policy is not the library's to hold.
