@@ -14,6 +14,8 @@ import type {
   SavesOnDisk,
   SaveWriteOutcome,
   SourceDiscovery,
+  UpdateAnnouncement,
+  UpdateState,
 } from './contract';
 
 declare global {
@@ -45,6 +47,20 @@ declare global {
         load(): Promise<SavesOnDisk>;
         write(document: unknown): Promise<SaveWriteOutcome>;
         onSaveRequested(listener: () => void): () => void;
+      };
+      /**
+       * Updating (phase-15, ADR-025 §5/§6).
+       *
+       * The pin is POLLED and the announcement is PUSHED, and the asymmetry is
+       * the design: a pin is a value the UI reads when it renders, while an
+       * announcement is a moment decided in main — the announcer holds an offer
+       * while the player is hidden or in work mode and releases it when they
+       * return, which a poll would either miss or have to spin to catch.
+       */
+      readonly update: {
+        getState(): Promise<UpdateState>;
+        setPinnedVersion(version: string | null): Promise<UpdateState>;
+        onAnnouncement(listener: (announcement: UpdateAnnouncement) => void): () => void;
       };
       readonly app: {
         quit(): Promise<void>;

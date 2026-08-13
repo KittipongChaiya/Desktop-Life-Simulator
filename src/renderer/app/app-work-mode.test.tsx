@@ -26,6 +26,7 @@ import { createSaveController } from './save-controller';
 import { createSeedSelection } from './seed-selection';
 import { AppProviders } from './store-context';
 import { createToolSelection } from './tool-selection';
+import { createUpdateController } from './update-controller';
 
 interface BridgeState {
   readonly opacityPercent: number;
@@ -90,6 +91,12 @@ function mount(initial: BridgeState): { emit(next: BridgeState): void } {
         placement={createPlacementController()}
         seeds={createSeedSelection()}
         companion={createCompanionController(bridge)}
+        update={createUpdateController({
+          getState: () => Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: null }),
+          setPinnedVersion: (version) =>
+            Promise.resolve({ currentVersion: '0.2.0', pinnedVersion: version }),
+          onAnnouncement: () => () => undefined,
+        })}
         save={createSaveController({
           write: () => Promise.resolve({ ok: true }),
           defer: (run) => run(),

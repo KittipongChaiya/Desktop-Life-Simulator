@@ -56,6 +56,7 @@ import { setSourceReport } from '../app/source-report';
 import { AppProviders } from '../app/store-context';
 import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
+import { createUpdateController } from '../app/update-controller';
 import { createWorkerSelection } from '../app/worker-selection';
 import {
   DEFAULT_SHAKE,
@@ -337,6 +338,10 @@ function composeApplication(world: World, session: SaveSession): void {
   // Desktop-companion state (01.8a): app preferences behind main-process IPC —
   // the one controller whose writes never touch the world (ADR-014 §3).
   const companion = createCompanionController(window.desktopLife.companion);
+  // Updating (15, ADR-025). A second controller rather than a field on the
+  // companion: the presence family governs how much of your attention the
+  // overlay may take, and a version pin governs none of it.
+  const update = createUpdateController(window.desktopLife.update);
 
   // Sound (07.5a, ADR-016). The bus reads the companion's dials at PLAY time,
   // so a volume change or a work-mode toggle takes effect on the next sound
@@ -829,6 +834,7 @@ function composeApplication(world: World, session: SaveSession): void {
         sound={sound}
         tools={tools}
         actionFeedback={actionFeedback}
+        update={update}
       >
         <App />
       </AppProviders>

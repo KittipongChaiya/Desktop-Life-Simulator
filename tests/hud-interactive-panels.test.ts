@@ -33,8 +33,8 @@ function interactiveComponents(): { name: string; css: string }[] {
     readdirSync(HUD)
       .filter((file) => file.endsWith('.tsx') && !file.includes('.test.'))
       .map((file) => ({ file, source: readFileSync(join(HUD, file), 'utf8') }))
-      // The attribute in JSX, not the word in a comment: CompanionToast
-      // documents at length that it is deliberately NOT interactive.
+      // The attribute in JSX, not the word in a comment: several of these
+      // files document at length why they are deliberately NOT interactive.
       .filter((entry) => /<[^>]*\sdata-interactive[\s/>]/.test(entry.source))
       .map((entry) => {
         const name = entry.file.replace(/\.tsx$/, '');
@@ -60,13 +60,12 @@ describe('every panel that claims `data-interactive`', () => {
 });
 
 describe('panels that are deliberately untouchable', () => {
-  it.each([['CompanionToast'], ['SaveNotice']])(
+  it.each([['SaveNotice'], ['ActionNotice']])(
     '%s neither claims interactivity nor opts into pointer events',
     (name) => {
-      // The other half of the contract. These two report; they never ask. A
-      // toast that intercepted a click would flip the very hit-testing state
-      // it is confirming, and a save-failure notice must not block the farm
-      // underneath it.
+      // The other half of the contract. These report; they never ask. A
+      // save-failure notice must not block the farm underneath it, and an
+      // explanation of a refused click must not intercept the next attempt.
       const source = readFileSync(join(HUD, `${name}.tsx`), 'utf8');
       const css = readFileSync(join(HUD, `${name}.module.css`), 'utf8');
 
@@ -74,4 +73,25 @@ describe('panels that are deliberately untouchable', () => {
       expect(css).toContain('pointer-events: none');
     },
   );
+});
+
+describe('the notification slot holds two lifetimes (phase-15)', () => {
+  // `CompanionToast` LEFT the list above, and that is a design change rather
+  // than a guard being relaxed. The file is now the slot rather than one
+  // occupant of it: a confirmation still must never take the mouse, and the
+  // update prompt must, because it has to receive the click that dismisses it
+  // (ADR-025 §5).
+  //
+  // A source regex cannot say which element carries which — it never could;
+  // it only ever asked whether the attribute appeared anywhere in the file.
+  // What it CAN still hold is that both answers are present, so a future edit
+  // that made the whole slot interactive, or the prompt untouchable, fails
+  // here. Which element gets which is asserted against the rendered DOM in
+  // `companion-toast.test.tsx`, where the question is actually answerable.
+  it('CompanionToast declares both hit-testing answers', () => {
+    const css = readFileSync(join(HUD, 'CompanionToast.module.css'), 'utf8');
+
+    expect(css).toContain('pointer-events: none');
+    expect(css).toContain('pointer-events: auto');
+  });
 });

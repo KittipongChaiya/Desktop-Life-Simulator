@@ -11,21 +11,22 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become eleven below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become twelve below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
-| Order | Boundary                                                     | Commit |
-| ----- | ------------------------------------------------------------ | ------ |
-| 1     | The schema-bounded rollback guard (§4 of the roadmap's set)  | `15a`  |
-| 2     | The offer policy: pin, staged rollout, and the boundary      | `15b`  |
-| 3     | The announcement gate: when an offer may reach the player    | `15c`  |
-| 4     | The pin, as a preference that survives a restart             | `15d`  |
-| 5     | Atomic replacement with interruption recovery                | `15e`  |
-| 6     | The announcer: an offer that outlives a busy moment          | `15f`  |
-| 7     | The check: the policy, the announcer, and an injected source | `15g`  |
-| 8     | The update state crosses the boundary — IPC, preload, main   | `15h`  |
-| 9     | The renderer's view: an announcement that does not expire    | _this_ |
-| 10    | The pin control and the persistent toast                     | —      |
-| 11    | Signing and the publish pipeline                             | —      |
+| Order | Boundary                                                       | Commit |
+| ----- | -------------------------------------------------------------- | ------ |
+| 1     | The schema-bounded rollback guard (§4 of the roadmap's set)    | `15a`  |
+| 2     | The offer policy: pin, staged rollout, and the boundary        | `15b`  |
+| 3     | The announcement gate: when an offer may reach the player      | `15c`  |
+| 4     | The pin, as a preference that survives a restart               | `15d`  |
+| 5     | Atomic replacement with interruption recovery                  | `15e`  |
+| 6     | The announcer: an offer that outlives a busy moment            | `15f`  |
+| 7     | The check: the policy, the announcer, and an injected source   | `15g`  |
+| 8     | The update state crosses the boundary — IPC, preload, main     | `15h`  |
+| 9     | The renderer's view: an announcement that does not expire      | `15i`  |
+| 10    | The announcement reaches the player: the slot's second variant | _this_ |
+| 11    | The pin control, and the E2E that proves the boundary          | —      |
+| 12    | Signing and the publish pipeline                               | —      |
 
 ---
 
@@ -161,6 +162,32 @@ Main's announcer already recorded that this version was announced, so it will no
 
 This is the payoff from "once per version, not once per opportunity" being settled in the announcer: because main will not repeat itself, the renderer is free to forget.
 
+### The slot became the component, and the guard moved with it
+
+`CompanionToast.tsx` used to be one occupant of a slot; it is now the slot itself, with two occupants that share a shell and disagree about hit-testing. That is a real change to a stated invariant, so it is recorded here rather than absorbed.
+
+`tests/hud-interactive-panels.test.ts` caught it, which is the system working. Its rule was _"this file contains no `data-interactive` anywhere"_, and the update prompt has to carry one — it is dismissible, and a dismiss button that is not a hit target is precisely the return-summary bug that test was written for.
+
+What replaced it is narrower and truer. The source regex never could say **which** element carried the attribute; it only asked whether the file mentioned it. So the file-level check now asserts that both answers are present — `pointer-events: none` for the confirmation and `auto` for the prompt — and a future edit that made the whole slot interactive, or the prompt untouchable, still fails. Which element gets which is asserted against the rendered DOM in `companion-toast.test.tsx`, where the question is actually answerable.
+
+`SaveNotice` keeps the strict rule, and `ActionNotice` joined it: it was always pointer-transparent and always meant to be, and nothing was holding it there.
+
+### Work mode withholds an announcement it cannot un-announce
+
+The announcer already refuses to deliver while the player is hidden or in work mode. This is the same rule arriving from the other direction: an offer already on screen when work mode **starts**.
+
+It is withheld, not dismissed. ADR-014's rule for a summary suppressed by a hidden HUD is that it _defers rather than vanishes_, and the alternative here is worse than for a summary — the announcement is the only notice the player will get for this version, because main will not repeat itself. Clearing it on a hotkey press would silently spend the one announcement ADR-025 §5 allows.
+
+The confirmation keeps the slot while it lasts, for the mirror-image reason. A receipt is about this second and deferring it would make a hotkey look unregistered; a prompt is not about this second, so it waits underneath and comes back.
+
+### A namespace on the bridge that nothing could reach
+
+Boundary `15h` added the `update` namespace to `src/preload/index.ts` and stopped there. `window.desktopLife` is typed in `src/shared/ipc/global.d.ts` — deliberately, so E2E tests driving the real bridge see the same shape — and that file was not touched, so the renderer could not name the namespace that existed.
+
+Nothing failed. The preload compiles against its own `DesktopLifeApi`, the contract test only checks channel names, and no renderer code had asked for it yet. It surfaced here on the first line that did.
+
+Worth carrying: the boundary is described in three files and a commit that changes two of them is incomplete without saying so. The gap was invisible for exactly as long as nobody used the feature — which is the definition of the kind of gap a type system is supposed to prevent.
+
 ### The save is outside the blast radius by construction
 
 `install-store.ts` takes the installation root as a parameter, so it has no way to name the save directory — the same structural argument `rollback-guard.ts` makes about not being able to touch a save. The test still plants a real save file beside a real installation and re-reads it byte-for-byte after a halt at every step, because ADR-025 §4 lists four ways an updater could touch one (moved, migrated, backed up, cleaned) and a guarantee worth having is worth failing loudly.
@@ -181,5 +208,5 @@ This is the payoff from "once per version, not once per opportunity" being settl
 - [ ] A pre-migration backup restored into the older build loads and continues correctly — the **apply** boundary, once the recovery path is reachable from the UI
 - [ ] An update restart requested mid-save waits for the write and never truncates it — the **apply** boundary, reusing phase-07e unchanged
 - [ ] A tampered artifact is rejected and the installation is untouched — the **publish** boundary
-- [ ] No prompt is an OS notification — the **apply** boundary; the surface is `CompanionToast.tsx`, which is in-overlay by construction
+- [x] No prompt is an OS notification — the surface is `CompanionToast.tsx`, which is in-overlay by construction: it is a `div` inside the React root, and the renderer has no path to a `Notification` at all. `src/renderer/app/hud/companion-toast.test.tsx` asserts what it shows and when
 - [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — `src/main/install-store.test.ts`

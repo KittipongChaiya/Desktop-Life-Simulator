@@ -19,6 +19,7 @@ import type { ReturnSummaryController } from './return-summary';
 import type { SaveController } from './save-controller';
 import type { SeedSelection } from './seed-selection';
 import type { ToolSelection } from './tool-selection';
+import type { UpdateController } from './update-controller';
 import type { WorkerSelection } from './worker-selection';
 
 interface AppServices {
@@ -44,6 +45,14 @@ interface AppServices {
   readonly tools: ToolSelection;
   /** Why the last action was refused (07.5i). Silence was the bug. */
   readonly actionFeedback: ActionFeedback;
+  /**
+   * The version running, the pin, and what main is announcing (15, ADR-025).
+   *
+   * Its own service rather than a field on the companion: `CompanionState` is
+   * the presence family — how much of your attention the overlay may take —
+   * and a version pin intrudes on none of it.
+   */
+  readonly update: UpdateController;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);
@@ -61,6 +70,7 @@ export interface AppProvidersProps {
   readonly sound: SoundBus;
   readonly tools: ToolSelection;
   readonly actionFeedback: ActionFeedback;
+  readonly update: UpdateController;
   readonly children: ReactNode;
 }
 
@@ -77,6 +87,7 @@ export function AppProviders({
   sound,
   tools,
   actionFeedback,
+  update,
   children,
 }: AppProvidersProps): ReactNode {
   return (
@@ -94,6 +105,7 @@ export function AppProviders({
         sound,
         tools,
         actionFeedback,
+        update,
       }}
     >
       {children}
@@ -155,4 +167,8 @@ export function useToolSelection(): ToolSelection {
 
 export function useActionFeedback(): ActionFeedback {
   return useServices().actionFeedback;
+}
+
+export function useUpdate(): UpdateController {
+  return useServices().update;
 }
