@@ -1,6 +1,10 @@
 {
   "name": "desktop-life-simulator",
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KittipongChaiya/Desktop-Life-Simulator.git"
+  },
   "description": "A desktop idle life simulator that lives at the bottom of your screen.",
   "private": true,
   "type": "module",

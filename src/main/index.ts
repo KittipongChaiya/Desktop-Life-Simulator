@@ -32,7 +32,8 @@ import { applyHidden, applyOpacity, globalShortcutRegistrar } from './desktop-co
 import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
 import { discoverSources } from './plugin-discovery';
-import { atomicWriteSave, readSavesForLoad, slotPath } from './save-store';
+import { createReleaseSource } from './release-source';
+import { atomicWriteSave, readSaveSchemaVersion, readSavesForLoad, slotPath } from './save-store';
 import { createSaveCoordinator, type SaveCoordinator } from './save-triggers';
 import { loadSettings, saveSettings } from './settings';
 import {
@@ -43,6 +44,8 @@ import {
   type AppSettings,
 } from './settings-schema';
 import { createShortcutManager, type ShortcutManager } from './shortcut-manager';
+import { manifestUrl } from './update-feed';
+import { createUpdateService, type UpdateService } from './update-service';
 
 /** `userData/plugins` — where installed content sources live (phase-09d). */
 function pluginsDir(): string {
@@ -52,6 +55,24 @@ function pluginsDir(): string {
 /** `userData/saves` — never hardcoded (`PROJECT_STRUCTURE.md` §7). */
 function savesDir(): string {
   return join(app.getPath('userData'), 'saves');
+}
+
+/**
+ * The string the rollout bucket is derived from (phase-15, ADR-025 §6).
+ *
+ * §6 asks for something "the machine already has" — nothing generated, nothing
+ * stored, and nothing that could become an identifier. The profile path
+ * qualifies on all three: it exists because the app has to write settings
+ * somewhere, it is stable across restarts, and it distinguishes two installs
+ * on one machine, which a hostname would not.
+ *
+ * It never leaves this function. `deriveRolloutBucket` turns it into one
+ * integer in 0–99, and even that is never transmitted — the publisher moves
+ * `rolloutPercent` and each install answers for itself, which is what lets the
+ * staged rollout work with no telemetry at all.
+ */
+function rolloutSeed(): string {
+  return app.getPath('userData');
 }
 
 let overlay: BrowserWindow | null = null;
@@ -79,6 +100,9 @@ let collapsedBeforeWorkMode: boolean | null = null;
 let shortcuts: ShortcutManager | null = null;
 let stopWatchingDisplays: (() => void) | null = null;
 let saves: SaveCoordinator | null = null;
+/** The update check's schedule (phase-15, ADR-025 §5). Null until bootstrap. */
+let updates: UpdateService | null = null;
+let stopUpdates: (() => void) | null = null;
 // Whether the quit-time save has already been awaited. `before-quit` runs
 // again after we re-issue the quit, and a second save there would be a write
 // with no world left to describe.
@@ -179,6 +203,12 @@ function broadcastCompanionState(): void {
   if (overlay !== null && !overlay.isDestroyed()) {
     overlay.webContents.send(EventChannel.CompanionStateChanged, companionState());
   }
+
+  // Work mode and quick hide both land here, which makes this the one funnel
+  // where the player stops being busy (ADR-025 §5). An offer held back while
+  // they were away is released now — the announcer is idempotent, so the
+  // opacity and volume changes that also pass through say nothing.
+  updates?.presenceChanged();
 }
 
 /**
@@ -476,6 +506,27 @@ function bootstrap(): void {
   });
   saves.start();
 
+  // The update check (phase-15, ADR-025 §5, §6). Every decision it makes lives
+  // in a tested module; this supplies four closures and a transport, and
+  // decides nothing itself.
+  updates = createUpdateService({
+    source: createReleaseSource((url) => fetch(url), manifestUrl()),
+    // Read per check, never captured: the pin can change at any moment, and
+    // the save's schema version changes the first time a migration runs.
+    inputs: () => ({
+      currentVersion: app.getVersion(),
+      saveVersion: readSaveSchemaVersion(savesDir()),
+      pinnedVersion: settings.update.pinnedVersion,
+      seed: rolloutSeed(),
+    }),
+    presence: () => ({ hidden, workMode: settings.desktop.workMode }),
+    announce: (announcement) => {
+      if (overlay === null || overlay.isDestroyed()) return;
+      overlay.webContents.send(EventChannel.UpdateAnnounced, announcement);
+    },
+  });
+  stopUpdates = updates.start();
+
   // Global hotkeys, resolved through the one manager (fix/0.1/1.8a.md).
   // Failures are non-fatal by policy: the feature degrades and the tray
   // remains the fallback (ADR-014 §5.2). Quick hide defaults to F10 because
@@ -538,6 +589,9 @@ app.on('before-quit', (event) => {
 
   saves?.stop();
   saves = null;
+  stopUpdates?.();
+  stopUpdates = null;
+  updates = null;
   saveSettings(settings);
   tray?.destroy();
   tray = null;

@@ -3,7 +3,7 @@
 > **Delivers:** the game can update itself without ever endangering a save.
 > **Governing decisions:** ADR-025 (distribution and update), ADR-015 §3–§4 (migration governance and the forward refusal), ADR-027 (the v0.2 schema chain and the pre-migration backup), ADR-014 (the main-process platform service this is a capability of).
 > **Schema:** none. This phase adds no persisted world state and no migration.
-> **Status:** **In progress.** The decisions are landed; the machinery is not.
+> **Status:** **In progress.** The machinery is built and live; what remains is proving §4 against a packaged installation.
 
 ---
 
@@ -29,7 +29,7 @@ The four become fifteen below, and every split falls on the same seam: a rule th
 | 12    | The signing exception, with an expiry that bites               | `15l`  |
 | 13    | The publish target, the dependency, and the §7 measurement     | `15m`  |
 | 14    | The release source: a manifest the policy can actually read    | _this_ |
-| 15    | The check runs: main's schedule, and a live announcement       | —      |
+| 15    | The check runs: main's schedule, and a live announcement       | _this_ |
 
 ---
 
@@ -324,3 +324,53 @@ Withdrawal keeps its own unambiguous expression, `halted: true`, so §6's halt l
 ADR-025 §7 named the release source as the component that would need `electron-updater`. It needs nothing: the manifest is a small JSON document over HTTPS, so the transport is `fetch` and the parsing is ours — injected, and therefore proven without a host or a network like everything else in this phase.
 
 What the library actually owns is the half after this one: download, SHA-512 verification, and handoff to the installer for the version the policy already approved. That is a narrower dependency than §7 anticipated, and it is narrow in the direction the ADR wanted — the policy is not the library's to hold.
+
+### The service is the only thing in the chain that remembers
+
+Fourteen boundaries produced pure functions of their arguments — the guard, the policy, the announcer, the manifest parser, the check that composes them. `update-service.ts` is the first that holds anything, and it holds exactly two: what the announcer has already said, and the timer.
+
+That is why its tests are the first that could prove certain things at all. "Announce a version once, however many checks go by" is not a property of `announceVerdict` — that function is given a state and returns one. It is a property of the same state surviving twenty-eight six-hourly calls, and only something stateful can be wrong about it.
+
+Its four dependencies are injected, so the real schedule runs against fake timers and never touches Electron. `index.ts` supplies four closures and a transport, and decides nothing.
+
+### The inputs are closures, because both halves move
+
+`inputs` is a function rather than a value, and the reason is a bug that would have been invisible. A pin set at 10am must take effect at 10am, not at the next relaunch — and the save's schema version changes the first time a migration runs, mid-session, which is precisely when the rollback guard most needs the new number.
+
+Capturing either at construction would have produced an updater that was correct on the day it started and quietly wrong afterwards.
+
+### A background check may never reject
+
+`check()` swallows everything, and that is not defensive padding. It runs on a timer with nobody holding the promise, so an unhandled rejection takes down the main process — over a save file that happened to be locked, or a settings read that raced a write.
+
+`checkForUpdate` already absorbs a failing source. This absorbs the rest, and the outcome is identical either way: a check that could not be made changes nothing and says nothing.
+
+### Presence has one funnel, and it was already there
+
+`broadcastCompanionState` is called by work mode and by quick hide, which makes it the single place the player stops being busy. The service's `presenceChanged()` hangs off it rather than off three separate hotkey handlers.
+
+Opacity, volume, and motion changes pass through it too and say nothing, because `announceToPresence` is idempotent — with nothing pending it returns the state it was given. That is the announcer's design paying for itself: the funnel did not have to learn which changes are presence changes.
+
+### The rollout seed is something the machine already has
+
+ADR-025 §6 asks for a bucket that is stable, locally derived, and not an identifier. The profile path satisfies all three without anything being generated or stored: it exists because the app has to write settings somewhere, it survives restarts, and it distinguishes two installs on one machine where a hostname would not.
+
+It never leaves `rolloutSeed()`. `deriveRolloutBucket` reduces it to one integer in 0–99, and even that is never transmitted — the publisher moves `rolloutPercent`, each install answers for itself, and nothing has to be counted.
+
+This is also the concrete contrast with `electron-updater`'s own `stagingPercentage`, which buckets by a random id it writes to disk. That is a persistent per-install identifier, which is the thing §6 declines to create.
+
+### Two minutes, then six hours
+
+Neither number is in the ADR, so both are recorded here.
+
+**Not at launch.** Startup is already contending for disk — the save load, plugin discovery, the renderer's first frame — and ADR-025 §1 ranks update speed below every one of them. A check landing in the first seconds would also announce into a UI still mounting.
+
+**Six hours** is a compromise between two forces pulling opposite ways. A halt only reaches an install on its next check, so a shorter interval propagates one faster; but an updater polling every few minutes is a background process someone will eventually notice in a network monitor, which is its own kind of intrusion. Six hours reaches most installs within a working day, and with `autoDownload` off, every install that has merely been offered a build is still one the halt can help.
+
+### The feed address is written twice on purpose
+
+`electron-builder.yml` resolves the repository at publish time; the client needs the address at run time, from a bundle built long before that release existed. The two cannot be collapsed into one place.
+
+So both read `package.json`'s `repository`, and `update-feed.test.ts` asserts they still agree. The failure it prevents is silent and total: a client fetching from a repository nobody publishes to checks forever, finds nothing, and is indistinguishable from a product that simply has no updates.
+
+`releases/latest/download/...` resolves server-side, so a build from v0.2.0 finds the v0.9 manifest without being rebuilt — a versioned URL would freeze each build's view of the world at the moment it compiled.
