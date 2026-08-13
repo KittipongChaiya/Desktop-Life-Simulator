@@ -262,7 +262,9 @@ The useful part is that nothing would have caught it. §7.3 promised an audit ga
 
 This is exactly the shape §7 anticipated — _"the gaps are implemented rather than the guarantees relaxed"_ — and it is why the release source was built as an injected parameter three boundaries before the library existed. The policy is not the library's to hold.
 
-**Also not delivered: the feed cannot carry the fields the policy needs.** `OfferedRelease` requires `schemaVersion` (§2) and `halted` (§6); electron-builder's generated `latest.yml` carries neither, and there is no supported way to add them. That is an open design question, not a defect in the library.
+**Also not delivered: the feed cannot carry the fields the policy needs.** `OfferedRelease` requires `schemaVersion` (§2) and `halted` (§6); electron-builder's generated `latest.yml` carries neither, and there is no supported way to add them. That is not a defect in the library — it is a gap the project fills.
+
+Resolved by publishing a second, tiny artifact. `scripts/write-update-manifest.mjs` writes `update-manifest.json` beside the installer, and `release-source.ts` reads it; the generated feed keeps the job it is good at, which is the artifact and its SHA-512. The separation turns out to be the better shape rather than a workaround: halting a rollout is editing one small JSON file and re-uploading it, with no rebuild and nothing to sign, which is the only way §6's _"before more installs take it"_ is cheap enough to use in anger.
 
 ---
 

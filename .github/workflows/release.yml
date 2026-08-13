@@ -1,0 +1,94 @@
+name: Release
+
+# Phase-15 — ADR-025 §6, ADR-028.
+#
+# Publishes an installer to GitHub Releases and the update manifest beside it.
+# Two artifacts, because they answer different questions: electron-builder's
+# `latest.yml` says what version exists and carries the SHA-512 that ADR-028 §2
+# keeps fatal, while `update-manifest.json` carries the schema version, the
+# rollout wave, and the halt flag — none of which the generated feed can hold
+# (TECH_STACK.md §7.4).
+#
+# MANUAL, not on a tag push. ADR-025 §6 stages a rollout the publisher widens
+# as a build proves itself, so the wave is an input someone chooses rather than
+# a default something picked. A release nobody decided the size of is the thing
+# this design exists to prevent.
+#
+# To HALT a rollout, do not run this. Edit `halted` to true in the published
+# `update-manifest.json` and re-upload that one file — no rebuild, nothing to
+# sign. Installs that have not taken the build stop being offered it on their
+# next check.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollout:
+        description: 'Percentage of installs offered this build (0-100)'
+        required: true
+        default: '10'
+
+jobs:
+  publish:
+    # Windows-first (VISION.md §5.1). The artifact only exists for Windows, and
+    # NSIS packaging must run where it ships.
+    runs-on: windows-latest
+    permissions:
+      # electron-builder uploads the installer, latest.yml, and the manifest.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The same gate CI runs. A release is the one build where a shipped
+      # advisory reaches players rather than a developer (TECH_STACK.md §7.3).
+      - name: Audit shipped dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verify
+        run: npm run typecheck && npm run lint && npm test
+
+      # Written BEFORE the publish so electron-builder uploads it in the same
+      # release. A manifest that arrived afterwards would leave a window where
+      # clients see a version they cannot judge — and `mayDownload` would
+      # correctly refuse it, which looks identical to a broken updater.
+      - name: Write the update manifest
+        run: npm run release:manifest -- --rollout=${{ inputs.rollout }}
+
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release
+
+      # electron-builder publishes what it built; the manifest is ours, so it
+      # is attached explicitly. `--clobber` because re-running a publish for the
+      # same version must replace the asset rather than fail on a duplicate.
+      - name: Attach the update manifest to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          gh release upload "v${version}" release/update-manifest.json --clobber
+
+      # UNSIGNED under ADR-028 — the v0.2 signing exception. Stated in the run
+      # log so a publisher sees it every time rather than only in a document.
+      # `tests/signing-exception.test.ts` fails the Verify step above once the
+      # version reaches 0.3.0 and signing has still not landed.
+      #
+      # The release is left as a DRAFT deliberately (electron-builder's default
+      # for this provider). Nothing is offered to anyone until a human promotes
+      # it, which is one more place ADR-025 §1's ordering gets a say — and with
+      # the publisher signature deferred, a person looking at the artifacts once
+      # before they go out is cheap insurance.
+      - name: Note the signing exception
+        shell: bash
+        run: |
+          echo "::warning::This release is UNSIGNED (ADR-028). Windows SmartScreen will warn on first install."

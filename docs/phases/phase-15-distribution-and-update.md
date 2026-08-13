@@ -11,7 +11,7 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become seventeen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become eighteen below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
 | Order | Boundary                                                         | Commit |
 | ----- | ---------------------------------------------------------------- | ------ |
@@ -232,7 +232,7 @@ The third case — clearing a pin — is there because `null` has to reach the s
 - [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — the sequence is proven against real directories in `src/main/install-store.test.ts`; the box stays open until the **publish** boundary re-runs it against a packaged installation, which is what the criterion says
 - [ ] A pre-migration backup restored into the older build loads and continues correctly — the **apply** boundary, once the recovery path is reachable from the UI
 - [ ] An update restart requested mid-save waits for the write and never truncates it — the **apply** boundary, reusing phase-07e unchanged
-- [ ] A tampered artifact is rejected and the installation is untouched — the **publish** boundary
+- [ ] A tampered artifact is rejected and the installation is untouched — the mechanism now exists (electron-builder writes a SHA-512 per artifact into `latest.yml`; `electron-updater` verifies it before emitting `update-downloaded`, and `updater.ts` treats that event as the only thing that marks a package ready). Demonstrating it needs a published release and a deliberately corrupted artifact, so the box stays open
 - [x] No prompt is an OS notification — the surface is `CompanionToast.tsx`, which is in-overlay by construction: it is a `div` inside the React root, and the renderer has no path to a `Notification` at all. `src/renderer/app/hud/companion-toast.test.tsx` asserts what it shows and when
 - [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — `src/main/install-store.test.ts`
 
@@ -418,3 +418,41 @@ The offer is kept rather than cleared, so the button comes back. The feed may si
 ADR-025 §5 is "never restart unasked". A control labelled only **Update** would be asking for one thing and doing two, and the second one closes their farm.
 
 Only an offer gets the button. A refusal has nothing to install, so putting one beside it would be offering to do the thing just explained as impossible — and it is styled differently from Dismiss, because two identical buttons where one closes a farm and the other closes a message is a mis-click waiting to happen.
+
+### The producer and the consumer are tested against each other, not against fixtures
+
+`update-manifest.json` is written by a `.mjs` build script and read by TypeScript inside the shipped binary. Two halves of one format, in two languages, with nothing between them.
+
+So the test builds a manifest with the **real producer** and feeds it to the **real consumer**. Checking each against its own fixture would have let them drift, and the drift would be invisible in the worst possible way: `parseReleaseManifest` refuses a manifest it cannot read, and refusing is exactly what it is supposed to do — so a producer emitting the wrong shape would publish a release every client silently declines, with nothing anywhere looking broken.
+
+The JSON round trip is asserted separately, because the script writes text and the client parses text; an in-memory comparison alone would miss anything JSON cannot carry.
+
+### The schema version is extracted from source, and the extraction is guarded
+
+`schemaVersion` has to describe **this build**, so the script reads `CURRENT_SCHEMA_VERSION` out of `src/persistence/schema.ts` with a regex rather than restating it.
+
+A regex over TypeScript is crude, and duplicating the number would be worse. A manifest claiming a schema the binary does not read makes the rollback guard confidently wrong in both directions — refusing safe updates, or allowing one that orphans a farm. So the test imports the real constant and asserts the extraction agrees with it: changing the declaration breaks the suite rather than the release.
+
+### The wave has no default
+
+`--rollout` is required and the script exits non-zero without it. ADR-025 §6 describes a wave the publisher widens as a build proves itself, so choosing one on their behalf would be deciding how many farms take an unproven release.
+
+It is the same reasoning `parseReleaseManifest` uses on the reading side, where a nonsense `rolloutPercent` refuses the whole manifest rather than being clamped. Both ends of the format fail the same way on purpose: no value is better than an invented one.
+
+`halted` is always written `false`, because a halted release is not something you publish — it is something you do to a release already out. Writing `true` at publish time would upload a build nobody can ever be offered.
+
+### The pipeline is manual, and the release is a draft
+
+Two brakes, both deliberate.
+
+**Manual**, because a tag push would publish whatever wave was hardcoded, which is the default the previous section refuses. The rollout is a `workflow_dispatch` input someone types.
+
+**Draft**, which is electron-builder's default for this provider and is left alone. `releases/latest/download/...` only resolves to a published release, so nothing is offered to anyone until a human promotes it. With the publisher signature deferred under ADR-028, one person looking at the artifacts before they go out is cheap insurance.
+
+The manifest is written **before** the publish so it uploads in the same release. Arriving afterwards would leave a window where clients see a version they cannot judge — and `mayDownload` would correctly refuse it, which is indistinguishable from a broken updater.
+
+### Halting needs no pipeline at all
+
+Worth stating where a publisher will look for it: **do not re-run the workflow to halt a rollout.** Edit `halted` to `true` in the published `update-manifest.json` and re-upload that one file.
+
+No rebuild, no binary re-publish, nothing to sign, no CI run. Installs that have not taken the build stop being offered it on their next check — which, with `autoDownload` off, is every install that has merely been told about it. That is ADR-025 §6's _"before more installs take it"_ made cheap enough to actually use in the minutes after a bad build goes out.
