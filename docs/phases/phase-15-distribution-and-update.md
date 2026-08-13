@@ -11,7 +11,7 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become ten below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become eleven below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
 | Order | Boundary                                                     | Commit |
 | ----- | ------------------------------------------------------------ | ------ |
@@ -22,9 +22,10 @@ The four become ten below, and every split falls on the same seam: a rule that c
 | 5     | Atomic replacement with interruption recovery                | `15e`  |
 | 6     | The announcer: an offer that outlives a busy moment          | `15f`  |
 | 7     | The check: the policy, the announcer, and an injected source | `15g`  |
-| 8     | The update state crosses the boundary — IPC, preload, main   | _this_ |
-| 9     | The pin control and the persistent toast                     | —      |
-| 10    | Signing and the publish pipeline                             | —      |
+| 8     | The update state crosses the boundary — IPC, preload, main   | `15h`  |
+| 9     | The renderer's view: an announcement that does not expire    | _this_ |
+| 10    | The pin control and the persistent toast                     | —      |
+| 11    | Signing and the publish pipeline                             | —      |
 
 ---
 
@@ -145,6 +146,20 @@ The payload restates `Announcement` rather than importing it, because this is a 
 `validateNullableString` accepts `'the one that works'`. That is not a gap in the guard — it is the same division of labour the settings schema draws, one layer further out. This layer answers _is this the shape of a pin_; `settings-schema.ts` answers _did the player ask to be held_; `update-policy.ts` answers _can it be ordered against a release_.
 
 Rejecting an unparseable pin here would have failed the call, left the old pin in place or none at all, and told the player nothing — an integrity question settled by a type check at the outermost layer that knows the least about it.
+
+### A confirmation expires; a prompt does not
+
+`CompanionToast` clears itself after 2,400 ms, and that is right for what it does: "Work mode on" is a **receipt** for something the player just did, and a receipt should get out of the way.
+
+An update announcement is a **prompt**, and the same behaviour would be a bug. A player who looked away for three seconds would have silently declined an update, and the failure it produces — "the game never updates" — is worse and far harder to notice than the one auto-dismissal exists to prevent. ADR-025 §5 calls the announcement _dismissible_, which only means anything if it is still there to dismiss.
+
+So the two surfaces share a slot and not a lifetime. Both replace rather than queue, because two stacked prompts is exactly the spam this product refuses to become.
+
+### Dismissal is local, and main is never told
+
+Main's announcer already recorded that this version was announced, so it will not offer it again. A dismissal round trip would add no information — only a second place for the two sides to disagree about what the player has seen.
+
+This is the payoff from "once per version, not once per opportunity" being settled in the announcer: because main will not repeat itself, the renderer is free to forget.
 
 ### The save is outside the blast radius by construction
 
