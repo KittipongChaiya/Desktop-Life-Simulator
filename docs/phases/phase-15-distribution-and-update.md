@@ -11,18 +11,19 @@
 
 `ROADMAP.md` §11 sets four. They are being built **in the reverse of that order**, and the reason is ADR-025 §7: _"a library that cannot deliver §2's schema-bounded rollback, §4's interruption recovery, and §5's restart discipline is not adopted, and the gaps are implemented rather than the guarantees relaxed."_ A dependency can only be judged against that if the guarantees exist as something executable first. So the rules are written and proven in Node, and `electron-updater` is then measured against a test suite rather than against prose.
 
-The four become seven below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
+The four become nine below, and every split falls on the same seam: a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2). §11's third boundary — "rollback boundary, pinning, and staged rollout" — is three commits here for exactly that reason; the pin's arithmetic, its announcement rule, and the preference that remembers it fail in different ways and are worth reverting independently.
 
-| Order | Boundary                                                    | Commit |
-| ----- | ----------------------------------------------------------- | ------ |
-| 1     | The schema-bounded rollback guard (§4 of the roadmap's set) | `15a`  |
-| 2     | The offer policy: pin, staged rollout, and the boundary     | `15b`  |
-| 3     | The announcement gate: when an offer may reach the player   | `15c`  |
-| 4     | The pin, as a preference that survives a restart            | `15d`  |
-| 5     | Atomic replacement with interruption recovery               | `15e`  |
-| 6     | The announcer: an offer that outlives a busy moment         | _this_ |
-| 7     | Check and apply — IPC and the toast                         | —      |
-| 8     | Signing and the publish pipeline                            | —      |
+| Order | Boundary                                                     | Commit |
+| ----- | ------------------------------------------------------------ | ------ |
+| 1     | The schema-bounded rollback guard (§4 of the roadmap's set)  | `15a`  |
+| 2     | The offer policy: pin, staged rollout, and the boundary      | `15b`  |
+| 3     | The announcement gate: when an offer may reach the player    | `15c`  |
+| 4     | The pin, as a preference that survives a restart             | `15d`  |
+| 5     | Atomic replacement with interruption recovery                | `15e`  |
+| 6     | The announcer: an offer that outlives a busy moment          | `15f`  |
+| 7     | The check: the policy, the announcer, and an injected source | _this_ |
+| 8     | Apply — IPC, the pin control, and the toast                  | —      |
+| 9     | Signing and the publish pipeline                             | —      |
 
 ---
 
@@ -112,6 +113,20 @@ A verdict that earns silence clears anything pending. This is the halt doing exa
 
 It also decides what `pending` means. It is not a queue of things that were true once; it is the single thing that is still true and still unsaid, re-derived from the latest check.
 
+### Answering "nothing" is evidence; failing to answer is not
+
+`checkForUpdate` treats a source that returns `null` and a source that rejects as **opposite** cases, and the distinction is the whole reason the function exists.
+
+A source that answers "nothing on offer" has told us something: the release was withdrawn, which is one of the two ways ADR-025 §6 lets a publisher halt a rollout. A queued announcement is dropped, so the halt reaches the installs that had not taken the update yet — the only ones it can still help.
+
+A source that could not answer has told us nothing. A laptop on a train fails this check constantly. Treating that as a withdrawal would silently discard an announcement the player had already earned, and reporting it would be `VISION.md` §5.1's notification spammer with a network error for an excuse. So a failed check leaves the state exactly as it found it and says nothing at all.
+
+### The source is a parameter, which is what makes §7 answerable
+
+ADR-025 §7 says a library that cannot deliver the guarantees is not adopted. That is only a decision anyone can make if the guarantees are executable and the library is separable from them — so the release source is injected, exactly as `save-store.ts` and `settings-store.ts` inject their directories.
+
+What is left needing a dependency is one function that returns a release. Everything upstream of it — the policy, the announcer, the check that composes them — is proven without a network, and whatever eventually fetches releases is measured against these tests rather than trusted to embody them. Validating what comes off the wire belongs to that fetcher: a release crosses a trust boundary (`AI_RULES.md` §2.4), and this module receives it already shaped.
+
 ### The save is outside the blast radius by construction
 
 `install-store.ts` takes the installation root as a parameter, so it has no way to name the save directory — the same structural argument `rollback-guard.ts` makes about not being able to touch a save. The test still plants a real save file beside a real installation and re-reads it byte-for-byte after a halt at every step, because ADR-025 §4 lists four ways an updater could touch one (moved, migrated, backed up, cleaned) and a guarantee worth having is worth failing loudly.
@@ -128,9 +143,9 @@ It also decides what `pending` means. It is not a queue of things that were true
 
 - [x] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched — `src/main/rollback-guard.test.ts`
 - [x] No prompt appears while pinned, halted, outside the rollout wave, hidden, or in work mode — `src/main/update-policy.test.ts`
-- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — the sequence is proven against real directories in `src/main/install-store.test.ts`; the box stays open until boundary 8 re-runs it against a **packaged** installation, which is what the criterion says
-- [ ] A pre-migration backup restored into the older build loads and continues correctly — boundary 7, once the recovery path is reachable from the UI
-- [ ] An update restart requested mid-save waits for the write and never truncates it — boundary 7, reusing phase-07e unchanged
-- [ ] A tampered artifact is rejected and the installation is untouched — boundary 8
-- [ ] No prompt is an OS notification — boundary 7; the surface is `CompanionToast.tsx`, which is in-overlay by construction
+- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — the sequence is proven against real directories in `src/main/install-store.test.ts`; the box stays open until the **publish** boundary re-runs it against a packaged installation, which is what the criterion says
+- [ ] A pre-migration backup restored into the older build loads and continues correctly — the **apply** boundary, once the recovery path is reachable from the UI
+- [ ] An update restart requested mid-save waits for the write and never truncates it — the **apply** boundary, reusing phase-07e unchanged
+- [ ] A tampered artifact is rejected and the installation is untouched — the **publish** boundary
+- [ ] No prompt is an OS notification — the **apply** boundary; the surface is `CompanionToast.tsx`, which is in-overlay by construction
 - [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite — `src/main/install-store.test.ts`

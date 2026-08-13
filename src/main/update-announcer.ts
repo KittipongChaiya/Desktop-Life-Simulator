@@ -68,6 +68,18 @@ function announcementFor(verdict: UpdateVerdict): Announcement | null {
   return null;
 }
 
+/**
+ * Nothing left to say: drop anything queued and stay silent.
+ *
+ * Used when a release stops being on offer — a publisher can halt a rollout by
+ * withdrawing the release as readily as by flagging it (ADR-025 §6), and a
+ * withdrawal that left a queued offer intact would fail exactly the installs a
+ * halt exists to protect: the ones that have not taken the update yet.
+ */
+export function withdrawAnnouncement(state: AnnouncerState): AnnouncerStep {
+  return { state: { ...state, pending: null }, announce: null };
+}
+
 function deliverOrDefer(
   state: AnnouncerState,
   announcement: Announcement,
@@ -94,13 +106,11 @@ export function announceVerdict(
   presence: Presence,
 ): AnnouncerStep {
   const announcement = announcementFor(verdict);
-  if (announcement === null) return { state: { ...state, pending: null }, announce: null };
+  if (announcement === null) return withdrawAnnouncement(state);
 
   // Already said. Keep it out of `pending` so a later presence change does not
   // resurrect it.
-  if (keyOf(announcement) === state.announced) {
-    return { state: { ...state, pending: null }, announce: null };
-  }
+  if (keyOf(announcement) === state.announced) return withdrawAnnouncement(state);
 
   return deliverOrDefer(state, announcement, presence);
 }
