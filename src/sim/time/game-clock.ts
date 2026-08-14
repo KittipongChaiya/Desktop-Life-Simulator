@@ -240,6 +240,50 @@ export function seasonFor(
  * Inclusive of both ends: a gap that begins on the last day of autumn and ends
  * on the first day of winter touched both.
  */
+/**
+ * Every day phase a tick range touches, in `DAY_PHASES` order.
+ *
+ * The phase counterpart to `seasonsBetween`, and it exists for the same
+ * reason: a span is not an instant. Catch-up covers up to eight hours, so
+ * asking which phase it is — singular — and applying that answer to the whole
+ * window credits a shift that ended hours ago (ADR-024 §4).
+ *
+ * Ordered rather than set-ordered because a caller may fold over it and the
+ * simulation must not depend on insertion order (the 100k-tick determinism
+ * acceptance is exactly where that would surface).
+ *
+ * A world with no clock answers with every phase, which is the conservative
+ * direction: a caller requiring permission throughout then requires it
+ * unconditionally, and nothing divides by zero.
+ */
+export function phasesBetween(
+  startTick: number,
+  endTick: number,
+  ticksPerDay: number,
+): readonly DayPhase[] {
+  if (ticksPerDay <= 0) return DAY_PHASES;
+
+  const from = Math.min(startTick, endTick);
+  const to = Math.max(startTick, endTick);
+
+  // A window of a whole day touches everything; short-circuit so the loop
+  // below can never run longer than two days however long the gap was.
+  if (to - from >= ticksPerDay) return DAY_PHASES;
+
+  const touched = new Set<DayPhase>([phaseFor(from, ticksPerDay), phaseFor(to, ticksPerDay)]);
+
+  const firstDay = Math.floor(from / ticksPerDay);
+  const lastDay = Math.floor(to / ticksPerDay);
+  for (let day = firstDay; day <= lastDay; day += 1) {
+    for (const fraction of PHASE_STARTS) {
+      const boundary = day * ticksPerDay + Math.ceil(fraction * ticksPerDay);
+      if (boundary > from && boundary <= to) touched.add(phaseFor(boundary, ticksPerDay));
+    }
+  }
+
+  return DAY_PHASES.filter((phase) => touched.has(phase));
+}
+
 export function seasonsBetween(
   startDay: number,
   endDay: number,

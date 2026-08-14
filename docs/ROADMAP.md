@@ -378,13 +378,13 @@ _Milestone 08b — the public API (ADR-019)_
 
 **Acceptance.**
 
-- [ ] A farm whose every worker is fully constrained out of all work keeps re-planning and resumes the instant a constraint or the world changes
-- [ ] A task kind ordered last is still performed when nothing else is available
-- [ ] Identical seed, command stream, and schedules produce byte-identical state over 100k ticks
-- [ ] An unsatisfiable constraint is rejected at registration and never reaches a worker
-- [ ] Schedules survive save → load → save byte-identically; a loaded world continues identically to one that never saved
-- [ ] Catch-up never over-credits across shift and zone boundaries
-- [ ] `v5 → v6` migrates every fixture with zero repairs
+- [x] A farm whose every worker is fully constrained out of all work keeps re-planning and resumes the instant a constraint or the world changes — `tests/worker-scheduling.test.ts`, asserted from both directions: the schedule changing with the world untouched, and the world changing with the schedule untouched
+- [x] A task kind ordered last is still performed when nothing else is available — `tests/worker-scheduling.test.ts`; priority reorders and never excludes (ADR-024 §3), so an unmentioned kind sorts after the mentioned ones rather than being dropped
+- [x] Identical seed, command stream, and schedules produce byte-identical state over 100k ticks — `tests/schedule-determinism.test.ts`; it ran 60,000 until the phase-14 verification pass raised it to the figure this criterion actually states
+- [x] An unsatisfiable constraint is rejected at registration and never reaches a worker — `tests/roles.test.ts`
+- [x] Schedules survive save → load → save byte-identically; a loaded world continues identically to one that never saved — `tests/migration-v5-to-v6.test.ts` for the round trip, at **non-default** values (a worker with `{}` round-trips correctly even if the codec drops the field entirely); `tests/schedule-determinism.test.ts` for the continuation
+- [x] Catch-up never over-credits across shift and zone boundaries — `tests/schedule-determinism.test.ts`, over every day phase. The shift half was **broken** until the verification pass: one phase was sampled and applied to an eight-hour window, so a crew on shift a quarter of the time was credited in full
+- [x] `v5 → v6` migrates every fixture with zero repairs — `tests/migration-v5-to-v6.test.ts`; the link is one decision, `{}` rather than `{ taskKinds: [] }`, since the empty form would have silently idled every worker on every existing save
 
 **Documentation.** `GAME_DESIGN.md` §4; `SAVE_FORMAT.md` §2, §6.4; `ARCHITECTURE.md` §3.3; `PLUGIN_API.md` (roles); `CHANGELOG.md`.
 

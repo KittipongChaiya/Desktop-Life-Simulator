@@ -3,7 +3,7 @@
 > **Delivers:** the player directs the farm — and the architecture accepts zones, roles, shifts, permissions and overrides later without being redesigned.
 > **Governing decisions:** ADR-024 (scheduling), ADR-010 (commands are the only write path), ADR-019 §3 (roles as content), ADR-027 (save evolution).
 > **Schema:** v5 → v6.
-> **Status:** **In progress.** Boundaries 1 and 2 landed.
+> **Status:** **Complete.** Four boundaries plus the catch-up bound, all landed. The record below said "boundaries 1 and 2" until the phase-15 close-out noticed it; the code had been finished for some time and nothing was watching the document.
 
 ---
 
@@ -11,12 +11,13 @@
 
 `ROADMAP.md` §10 sets four: the pipeline and constraint vocabulary; schedule state, commands, and migration; roles as content; the panel.
 
-| Order | Boundary                                               | Commit |
-| ----- | ------------------------------------------------------ | ------ |
-| 1     | The three-stage pipeline and the constraint vocabulary | _this_ |
-| 2     | Schedule state on the worker, commands, schema v6      | —      |
-| 3     | Roles as registered content                            | —      |
-| 4     | The worker panel surface                               | —      |
+| Order | Boundary                                                 | Commit    |
+| ----- | -------------------------------------------------------- | --------- |
+| 1     | The three-stage pipeline and the constraint vocabulary   | `2a90abd` |
+| 2     | Schedule state on the worker, commands, schema v6        | `f85252c` |
+| 3     | Roles as registered content                              | `e555202` |
+| 4     | The worker panel surface                                 | `9fbe34d` |
+| 5     | Catch-up bounded to schedule-legal work, and determinism | `da3d594` |
 
 ---
 
@@ -66,14 +67,34 @@ It also means boundary 2 has one job — supplying the schedule from world state
 
 The "resumes when the world changes" case first put its zone on tile (40, 40), which is outside the owned 8×8 plot. Discovery only enumerates **owned** tiles, so the zone was empty for a reason that had nothing to do with scheduling, and the test would have passed against a filter stage that did nothing at all. Rewritten onto an owned tile whose available work genuinely appears.
 
+### A criterion nobody ticked is a criterion nobody read
+
+Three acceptance boxes sat unticked while the work that satisfies them had been merged for some time, and the phase's own status line still said "boundaries 1 and 2 landed". None of that was visible from inside the phase: the tests were green, the commits were descriptive, and the only thing wrong was the record.
+
+Two of the three were simply met. The third was not, and **the discrepancy was measurable the moment anyone looked**: the criterion says byte-identical over 100k ticks and the test ran 60,000. The commit that wrote it says 60,000 plainly, so nothing was hidden — it was never reconciled with the sentence it was supposed to satisfy. Raised to 100,000, which costs 24 seconds.
+
+The lesson is not "tick the boxes". It is that an unticked box and a green test look identical to a passing suite, so nothing fails while the two disagree.
+
+### The over-credit the zone case could not expose
+
+`anyWorkerMayWork` evaluated `phaseFor(world.tick)` — **one phase** — and applied the answer to a catch-up window of up to eight hours. A crew on shift for a single phase was credited every cycle across the whole window, which is exactly the over-credit ADR-024 §4 forbids.
+
+It survived four tests because all four constrained by **zone or task kind**, and neither changes with the clock. Evaluating those once is correct, so the tests were right about what they tested and silent about what they did not.
+
+Worth recording: **the correct shape was already in the same function.** `plantableThroughout` asks `seasonsBetween` for every season a window touches and requires the crop to be plantable in all of them. The shift case needed the identical treatment and did not get it, so `phasesBetween` is now its counterpart, deliberately named to match.
+
+"Throughout" is asked **per worker**, not per phase: crediting a cycle needs one worker who could have done it for the whole window, not a relay of workers who each could have done part. The model never decided which worker did a cycle, so it may not assume a handover.
+
+The fix is conservative — a crew on shift for part of a window is credited nothing rather than a share — and that is acceptable today for a specific reason: **no shipped role declares a shift.** The field exists on `RoleDefinition` and `isSatisfiableRole` validates it, and core's three roles constrain task kinds only. So the fix bounds a future shift correctly and changes nothing a player can currently reach. Crediting a proportional share is the better answer when a role does declare one, and it is a change to make with that role in hand rather than in advance.
+
 ---
 
 ## Acceptance
 
 - [x] A farm whose worker is fully constrained out of all work keeps re-planning and resumes the instant a constraint or the world changes — `tests/worker-scheduling.test.ts`, both directions
 - [x] A task kind ordered last is still performed when nothing else is available — same file
-- [ ] Identical seed, command stream, and schedules produce byte-identical state over 100k ticks — boundary 2, once schedules are world state
-- [ ] An unsatisfiable constraint is rejected at registration and never reaches a worker — boundary 3, with roles
+- [x] Identical seed, command stream, and schedules produce byte-identical state over 100k ticks — `tests/schedule-determinism.test.ts`. **It ran 60,000 until the verification pass**, which is a different claim from the one this criterion makes; the gap survived because the box sat unticked while the test sat green, so neither looked wrong on its own
+- [x] An unsatisfiable constraint is rejected at registration and never reaches a worker — `tests/roles.test.ts`: a role permitting no task kinds, a role on shift for no phase, and the API refusing the bundle so it never reaches a worker
 - [x] Schedules survive save → load → save byte-identically — `tests/migration-v5-to-v6.test.ts`, at NON-DEFAULT values
-- [ ] Catch-up never over-credits across shift and zone boundaries — boundary 2
+- [x] Catch-up never over-credits across shift and zone boundaries — `tests/schedule-determinism.test.ts`. **The shift half was broken and the tests could not see it**: `anyWorkerMayWork` asked `phaseFor(world.tick)` — one phase, applied to a window of up to eight hours — so a crew on shift for one phase in four was credited exactly what an unconstrained crew earned. Zone coverage hid it, because a zone does not change with the clock and evaluating it once is correct
 - [x] `v5 → v6` migrates every fixture with zero repairs — same file

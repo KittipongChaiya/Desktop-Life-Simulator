@@ -35,7 +35,7 @@ import type { ContentId } from '../shared/ids';
 import { allowsWork } from '../sim/ai/constraints';
 import { CORE_MARKET_STALL, CORE_REST_HUT, CORE_SEED_BIN } from '../sim/content/buildings';
 import { isInSeason, type CropDefinition } from '../sim/content/crops';
-import { dayFor, phaseFor, seasonsBetween } from '../sim/time/game-clock';
+import { dayFor, phasesBetween, seasonsBetween } from '../sim/time/game-clock';
 import {
   acceptable,
   addItems,
@@ -167,11 +167,30 @@ function plantableThroughout(
  * precondition, and an unconstrained crew answers true — so a save written
  * before schedules existed is credited exactly as it was.
  */
-function anyWorkerMayWork(world: World, tile: number, kind: WorkerTaskKind): boolean {
-  const phase = phaseFor(world.tick, world.ticksPerDay);
+function anyWorkerMayWork(
+  world: World,
+  tile: number,
+  kind: WorkerTaskKind,
+  startTick: number,
+  endTick: number,
+): boolean {
+  // ACROSS THE WINDOW, not at an instant. The first version of this asked
+  // `phaseFor(world.tick)` — one phase, applied to up to eight hours — and a
+  // crew on shift for one phase in four was credited exactly what an
+  // unconstrained crew earned. That is ADR-024 §4's over-credit, and it was
+  // invisible because the zone case cannot expose it: a zone does not change
+  // with the clock, so evaluating it once is correct.
+  //
+  // The same shape `plantableThroughout` already used for seasons, two
+  // functions up.
+  const phases = phasesBetween(startTick, endTick, world.ticksPerDay);
 
   for (const worker of world.workers.values()) {
-    if (allowsWork(worker.schedule, { kind, tile, phase })) return true;
+    // "Throughout" per worker rather than per phase: crediting a cycle needs
+    // ONE worker who could have done it for the whole window, not a relay of
+    // workers who each could have done part of it. The model never decided
+    // which worker did a cycle, so it may not assume a handover.
+    if (phases.every((phase) => allowsWork(worker.schedule, { kind, tile, phase }))) return true;
   }
   return false;
 }
@@ -324,13 +343,13 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     // A schedule that forbids the work forbids the credit (ADR-024 §4). Asked
     // of the whole crew, which is the conservative direction — the model never
     // decided which worker did a cycle.
-    if (!anyWorkerMayWork(world, crop.tile, WorkerTaskKind.Harvest)) continue;
+    if (!anyWorkerMayWork(world, crop.tile, WorkerTaskKind.Harvest, start, end)) continue;
 
     const replantAllowed =
       hasSeedBin &&
       world.lastPlanted.get(crop.tile) === crop.cropId &&
       plantableThroughout(world, definition.value, start, end) &&
-      anyWorkerMayWork(world, crop.tile, WorkerTaskKind.Plant);
+      anyWorkerMayWork(world, crop.tile, WorkerTaskKind.Plant, start, end);
     const count = replantAllowed
       ? Math.min(byGrowth, bySeeds, byBudget)
       : Math.min(1, byGrowth, byBudget);

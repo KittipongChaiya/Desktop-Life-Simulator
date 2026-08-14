@@ -26,6 +26,7 @@ import { CORE_TURNIP } from '../src/sim/content/crops';
 import { DEFAULT_STACK_SIZE } from '../src/sim/content/items';
 import { CORE_GROUNDSKEEPER, CORE_HARVESTER } from '../src/sim/content/roles';
 import { placeBuilding } from '../src/sim/commands/building-commands';
+import { DAY_PHASES } from '../src/sim/time/game-clock';
 import { stepSimulationBy } from '../src/sim/tick';
 import { addItems } from '../src/sim/world/container';
 import { addCoins } from '../src/sim/world/wallet';
@@ -63,6 +64,15 @@ function scheduledFarm(seed: number, role: ContentId | null): World {
   return world;
 }
 
+/**
+ * The tick count `ROADMAP.md` §10 asks for, not a round number near it.
+ *
+ * It ran at 60,000 until the phase-14 verification pass, which is a different
+ * claim from the one the acceptance makes — and the gap was invisible because
+ * the criterion sat unticked while the test sat green.
+ */
+const DETERMINISM_TICKS = 100_000;
+
 describe('determinism with schedules in play', () => {
   it('two identically scheduled worlds stay byte-identical over a long run', () => {
     // The ordering stage sorts bands by priority. Sorting by comparator over
@@ -71,8 +81,8 @@ describe('determinism with schedules in play', () => {
     const a = scheduledFarm(31, CORE_GROUNDSKEEPER);
     const b = scheduledFarm(31, CORE_GROUNDSKEEPER);
 
-    stepSimulationBy(a, 60_000);
-    stepSimulationBy(b, 60_000);
+    stepSimulationBy(a, DETERMINISM_TICKS);
+    stepSimulationBy(b, DETERMINISM_TICKS);
 
     expect(serializeSave(toSaveDocument(b, META))).toBe(serializeSave(toSaveDocument(a, META)));
     expect(b.rng.getState()).toEqual(a.rng.getState());
@@ -145,5 +155,48 @@ describe('catch-up is bounded to schedule-legal work (ADR-024 §4)', () => {
     }
 
     expect(catchUpWorld(world, 40_000).harvests).toBe(0);
+  });
+
+  it.each(DAY_PHASES.map((phase) => [phase]))(
+    'does not credit a whole window to a crew on shift only at %s',
+    (phase) => {
+      // The gap the zone case cannot expose. A zone does not change with the
+      // clock, so evaluating it once is correct; a SHIFT does, and the window
+      // here is 40,000 ticks — several days. Asking "is the crew on shift" at
+      // one instant and then crediting every cycle across the whole window is
+      // ADR-024 §4's over-credit: the crew is billed for hours it was off.
+      //
+      // Run over EVERY phase deliberately. A single phase passes for the wrong
+      // reason — whichever instant the implementation happens to sample, three
+      // of the four shifts miss it and earn zero, which satisfies "less than"
+      // while the fourth is being credited in full. The claim is about all of
+      // them: no crew on shift for one phase in four may earn what a crew with
+      // no shift at all earns.
+      const free = readyForCatchUp(null);
+      const shifted = readyForCatchUp(null);
+
+      for (const worker of shifted.workers.values()) {
+        worker.schedule = { shift: [phase] };
+      }
+
+      const freely = catchUpWorld(free, 40_000).harvests;
+      const limited = catchUpWorld(shifted, 40_000).harvests;
+
+      expect(freely).toBeGreaterThan(0);
+      expect(limited).toBeLessThan(freely);
+    },
+  );
+
+  it('still credits a crew that is on shift for every phase', () => {
+    // The control. Without it, zeroing every shifted crew would pass the test
+    // above while making shifts useless.
+    const free = readyForCatchUp(null);
+    const always = readyForCatchUp(null);
+
+    for (const worker of always.workers.values()) {
+      worker.schedule = { shift: [...DAY_PHASES] };
+    }
+
+    expect(catchUpWorld(always, 40_000).harvests).toBe(catchUpWorld(free, 40_000).harvests);
   });
 });

@@ -11,7 +11,10 @@ import { describe, expect, it } from 'vitest';
 import { TICK_MS, TICKS_PER_SECOND } from '../../shared/constants';
 
 import {
+  DAY_PHASES,
   msToTicks,
+  phaseFor,
+  phasesBetween,
   readClock,
   secondsToTicks,
   ticksToMs,
@@ -113,5 +116,51 @@ describe('readClock', () => {
 
     tick = TICKS_PER_SECOND * 3;
     expect(readClock(() => tick).elapsedSeconds).toBe(3);
+  });
+});
+
+describe('phasesBetween (phase-14 verification, ADR-024 §4)', () => {
+  const DAY = 1_200;
+
+  it('answers with the one phase a short window sits inside', () => {
+    const phase = phaseFor(0, DAY);
+
+    expect(phasesBetween(0, 1, DAY)).toEqual([phase]);
+  });
+
+  it('answers with every phase once a window covers a whole day', () => {
+    // The short-circuit, and the case that matters: catch-up windows are hours
+    // long, so this is the ordinary answer rather than the edge one.
+    expect(phasesBetween(0, DAY, DAY)).toEqual(DAY_PHASES);
+    expect(phasesBetween(0, DAY * 9, DAY)).toEqual(DAY_PHASES);
+  });
+
+  it('includes a phase the window only crosses into', () => {
+    // A window ending one tick after a boundary has touched the phase beyond
+    // it. Missing this is how a shift gets credited for time it did not cover.
+    const boundary = DAY_PHASES.findIndex((phase) => phase !== phaseFor(0, DAY));
+    expect(boundary).toBeGreaterThan(0);
+
+    const spans = phasesBetween(0, DAY - 1, DAY);
+    expect(spans.length).toBeGreaterThan(1);
+  });
+
+  it('returns phases in DAY_PHASES order, never in the order they were found', () => {
+    // A caller folds over this, and the 100k-tick determinism acceptance is
+    // exactly where an insertion-ordered set would surface as a divergence.
+    const spans = phasesBetween(DAY - 1, DAY * 2 - 1, DAY);
+    const ordered = DAY_PHASES.filter((phase) => spans.includes(phase));
+
+    expect(spans).toEqual(ordered);
+  });
+
+  it('is symmetric, because a range has no direction', () => {
+    expect(phasesBetween(DAY * 3, DAY, DAY)).toEqual(phasesBetween(DAY, DAY * 3, DAY));
+  });
+
+  it('answers with every phase when there is no clock, which is the safe direction', () => {
+    // A caller asking "was this allowed throughout" then requires permission
+    // unconditionally rather than dividing by zero and crediting everything.
+    expect(phasesBetween(0, 500, 0)).toEqual(DAY_PHASES);
   });
 });
