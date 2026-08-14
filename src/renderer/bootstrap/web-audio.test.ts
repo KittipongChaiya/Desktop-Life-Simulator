@@ -22,13 +22,24 @@ interface FakeHost {
   readonly contexts: () => number;
   readonly started: () => number;
   readonly gains: () => readonly number[];
+  /** Sources created with `loop = true` — the ambient bed (phase-13d). */
+  readonly loops: () => number;
+  /** Bed sources explicitly stopped. */
+  readonly stops: () => number;
+  /** Every gain a bed voice was set to, in order. */
+  readonly bedGains: () => readonly number[];
 }
 
 /** A fake `AudioContext` that records what was asked of it. */
 function fakeHost(overrides: { failContext?: boolean; failStart?: boolean } = {}): FakeHost {
   let contexts = 0;
   let started = 0;
+  let loops = 0;
+  let stops = 0;
   const gains: number[] = [];
+  const bedGains: number[] = [];
+  /** The gain node handed to the most recent source, so a bed's is findable. */
+  let lastGainNode: { gain: { value: number } } | null = null;
 
   const buffer = { duration: 0.25 } as AudioBuffer;
 
@@ -38,22 +49,34 @@ function fakeHost(overrides: { failContext?: boolean; failStart?: boolean } = {}
 
     return {
       destination: {},
-      createGain: () =>
-        ({
+      createGain: () => {
+        const node = {
           connect: () => undefined,
           disconnect: () => undefined,
           gain: { value: 0 },
-        }) as unknown as GainNode,
+        };
+        lastGainNode = node;
+        return node as unknown as GainNode;
+      },
       createBufferSource: () => {
         if (overrides.failStart === true) throw new Error('suspended');
-        return {
+        const source = {
           buffer: null,
+          loop: false,
           connect: () => undefined,
           disconnect: () => undefined,
           start: () => {
             started += 1;
+            if (source.loop) {
+              loops += 1;
+              bedGains.push(lastGainNode?.gain.value ?? -1);
+            }
           },
-        } as unknown as AudioBufferSourceNode;
+          stop: () => {
+            stops += 1;
+          },
+        };
+        return source as unknown as AudioBufferSourceNode;
       },
       decodeAudioData: async () => Promise.resolve(buffer),
     } as unknown as AudioContext;
@@ -67,6 +90,9 @@ function fakeHost(overrides: { failContext?: boolean; failStart?: boolean } = {}
     contexts: () => contexts,
     started: () => started,
     gains: () => gains,
+    loops: () => loops,
+    stops: () => stops,
+    bedGains: () => bedGains,
   };
 }
 
@@ -172,5 +198,126 @@ describe('the clock', () => {
     const first = ports.now();
     expect(typeof first).toBe('number');
     expect(ports.now()).toBeGreaterThanOrEqual(first);
+  });
+});
+
+describe('the ambient bed (phase-13d, ADR-023 §5)', () => {
+  it('starts nothing at a gain of zero', async () => {
+    // Zero must STOP rather than play silence: a silent-but-running source
+    // keeps the audio thread awake, which is exactly what §5 condition 4
+    // surrenders when the player looks away.
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+
+    ports.ambience.set(Sound.Harvest, 0);
+    await settle();
+    ports.ambience.set(Sound.Harvest, 0);
+
+    expect(host.loops()).toBe(0);
+    expect(host.started()).toBe(0);
+  });
+
+  it('starts a LOOPING source once the buffer is ready', async () => {
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+
+    ports.ambience.set(Sound.Harvest, 0.5); // first call kicks off the decode
+    await settle();
+    ports.ambience.set(Sound.Harvest, 0.5);
+
+    expect(host.loops()).toBe(1);
+    expect(host.bedGains()).toEqual([0.5]);
+  });
+
+  it('adjusts the running bed rather than stacking a second source', async () => {
+    // The failure this prevents is audible and cumulative: one source per
+    // update, all looping forever, getting louder every time the gain moves.
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+    ports.ambience.set(Sound.Harvest, 0.5);
+    await settle();
+    ports.ambience.set(Sound.Harvest, 0.5);
+
+    ports.ambience.set(Sound.Harvest, 0.2);
+    ports.ambience.set(Sound.Harvest, 0.9);
+
+    expect(host.loops()).toBe(1);
+  });
+
+  it('stops the bed when the gain returns to zero', async () => {
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+    ports.ambience.set(Sound.Harvest, 0.5);
+    await settle();
+    ports.ambience.set(Sound.Harvest, 0.5);
+
+    ports.ambience.set(Sound.Harvest, 0);
+
+    expect(host.stops()).toBe(1);
+  });
+
+  it('starts again after being stopped', async () => {
+    // Presence comes back. The bed has to be restartable, not one-shot.
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+    ports.ambience.set(Sound.Harvest, 0.5);
+    await settle();
+    ports.ambience.set(Sound.Harvest, 0.5);
+    ports.ambience.set(Sound.Harvest, 0);
+
+    ports.ambience.set(Sound.Harvest, 0.4);
+
+    expect(host.loops()).toBe(2);
+  });
+
+  it('replaces one bed with another rather than layering them', async () => {
+    // Two continuous sounds is a mix nobody chose. §5 permits ambience, not
+    // ambiences.
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+    ports.ambience.set(Sound.Harvest, 0.5);
+    await settle();
+    ports.ambience.set(Sound.Harvest, 0.5);
+
+    ports.ambience.set(Sound.Coin, 0.5);
+    await settle();
+    ports.ambience.set(Sound.Coin, 0.5);
+
+    expect(host.stops()).toBe(1);
+    expect(host.loops()).toBe(2);
+  });
+
+  it('clamps the gain rather than amplifying', async () => {
+    const host = fakeHost();
+    const ports = createWebAudioPorts(host.options);
+
+    ports.ambience.set(Sound.Harvest, 9);
+    await settle();
+    ports.ambience.set(Sound.Harvest, 9);
+
+    expect(host.bedGains()).toEqual([1]);
+  });
+
+  it('stays silent on a machine with no audio device', async () => {
+    const host = fakeHost({ failContext: true });
+    const ports = createWebAudioPorts(host.options);
+
+    ports.ambience.set(Sound.Harvest, 0.5);
+    await settle();
+    expect(() => {
+      ports.ambience.set(Sound.Harvest, 0.5);
+    }).not.toThrow();
+
+    expect(host.loops()).toBe(0);
+  });
+
+  it('survives a context that refuses to start a source', async () => {
+    const host = fakeHost({ failStart: true });
+    const ports = createWebAudioPorts(host.options);
+
+    await settle();
+    expect(() => {
+      ports.ambience.set(Sound.Harvest, 0.5);
+    }).not.toThrow();
   });
 });

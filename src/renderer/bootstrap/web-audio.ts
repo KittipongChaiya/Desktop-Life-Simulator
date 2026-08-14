@@ -42,6 +42,7 @@ import selectionUrl from '@assets/audio/selection.wav';
 import tillUrl from '@assets/audio/till.wav';
 import uiClickUrl from '@assets/audio/ui-click.wav';
 
+import type { AmbienceDevice } from '../app/ambience';
 import type { AudioPorts } from '../app/audio';
 import { Sound } from '../app/sounds';
 import { createVoicePool } from '../audio/voice-pool';
@@ -85,13 +86,38 @@ export interface AudioDeviceOptions {
   readonly loadBuffer?: (url: string, context: AudioContext) => Promise<AudioBuffer>;
 }
 
-export function createWebAudioPorts(options: AudioDeviceOptions = {}): AudioPorts {
+export function createWebAudioPorts(
+  options: AudioDeviceOptions = {},
+): AudioPorts & { readonly ambience: AmbienceDevice } {
   // Built on FIRST PLAY, never at boot — see the header.
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
   const buffers = new Map<Sound, AudioBuffer>();
   const pending = new Set<Sound>();
   const pool = createVoicePool();
+
+  /**
+   * The one ambient bed, if it is sounding. Phase-13d — ADR-023 §5.
+   *
+   * ONE, not a pool. A bed never ends, so a pooled voice would hold its slot
+   * for the whole session and starve the effects the pool exists to bound —
+   * and `voice-pool.ts` recycles by claim time, which would make the bed the
+   * oldest claim on the farm and the first thing stolen. It is bounded by
+   * being exactly one node instead, which is a bound the pool cannot express.
+   */
+  let bed: { source: AudioBufferSourceNode; gain: GainNode; sound: Sound } | null = null;
+
+  const stopBed = (): void => {
+    if (bed === null) return;
+    try {
+      bed.source.stop();
+    } catch {
+      // Already stopped, or a context that went away underneath us.
+    }
+    bed.source.disconnect();
+    bed.gain.disconnect();
+    bed = null;
+  };
 
   /** The context and its master gain, created once, or null if unavailable. */
   const graph = (): { context: AudioContext; master: GainNode } | null => {
@@ -177,5 +203,49 @@ export function createWebAudioPorts(options: AudioDeviceOptions = {}): AudioPort
     },
 
     now: () => performance.now(),
+
+    ambience: {
+      set(sound, gain) {
+        const wanted = Math.max(0, Math.min(1, gain));
+
+        // Zero STOPS rather than plays silence. A silent-but-running source
+        // keeps the audio thread awake, which is exactly what ADR-023 §5
+        // condition 4 surrenders.
+        if (wanted <= 0) {
+          stopBed();
+          return;
+        }
+
+        // A different bed replaces the current one. Two continuous sounds is a
+        // mix nobody chose, and §5 permits ambience rather than ambiences.
+        if (bed !== null && bed.sound !== sound) stopBed();
+
+        if (bed !== null) {
+          bed.gain.gain.value = wanted;
+          return;
+        }
+
+        const built = graph();
+        if (built === null) return;
+
+        const buffer = load(sound, built.context);
+        if (buffer === undefined) return; // still decoding; the next call starts it
+
+        try {
+          const source = built.context.createBufferSource();
+          const voice = built.context.createGain();
+          source.buffer = buffer;
+          source.loop = true;
+          voice.gain.value = wanted;
+          source.connect(voice);
+          voice.connect(built.master);
+          source.start();
+          bed = { source, gain: voice, sound };
+        } catch {
+          // A context suspended by policy. Silence is a valid state.
+          bed = null;
+        }
+      },
+    },
   };
 }

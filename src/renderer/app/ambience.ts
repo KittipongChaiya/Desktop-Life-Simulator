@@ -24,6 +24,8 @@
  * appear below. It is what makes §5 an amendment rather than a reversal.
  */
 
+import type { Sound } from './sounds';
+
 /** Everything the five conditions need, read at the moment the question is asked. */
 export interface AmbienceConditions {
   /**
@@ -72,4 +74,26 @@ export function ambienceGain(conditions: AmbienceConditions): number {
   // which sanitises them — but this is presentation code, and amplifying past
   // unity is the one arithmetic mistake here a player would hear immediately.
   return level(conditions.volumePercent) * level(conditions.ambientPercent);
+}
+
+/**
+ * The device half: something that can hold a continuous sound.
+ *
+ * Separate from `AudioPorts` because a bed is a different shape from an
+ * effect. `play` is fire-and-forget and the device keeps no reference; a bed
+ * has to be adjustable and stoppable, so exactly one node is held and
+ * `set` is idempotent — the caller reports the gain it wants and does not
+ * track whether anything is running.
+ */
+export interface AmbienceDevice {
+  /**
+   * Sets the bed's gain, starting it if it is not already sounding.
+   *
+   * A gain of zero STOPS it rather than playing silence, which is the whole
+   * point: ADR-023 §5 condition 4 surrenders the audio thread when the player
+   * is not there, and a silent-but-running source surrenders nothing.
+   *
+   * Never throws. A missing device is not a game concern.
+   */
+  set(bed: Sound, gain: number): void;
 }
