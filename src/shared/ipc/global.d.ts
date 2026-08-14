@@ -37,6 +37,7 @@ declare global {
         setVolume(percent: number): Promise<CompanionState>;
         /** Patches motion preferences (phase-07.7L). Partial by design. */
         setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
+        setCategoryPercent(category: string, percent: number): Promise<CompanionState>;
         toggleMuted(): Promise<CompanionState>;
         onStateChanged(listener: (state: CompanionState) => void): () => void;
       };

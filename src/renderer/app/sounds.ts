@@ -36,6 +36,15 @@ export const Sound = {
   Till: 'till',
   /** A seed going in. Phase-07.7i. */
   Plant: 'plant',
+  /**
+   * Rain falling — the first ambient BED. Phase-13d, ADR-023 §5.
+   *
+   * Unlike every sound above it, this is continuous and is not triggered by an
+   * event: it sounds for as long as it is raining and the five §5 conditions
+   * hold. It is played through `AmbienceDevice`, never through `SoundBus.play`,
+   * because a bed has to be adjustable and stoppable.
+   */
+  Rain: 'rain',
 } as const;
 
 /*
@@ -102,6 +111,11 @@ export const SOUND_GAIN: Readonly<Record<Sound, number>> = {
   // gets more frequent, not louder.
   [Sound.Till]: 0.28,
   [Sound.Plant]: 0.22,
+  // The bed sits below everything, and below its own category ceiling: it is
+  // the only sound a player hears for an hour at a time, and ADR-023 §2 already
+  // ducks it under ui and world. Weather should be behind the farm, not in
+  // front of it.
+  [Sound.Rain]: 0.18,
 };
 
 /**
@@ -153,6 +167,7 @@ export const SOUND_CATEGORY: Readonly<Record<Sound, AudioCategory>> = {
   [Sound.UiClick]: AudioCategory.Ui,
   [Sound.Notification]: AudioCategory.Ui,
   [Sound.Error]: AudioCategory.Ui,
+  [Sound.Rain]: AudioCategory.Ambient,
 };
 
 /**

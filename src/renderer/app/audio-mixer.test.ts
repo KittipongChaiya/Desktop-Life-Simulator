@@ -16,7 +16,7 @@ import { stepSimulationBy } from '../../sim/tick';
 import { createWorld } from '../../sim/world/world';
 
 import { createSoundBus, type AudioPorts, type AudioState } from './audio';
-import { AudioCategory, Sound, SOUND_CATEGORY } from './sounds';
+import { AudioCategory, DUCK_HOLD_MS, Sound, SOUND_CATEGORY } from './sounds';
 
 const META: SaveMeta = {
   gameVersion: '0.2.0',
@@ -143,17 +143,22 @@ describe('declared ducking (ADR-023 §2)', () => {
     const heard = recorder();
     const bus = createSoundBus(heard.ports, state());
 
-    // Nothing sounding yet: ambience plays at full.
-    const ambient = Object.keys(SOUND_CATEGORY).find(
-      (sound) => SOUND_CATEGORY[sound as Sound] === AudioCategory.Ambient,
-    );
-    // No ambient sound ships yet (boundary 4 adds rain), so the rule is
-    // checked through the World category's effect on the LAST heard time
-    // instead — the mechanism, not the content.
-    expect(ambient).toBeUndefined();
+    // This test used to assert that NO ambient sound shipped, and checked the
+    // rule through the mechanism because there was no content to check it
+    // against. Boundary 4 shipped rain, so it can finally be checked against
+    // the thing the rule is for.
+    expect(SOUND_CATEGORY[Sound.Rain]).toBe(AudioCategory.Ambient);
 
+    // Nothing sounding yet: ambience plays at full.
+    expect(bus.duckingFor(AudioCategory.Ambient, 0)).toBe(1);
+
+    // A World sound lands, and ambience drops under it (ADR-023 §2).
     bus.play(Sound.Harvest);
     expect(heard.gains()).toHaveLength(1);
+    expect(bus.duckingFor(AudioCategory.Ambient, 0)).toBeLessThan(1);
+
+    // And comes back once the hold has passed, rather than staying ducked.
+    expect(bus.duckingFor(AudioCategory.Ambient, DUCK_HOLD_MS)).toBe(1);
   });
 
   it('leaves a category with no ducking rule at full', () => {

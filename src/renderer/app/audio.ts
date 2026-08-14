@@ -75,6 +75,16 @@ export interface AudioState {
 export interface SoundBus {
   /** Plays a sound if it should be heard. Never throws. */
   play(sound: Sound): void;
+  /**
+   * The attenuation applying to a category right now, 0–1. Phase-13d.
+   *
+   * Exposed for the ambient bed, which is the one sound not played through
+   * `play` — it is continuous, so it is set and adjusted rather than fired.
+   * ADR-023 §2 declares that `ambient` ducks under `ui` and `world`, and the
+   * table lives here because the mix is this layer's job; the bed asks rather
+   * than carrying a second copy of the rule that could disagree with this one.
+   */
+  duckingFor(category: AudioCategory, nowMs: number): number;
 }
 
 export function createSoundBus(ports: AudioPorts, state: AudioState): SoundBus {
@@ -103,6 +113,8 @@ export function createSoundBus(ports: AudioPorts, state: AudioState): SoundBus {
   };
 
   return {
+    duckingFor,
+
     play(sound) {
       if (state.muted() || state.workMode()) return;
 

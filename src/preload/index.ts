@@ -45,6 +45,8 @@ export interface DesktopLifeApi {
     setVolume(percent: number): Promise<CompanionState>;
     /** Motion preferences (07.7L). A PARTIAL patch — see the channel's note. */
     setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
+    /** Sets one audio category's level, 0–100 (phase-13d). */
+    setCategoryPercent(category: string, percent: number): Promise<CompanionState>;
     /** Mute toggle (07.5a). Independent of the dial. */
     toggleMuted(): Promise<CompanionState>;
     /** Subscribes to companion changes (settings UI, global hotkeys). Returns teardown. */
@@ -137,6 +139,12 @@ const api: DesktopLifeApi = {
 
     setMotion: (patch) =>
       ipcRenderer.invoke(InvokeChannel.SetMotion, patch) as Promise<CompanionState>,
+
+    setCategoryPercent: (category, percent) =>
+      ipcRenderer.invoke(InvokeChannel.SetCategoryPercent, {
+        category,
+        percent,
+      }) as Promise<CompanionState>,
 
     toggleMuted: () => ipcRenderer.invoke(InvokeChannel.ToggleMuted) as Promise<CompanionState>,
 

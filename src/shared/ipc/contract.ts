@@ -51,6 +51,14 @@ export const InvokeChannel = {
    * two rapid toggles overwrite each other with a stale sibling value.
    */
   SetMotion: 'companion:set-motion',
+  /**
+   * One audio category's level (phase-13d, ADR-023 §2).
+   *
+   * Separate from `SetVolume` because they are different dials: the master
+   * governs the whole mix, a category governs one part of it. Folding them
+   * would make "turn ambience up" and "turn everything up" the same request.
+   */
+  SetCategoryPercent: 'companion:set-category-percent',
   /** Mute toggle (phase-07.5a) — independent of the dial, so unmuting restores it. */
   ToggleMuted: 'companion:toggle-muted',
   /**
@@ -146,6 +154,16 @@ export interface OverlayState {
  * not existing anywhere at launch (ADR-014 §4).
  */
 export interface CompanionState {
+  /**
+   * Per-category audio levels, 0–100 (phase-13d, ADR-023 §2).
+   *
+   * The schema has held these since 13b and main never sent them, so the
+   * renderer's controller carried a comment saying so and fell back to its own
+   * defaults. Sending them is what lets a settings dial show the stored value
+   * rather than a guess — and what makes the ambient level, which is `0` by
+   * default, visible as a deliberate zero rather than a missing field.
+   */
+  readonly categoryPercent?: Readonly<Record<string, number>>;
   /** The opacity dial's position, 30–100. Work mode does not move it. */
   readonly opacityPercent: number;
   /** Whether work mode is active (the toggle itself arrives in 01.8c). */
@@ -265,6 +283,10 @@ export interface IpcContract {
   [InvokeChannel.ToggleWorkMode]: { request: void; response: CompanionState };
   [InvokeChannel.SetVolume]: { request: number; response: CompanionState };
   [InvokeChannel.SetMotion]: { request: Partial<MotionSettings>; response: CompanionState };
+  [InvokeChannel.SetCategoryPercent]: {
+    request: { readonly category: string; readonly percent: number };
+    response: CompanionState;
+  };
   [InvokeChannel.ToggleMuted]: { request: void; response: CompanionState };
   [InvokeChannel.PluginsDiscover]: { request: void; response: SourceDiscovery };
   [InvokeChannel.SaveLoad]: { request: void; response: SavesOnDisk };

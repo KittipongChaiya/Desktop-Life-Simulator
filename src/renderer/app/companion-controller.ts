@@ -81,6 +81,8 @@ export interface CompanionController {
    */
   setMotion(patch: Partial<MotionSettings>): void;
   setVolumePercent(value: number): void;
+  /** Sets one category's level, 0–100 (phase-13d). Optimistic, then confirmed. */
+  setCategoryPercent(category: string, value: number): void;
   muted(): boolean;
   toggleMuted(): void;
   /** Subscribes to companion state. Returns teardown. */
@@ -92,6 +94,7 @@ export interface CompanionBridge {
   setVolume(percent: number): Promise<CompanionState>;
   toggleMuted(): Promise<CompanionState>;
   setMotion(patch: Partial<MotionSettings>): Promise<CompanionState>;
+  setCategoryPercent(category: string, percent: number): Promise<CompanionState>;
   getState(): Promise<CompanionState>;
   onStateChanged(listener: (state: CompanionState) => void): () => void;
 }
@@ -119,6 +122,22 @@ function sameMotion(a: MotionSettings | undefined, b: MotionSettings | undefined
   );
 }
 
+/**
+ * Field-wise, for the reason `sameMotion` is: main rebuilds `CompanionState`
+ * on every broadcast, so a reference check would report a change on every
+ * hotkey press and wake the renderer — and the ambience controller with it.
+ */
+function sameCategories(
+  a: Readonly<Record<string, number>> | undefined,
+  b: Readonly<Record<string, number>> | undefined,
+): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return false;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) if (a[key] !== b[key]) return false;
+  return true;
+}
+
 export function createCompanionController(bridge: CompanionBridge): CompanionController {
   const listeners = new Set<() => void>();
   let state: CompanionState = {
@@ -144,6 +163,7 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
       state.hidden === next.hidden &&
       state.volumePercent === next.volumePercent &&
       state.muted === next.muted &&
+      sameCategories(state.categoryPercent, next.categoryPercent) &&
       sameMotion(state.motion, next.motion)
     ) {
       return;
@@ -181,6 +201,17 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
       void bridge.setMotion(patch).then(setLocal);
     },
     muted: () => state.muted,
+
+    setCategoryPercent(category, value) {
+      // Optimistic like every other dial here, and notified so the ambience
+      // controller re-evaluates on the next update rather than at the next
+      // broadcast — turning ambience on should be audible immediately.
+      setLocal({
+        ...state,
+        categoryPercent: { ...(state.categoryPercent ?? {}), [category]: value },
+      });
+      void bridge.setCategoryPercent(category, value).then(setLocal);
+    },
 
     setVolumePercent(value) {
       // Optimistic, exactly like opacity: the dial answers instantly and the

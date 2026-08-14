@@ -39,9 +39,11 @@ import { asContentId } from '../../shared/ids';
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
 import { intensityScale } from '../../shared/motion';
 import { createInstalledRegistries } from '../../sim/content/installed';
+import { isRaining } from '../../sim/content/weather-kinds';
 import { enterCost } from '../../sim/pathing/astar';
 import { tilesInRect } from '../../sim/world/tile-grid';
 import { createActionFeedback } from '../app/action-feedback';
+import { createAmbienceController } from '../app/ambience';
 import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
 import { createCompanionController } from '../app/companion-controller';
@@ -51,13 +53,14 @@ import { createPlacementController } from '../app/placement';
 import { createReturnSummary, type ReturnSummaryReport } from '../app/return-summary';
 import { createSaveController } from '../app/save-controller';
 import { createSeedSelection } from '../app/seed-selection';
-import { Sound } from '../app/sounds';
+import { AudioCategory, Sound } from '../app/sounds';
 import { setSourceReport } from '../app/source-report';
 import { AppProviders } from '../app/store-context';
 import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createUpdateController } from '../app/update-controller';
 import { createWorkerSelection } from '../app/worker-selection';
+import { createAmbientPresence } from '../render/ambient-presence';
 import {
   DEFAULT_SHAKE,
   HARVEST_BURST_MS,
@@ -156,6 +159,15 @@ function savedDisabledSources(saves: { primary: unknown; backup: unknown }): Rea
 
   return new Set();
 }
+
+/**
+ * How often ambience re-evaluates. Phase-13d.
+ *
+ * Far below `AMBIENT_IDLE_TIMEOUT_MS`, so the bed stops promptly once the
+ * player looks away, and cheap enough to run forever: it reads seven booleans
+ * and the device does nothing unless the gain actually changed.
+ */
+const AMBIENCE_UPDATE_MS = 1_000;
 
 export function startApplication(): void {
   // Loading is async (an IPC round trip), so the composition happens inside.
@@ -347,7 +359,10 @@ function composeApplication(world: World, session: SaveSession): void {
   // so a volume change or a work-mode toggle takes effect on the next sound
   // without anything re-subscribing. Audio is presentation and reaches the
   // simulation nowhere: the sim cannot know sound exists (ADR-007 §1).
-  const sound = createSoundBus(createWebAudioPorts(), {
+  // Hoisted, because the bed is not played through the bus: it is continuous,
+  // so it is set and adjusted on the device rather than fired (ADR-023 §5).
+  const audioPorts = createWebAudioPorts();
+  const sound = createSoundBus(audioPorts, {
     volumePercent: () => companion.volumePercent(),
     muted: () => companion.muted(),
     workMode: () => companion.workMode(),
@@ -363,6 +378,51 @@ function composeApplication(world: World, session: SaveSession): void {
       return found.ok ? { category: found.value.category, gain: found.value.gain } : undefined;
     },
   });
+  // AMBIENCE (phase-13d, ADR-023 §5). Its own presence instance rather than the
+  // world view's, which is private to the mount — both are `createAmbientPresence`
+  // on the same `AMBIENT_IDLE_TIMEOUT_MS` and both are touched by pointer
+  // activity, so they answer together by construction rather than by wiring.
+  const audioPresence = createAmbientPresence();
+  window.addEventListener('pointermove', () => {
+    audioPresence.touch(performance.now());
+  });
+
+  const ambience = createAmbienceController({
+    bed: Sound.Rain,
+    device: audioPorts.ambience,
+    // Read per update, never captured: all seven move while the game runs.
+    conditions: () => ({
+      // Simulation state, read like every other view reads it. A bed with no
+      // trigger is what ADR-016 calls unreachable code.
+      triggered: isRaining(world),
+      muted: companion.muted(),
+      workMode: companion.workMode(),
+      collapsed: overlay.isCollapsed(),
+      present: audioPresence.isPresent(performance.now()),
+      volumePercent: companion.volumePercent(),
+      ambientPercent: companion.categoryPercent(AudioCategory.Ambient),
+    }),
+    duck: () => sound.duckingFor(AudioCategory.Ambient, performance.now()),
+  });
+
+  // A CLOCK, not a frame. Presence expires on wall time, so something has to
+  // notice — and a frame would be the wrong thing to hang it on, since the
+  // whole point is that the renderer is allowed to stop drawing (ADR-001).
+  // One second is far below the eight-second presence timeout and costs a
+  // timer tick; the device only touches the graph when the gain actually moved.
+  setInterval(() => {
+    ambience.update();
+  }, AMBIENCE_UPDATE_MS);
+
+  // And immediately on the changes that do not wait for the next tick — a
+  // dial moving, or work mode coming on, should be audible at once.
+  companion.subscribe(() => {
+    ambience.update();
+  });
+  overlay.subscribe(() => {
+    ambience.update();
+  });
+
   // Worker selection is presentation state, shared by the renderer (which draws
   // the selection box) and React (which shows the selected worker's state/task).
   const selection = createWorkerSelection();

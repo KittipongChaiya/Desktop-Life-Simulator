@@ -62,10 +62,23 @@ describe('a definition the engine can accept', () => {
 });
 
 describe('core registers its sounds through the public API', () => {
-  it('registers all ten shipped sounds', () => {
+  it('registers all eleven shipped sounds', () => {
     // Read through the installed registries, which is the same path a
-    // third-party source takes (ADR-019 §2).
-    expect(createInstalledRegistries().sounds.size).toBe(10);
+    // third-party source takes (ADR-019 §2). Eleven since phase-13d added
+    // rain — the first AMBIENT registration, which is what stopped the
+    // category being decorative.
+    expect(createInstalledRegistries().sounds.size).toBe(11);
+  });
+
+  it('registers rain against the ambient category (phase-13d)', () => {
+    // `registerAudio` has accepted 'ambient' since 13c and nothing had ever
+    // used it, so until now the only thing exercising that path was the
+    // unknown-category refusal.
+    const rain = createInstalledRegistries()
+      .sounds.all()
+      .find((s) => s.id.endsWith(':rain'));
+
+    expect(rain?.category).toBe('ambient');
   });
 
   it('gives every sound a real category and a usable gain', () => {

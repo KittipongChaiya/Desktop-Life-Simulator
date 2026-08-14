@@ -139,6 +139,7 @@ function companionState(): CompanionState {
     hidden,
     volumePercent: settings.audio.volumePercent,
     muted: settings.audio.muted,
+    categoryPercent: settings.audio.categoryPercent,
     motion: settings.motion,
   };
 }
@@ -197,6 +198,21 @@ function applyPinnedVersion(next: string | null): UpdateState {
   settings = { ...settings, update: merged.update };
   saveSettings(settings);
   return updateState();
+}
+
+/** Sets one audio category's level, through the schema rather than around it. */
+function applyCategoryPercent(category: string, percent: number): CompanionState {
+  const merged = parseSettings({
+    ...settings,
+    audio: {
+      ...settings.audio,
+      categoryPercent: { ...settings.audio.categoryPercent, [category]: percent },
+    },
+  });
+  settings = { ...settings, audio: merged.audio };
+  broadcastCompanionState();
+  saveSettings(settings);
+  return companionState();
 }
 
 function toggleMuted(): CompanionState {
@@ -385,6 +401,17 @@ function registerIpc(): void {
     const parsed = validateNumber(payload, InvokeChannel.SetVolume);
     if (!parsed.ok) return companionState();
     return applyVolumePercent(parsed.value);
+  });
+
+  ipcMain.handle(InvokeChannel.SetCategoryPercent, (_event, payload: unknown) => {
+    // Same discipline as motion: merged then re-parsed through the schema the
+    // settings FILE goes through, so an untrusted renderer cannot write a level
+    // a hand-edited file would have been refused — and an unknown category is
+    // DROPPED by that parse, because ADR-023 §2's category set is closed.
+    if (typeof payload !== 'object' || payload === null) return companionState();
+    const { category, percent } = payload as { category?: unknown; percent?: unknown };
+    if (typeof category !== 'string' || typeof percent !== 'number') return companionState();
+    return applyCategoryPercent(category, percent);
   });
 
   ipcMain.handle(InvokeChannel.SetMotion, (_event, payload: unknown) => {

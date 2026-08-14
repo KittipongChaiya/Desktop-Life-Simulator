@@ -97,3 +97,44 @@ export interface AmbienceDevice {
    */
   set(bed: Sound, gain: number): void;
 }
+
+/** What the controller reads and drives, all injected. */
+export interface AmbienceControllerDeps {
+  /** The bed to sound. One per controller — §5 permits ambience, not ambiences. */
+  readonly bed: Sound;
+  readonly device: AmbienceDevice;
+  /** Read every update, never captured: all seven conditions move at runtime. */
+  readonly conditions: () => AmbienceConditions;
+  /**
+   * The bus's attenuation for the ambient category (ADR-023 §2).
+   *
+   * A parameter rather than an import so this stays testable without a bus,
+   * and so the rule has exactly one home — the bus's table.
+   */
+  readonly duck: () => number;
+}
+
+export interface AmbienceController {
+  /**
+   * Re-evaluates and applies the bed's gain.
+   *
+   * Idempotent and cheap: it reads seven booleans and a multiplier, and the
+   * device only touches the audio graph when something actually changed. Safe
+   * to call from a frame, a presence tick, or a settings change.
+   */
+  update(): void;
+}
+
+export function createAmbienceController(deps: AmbienceControllerDeps): AmbienceController {
+  return {
+    update() {
+      const conditions = deps.conditions();
+      const gain = ambienceGain(conditions);
+
+      // Ducking is applied AFTER the conditions, never instead of them: a
+      // ducked bed is quieter, a silenced one is stopped, and the difference
+      // is whether the audio thread is still running (§5 condition 4).
+      deps.device.set(deps.bed, gain <= 0 ? 0 : gain * deps.duck());
+    },
+  };
+}

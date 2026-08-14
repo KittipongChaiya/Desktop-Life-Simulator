@@ -343,6 +343,11 @@ export function coreSounds(): readonly RegisteredSound[] {
     { id: soundId('core', 'selection'), category: 'ui', gain: 0.25, asset: 'selection' },
     { id: soundId('core', 'ui_click'), category: 'ui', gain: 0.2, asset: 'ui-click' },
     { id: soundId('core', 'notification'), category: 'ui', gain: 0.5, asset: 'notification' },
+    // The first AMBIENT registration (phase-13d). Proves the category is not
+    // decorative: `registerAudio` has accepted 'ambient' since 13c and nothing
+    // had ever used it, so until now an unknown-category refusal was the only
+    // thing the ambient path had been exercised by.
+    { id: soundId('core', 'rain'), category: 'ambient', gain: 0.18, asset: 'rain' },
     { id: soundId('core', 'error'), category: 'ui', gain: 0.6, asset: 'error' },
     { id: soundId('core', 'till'), category: 'world', gain: 0.28, asset: 'till' },
     { id: soundId('core', 'plant'), category: 'world', gain: 0.22, asset: 'plant' },

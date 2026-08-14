@@ -14,7 +14,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { ambienceGain, type AmbienceConditions } from './ambience';
+import { ambienceGain, createAmbienceController, type AmbienceConditions } from './ambience';
+import { Sound } from './sounds';
 
 /** Everything permitting: raining, watched, expanded, unmuted, dials up. */
 const SOUNDING: AmbienceConditions = {
@@ -123,5 +124,93 @@ describe('the gain it sounds at', () => {
 
   it('treats a negative dial as silence rather than as a phase inversion', () => {
     expect(ambienceGain({ ...SOUNDING, volumePercent: -50 })).toBe(0);
+  });
+});
+
+describe('the controller drives the device (phase-13d)', () => {
+  function harness(overrides: Partial<AmbienceConditions> = {}, duck = 1) {
+    const applied: number[] = [];
+    let conditions: AmbienceConditions = { ...SOUNDING, ...overrides };
+
+    const controller = createAmbienceController({
+      bed: Sound.Rain,
+      device: {
+        set: (_bed, gain) => applied.push(gain),
+      },
+      conditions: () => conditions,
+      duck: () => duck,
+    });
+
+    return {
+      controller,
+      applied,
+      set: (next: Partial<AmbienceConditions>) => {
+        conditions = { ...conditions, ...next };
+      },
+    };
+  }
+
+  it('applies the bed at the conditions gain', () => {
+    const h = harness();
+
+    h.controller.update();
+
+    expect(h.applied).toEqual([1]);
+  });
+
+  it('names the bed it was built for', () => {
+    const beds: Sound[] = [];
+    createAmbienceController({
+      bed: Sound.Rain,
+      device: { set: (bed) => beds.push(bed) },
+      conditions: () => SOUNDING,
+      duck: () => 1,
+    }).update();
+
+    expect(beds).toEqual([Sound.Rain]);
+  });
+
+  it('re-reads the conditions every update rather than capturing them', () => {
+    // All seven move at runtime — the player alt-tabs, work mode toggles, the
+    // rain stops. Capturing at construction would freeze the bed on whatever
+    // was true at boot.
+    const h = harness();
+    h.controller.update();
+
+    h.set({ present: false });
+    h.controller.update();
+
+    expect(h.applied).toEqual([1, 0]);
+  });
+
+  it('ducks a sounding bed rather than silencing it', () => {
+    // ADR-023 §2: ambient attenuates under ui and world. Quieter, still there.
+    const h = harness({}, 0.45);
+
+    h.controller.update();
+
+    expect(h.applied).toEqual([0.45]);
+  });
+
+  it('does not let ducking start a bed the conditions silenced', () => {
+    // The ordering that matters. A ducked bed is quieter; a silenced one is
+    // STOPPED, and the difference is whether the audio thread is still running
+    // (§5 condition 4). Multiplying a zero by a duck must stay zero rather
+    // than becoming "very quiet but alive".
+    const h = harness({ present: false }, 0.45);
+
+    h.controller.update();
+
+    expect(h.applied).toEqual([0]);
+  });
+
+  it('asks for zero when the rain stops, which is what releases the thread', () => {
+    const h = harness();
+    h.controller.update();
+
+    h.set({ triggered: false });
+    h.controller.update();
+
+    expect(h.applied[1]).toBe(0);
   });
 });

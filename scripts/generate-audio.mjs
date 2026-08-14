@@ -16,10 +16,13 @@
  * These are placeholders and they sound like it. They exist to prove the
  * wiring, to give the loop acknowledgement, and to be thrown away.
  *
- * The ambient beds `fix/0.1/7.5.md` also lists are deliberately not here:
- * continuous sound is the audible form of the idle motion this phase ruled
- * out, and a sound with no trigger would be an unreachable asset. See
- * `src/renderer/app/sounds.ts`.
+ * The ambient beds `fix/0.1/7.5.md` lists were deliberately absent until
+ * phase-13d, on the grounds that continuous sound is the audible form of the
+ * idle motion 07.7 ruled out and that a sound with no trigger is an
+ * unreachable asset. ADR-023 §5 amends the first — continuous audio is now
+ * permitted under five conditions — and ADR-022's weather answers the second:
+ * `rain` has a real trigger, which is why phase 13 follows phase 12. The
+ * other beds (wind, birds, grass) still have none and are still absent.
  */
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -106,6 +109,40 @@ function noise(buffer, { ms, atMs = 0, gain = 1, decay = 4, smoothing = 0, seed 
   }
 }
 
+/**
+ * Makes a buffer seamless at its loop point.
+ *
+ * Crossfades the tail over the head, then returns the buffer shortened by the
+ * fade — so the sample that follows the last one IS the first one, at the same
+ * amplitude and the same filter state. A loop without this clicks once per
+ * cycle, forever, and it is the single thing that separates a usable bed from
+ * an unusable one.
+ *
+ * @param {Float32Array} buffer
+ * @param {number} fadeMs
+ * @returns {Float32Array}
+ */
+export function loopable(buffer, fadeMs = 400) {
+  const fade = Math.min(seconds(fadeMs), Math.floor(buffer.length / 2));
+  const kept = buffer.length - fade;
+
+  for (let i = 0; i < fade; i += 1) {
+    // Equal-power rather than linear: two uncorrelated noise sources summed
+    // linearly dip in loudness across the fade, which is audible as a soft
+    // spot once a cycle.
+    const t = i / fade;
+    // The HEAD fades in and the DISCARDED TAIL fades out over it, so the new
+    // first sample is the old buffer[kept] — the sample that already followed
+    // buffer[kept - 1] in the source. The seam is then a continuity the signal
+    // always had, rather than one arithmetic tried to invent.
+    const headGain = Math.sin((t * Math.PI) / 2);
+    const tailGain = Math.cos((t * Math.PI) / 2);
+    buffer[i] = buffer[i] * headGain + (buffer[kept + i] ?? 0) * tailGain;
+  }
+
+  return buffer.slice(0, kept);
+}
+
 /** The catalogue, as waveforms. Keys MUST match `src/renderer/app/sounds.ts`. */
 const RECIPES = {
   // A bright two-note pluck: the loop's most frequent sound, so it is short
@@ -178,6 +215,29 @@ const RECIPES = {
     const buffer = new Float32Array(seconds(260));
     tone(buffer, { freq: 320, ms: 240, gain: 0.35, decay: 5, wave: 'square', bend: -0.35 });
     return buffer;
+  },
+  // RAIN — the first ambient bed (phase-13d, ADR-023 §5). Unlike every recipe
+  // above it must LOOP, which changes what "good enough" means: a placeholder
+  // effect can be crude because it is over in 200 ms, while a bed the player
+  // hears for an hour cannot tick, pulse, or seam.
+  //
+  // Two consequences. It carries NO decay envelope — `decay: 0` — because an
+  // envelope is exactly the audible period a loop must not have. And its ends
+  // are crossfaded into each other, so the last sample flows into the first
+  // and the loop point is inaudible; without that, a listener hears a click
+  // once every cycle forever, which is the one artefact a bed cannot get away
+  // with.
+  //
+  // Filtered noise rather than layered tones: rain has no pitch, and anything
+  // with a pitch becomes a drone the ear locks onto.
+  rain: () => {
+    const lengthMs = 4_000;
+    const buffer = new Float32Array(seconds(lengthMs));
+    noise(buffer, { ms: lengthMs, gain: 0.5, decay: 0, smoothing: 0.72, seed: 41 });
+    // A second, duller layer at a different seed: one noise source alone reads
+    // as static, two at different bandwidths read as weather.
+    noise(buffer, { ms: lengthMs, gain: 0.28, decay: 0, smoothing: 0.93, seed: 97 });
+    return loopable(buffer);
   },
 };
 

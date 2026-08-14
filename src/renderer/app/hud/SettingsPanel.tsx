@@ -104,6 +104,16 @@ export function SettingsPanel(): ReactNode {
     () => companion.storedMotion(),
   );
 
+  // ADR-023 §5 condition 1: a fresh profile is silent and STAYS silent after
+  // unmuting, until the player asks for ambience specifically. This dial is
+  // that asking — until it existed the level could only be changed by hand
+  // editing settings.json, which is not an affordance.
+  const ambience = useSyncExternalStore(
+    (listener) => companion.subscribe(listener),
+    () => companion.categoryPercent('ambient'),
+    () => companion.categoryPercent('ambient'),
+  );
+
   const muted = useSyncExternalStore(
     (listener) => companion.subscribe(listener),
     () => companion.muted(),
@@ -212,6 +222,31 @@ export function SettingsPanel(): ReactNode {
             >
               {muted ? 'Off' : 'On'}
             </button>
+          </div>
+
+          <div className={styles['row']}>
+            <label className={styles['name']} htmlFor="companion-ambience">
+              Ambience
+            </label>
+            <input
+              id="companion-ambience"
+              className={styles['slider']}
+              type="range"
+              min={VOLUME_MIN_PERCENT}
+              max={VOLUME_MAX_PERCENT}
+              step={VOLUME_STEP_PERCENT}
+              value={ambience}
+              disabled={muted}
+              title="Weather you can hear. Off by default; stops when you look away."
+              onChange={(event) => {
+                companion.setCategoryPercent('ambient', Number(event.target.value));
+              }}
+            />
+            <span className={styles['value']}>{ambience}%</span>
+          </div>
+          <div className={styles['hint']}>
+            Rain you can hear while you are watching. Off by default, and it stops on its own when
+            you are away.
           </div>
 
           {/* ACCESSIBILITY (07.7L). Every control here is a PRESENTATION
