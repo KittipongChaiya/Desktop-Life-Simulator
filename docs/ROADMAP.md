@@ -422,19 +422,19 @@ _Milestone 08b — the public API (ADR-019)_
 
 **Acceptance.**
 
-- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save
-- [ ] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched
-- [ ] A pre-migration backup restored into the older build loads and continues correctly
-- [ ] An update restart requested mid-save waits for the write and never truncates it
-- [ ] A tampered artifact is rejected and the installation is untouched
-- [ ] No prompt appears while hidden or in work mode; none is an OS notification
-- [ ] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite that passes
+- [ ] Interrupting the update at each replacement step leaves a launchable application and an untouched save — **proven for the specified sequence, not for the one that ships.** `src/main/install-store.test.ts` halts after each of `stage`/`retain`/`swap`/`commit` against real directories and re-reads a planted save byte-for-byte. But `electron-updater` hands off to the NSIS installer, which does not run that sequence, so the shipping path is unverified. Phase 16 owns it
+- [x] A rollback to a build with a lower `CURRENT_SCHEMA_VERSION` than the save is refused with a clear message, save untouched — `src/main/rollback-guard.test.ts`; the message names the pre-migration backup to restore, and "the save is untouched" holds because the module has no way to reach one
+- [ ] A pre-migration backup restored into the older build loads and continues correctly — **not attempted.** The backup is written (ADR-027 §2, phase 09) and the refusal names it, but nobody has restored one into an older build and played on. Phase 16
+- [x] An update restart requested mid-save waits for the write and never truncates it — `src/main/update-restart.test.ts` asserts the ordering (save resolves before the installer is called) and that a wedged renderer delays but cannot veto; the save machinery itself is phase-07e's, reused unchanged rather than reimplemented
+- [ ] A tampered artifact is rejected and the installation is untouched — the mechanism exists and is wired: electron-builder writes a SHA-512 per artifact into `latest.yml`, `electron-updater` verifies it before emitting `update-downloaded`, and `updater.ts` treats that event as the only thing marking a package ready. Demonstrating it needs a published release and a deliberately corrupted artifact. Phase 16
+- [x] No prompt appears while hidden or in work mode; none is an OS notification — `src/main/update-policy.test.ts` for the presence gate, `src/renderer/app/hud/companion-toast.test.tsx` for the surface, which is a `div` in the React root; the renderer has no path to a `Notification` at all
+- [x] `PLAN.md` §3's _"auto-update never loses a save under interrupted-update testing"_ is an executable suite that passes — `src/main/install-store.test.ts`. **Read it with the first box above**: the suite is real and green, and it exercises the sequence ADR-025 §4 specifies rather than the NSIS path currently shipping
 
 **Documentation.** `ARCHITECTURE.md` §7; `TECH_STACK.md` (any new dependency, justified); `SAVE_FORMAT.md` §11; `PLAN.md` §8; `CHANGELOG.md`.
 
 **Testing strategy.** Real interruption against a real installation, in the phase-07c tradition — halt after each step and assert the invariant. Rollback boundary and backup recovery as integration tests. Signature rejection. E2E for presence discipline.
 
-**Commit boundary.** Four — signing and the publish pipeline; check, announce, and apply; atomic replacement with interruption recovery; rollback boundary, pinning, and staged rollout.
+**Commit boundary.** Four were planned — signing and the publish pipeline; check, announce, and apply; atomic replacement with interruption recovery; rollback boundary, pinning, and staged rollout. **Eighteen shipped**, and the reason is recorded in the phase document: they were built in the reverse of this order so that ADR-025 §7's dependency condition could be measured against an executable suite rather than prose, and every split fell on the same seam — a rule that can be _proven_ ships separately from the wiring that merely _carries_ it (`AI_RULES.md` §4.2).
 
 ---
 

@@ -3,7 +3,8 @@
 > **Delivers:** the game can update itself without ever endangering a save.
 > **Governing decisions:** ADR-025 (distribution and update), ADR-015 §3–§4 (migration governance and the forward refusal), ADR-027 (the v0.2 schema chain and the pre-migration backup), ADR-014 (the main-process platform service this is a capability of).
 > **Schema:** none. This phase adds no persisted world state and no migration.
-> **Status:** **In progress.** The machinery is built and live; what remains is proving §4 against a packaged installation.
+> **Status:** **Built.** Eighteen boundaries, all landed; the chain runs end to end — check, announce, consent, download, verify, save, restart — and the publish pipeline writes the manifest the client reads.
+> **Not closed.** Three acceptance criteria remain open and all three need a published release to test against: §4's interruption recovery for the **NSIS path that actually ships** (`install-store.ts` proves the specified sequence, which `electron-updater` does not run), restoring a pre-migration backup into an older build, and rejecting a tampered artifact. `ROADMAP.md` §12 carries them — phase 16's acceptance list already names the first verbatim.
 
 ---
 
