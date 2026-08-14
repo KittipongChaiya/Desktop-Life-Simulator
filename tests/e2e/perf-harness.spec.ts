@@ -30,6 +30,13 @@ import { expect, test, type ElectronApplication } from '@playwright/test';
 
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
+// Criterion 9 plants a save so the weather is not left to chance — see below.
+import { serializeSave, toSaveDocument } from '../../src/persistence/serialize';
+import { isRaining } from '../../src/sim/content/weather-kinds';
+import { stepSimulation } from '../../src/sim/tick';
+import { createWorld } from '../../src/sim/world/world';
+import '../../plugins/core';
+
 let app: ElectronApplication;
 let session: IsolatedSession;
 
@@ -306,4 +313,121 @@ test('criterion 11: heap stays flat under sustained effect density', async () =>
   // PERFORMANCE.md's growth ceiling is 25 MB over an 8-hour run; a soak this
   // short must be far inside it, so the assertion is deliberately tighter.
   expect(measured.growthMb).toBeLessThan(25);
+});
+
+/**
+ * CRITERION 9 — ambient AUDIO surrenders the audio thread.
+ *
+ * ADR-023 §5's fifth condition, and the whole reason ADR-016 §4 deferred
+ * continuous audio in the first place: the deferral asked for a measurement,
+ * so a number is owed before ambience ships.
+ *
+ * Criterion 8 measures the same surrender for ambient MOTION. This is its
+ * audible twin, and it needs one thing motion did not: **it has to actually be
+ * raining.** A bed that is off because there is no weather proves nothing, and
+ * that is the vacuous pass this measurement is most likely to produce.
+ *
+ * So the weather is not left to chance. A world whose seed is raining at tick 0
+ * is found here, serialized, and planted in the profile before launch — the
+ * same trick the migration fixtures use, for the same reason: a test that
+ * depends on a 40% roll is a test that fails one run in three.
+ */
+test('criterion 9: ambient audio returns to silence when nobody is watching', async () => {
+  test.setTimeout(180_000);
+
+  // This session needs a planted save, so it launches its own rather than
+  // using the one `beforeEach` opened. Disposing first keeps the
+  // single-instance lock from refusing the second launch.
+  await session.dispose();
+
+  // A seed that is ALREADY raining, found rather than hardcoded — a magic
+  // number here would silently stop raining the day a weather weight moved.
+  // STEPPED before asking.  reads the published time slice rather
+  // than deriving the weather, so a world that has never ticked has no weather
+  // at all and every seed answers false — which is how the first version of
+  // this search failed on all 5,000.
+  let rainingSeed = 0;
+  for (let seed = 1; seed <= 5_000 && rainingSeed === 0; seed += 1) {
+    const candidate = createWorld(seed);
+    stepSimulation(candidate);
+    if (isRaining(candidate)) rainingSeed = seed;
+  }
+  expect(rainingSeed, 'no seed in 5,000 produces rain at tick 0').toBeGreaterThan(0);
+
+  // Planted BEFORE the app starts, in the profile it will actually use.
+  //
+  // The first version of this launched, wrote the save, then relaunched — and
+  // `launchIsolated` mints a fresh temp profile per call, so the save landed in
+  // a directory the running app had already abandoned. Worse, the dispose in
+  // between triggers a quit save, which would have overwritten it anyway.
+  session = await launchIsolated({}, (userData) => {
+    const world = createWorld(rainingSeed);
+    mkdirSync(join(userData, 'saves'), { recursive: true });
+    writeFileSync(
+      join(userData, 'saves', 'slot-0.json'),
+      serializeSave(
+        toSaveDocument(world, {
+          gameVersion: '0.2.0',
+          createdAtUnixMs: 1_753_000_000_000,
+          savedAtUnixMs: Date.now(),
+          playtimeTicks: 0,
+          saveCount: 1,
+        }),
+      ),
+      'utf8',
+    );
+  });
+  app = session.app;
+
+  const window = await app.firstWindow();
+  await openWorld();
+
+  // Ambience is OFF by default (§5 condition 1) and this is the player asking
+  // for it — through the dial, which is the only affordance that exists.
+  //
+  // TWO steps, which is condition 1 stated as a procedure: a fresh install is
+  // silent, and it STAYS silent after unmuting until ambience is asked for
+  // specifically. Unmuting alone left the bed off, which is the condition
+  // working rather than the test being wrong.
+  await window.evaluate(async () => {
+    const api = (
+      globalThis as unknown as {
+        desktopLife: {
+          companion: {
+            toggleMuted(): Promise<unknown>;
+            setCategoryPercent(c: string, p: number): Promise<unknown>;
+          };
+        };
+      }
+    ).desktopLife;
+    await api.companion.toggleMuted();
+    await api.companion.setCategoryPercent('ambient', 100);
+  });
+
+  // Presence is pointer-driven, exactly as it is for motion.
+  await window.mouse.move(200, 100);
+  await window.mouse.move(240, 120);
+
+  // POLLED for the same reason criterion 8 polls: the overlay republishes at
+  // 4 Hz and the controller re-evaluates on a 1 s clock, so a single read can
+  // land before the bed has started.
+  await expect.poll(async () => await metric('Ambience'), { timeout: 20_000 }).not.toContain('off');
+
+  const whileWatched = { ambience: await metric('Ambience') };
+
+  // AMBIENT_IDLE_TIMEOUT_MS is 8 s; wait well past it, touching nothing.
+  await new Promise((resolve) => setTimeout(resolve, 14_000));
+
+  const whenAway = { ambience: await metric('Ambience') };
+
+  report('criterion-9-ambient-audio', { rainingSeed, whileWatched, whenAway });
+
+  // While watched: the bed is sounding. Without this the test below passes on
+  // a farm where it simply never rained.
+  expect(whileWatched.ambience).toContain('on');
+
+  // And away: silent, which is what releases the audio thread. A gain of zero
+  // STOPS the source rather than playing silence — the distinction the whole
+  // condition rests on.
+  expect(whenAway.ambience).toContain('off');
 });

@@ -54,6 +54,14 @@ export interface DevToolsMountOptions {
    */
   readonly saveNote?: () => string | null;
   /**
+   * The ambient bed's applied gain (phase-13d, ADR-023 §5 condition 5).
+   *
+   * The fifth condition asks for a MEASURED idle budget, which means the bed's
+   * state has to be observable from outside the process — `perf-harness.spec`
+   * reads this to prove the bed stops when the player stops watching.
+   */
+  readonly ambienceGain?: () => number;
+  /**
    * Submits a sim command through the ordinary player source (06c). Enables
    * console commands that act on the world — `money`, the declared dev-only
    * coin source — with no privileged write path (ADR-010 §6).
@@ -306,6 +314,23 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
       group: MetricGroup.Simulation,
       order: 11,
       read: () => saveNote() ?? 'none',
+    });
+  }
+
+  const ambienceGain = options.ambienceGain;
+  if (ambienceGain !== undefined) {
+    host.metrics.register({
+      id: 'sim.ambience',
+      label: 'Ambience',
+      group: MetricGroup.Simulation,
+      order: 12,
+      // A number, formatted, rather than a boolean: "off" and "on at 0.08"
+      // are different facts, and the harness needs to tell a stopped bed from
+      // a very quiet one — that difference IS the condition.
+      read: () => {
+        const gain = ambienceGain();
+        return gain <= 0 ? 'off' : `on ${gain.toFixed(3)}`;
+      },
     });
   }
 

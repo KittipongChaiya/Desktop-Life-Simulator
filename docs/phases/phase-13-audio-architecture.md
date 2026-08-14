@@ -3,7 +3,7 @@
 > **Delivers:** the shipped placeholder bus becomes a real audio architecture, and ADR-016 §4's deferred ambient question gets a measurement.
 > **Governing decisions:** ADR-023 (audio architecture), ADR-016 (the three layers), ADR-017 §4 (pools) and §5 (derived variation), ADR-019 §2 (proven by first-party use).
 > **Schema:** none.
-> **Status:** **In progress.** Boundaries 1–3 landed; ambience and its measurement remain.
+> **Status:** **Complete.** Four boundaries. Ambience ships with the measurement ADR-016 §4 deferred it for, taken against a real window and written to `docs/perf/criterion-9-ambient-audio.json`.
 
 ---
 
@@ -11,12 +11,12 @@
 
 `ROADMAP.md` §9 sets four: the Web Audio device layer and voice pool; buses, mixer, and settings; the sound registry and plugin audio; ambience with its measurement.
 
-| Order | Boundary                                           | Commit |
-| ----- | -------------------------------------------------- | ------ |
-| 1     | Web Audio device layer, and the bounded voice pool | _this_ |
-| 2     | Category buses, mixer, and per-category settings   | _this_ |
-| 3     | The sound registry and `registerAudio`             | _this_ |
-| 4     | Rain ambience, and the measured idle budget        | —      |
+| Order | Boundary                                           | Commit                          |
+| ----- | -------------------------------------------------- | ------------------------------- |
+| 1     | Web Audio device layer, and the bounded voice pool | `edc08b0`                       |
+| 2     | Category buses, mixer, and per-category settings   | `2a3fd57`                       |
+| 3     | The sound registry and `registerAudio`             | `66ca047`                       |
+| 4     | Rain ambience, and the measured idle budget        | `db140a0`, `38c285d`, `5c33912` |
 
 ---
 
@@ -117,7 +117,7 @@ Worth recording because the gate did its job in the way that is easiest to resen
 - [x] The bus's unit tests still run in Node with no browser — `audio.test.ts` untouched; `voice-pool.test.ts` joins it
 - [x] The voice pool recycles at capacity and never allocates — `voice-pool.test.ts`
 - [x] Muted and unmuted sessions produce byte-identical worlds and `world.rng` — `audio-mixer.test.ts`, 200 steps with the bus playing throughout
-- [ ] A fresh profile is silent, and enabling sound does not enable ambience — boundary 4
-- [ ] Work mode silences everything including ambience — boundary 4
-- [ ] Ambience on, pointer idle → audio suspends and idle CPU returns to baseline, measured into `docs/perf/` — boundary 4
+- [x] A fresh profile is silent, and enabling sound does not enable ambience — `ambience.test.ts`, and proven end to end by criterion 9: unmuting alone left the bed **off**, and it took a second, separate act to start it. That is condition 1 behaving, expressed as data rather than as a check — `DEFAULT_CATEGORY_PERCENT.ambient` is `0`
+- [x] Work mode silences everything including ambience — `ambience.test.ts`, in the matrix that proves each of the five conditions is independently sufficient to silence
+- [x] Ambience on, pointer idle → audio suspends, measured into `docs/perf/criterion-9-ambient-audio.json` — `on 0.600` while watched, `off` after 14 s untouched, against a farm planted with an already-raining seed so the bed could not read "off" for want of weather. `PERFORMANCE.md` states the ceiling over the source's **existence** rather than its level: a silent-but-running bed would pass a loudness bar and fail this one
 - [x] A plugin-supplied sound registers against an engine category, and one naming an unknown category is refused — `src/sim/content/sounds.test.ts`

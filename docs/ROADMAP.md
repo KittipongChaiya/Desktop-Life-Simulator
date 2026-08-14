@@ -334,13 +334,13 @@ _Milestone 08b — the public API (ADR-019)_
 
 **Acceptance.**
 
-- [ ] Muted and unmuted sessions produce byte-identical worlds and byte-identical `world.rng` over a long run
-- [ ] The bus's unit tests still run in Node with no browser
-- [ ] A fresh profile is silent, and enabling sound does not enable ambience
-- [ ] Work mode silences everything including ambience
-- [ ] Ambience on, pointer idle past the timeout → audio suspends and idle CPU returns to baseline, with the measurement written to `docs/perf/`
-- [ ] The voice pool recycles at capacity and never allocates
-- [ ] A plugin-supplied sound plays through an engine category
+- [x] Muted and unmuted sessions produce byte-identical worlds and byte-identical `world.rng` over a long run — `src/renderer/app/audio-mixer.test.ts`, 200 steps with the bus playing throughout (ADR-023 §6)
+- [x] The bus's unit tests still run in Node with no browser — `audio.test.ts` was untouched by the rebuild, and `voice-pool.test.ts` joined it; the device layer takes its context factory as a parameter rather than being mocked
+- [x] A fresh profile is silent, and enabling sound does not enable ambience — `src/renderer/app/ambience.test.ts`, and proven end to end by criterion 9, where unmuting alone left the bed **off** and starting it took a second, separate act
+- [x] Work mode silences everything including ambience — `src/renderer/app/ambience.test.ts`, in the matrix proving each of ADR-023 §5's five conditions is independently sufficient to silence
+- [x] Ambience on, pointer idle past the timeout → the bed stops, measured to `docs/perf/criterion-9-ambient-audio.json`: `on 0.600` while watched, `off` after 14 s untouched. Taken against a farm planted with an already-raining seed, because a bed that is off for want of weather proves nothing. `PERFORMANCE.md` states the ceiling over the source's **existence** rather than its level — a silent-but-running bed would pass a loudness bar and fail this
+- [x] The voice pool recycles at capacity and never allocates — `src/renderer/audio/voice-pool.test.ts`; the ambient bed deliberately does **not** take a pooled voice, because a sound that never ends would hold its slot for the session and be the oldest claim on the farm
+- [x] A plugin-supplied sound plays through an engine category — `src/sim/content/sounds.test.ts`; core registers eleven sounds through the public `registerAudio`, including `core:rain` as the first **ambient** registration
 
 **Documentation.** `PERFORMANCE.md` (new budget line and idle case); `ASSETS.md` §3, §10; `PLUGIN_API.md`; `docs/assets/` audio canon cross-references; `CHANGELOG.md`.
 

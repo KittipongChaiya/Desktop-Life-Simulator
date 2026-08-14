@@ -392,6 +392,38 @@ measurement that makes the ambient-motion exception legitimate rather than a
 hole in ADR-001, and it could not be taken until 07.7L made the setting
 reachable.
 
+### Criterion 9 — ambient audio returns to silence
+
+`docs/perf/criterion-9-ambient-audio.json`. The audible twin of criterion 8,
+and the condition ADR-016 §4 deferred continuous audio for: the deferral asked
+for a measurement, so a number was owed before ambience could ship.
+
+Taken against a farm whose weather is not left to chance. A seed that is
+already raining is found, serialized, and planted in the profile **before** the
+app starts — a bed that is off because there is no rain proves nothing, and
+that vacuous pass is the likeliest way this measurement could lie.
+
+Sound unmuted and the ambient category raised to 100 through the real IPC
+bridge, pointer moved, then left alone for 14 s (`AMBIENT_IDLE_TIMEOUT_MS` is
+8 s).
+
+| State                          | Ambient bed  |
+| ------------------------------ | ------------ |
+| Raining, pointer active        | on, gain 0.6 |
+| Raining, pointer idle for 14 s | **off**      |
+
+**Ceiling: the bed must read `off` within `AMBIENT_IDLE_TIMEOUT_MS` + one
+update tick (9 s) of the last pointer input, at any weather.** "Off" is a
+stronger claim than "quiet": a gain of zero stops the source rather than
+playing silence, so the audio thread has nothing left to run. A silent-but-
+running bed would satisfy a loudness ceiling and fail this one, which is why
+the ceiling is stated over the source's existence rather than over a level.
+
+**PASS.** ADR-023 §5's five conditions are each independently sufficient to
+silence the bed — proven in `ambience.test.ts` — and this is the fourth of
+them proven end to end in a real process rather than argued. It is what makes
+continuous audio an amendment to ADR-016 §4 rather than a reversal of it.
+
 ### Criterion 11 — heap under sustained effect density
 
 `docs/perf/criterion-11-heap.json`. 30 minutes, 298 samples at 5 s, every motion

@@ -909,6 +909,7 @@ function composeApplication(world: World, session: SaveSession): void {
     worldError: () => lastWorldError,
     commandRejection: () => lastCommandRejection,
     saveNote: () => lastLoadNote,
+    ambienceGain: () => ambience.gain(),
     // The console's `money` command submits through the ordinary player
     // source — no privileged write path (ADR-010 §6).
     submitCommand: (command) => playerSource.submit(command),

@@ -32,10 +32,22 @@
  * shape rather than an exclusion bought with a promise.
  */
 
-import { autoUpdater } from 'electron-updater';
+/*
+ * DEFAULT import, destructured — NOT `import { autoUpdater }`.
+ *
+ * `electron-updater` is CommonJS and this bundle is ESM, so the named form
+ * typechecks, lints, and bundles, then throws at load: "Named export
+ * 'autoUpdater' not found". It took the whole application down and no unit
+ * test could see it, because main is a host binding and the only thing that
+ * runs it is an E2E launch — which is why the app was broken for two commits
+ * after this file arrived.
+ */
+import electronUpdater from 'electron-updater';
 
 import { mayDownload } from './update-policy';
 import { REQUIRED_UPDATER_CONFIG } from './updater-config';
+
+const { autoUpdater } = electronUpdater;
 
 /** Whether a verified package is staged and ready for the installer. */
 let ready = false;

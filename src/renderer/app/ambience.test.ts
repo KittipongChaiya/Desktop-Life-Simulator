@@ -214,3 +214,52 @@ describe('the controller drives the device (phase-13d)', () => {
     expect(h.applied[1]).toBe(0);
   });
 });
+
+describe('the applied gain is observable, so §5 condition 5 can be measured', () => {
+  const device = { set: () => undefined };
+
+  it('is zero before anything has been applied', () => {
+    expect(
+      createAmbienceController({
+        bed: Sound.Rain,
+        device,
+        conditions: () => SOUNDING,
+        duck: () => 1,
+      }).gain(),
+    ).toBe(0);
+  });
+
+  it('reports what was actually applied, ducking included', () => {
+    // The perf harness reads this through a devtools metric, and it has to
+    // distinguish a STOPPED bed from a very quiet one — that difference is the
+    // condition. Reporting the pre-duck gain would make a ducked bed look
+    // louder than it is; reporting a boolean would lose the distinction
+    // entirely.
+    const controller = createAmbienceController({
+      bed: Sound.Rain,
+      device,
+      conditions: () => SOUNDING,
+      duck: () => 0.45,
+    });
+
+    controller.update();
+
+    expect(controller.gain()).toBeCloseTo(0.45, 5);
+  });
+
+  it('returns to zero when the conditions silence it', () => {
+    let conditions = SOUNDING;
+    const controller = createAmbienceController({
+      bed: Sound.Rain,
+      device,
+      conditions: () => conditions,
+      duck: () => 1,
+    });
+    controller.update();
+
+    conditions = { ...SOUNDING, present: false };
+    controller.update();
+
+    expect(controller.gain()).toBe(0);
+  });
+});

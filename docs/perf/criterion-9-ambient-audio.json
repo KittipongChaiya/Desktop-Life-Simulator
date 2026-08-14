@@ -1,0 +1,9 @@
+{
+  "rainingSeed": 2,
+  "whileWatched": {
+    "ambience": "on 0.600"
+  },
+  "whenAway": {
+    "ambience": "off"
+  }
+}

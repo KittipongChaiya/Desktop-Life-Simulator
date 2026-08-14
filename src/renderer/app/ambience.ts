@@ -116,6 +116,15 @@ export interface AmbienceControllerDeps {
 
 export interface AmbienceController {
   /**
+   * The gain last applied — `0` when the bed is stopped. Phase-13d.
+   *
+   * Exists so ADR-023 §5's fifth condition is MEASURABLE. "The audio thread
+   * suspends when the player is away" is a claim about a running process, and
+   * a claim nothing can observe is one nobody can hold the code to; the perf
+   * harness reads this through a devtools metric.
+   */
+  gain(): number;
+  /**
    * Re-evaluates and applies the bed's gain.
    *
    * Idempotent and cheap: it reads seven booleans and a multiplier, and the
@@ -126,7 +135,11 @@ export interface AmbienceController {
 }
 
 export function createAmbienceController(deps: AmbienceControllerDeps): AmbienceController {
+  let applied = 0;
+
   return {
+    gain: () => applied,
+
     update() {
       const conditions = deps.conditions();
       const gain = ambienceGain(conditions);
@@ -134,7 +147,8 @@ export function createAmbienceController(deps: AmbienceControllerDeps): Ambience
       // Ducking is applied AFTER the conditions, never instead of them: a
       // ducked bed is quieter, a silenced one is stopped, and the difference
       // is whether the audio thread is still running (§5 condition 4).
-      deps.device.set(deps.bed, gain <= 0 ? 0 : gain * deps.duck());
+      applied = gain <= 0 ? 0 : gain * deps.duck();
+      deps.device.set(deps.bed, applied);
     },
   };
 }

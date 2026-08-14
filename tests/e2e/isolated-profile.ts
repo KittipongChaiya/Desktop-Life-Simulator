@@ -33,8 +33,19 @@ export interface IsolatedSession {
  * The single-instance lock lives under userData too, so this also keeps
  * concurrent instances from quitting each other (the 07c finding).
  */
-export async function launchIsolated(extraEnv: NodeJS.ProcessEnv = {}): Promise<IsolatedSession> {
+export async function launchIsolated(
+  extraEnv: NodeJS.ProcessEnv = {},
+  /**
+   * Runs against the fresh profile BEFORE the app starts.
+   *
+   * For specs that need the app to find something already on disk — a planted
+   * save, say. Doing it after launch is too late twice over: the app has
+   * already loaded, and its quit save would overwrite whatever was planted.
+   */
+  prepare?: (userData: string) => void,
+): Promise<IsolatedSession> {
   const userData = mkdtempSync(join(tmpdir(), 'dls-e2e-'));
+  prepare?.(userData);
   const app = await electron.launch({
     args: ['.'],
     env: { ...process.env, ...extraEnv, DESKTOP_LIFE_USER_DATA: userData },
