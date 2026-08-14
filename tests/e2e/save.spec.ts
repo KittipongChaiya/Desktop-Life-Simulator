@@ -17,6 +17,8 @@ import { join } from 'node:path';
 
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
 
+import { CURRENT_SCHEMA_VERSION } from '../../src/persistence/schema';
+
 let app: ElectronApplication;
 let userData: string;
 
@@ -89,7 +91,13 @@ test('quitting saves by itself, and a relaunch resumes the same world (crit 19, 
 
   const first = readSave();
   expect(first.magic).toBe('desktop-life-simulator/save');
-  expect(first.schemaVersion).toBe(1);
+  // The CONSTANT, not a literal. This asserted `1` and went stale the moment
+  // v0.2 started migrating — it was still asserting the v0.1 format while the
+  // chain had reached v6, so a test about "quitting writes a save" was failing
+  // for a reason that had nothing to do with quitting or saving. What it means
+  // to check is that the save carries THIS BUILD's format, which is a fact that
+  // moves every time a migration lands.
+  expect(first.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
   expect(first.world.tick).toBeGreaterThan(0);
   expect(first.world.wallet.coins).toBe(100); // the untouched starting capital
   expect(first.meta.saveCount).toBe(1);
