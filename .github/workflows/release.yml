@@ -55,6 +55,12 @@ jobs:
       - name: Verify
         run: npm run typecheck && npm run lint && npm test
 
+      # Before anything is published. An unbootable release is the worst
+      # version of the phase-13d regression: every gate green, an artifact
+      # uploaded, and the first thing a player sees is nothing happening.
+      - name: Smoke — the application launches
+        run: npm run build && npm run smoke
+
       # Written BEFORE the publish so electron-builder uploads it in the same
       # release. A manifest that arrived afterwards would leave a window where
       # clients see a version they cannot judge — and `mayDownload` would

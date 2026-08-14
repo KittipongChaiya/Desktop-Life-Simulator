@@ -299,10 +299,23 @@ Builders make each test state its own preconditions. Shared mutable fixtures cre
 | Unit + integration + property | `npm test`                                                          |
 | Coverage thresholds           | `npm run test:coverage`                                             |
 | Build succeeds                | `npm run build`                                                     |
+| **The app actually launches** | `npm run smoke`                                                     |
 | E2E                           | `VITE_FEATURE_DEBUG=true npm run build` **then** `npm run test:e2e` |
 | Performance regressions       | `PERFORMANCE.md` §10.1                                              |
 | Asset validation              | `ASSETS.md` §13                                                     |
 
+> **A build that succeeds is not a build that runs.** `npm run smoke` exists
+> because that sentence was learned the expensive way in phase-13d:
+> `import { autoUpdater } from 'electron-updater'` — a CommonJS package named
+> into an ESM bundle — passed typecheck, lint, and build, and then threw at
+> load. **The application did not start for two commits**, with every gate above
+> it green, because `src/main` is a host binding no unit test imports and a
+> module-format mismatch is not a type error. The smoke gate launches the
+> PRODUCTION build and asserts it survives twelve seconds without a fatal load
+> error. It is deliberately not a Playwright spec — the E2E suite refuses a
+> build without developer tooling, correctly, and the build that must be proven
+> bootable is the one players get.
+>
 > **The E2E rebuild is not optional, and the order above is the trap.** The suite
 > launches `electron .`, which runs whatever sits in `out/`. Eight specs drive the
 > app through the F1 developer console — it is the only way to fund a farm or skip

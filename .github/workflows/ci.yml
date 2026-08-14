@@ -58,6 +58,19 @@ jobs:
       - name: Build
         run: npm run build
 
+      # DOES THE APP ACTUALLY START? Added in phase-13d, after
+      # `import { autoUpdater } from 'electron-updater'` — a CommonJS package in
+      # an ESM bundle — typechecked, linted, bundled, and then threw at load.
+      # The application did not start for two commits with every gate above
+      # green, because `src/main` is a host binding no unit test imports and a
+      # module-format mismatch is not a type error.
+      #
+      # Runs against the PRODUCTION build, the one players get, which is why it
+      # is not a Playwright spec: the E2E suite refuses a build without
+      # developer tooling, correctly, and that is the build this must prove.
+      - name: Smoke — the application launches
+        run: npm run smoke
+
       # Generated assets must never be committed — they would produce
       # unmergeable binary diffs and silently drift from source (ADR-006 §2).
       - name: Assert generated assets are not committed
