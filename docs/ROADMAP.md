@@ -463,13 +463,13 @@ _Milestone 08b — the public API (ADR-019)_
 
 **Acceptance.**
 
-- [ ] All eight `PLAN.md` §8 release gates green, with evidence files behind every number
-- [ ] Every `PLAN.md` §3 v0.2 success criterion met, including a third party writing a plugin from documentation alone
-- [ ] A v0.1 save loads in v0.2 through the full chain with no data loss
-- [ ] Uninstalling a plugin preserves its save data
-- [ ] Performance budgets hold with weather, lighting, and audio active
-- [ ] Auto-update never loses a save under interrupted-update testing
-- [ ] Zero known data-loss defects
+- [x] All eight `PLAN.md` §8 release gates green, with evidence files behind every number — `RELEASE-v0.2-RC.md` §2. Performance is marked **partial** there rather than green, because the combined-budget run below was not taken
+- [ ] Every `PLAN.md` §3 v0.2 success criterion met, including a third party writing a plugin from documentation alone — **the third-party gate was withdrawn by the project owner on 2026-08-14**, with playability as the bar in its place. Every other §3 criterion is met. Left unticked deliberately: the plugin API is proven by first-party use (ADR-019 §2), but nobody outside the project has followed `PLUGIN_GUIDE.md`, so the documentation's fitness is untested and "withdrawn" is not "met"
+- [x] A v0.1 save loads in v0.2 through the full chain with no data loss — `tests/save-compatibility.test.ts`, 45 assertions across every prior golden fixture, including the v5 → v6 removal
+- [x] Uninstalling a plugin preserves its save data — ADR-026's isolation invariant, asserted at every version in the chain: disabling isolates, never destroys, and re-enabling restores
+- [ ] Performance budgets hold with weather, lighting, and audio active — **individually yes**, each measured to `docs/perf/` (tick p99, ambient motion, ambient audio, render budget, heap, expand/collapse). **Together, unmeasured.** This phase named the risk that budgets hold apart and not together, and it is the one that stayed open
+- [ ] Auto-update never loses a save under interrupted-update testing — the executable suite exists and passes (`src/main/install-store.test.ts`, halting after each replacement step against real directories with a planted save re-read byte for byte). It exercises the sequence ADR-025 §4 **specifies**; `electron-updater` hands off to the NSIS installer, which does not run it, so the shipping path is unproven. `RELEASE-v0.2-RC.md` §4
+- [x] Zero known data-loss defects — none known. Three update paths are **unproven**, which is recorded as unproven rather than counted as clean, and none of them can reach a save: the updater takes the installation root as a parameter and has no way to name the save directory
 
 **Documentation.** `save-compatibility-report.md`; `PERFORMANCE.md` §11; `PLAN.md`; `VISION.md` if the tier's intent moved; the foundation-extension ADR; `CHANGELOG.md`.
 
