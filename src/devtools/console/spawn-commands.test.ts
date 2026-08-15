@@ -15,6 +15,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { appError, ErrorCode } from '../../shared/errors';
+import { toIndexUnchecked } from '../../shared/geometry';
 import { err, ok } from '../../shared/result';
 import { CommandSource, type Command, type CommandResult } from '../../sim/commands/types';
 import { OutputKind, type CommandDefinition } from '../console/registry';
@@ -90,7 +91,9 @@ describe('spawn crop and building', () => {
 
     run(spawn, 'crop', 'core:wheat', '10,12');
 
-    expect(submitted).toEqual([{ type: 'plantCrop', tile: 12 * 64 + 10, cropId: 'core:wheat' }]);
+    expect(submitted).toEqual([
+      { type: 'plantCrop', tile: toIndexUnchecked(10, 12), cropId: 'core:wheat' },
+    ]);
   });
 
   it('submits a placement command for the tile named', () => {
@@ -99,7 +102,7 @@ describe('spawn crop and building', () => {
     run(spawn, 'building', 'core:storage_shed', '4,5');
 
     expect(submitted).toEqual([
-      { type: 'placeBuilding', tile: 5 * 64 + 4, buildingId: 'core:storage_shed' },
+      { type: 'placeBuilding', tile: toIndexUnchecked(4, 5), buildingId: 'core:storage_shed' },
     ]);
   });
 

@@ -14,7 +14,7 @@
  * at the §3.1 list price — only selling passes the multiplier pipeline.
  */
 
-import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
+import { FARM_SIZE } from '../../shared/constants';
 import { appError, ErrorCode } from '../../shared/errors';
 import { isContentId, type ContentId } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
@@ -226,12 +226,14 @@ function toContentIdField(raw: string, field: string): Result<ContentId> {
 }
 
 /**
- * Checks a land expansion is legal. Rejects: a plot already at the world edge,
+ * Checks a land expansion is legal. Rejects: a plot already at the farm
+ * region's edge (ADR-030 §1 — the cap the grid itself imposed before v0.3,
+ * now stated by meaning so ownership can never cross into town land),
  * insufficient funds for the §6.3 escalation.
  */
 export function validateExpandLand(world: CommandWorld): ValidationResult {
   const purchased = world.economy.expansionsPurchased;
-  if (plotSizeAfter(purchased + 1) > Math.min(WORLD_WIDTH, WORLD_HEIGHT)) {
+  if (plotSizeAfter(purchased + 1) > FARM_SIZE) {
     return err(
       appError(ErrorCode.InvalidIntent, 'the plot is already at its maximum size', { purchased }),
     );

@@ -19,6 +19,7 @@ import { decodeUint32 } from '../src/persistence/base64';
 import { hydrateWorld } from '../src/persistence/deserialize';
 import { runMigrations } from '../src/persistence/migrate';
 import { MIGRATIONS } from '../src/persistence/migrations';
+import { v4ToV5 } from '../src/persistence/migrations/v4-to-v5';
 import { CURRENT_SCHEMA_VERSION, type SaveDocument } from '../src/persistence/schema';
 import { serializeSave, toSaveDocument } from '../src/persistence/serialize';
 import { coreContent, parseSaveDocument, repairSaveDocument } from '../src/persistence/validate';
@@ -44,6 +45,18 @@ function migrated(name: string): SaveDocument {
   expect(run.ok, `${name} failed to migrate`).toBe(true);
   if (!run.ok) throw new Error('unreachable');
   return run.value.document as unknown as SaveDocument;
+}
+
+/**
+ * THIS link's output alone — v5, not current. The removal tests describe what
+ * `v4 → v5` does, and asserting that through the full chain stopped being
+ * possible when `v6 → v7` re-laid the grid it had just checked byte-for-byte
+ * (ADR-030 §2). The full-chain properties stay covered by the fixture tests
+ * above; these apply one pure link to one document, which is what a link is.
+ */
+function afterThisLink(name: string): SaveDocument {
+  const raw = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8'));
+  return v4ToV5.migrate(raw as never) as unknown as SaveDocument;
 }
 
 describe('the v4 golden fixtures', () => {
@@ -79,7 +92,7 @@ describe('the removal', () => {
     const before = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as {
       world: { grid: { width: number; height: number } };
     };
-    const grid = migrated(name).world.grid;
+    const grid = afterThisLink(name).world.grid;
     const watered = decodeUint32(grid.wateredAt);
 
     expect(watered.length).toBe(before.world.grid.width * before.world.grid.height);
@@ -92,7 +105,7 @@ describe('the removal', () => {
     const before = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as {
       world: { grid: Record<string, unknown> };
     };
-    const after = migrated(name).world.grid as unknown as Record<string, unknown>;
+    const after = afterThisLink(name).world.grid as unknown as Record<string, unknown>;
 
     for (const [key, value] of Object.entries(before.world.grid)) {
       if (key === 'moisture') continue;
@@ -114,11 +127,7 @@ describe('the removal', () => {
     raw.world.grid['width'] = 4;
     raw.world.grid['height'] = 4;
 
-    const run = runMigrations(raw, MIGRATIONS, CURRENT_SCHEMA_VERSION);
-    expect(run.ok).toBe(true);
-    if (!run.ok) return;
-
-    const grid = (run.value.document as unknown as SaveDocument).world.grid;
+    const grid = (v4ToV5.migrate(raw) as unknown as SaveDocument).world.grid;
     expect(decodeUint32(grid.wateredAt).length).toBe(16);
   });
 });

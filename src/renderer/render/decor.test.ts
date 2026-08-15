@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { WORLD_WIDTH } from '../../shared/constants';
+import { WORLD_TILE_COUNT } from '../../shared/constants';
 import { asTileIndex } from '../../shared/ids';
 import { createTileGrid, setBlocked, setOwned } from '../../sim/world/tile-grid';
 import { createWorld } from '../../sim/world/world';
@@ -70,7 +70,9 @@ describe('it stays off the farm', () => {
 
   it('never places on a blocked tile', () => {
     const grid = grassGrid();
-    for (let index = 0; index < 4_096; index += 1) setBlocked(grid, asTileIndex(index), true);
+    for (let index = 0; index < WORLD_TILE_COUNT; index += 1) {
+      setBlocked(grid, asTileIndex(index), true);
+    }
 
     expect(planDecor(grid, 7, GRASS)).toEqual([]);
   });
@@ -144,7 +146,7 @@ describe('bounds and shape', () => {
   it('keeps every tile index inside the world', () => {
     for (const item of planDecor(grassGrid(), 7, GRASS)) {
       expect(item.tile).toBeGreaterThanOrEqual(0);
-      expect(item.tile).toBeLessThan(WORLD_WIDTH * 64);
+      expect(item.tile).toBeLessThan(WORLD_TILE_COUNT);
     }
   });
 });

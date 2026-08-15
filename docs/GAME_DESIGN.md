@@ -44,12 +44,13 @@ Reaching stage 4 means the player can close the panel and the game genuinely pla
 
 ### 2.1 Tile grid
 
-| Property            | Value                               | Notes                           |
-| ------------------- | ----------------------------------- | ------------------------------- |
-| World size          | 64 × 64 = 4,096 tiles               | Fixed in v0.1; ADR-004 §Context |
-| Tile size           | 32 × 32 logical px                  | ADR-006 §5                      |
-| Starting owned plot | 8 × 8 = 64 tiles, centered          |                                 |
-| Expansion           | Ring of tiles around the owned area | Cost escalates, §6.3            |
+| Property            | Value                                         | Notes                                                                           |
+| ------------------- | --------------------------------------------- | ------------------------------------------------------------------------------- |
+| World size          | 80 × 64 = 5,120 tiles                         | 64×64 in v0.1–v0.2; the eastern 16×64 band is town land since v0.3 (ADR-030 §1) |
+| Farm region         | The western 64 × 64                           | Ownership never leaves it; the shipped world, unmoved (ADR-030 §1)              |
+| Tile size           | 32 × 32 logical px                            | ADR-006 §5                                                                      |
+| Starting owned plot | 8 × 8 = 64 tiles, centered in the farm region |                                                                                 |
+| Expansion           | Ring of tiles around the owned area           | Cost escalates, §6.3; caps at the farm region's 64×64                           |
 
 ### 2.2 Tile kinds
 

@@ -15,7 +15,7 @@
  * the one structure that scales with world size, and v0.4 expands the map.
  */
 
-import { WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../../shared/constants';
+import { FARM_SIZE, WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../../shared/constants';
 import { toIndexUnchecked, type TilePosition } from '../../shared/geometry';
 import { asTileIndex, type TileIndex } from '../../shared/ids';
 
@@ -103,12 +103,14 @@ export function setKind(grid: TileGrid, tile: TileIndex, kindIndex: number): voi
 /**
  * Marks a centered square of tiles as owned.
  *
- * The starting plot is 8×8 at the world centre (`GAME_DESIGN.md` §2.1);
- * expansions grow it by a ring (phase-06).
+ * The starting plot is 8×8 at the FARM REGION's centre — not the grid's
+ * (ADR-030 §1). The two coincided until v0.3 widened the grid; centring on the
+ * grid now would shift every farm east and let a maximal plot cross into town
+ * land. Expansions grow the plot by a ring (phase-06) and cap at `FARM_SIZE`.
  */
 export function claimCenteredPlot(grid: TileGrid, size: number): void {
   const half = Math.floor(size / 2);
-  const centreX = Math.floor(grid.width / 2);
+  const centreX = Math.floor(Math.min(grid.width, FARM_SIZE) / 2);
   const centreY = Math.floor(grid.height / 2);
 
   for (let y = centreY - half; y < centreY - half + size; y += 1) {

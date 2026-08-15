@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {

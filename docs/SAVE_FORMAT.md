@@ -32,7 +32,7 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
 
 ```jsonc
 {
-  "schemaVersion": 5,
+  "schemaVersion": 7,
   "magic": "desktop-life-simulator/save",
 
   "meta": {
@@ -49,16 +49,19 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     "rngState": [1234567890, 987654321, 55555, 12345],
 
     "grid": {
-      "width": 64,
+      // v7 — ADR-030 §1. 80×64 since the town: the western 64×64 is the farm
+      // region (the world exactly as v0.1 shipped it), the eastern 16×64 band
+      // is town land. Pre-v7 saves are 64×64 and re-lay through `v6 → v7`.
+      "width": 80,
       "height": 64,
-      "kind": "<base64 Uint8Array,  4096 bytes>",
-      "owned": "<base64 bitfield,    512 bytes>",
-      "tilledAt": "<base64 Uint32Array LE, 16384 bytes>",
+      "kind": "<base64 Uint8Array,  5120 bytes>",
+      "owned": "<base64 bitfield,    640 bytes>",
+      "tilledAt": "<base64 Uint32Array LE, 20480 bytes>",
       // v5 — ADR-022 §3. Tick last watered, or 0. REPLACES `moisture`, which
       // was a 0-100 level: an accumulator, and read by nothing. This is a
       // recorded fact with `tilledAt`'s shape, and wetness derives from it
       // plus the rainfall since (§6.3).
-      "wateredAt": "<base64 Uint32Array LE, 16384 bytes>",
+      "wateredAt": "<base64 Uint32Array LE, 20480 bytes>",
       // `blocked` is deliberately absent — derived from buildings (§2.2)
     },
 
@@ -578,8 +581,11 @@ Not one per commit, and not one for the whole version. A version is burned the m
 | `v3 → v4` | Season constants (`daysPerSeason`, the season list)                                | 11    | ADR-021 §1             |
 | `v4 → v5` | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant | 12    | ADR-022 §3             |
 | `v5 → v6` | Per-worker schedule state                                                          | 14    | ADR-024 §4             |
+| `v6 → v7` | **Widens** the grid to 80×64 and re-lays every stored tile index                   | 18    | ADR-030 §2             |
 
 Phases 08, 13, 15, and 16 change no persisted shape. That is a useful check that the audio, plugin-API, and updater designs were right: all three are outside the save by construction.
+
+`v6 → v7` (v0.3) is the chain's first **relayout**: no field is added or removed, but a flat tile index encodes the width it was computed against, so widening the world means re-encoding the four dense grid arrays and remapping every index — crops, worker positions and paths, task targets, schedule zones, buildings, `lastPlanted`, and the quarantine. The invariant is stated in coordinates: a thing at (x, y) before the link is at (x, y) after it. The migration adds no content — the town itself is founded by world construction, idempotently, one code path for new worlds and migrated saves alike (ADR-030 §3).
 
 Each link ships under §9's checklist, in one commit. Migrated v0.1 saves default to values that make them indistinguishable from a fresh v0.2 world — the single `core` source, and everything the build ships enabled.
 

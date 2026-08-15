@@ -73,7 +73,7 @@ describe('hydrateWorld rejects a document that skipped validation', () => {
     const doc = tampered((d: { world: { grid: { owned: string; kind: string } } }) => {
       d.world.grid.owned = d.world.grid.kind;
     });
-    expect(() => hydrateWorld(doc)).toThrow(/grid owned: expected 512 bytes, got 4096/);
+    expect(() => hydrateWorld(doc)).toThrow(/grid owned: expected 640 bytes, got 5120/);
   });
 
   it('refuses a tilledAt array of the wrong word count', () => {
@@ -82,7 +82,7 @@ describe('hydrateWorld rejects a document that skipped validation', () => {
       // this passes the decoder and fails only the count check under test.
       d.world.grid.tilledAt = 'A'.repeat(16);
     });
-    expect(() => hydrateWorld(doc)).toThrow(/grid tilledAt: expected 4096 words/);
+    expect(() => hydrateWorld(doc)).toThrow(/grid tilledAt: expected 5120 words/);
   });
 
   it('refuses storage for a building that does not exist — 07b turns this into quarantine', () => {

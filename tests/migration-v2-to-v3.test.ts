@@ -74,6 +74,11 @@ describe('the v2 golden fixtures', () => {
       // `migration-v5-to-v6.test.ts`, which checks the schedule is `{}` and
       // reads the rest field by field.
       if (key === 'workers') continue;
+      // `crops`, `buildings`, and `lastPlanted` are exempt from phase-18:
+      // `v6 → v7` widens the grid and re-lays every stored tile index
+      // (ADR-030 §2). That places survive — same (x, y), new index — is
+      // asserted field by field in `migration-v6-to-v7.test.ts`.
+      if (key === 'crops' || key === 'buildings' || key === 'lastPlanted') continue;
       expect(JSON.stringify(after[key]), `${name}: world.${key} changed`).toBe(
         JSON.stringify(value),
       );

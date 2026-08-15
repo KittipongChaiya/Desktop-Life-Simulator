@@ -40,10 +40,29 @@ export const OFFLINE_CAP_TICKS = TICKS_PER_SECOND * 60 * 60 * 8;
  */
 export const RETURN_SUMMARY_MIN_TICKS = TICKS_PER_SECOND * 60;
 
-/** World grid dimensions. GAME_DESIGN.md §2.1. */
-export const WORLD_WIDTH = 64;
+/**
+ * World grid dimensions. GAME_DESIGN.md §2.1, ADR-030.
+ *
+ * 80×64 since v0.3: the western 64×64 is the FARM region — the world exactly
+ * as it shipped in v0.1, every tile at its original coordinates — and the
+ * eastern 16×64 band is the TOWN region. Saves from the 64-wide world migrate
+ * by pure index arithmetic (v6→v7).
+ */
+export const WORLD_WIDTH = 80;
 export const WORLD_HEIGHT = 64;
 export const WORLD_TILE_COUNT = WORLD_WIDTH * WORLD_HEIGHT;
+
+/**
+ * The farm region's side length (ADR-030 §1).
+ *
+ * Ownership never leaves `x < FARM_SIZE`: the starting plot centres here and
+ * `expandLand` caps here, which preserves v0.1's land promise by MEANING —
+ * the plot may still reach 64×64, and may still go no further.
+ */
+export const FARM_SIZE = 64;
+
+/** First column of the town region — everything from here east is town land. */
+export const TOWN_MIN_X = FARM_SIZE;
 
 /** Tile edge length in logical pixels. ASSETS.md §2. */
 export const TILE_SIZE = 32;

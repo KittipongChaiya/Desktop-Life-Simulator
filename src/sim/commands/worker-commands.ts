@@ -15,7 +15,7 @@
  * consumer, and its consumer (the HUD count) arrives in phase-04c.
  */
 
-import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
+import { FARM_SIZE, WORLD_HEIGHT } from '../../shared/constants';
 import { appError, ErrorCode } from '../../shared/errors';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asBuildingId, asWorkerId } from '../../shared/ids';
@@ -44,9 +44,13 @@ export function hireCost(existingCount: number): number {
   return Math.floor(BASE_HIRE_COST * HIRE_COST_GROWTH ** existingCount);
 }
 
-/** The tile a new worker spawns on — the world centre, inside the owned plot. */
+/**
+ * The tile a new worker spawns on — the FARM region's centre, inside the owned
+ * plot. The farm centre, not the grid's: the grid is wider than the farm since
+ * v0.3 (ADR-030 §1), and the grid centre is unowned land east of every plot.
+ */
 function plotCentre(): ReturnType<typeof toIndexUnchecked> {
-  return toIndexUnchecked(WORLD_WIDTH >> 1, WORLD_HEIGHT >> 1);
+  return toIndexUnchecked(FARM_SIZE >> 1, WORLD_HEIGHT >> 1);
 }
 
 /** Checks a hire is affordable at the current headcount. */

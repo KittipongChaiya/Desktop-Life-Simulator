@@ -42,9 +42,10 @@ describe('chunk geometry', () => {
     expect(chunkOfTile(asTileIndex(CHUNK_SIZE * WORLD_WIDTH))).toBe(CHUNKS_X);
   });
 
-  it('covers a 64x64 world in 16 chunks', () => {
-    // 16 quads per frame instead of 4,096 sprites (ADR-001).
-    expect(CHUNK_COUNT).toBe(16);
+  it('covers the 80x64 world in 20 chunks', () => {
+    // 20 quads per frame instead of 5,120 sprites (ADR-001). Was 16 until
+    // ADR-030 added the town's chunk column.
+    expect(CHUNK_COUNT).toBe(20);
   });
 
   it('round-trips chunk origins', () => {
@@ -57,7 +58,13 @@ describe('chunk geometry', () => {
 
 describe('column culling', () => {
   it('returns only chunks overlapping the range', () => {
-    expect(chunksInColumnRange(0, CHUNK_SIZE - 1)).toEqual([0, 4, 8, 12]);
+    // The first chunk of each of the four rows — one per CHUNKS_X.
+    expect(chunksInColumnRange(0, CHUNK_SIZE - 1)).toEqual([
+      0,
+      CHUNKS_X,
+      CHUNKS_X * 2,
+      CHUNKS_X * 3,
+    ]);
   });
 
   it('includes both chunks when a range straddles a boundary', () => {

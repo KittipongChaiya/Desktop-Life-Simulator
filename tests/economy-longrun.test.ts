@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createInstalledRegistries } from '../src/sim/content/installed';
 import { toIndexUnchecked } from '../src/shared/geometry';
+import { asTileIndex } from '../src/shared/ids';
 import { CommandSource } from '../src/sim/commands/types';
 import {
   CORE_MARKET_STALL,
@@ -196,7 +197,9 @@ describe('pacing floor: the stage-4 purse inside the budget (crit 20)', () => {
     for (let elapsed = 0; elapsed < FOUR_HOURS_TICKS && reachedAt === null; elapsed += 20) {
       // One attentive pass a second — far lazier than a human with sound cues.
       for (const tile of plot) {
-        const index = toIndexUnchecked(tile % 64, Math.floor(tile / 64));
+        // `tile` IS the flat index — decomposing it with a hardcoded width was
+        // a no-op at 64 and a shear at any other (ADR-030 widened the grid).
+        const index = asTileIndex(tile);
         if (!isOwned(world.tiles, index)) continue;
         const crop = world.crops.get(index);
         if (crop !== undefined) {

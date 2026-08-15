@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../../shared/constants';
+import { FARM_SIZE, WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../../shared/constants';
 import { toIndexUnchecked } from '../../shared/geometry';
 import { asTileIndex } from '../../shared/ids';
 import { createInstalledRegistries } from '../content/installed';
@@ -97,7 +97,10 @@ describe('starting plot', () => {
     expect(owned).toBe(64);
   });
 
-  it('centres the plot', () => {
+  it('centres the plot in the FARM region, not the grid (ADR-030 §1)', () => {
+    // (28,28)–(35,35) is where every v0.1 and v0.2 farm started. The grid is
+    // wider than the farm region since v0.3; if this plot ever moves, every
+    // migrated save's coordinates shear against new worlds'.
     const grid = createTileGrid();
     claimCenteredPlot(grid, 8);
 
@@ -105,6 +108,15 @@ describe('starting plot', () => {
     expect(bounds).not.toBeNull();
     expect(bounds?.min).toEqual({ x: 28, y: 28 });
     expect(bounds?.max).toEqual({ x: 35, y: 35 });
+  });
+
+  it('never crosses into town land, even at the maximum size (ADR-030 §1)', () => {
+    const grid = createTileGrid();
+    claimCenteredPlot(grid, FARM_SIZE);
+
+    const bounds = ownedBounds(grid);
+    expect(bounds?.min).toEqual({ x: 0, y: 0 });
+    expect(bounds?.max).toEqual({ x: FARM_SIZE - 1, y: WORLD_HEIGHT - 1 });
   });
 
   it('reports null bounds when nothing is owned', () => {
