@@ -1,0 +1,46 @@
+{
+  "villager_a_idle_n": { "frames": ["villager_a_idle_n"], "frameTicks": 0, "loop": false },
+  "villager_a_walk_n": {
+    "frames": [
+      "villager_a_walk_n_0",
+      "villager_a_walk_n_1",
+      "villager_a_walk_n_2",
+      "villager_a_walk_n_3"
+    ],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "villager_a_idle_s": { "frames": ["villager_a_idle_s"], "frameTicks": 0, "loop": false },
+  "villager_a_walk_s": {
+    "frames": [
+      "villager_a_walk_s_0",
+      "villager_a_walk_s_1",
+      "villager_a_walk_s_2",
+      "villager_a_walk_s_3"
+    ],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "villager_a_idle_e": { "frames": ["villager_a_idle_e"], "frameTicks": 0, "loop": false },
+  "villager_a_walk_e": {
+    "frames": [
+      "villager_a_walk_e_0",
+      "villager_a_walk_e_1",
+      "villager_a_walk_e_2",
+      "villager_a_walk_e_3"
+    ],
+    "frameTicks": 4,
+    "loop": true
+  },
+  "villager_a_idle_w": { "frames": ["villager_a_idle_w"], "frameTicks": 0, "loop": false },
+  "villager_a_walk_w": {
+    "frames": [
+      "villager_a_walk_w_0",
+      "villager_a_walk_w_1",
+      "villager_a_walk_w_2",
+      "villager_a_walk_w_3"
+    ],
+    "frameTicks": 4,
+    "loop": true
+  }
+}

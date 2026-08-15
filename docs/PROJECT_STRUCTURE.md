@@ -115,6 +115,9 @@ src/
 │   │   └── rng.ts              Seeded PRNG. The ONLY randomness source.
 │   ├── time/
 │   │   └── game-clock.ts       Tick↔time conversion. The time source.
+│   ├── town/
+│   │   ├── pathfind.ts         Static town-only routing (ADR-031 §3)
+│   │   └── residents.ts        Derived resident itineraries (ADR-031 §2)
 │   ├── pathing/
 │   │   └── astar.ts
 │   └── tick.ts                 stepSimulation(world)

@@ -24,6 +24,7 @@ import {
   type WalletView,
 } from './economy-slice';
 import { inventoryEqual, projectInventory, type InventoryView } from './inventory-slice';
+import { projectResidents, residentsEqual, type ResidentView } from './residents-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
 import { projectTime, timeEquals, type TimeView } from './time-slice';
 import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
@@ -43,6 +44,7 @@ export interface SnapshotState {
   readonly wallet: VersionedSlice<WalletView>;
   readonly economy: VersionedSlice<EconomyView>;
   readonly time: VersionedSlice<TimeView>;
+  readonly residents: VersionedSlice<readonly ResidentView[]>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -62,6 +64,10 @@ export function createSnapshotState(): SnapshotState {
     // ANY day length, so the length passed here cannot change the answer. A
     // save resuming mid-day corrects it on its first tick, like every other
     // slice.
+    // Empty until the first tick projects the real village — exactly the
+    // workers pattern, and correct at tick 0 regardless (everyone is indoors
+    // before their first wake).
+    residents: { version: 0, value: [] },
     time: {
       version: 0,
       value: projectTime({
@@ -108,6 +114,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     wallet: state.wallet.version,
     economy: state.economy.version,
     time: state.time.version,
+    residents: state.residents.version,
   };
 }
 
@@ -128,4 +135,6 @@ export {
   projectEconomy,
   timeEquals,
   projectTime,
+  residentsEqual,
+  projectResidents,
 };

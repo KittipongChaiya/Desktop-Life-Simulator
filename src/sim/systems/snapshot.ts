@@ -14,11 +14,13 @@ import {
   projectCrops,
   projectEconomy,
   projectInventory,
+  projectResidents,
   projectStatus,
   projectWallet,
   projectWorkers,
   projectTime,
   publishIfChanged,
+  residentsEqual,
   statusEquals,
   timeEquals,
   walletEquals,
@@ -46,4 +48,8 @@ export function snapshotSystem(world: World): void {
   // The calendar is DERIVED from the tick, so this projects on every tick and
   // republishes on four of them per day — once per phase boundary (ADR-020 §3).
   publishIfChanged(world.snapshots.time, projectTime(world), timeEquals);
+  // Residents are derived too (ADR-031): republishes every tick while someone
+  // walks, on dwell boundaries otherwise, and never while the town sleeps —
+  // the night slice is empty and empty equals empty.
+  publishIfChanged(world.snapshots.residents, projectResidents(world), residentsEqual);
 }

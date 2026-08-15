@@ -126,6 +126,7 @@ The _numbers_ are `GAME_DESIGN.md §6`; the _story_ is here.
 - **Trade routes** are modest cart-paths between villages and, later, to the wider region (v0.3+). Nothing global; the world's commerce is local and human-scaled.
 - **Famous families** are **left open** — a merchant lineage, an old farming family, a founder's line — to be named by the town content of v0.3. The bible fixes only that such families are ordinary and warm, not noble or scheming. When named, they become canon.
 - **The merchant** the player sells to (v0.3) is a friendly, recurring face, not a faceless system — a person, drawn on the shared rig (`CHARACTER_BIBLE.md §1`).
+- **The four villagers** (canon since phase-19, per §17 rule 2): **Marla** (the north-west cottage, fair-haired, often at the well), **Tobin** (the north-east cottage, fond of the castle walk), **Prue** (the south-west cottage), and **Edwin** (the south-east cottage, the elder of the four). Ordinary and warm, exactly as this section requires; surnames and family ties stay open for later content to fix.
 
 ---
 

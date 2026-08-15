@@ -30,9 +30,13 @@ import { join } from 'node:path';
 
 import {
   INK_SHADOW,
+  PARCHMENT,
   SKIN,
   SOFT_INK,
   SOIL_DARK,
+  STONE_BASE,
+  STONE_DARK,
+  STONE_LIGHT,
   STRAW,
   TILLED_SOIL,
   WATER_BASE,
@@ -59,12 +63,51 @@ const SRC = join(import.meta.dirname, '..', 'assets', 'src');
  * @property {boolean} hat straw work-hat (worker tell)
  * @property {boolean} apron work-apron front (worker tell)
  * @property {boolean} scarf the player's one accent garment
+ * @property {{ base: number[], light: number[], shadow: number[] }} tunic torso & arm cloth ramp
  */
 
+/** The farmhand cloth every pre-19 costume wore; villagers vary it (§14 rule 2:
+ * costumes differ, the body never does). */
+const WOOD_TUNIC = { base: WOOD_BASE, light: WOOD_LIGHT, shadow: SOIL_DARK };
+
 /** @type {Costume} */
-const WORKER = { skin: SKIN.warm, hair: SOIL_DARK, hat: true, apron: true, scarf: false };
+const WORKER = {
+  skin: SKIN.warm,
+  hair: SOIL_DARK,
+  hat: true,
+  apron: true,
+  scarf: false,
+  tunic: WOOD_TUNIC,
+};
 /** @type {Costume} */
-const PLAYER = { skin: SKIN.tan, hair: SOFT_INK, hat: false, apron: false, scarf: true };
+const PLAYER = {
+  skin: SKIN.tan,
+  hair: SOFT_INK,
+  hat: false,
+  apron: false,
+  scarf: true,
+  tunic: WOOD_TUNIC,
+};
+/** Villagers (phase-19, ADR-031 §4): the same rig in townsfolk cloth. No hat,
+ * no apron, no scarf — those tells belong to the worker and the player. */
+/** @type {Costume} */
+const VILLAGER_A = {
+  skin: SKIN.warm,
+  hair: STRAW,
+  hat: false,
+  apron: false,
+  scarf: false,
+  tunic: { base: PARCHMENT, light: PARCHMENT, shadow: STRAW },
+};
+/** @type {Costume} */
+const VILLAGER_B = {
+  skin: SKIN.tan,
+  hair: SOFT_INK,
+  hat: false,
+  apron: false,
+  scarf: false,
+  tunic: { base: STONE_BASE, light: STONE_LIGHT, shadow: STONE_DARK },
+};
 
 /**
  * @typedef {object} Pose
@@ -131,13 +174,13 @@ function paintGeometry(c, view, pose, costume) {
     rect(c, 17, 43 - liftR, 20, 44 - liftR, SOIL_DARK);
   }
 
-  // Torso.
+  // Torso, in the costume's cloth.
   const torsoTop = 16 + dy;
   const torsoBottom = 31 + Math.max(0, pose.stoop - 1);
   if (side) {
-    rect(c, 11, torsoTop, 20, torsoBottom, WOOD_BASE);
+    rect(c, 11, torsoTop, 20, torsoBottom, costume.tunic.base);
   } else {
-    rect(c, 10, torsoTop, 21, torsoBottom, WOOD_BASE);
+    rect(c, 10, torsoTop, 21, torsoBottom, costume.tunic.base);
     set(c, 10, torsoTop, [0, 0, 0, 0]); // soften shoulder corners
     set(c, 21, torsoTop, [0, 0, 0, 0]);
   }
@@ -156,7 +199,7 @@ function paintGeometry(c, view, pose, costume) {
     const swing = -pose.stride * 2;
     const handY =
       pose.hands === 'ground' ? 38 : pose.hands === 'reach' ? 32 + pose.stoop : 27 + dy;
-    rect(c, 14 + swing, armTop, 16 + swing, handY, WOOD_BASE);
+    rect(c, 14 + swing, armTop, 16 + swing, handY, costume.tunic.base);
     rect(c, 14 + swing, handY, 16 + swing, handY + 1, costume.skin.base); // mitten
   } else {
     const swingL = view === 's' ? -pose.stride : pose.stride;
@@ -168,14 +211,14 @@ function paintGeometry(c, view, pose, costume) {
     for (const [x0, x1, swing] of arms) {
       if (pose.hands === 'hold') {
         // Arms curl inward to carry the bundle.
-        rect(c, x0, armTop, x1, 24 + dy, WOOD_BASE);
+        rect(c, x0, armTop, x1, 24 + dy, costume.tunic.base);
         const inX = x0 < 16 ? x0 + 2 : x0 - 2;
-        rect(c, inX, 24 + dy, inX + 1, 27 + dy, WOOD_BASE);
+        rect(c, inX, 24 + dy, inX + 1, 27 + dy, costume.tunic.base);
         rect(c, inX, 27 + dy, inX + 1, 28 + dy, costume.skin.base);
       } else {
         const reach = pose.hands === 'reach' || pose.hands === 'ground';
         const handY = reach ? 31 + pose.stoop * 2 : 27 + dy + swing;
-        rect(c, x0, armTop, x1, handY, WOOD_BASE);
+        rect(c, x0, armTop, x1, handY, costume.tunic.base);
         rect(c, x0, handY + 1, x1, handY + 2, costume.skin.base); // mitten
       }
     }
@@ -298,7 +341,7 @@ function paintView(view, pose, costume) {
     paintGeometry(c, view, pose, costume);
   }
   shadePass(c, [
-    [WOOD_BASE, WOOD_LIGHT, SOIL_DARK], // tunic & arms
+    [costume.tunic.base, costume.tunic.light, costume.tunic.shadow], // tunic & arms
     [TILLED_SOIL, WOOD_BASE, SOIL_DARK], // trousers
     [WOOD_LIGHT, WOOD_LIGHT, WOOD_BASE], // apron: right edge shades
     [STRAW, STRAW, WOOD_LIGHT], // hat & sheaf: right edge shades
@@ -313,10 +356,11 @@ function paintView(view, pose, costume) {
 
 /**
  * Writes one character's full frame set.
- * @param {string} entity `worker` | `player`
+ * @param {string} entity `worker` | `player` | `villager_a` | `villager_b`
  * @param {Costume} costume
+ * @param {boolean} [withHarvest] villagers do not work the ground — no swing
  */
-function writeCharacter(entity, costume) {
+function writeCharacter(entity, costume, withHarvest = true) {
   const dir = join(SRC, 'entities{tps}');
   /** @type {('s' | 'n' | 'e' | 'w')[]} */
   const views = ['s', 'n', 'e', 'w'];
@@ -328,6 +372,7 @@ function writeCharacter(entity, costume) {
       writePng(join(dir, `${entity}_walk_${view}_${String(f)}.png`), paintView(view, pose, costume));
     }
   }
+  if (!withHarvest) return;
   // Harvest is directionless (ANIMATION_GUIDE.md §3): a front-view one-shot.
   for (let f = 0; f < HARVEST_POSES.length; f += 1) {
     const pose = HARVEST_POSES[f] ?? STAND;
@@ -338,7 +383,10 @@ function writeCharacter(entity, costume) {
 function main() {
   writeCharacter('worker', WORKER);
   writeCharacter('player', PLAYER);
-  globalThis.console.log('generated worker + player rigs (26 frames each)');
+  // Phase-19: the villagers, on the same rig (CHARACTER_BIBLE §14 rule 2).
+  writeCharacter('villager_a', VILLAGER_A, false);
+  writeCharacter('villager_b', VILLAGER_B, false);
+  globalThis.console.log('generated worker + player + villager rigs');
 }
 
 main();

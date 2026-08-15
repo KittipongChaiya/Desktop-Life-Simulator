@@ -87,7 +87,9 @@ A day is **24,000 ticks — 20 real minutes** at 20 Hz, and passes through four 
 | Dusk  | 70%       | 2 minutes | A deeper orange        |
 | Night | 80%       | 4 minutes | A dim blue, never dark |
 
-**Nothing in the game depends on the time of day**, and that is a design choice rather than an unfinished one. No crop stops growing at night; no worker refuses to work in the dark. `VISION.md` §2.2 forbids punishing absence, and a night that halted production would punish exactly the player who leaves the game running overnight — the player this product is for. Time-gated behaviour arrives, if ever, with the tier that needs it (v0.3 NPC schedules).
+**Nothing on the FARM depends on the time of day**, and that is a design choice rather than an unfinished one. No crop stops growing at night; no worker refuses to work in the dark. `VISION.md` §2.2 forbids punishing absence, and a night that halted production would punish exactly the player who leaves the game running overnight — the player this product is for.
+
+**Since phase-19 the town does**: residents wake at dawn, spend the day among the village's places, and are indoors by night (ADR-031). This is the tier this paragraph always reserved the behaviour for — and it stays on the town's side of the line: a resident's schedule gates nothing the player earns and nothing a worker does.
 
 Night is a **legible dim, not a dark screen**. A player must be able to see that a crop is ready at 3am without waiting for dawn.
 

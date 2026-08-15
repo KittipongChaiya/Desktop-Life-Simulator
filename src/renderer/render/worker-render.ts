@@ -35,8 +35,19 @@ function tileTopLeft(tile: number): Point {
   return { x: (tile - y * WORLD_WIDTH) * TILE_SIZE, y: y * TILE_SIZE };
 }
 
+/**
+ * The moving fields the position maths reads. `WorkerView` and `ResidentView`
+ * both satisfy this — phase-19 widened the type so residents share the exact
+ * interpolation workers ship with, rather than a second copy of it.
+ */
+export interface MovingView {
+  readonly tile: number;
+  readonly toTile: number;
+  readonly moveFraction: number;
+}
+
 /** A single snapshot's sub-tile position (between `tile` and `toTile`). */
-function snapshotPosition(view: WorkerView): Point {
+function snapshotPosition(view: MovingView): Point {
   const from = tileTopLeft(view.tile);
   const to = tileTopLeft(view.toTile);
   return {
@@ -46,11 +57,11 @@ function snapshotPosition(view: WorkerView): Point {
 }
 
 /**
- * The worker's world-pixel position this frame: the previous snapshot lerped
- * toward the current one by `alpha`. `prev === current` (a stationary worker)
+ * The walker's world-pixel position this frame: the previous snapshot lerped
+ * toward the current one by `alpha`. `prev === current` (a stationary walker)
  * collapses to the tile position.
  */
-export function interpolatedPosition(prev: WorkerView, current: WorkerView, alpha: number): Point {
+export function interpolatedPosition(prev: MovingView, current: MovingView, alpha: number): Point {
   const a = snapshotPosition(prev);
   const b = snapshotPosition(current);
   return { x: lerp(a.x, b.x, alpha), y: lerp(a.y, b.y, alpha) };

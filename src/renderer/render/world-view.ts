@@ -69,6 +69,7 @@ import { createLightingRenderer, type LightingRenderer } from './lighting-view';
 import { createParticlePool } from './particle-pool';
 import { createParticleRenderer, type ParticleRenderer } from './particle-view';
 import { createRainRenderer, type RainRenderer } from './rain-view';
+import { createResidentRenderer, type ResidentRenderer } from './resident-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
@@ -380,6 +381,14 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   const highlight: Highlight = createHighlight(app.layers.worldUi);
 
+  // The village's people share the entities layer, so residents, workers,
+  // and buildings y-sort against each other correctly (phase-19, ADR-031 §4).
+  const residents: ResidentRenderer = createResidentRenderer({
+    layer: app.layers.entities,
+    textureFor,
+    gate,
+  });
+
   const workers: WorkerRenderer = createWorkerRenderer({
     layer: app.layers.entities,
     worldUi: app.layers.worldUi,
@@ -594,6 +603,17 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Workers are consumed from the snapshot slice, never the live store
       // (ADR-005 §2). The update marks the gate dirty when they change and
       // holds an animation lease while any is walking.
+      // Residents come from their slice exactly as workers do; the update
+      // marks the gate dirty when the village changes and holds a lease while
+      // anyone is walking.
+      residents.update({
+        residents: options.world.snapshots.residents.value,
+        alpha,
+        tick,
+        firstColumn: range.first,
+        lastColumn: range.last,
+      });
+
       workers.update({
         workers: options.world.snapshots.workers.value,
         alpha,
@@ -793,6 +813,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
     destroy() {
       // Before `app.destroy()`, which tears down the layer that parents them.
+      residents.destroy();
       workers.destroy();
       buildings.destroy();
       crops.destroy();
