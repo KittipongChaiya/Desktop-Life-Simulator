@@ -332,7 +332,7 @@ Documented so no future session tries to "fix" a deliberate decision:
 
 ---
 
-## 11. Phase-07.7 game-feel measurements
+## 13. Phase-07.7 game-feel measurements
 
 Taken 2026-08-01 with the harness in `tests/e2e/perf-harness.spec.ts`, which
 writes each result to `test-results/perf/*.json`. **Every number below was read
@@ -423,6 +423,67 @@ the ceiling is stated over the source's existence rather than over a level.
 silence the bed — proven in `ambience.test.ts` — and this is the fourth of
 them proven end to end in a real process rather than argued. It is what makes
 continuous audio an amendment to ADR-016 §4 rather than a reversal of it.
+
+---
+
+## 14. Phase-17 combined measurement (criterion 12)
+
+Taken 2026-08-15 with the same harness and on the same machine as §13 — a
+fast desktop, so the same caveat holds: this is a ceiling check, not a floor.
+Evidence: `docs/perf/criterion-12-combined.json`. It closes the item
+phase-16 left open: _"Performance budgets hold with weather, lighting, and
+audio active — individually yes. Together, unmeasured."_
+
+**Scenario — everything at once, on the reference farm.** The
+`v1-mature-farm` fixture, loaded through the real pipeline and stepped to the
+start of a weather period that rains (derived from the seed — rain then holds
+for the full five-minute period, longer than the measured window). Overlay
+expanded (lighting layer live), ambient bed unmuted and raised to 100, every
+motion class on including both unbounded ones, pointer kept active for 90 s.
+
+### The tick, under combined load
+
+| Statistic | Measured     | Budget     |
+| --------- | ------------ | ---------- |
+| p50       | 0.200 ms     | —          |
+| p95       | 0.300 ms     | —          |
+| **p99**   | **0.500 ms** | **< 3 ms** |
+| mean      | 0.168 ms     | —          |
+| max       | 2.400 ms     | —          |
+| samples   | 1,937        | > 500      |
+
+**PASS**, six-fold inside budget. This is the v0.3 baseline: NPCs, a
+settlement, and contracts all grow this number, and `PLAN.md` §4 requires
+profiling against it before entities are added.
+
+### The surrender, under combined load
+
+| State                      | Ambient bed  | Animation leases |
+| -------------------------- | ------------ | ---------------- |
+| Raining, pointer active    | on, gain 0.6 | 5                |
+| Raining, pointer idle 14 s | **off**      | 3                |
+
+**PASS** for the presence-gated systems: the bed silenced while it was still
+raining (so "off" can only mean presence expired), and rain plus decor sway
+released their leases. Rain's visual surrender is additionally pinned against
+the real dirty gate in `src/renderer/render/rain-view.test.ts`.
+
+### The finding: no zero-frame idle on a mature farm
+
+FPS read **100 in both states** — the frame loop did not stop when the
+pointer left, and that is not a regression of the §4.2 invariants. Workers
+keep farming unwatched; every harvest re-arms a transient gameplay animator
+(crop departure, floating numbers, particles) faster than the last finishes,
+and worker movement marks the gate dirty every tick regardless. The §4.2
+zero-frame invariants are claims about a **static** world and still hold
+(criteria 8 and 9 prove them where nothing else moves).
+
+Consequence for this document: §3's "expanded idle" state does not occur on
+a mature farm — an expanded, unattended farm runs in the "expanded active"
+cost profile indefinitely. Collapsed mode is unaffected (Pixi destroyed,
+ADR-001 §2). Whether gameplay-feedback animators should be presence-gated
+like ambient motion is an open design question assigned to v0.3's NPC work —
+`docs/phases/phase-17-v03-baseline.md` §3 states it with the data.
 
 ### Criterion 11 — heap under sustained effect density
 

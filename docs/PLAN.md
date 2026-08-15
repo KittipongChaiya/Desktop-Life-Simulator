@@ -125,7 +125,7 @@ Three orderings are dictated by dependency rather than preference, and `ROADMAP.
 - [ ] A third party writes a plugin adding a crop, using only `PLUGIN_GUIDE.md`
 - [ ] A v0.1 save loads in v0.2 with no data loss, through the full five-link chain
 - [ ] Uninstalling a plugin preserves its save data (`SAVE_FORMAT.md` §8) and touches no other namespace (ADR-026 §3)
-- [ ] Performance budgets hold with weather, lighting, and audio active
+- [x] Performance budgets hold with weather, lighting, and audio active — measured **together** in phase-17 (criterion 12): p99 tick 0.5 ms vs 3 ms with rain, lighting, audio, and all motion simultaneously live on the reference farm (`PERFORMANCE.md` §14)
 - [ ] Auto-update never loses a save under interrupted-update testing
 
 **Note:** auto-update ships here and not in v0.1 deliberately — an updater that can restart the app is a way to lose player data, so it follows proven save integrity. v0.2 sharpens that: it also lands five schema versions, and ADR-025 §2 shows that **rollback across a schema bump orphans a save** unless the updater is bounded by schema version. Phase 15 therefore follows every shape-changing phase.

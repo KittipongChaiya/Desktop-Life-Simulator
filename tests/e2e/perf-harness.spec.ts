@@ -23,7 +23,7 @@
  * is a suite nobody runs.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
@@ -31,9 +31,15 @@ import { expect, test, type ElectronApplication } from '@playwright/test';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 // Criterion 9 plants a save so the weather is not left to chance — see below.
+// Criterion 12 does the same with the REFERENCE farm, stepped into a rain
+// period, so the combined run measures the reference scenario rather than an
+// empty world.
+import { loadWorld } from '../../src/persistence/load';
 import { serializeSave, toSaveDocument } from '../../src/persistence/serialize';
 import { isRaining } from '../../src/sim/content/weather-kinds';
-import { stepSimulation } from '../../src/sim/tick';
+import { stepSimulation, stepSimulationBy } from '../../src/sim/tick';
+import { dayFor, seasonFor } from '../../src/sim/time/game-clock';
+import { weatherFor, weatherPeriodFor } from '../../src/sim/time/weather';
 import { createWorld } from '../../src/sim/world/world';
 import '../../plugins/core';
 
@@ -446,5 +452,195 @@ test('criterion 9: ambient audio returns to silence when nobody is watching', as
   // And away: silent, which is what releases the audio thread. A gain of zero
   // STOPS the source rather than playing silence — the distinction the whole
   // condition rests on.
+  expect(whenAway.ambience).toContain('off');
+});
+
+/**
+ * CRITERION 12 — the combined budget run. Phase-17.
+ *
+ * v0.2 closed with every budget measured ALONE — tick (5), motion idle (8),
+ * audio idle (9), heap (11) — and `phase-16` names the one that stayed open:
+ * *"Performance budgets hold with weather, lighting, and audio active —
+ * individually yes. Together, unmeasured."* This run is that measurement.
+ *
+ * Everything is on at once, against the reference farm rather than an empty
+ * world: the `v1-mature-farm` fixture (PERFORMANCE.md §9.3) is loaded through
+ * the real pipeline, stepped to the START of a weather period that rains —
+ * derived from the seed, never rolled, exactly as criterion 9 found its seed —
+ * and planted in the profile. Rain persists for one full period (five real
+ * minutes), which is longer than the whole measured window, so nothing here
+ * depends on the weather holding by luck.
+ *
+ * Lighting needs no arranging: layer 5 is always live while the overlay is
+ * expanded (ADR-020), so an expanded run under rain with the bed sounding and
+ * every motion class enabled is the maximum simultaneous load v0.2 ships.
+ *
+ * Two questions, answered in order:
+ * 1. Under everything at once, is the p99 tick still inside its 3 ms budget?
+ * 2. Do the PRESENCE-GATED systems still surrender when the pointer leaves,
+ *    with every lease-holder active together? Asserted on the bed (criterion
+ *    9's claim, under load); rain's visual surrender is pinned against the
+ *    real gate in `rain-view.test.ts`.
+ *
+ * What this run does NOT assert — learned from its own first execution: a
+ * mature farm never reaches zero frames while expanded. Workers keep farming
+ * whether or not anyone watches, and each harvest re-arms a transient
+ * animator (crop depart, floating number, particles) faster than the last
+ * one finishes. That is render-on-demand drawing a world that genuinely
+ * changes (ADR-001 §1's invariant is about a STATIC world), so the away-state
+ * FPS is reported as data rather than asserted against a promise v0.2 never
+ * made. The phase-17 document carries the finding.
+ */
+test('criterion 12: budgets hold with weather, lighting, audio, and motion together', async () => {
+  test.setTimeout(420_000);
+
+  // This session needs a planted save, so it launches its own — same
+  // single-instance-lock dance as criterion 9.
+  await session.dispose();
+
+  // The reference farm, through the full load pipeline (migrations included —
+  // the fixture is v1). `null` backup: a fixture that fails to load is a
+  // failure, not a fallback.
+  const fixturePath = join(import.meta.dirname, '..', 'fixtures', 'saves', 'v1-mature-farm.json');
+  const loaded = loadWorld(JSON.parse(readFileSync(fixturePath, 'utf8')), null);
+  expect(loaded.ok, 'the reference fixture must load').toBe(true);
+  if (!loaded.ok) return;
+  const world = loaded.value.world;
+
+  // The next period that rains, DERIVED — weather is a pure hash of
+  // (seed, period, season), so the search costs arithmetic, not stepping.
+  const periodTicks = world.ticksPerWeatherPeriod;
+  const kinds = world.weatherKindRegistry.all();
+  let rainPeriod = 0;
+  for (
+    let period = weatherPeriodFor(world.tick, periodTicks) + 1;
+    period <= weatherPeriodFor(world.tick, periodTicks) + 1_000 && rainPeriod === 0;
+    period += 1
+  ) {
+    const startTick = period * periodTicks;
+    const season = seasonFor(
+      dayFor(startTick, world.ticksPerDay),
+      world.daysPerSeason,
+      world.seasons,
+    );
+    const kind = weatherFor(world.seed, period, season, kinds);
+    if (kind !== undefined && kind.rainfall > 0) rainPeriod = period;
+  }
+  expect(rainPeriod, 'no rain in the next 1,000 weather periods').toBeGreaterThan(0);
+
+  // Step the farm THERE rather than teleporting it: workers keep believable
+  // state, and the planted save is one the game could genuinely have written.
+  stepSimulationBy(world, rainPeriod * periodTicks - world.tick);
+  expect(isRaining(world), 'the derived rain period must rain when reached').toBe(true);
+
+  session = await launchIsolated({}, (userData) => {
+    mkdirSync(join(userData, 'saves'), { recursive: true });
+    writeFileSync(
+      join(userData, 'saves', 'slot-0.json'),
+      serializeSave(
+        toSaveDocument(world, {
+          gameVersion: '0.2.0',
+          createdAtUnixMs: 1_753_000_000_000,
+          // Now, so load performs no catch-up and the app wakes INSIDE the
+          // rain period the save was planted at.
+          savedAtUnixMs: Date.now(),
+          playtimeTicks: world.tick,
+          saveCount: 1,
+        }),
+      ),
+      'utf8',
+    );
+  });
+  app = session.app;
+
+  const window = await app.firstWindow();
+  await openWorld();
+
+  // Everything on. Audio first (two steps — §5 condition 1 is a procedure),
+  // then every motion class including both unbounded ones.
+  await window.evaluate(async () => {
+    const api = (
+      globalThis as unknown as {
+        desktopLife: {
+          companion: {
+            toggleMuted(): Promise<unknown>;
+            setCategoryPercent(c: string, p: number): Promise<unknown>;
+          };
+        };
+      }
+    ).desktopLife;
+    await api.companion.toggleMuted();
+    await api.companion.setCategoryPercent('ambient', 100);
+  });
+  await setMotion({
+    intensityPercent: 100,
+    particles: true,
+    cameraShake: true,
+    decorativeCreatures: true,
+    environmental: true,
+    reducedMotion: false,
+  });
+
+  // Presence is pointer-driven; polled for the reasons criteria 8 and 9 poll.
+  await window.mouse.move(200, 100);
+  await window.mouse.move(240, 120);
+  await expect.poll(async () => await metric('Ambience'), { timeout: 20_000 }).not.toContain('off');
+  await expect.poll(async () => await metricNumber('FPS'), { timeout: 15_000 }).toBeGreaterThan(0);
+
+  const heapAtStartMb = await metricNumber('Heap');
+
+  // Hold everything active while the tick histogram fills. The pointer is
+  // nudged on a tighter loop than any read, so the run measures the loaded
+  // state — the lesson criterion 11's invalid first soak paid for.
+  const ACTIVE_MS = 90_000;
+  const NUDGE_INTERVAL_MS = 1_500;
+  const startedAt = Date.now();
+  let nudges = 0;
+  while (Date.now() - startedAt < ACTIVE_MS) {
+    nudges += 1;
+    await window.mouse.move(150 + (nudges % 40), 90 + (nudges % 20));
+    await new Promise((resolve) => setTimeout(resolve, NUDGE_INTERVAL_MS));
+  }
+
+  const whileActive = {
+    tickP50Ms: await metricNumber('Tick p50'),
+    tickP95Ms: await metricNumber('Tick p95'),
+    tickP99Ms: await metricNumber('Tick p99'),
+    tickAvgMs: await metricNumber('Tick avg'),
+    tickMaxMs: await metricNumber('Tick max'),
+    tickSamples: await metricNumber('Tick samples'),
+    fps: await metricNumber('FPS'),
+    heapMb: await metricNumber('Heap'),
+    heapAtStartMb,
+    dirty: await metric('Dirty'),
+    ambience: await metric('Ambience'),
+  };
+
+  // AMBIENT_IDLE_TIMEOUT_MS is 8 s; wait well past it, touching nothing.
+  await new Promise((resolve) => setTimeout(resolve, 14_000));
+
+  const whenAway = {
+    fps: await metricNumber('FPS'),
+    ambience: await metric('Ambience'),
+    dirty: await metric('Dirty'),
+  };
+
+  report('criterion-12-combined', { rainPeriod, plantedTick: world.tick, whileActive, whenAway });
+
+  // The load was real: rain sounding, frames flowing, motion leased. Without
+  // these the numbers below describe an idle overlay and prove nothing.
+  expect(whileActive.ambience).toContain('on');
+  expect(whileActive.fps).toBeGreaterThan(0);
+  expect(whileActive.dirty).not.toContain('0 anim');
+
+  // Question 1 — the tick budget, under everything at once.
+  expect(whileActive.tickSamples).toBeGreaterThan(500);
+  expect(whileActive.tickP99Ms).toBeLessThan(3);
+
+  // Question 2 — the presence-gated surrender still holds under full load.
+  // The bed is the deterministic observable: rain persists for the whole
+  // period, so "off" here can only mean presence expired — never that the
+  // weather stopped. Away-state FPS is in the report, deliberately unasserted
+  // (see the header).
   expect(whenAway.ambience).toContain('off');
 });

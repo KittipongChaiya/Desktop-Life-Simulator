@@ -96,6 +96,7 @@ pipeline was capable of noticing.
 - [x] A v0.1 save loads in v0.2 through the full chain with no data loss — `tests/save-compatibility.test.ts`, 45 assertions across every prior golden fixture
 - [x] Uninstalling a plugin preserves its save data — ADR-026's isolation invariant, asserted at every version in the chain
 - [ ] Performance budgets hold with weather, lighting, and audio active — individually yes, and each is in `docs/perf/`. **Together, unmeasured**; §12 named this risk and it is the one that stayed open
+  > **Closed in phase-17** (2026-08-15): measured together on the reference farm under rain, lighting, audio, and all motion at once — p99 tick 0.5 ms vs 3 ms, presence surrender intact. `PERFORMANCE.md` §14, `docs/phases/phase-17-v03-baseline.md`. The coverage stall was also re-run quiet and passed (95.07% / 86.56%). This entry stays unticked as the record of what was true when phase-16 closed.
 - [ ] Auto-update never loses a save under interrupted-update testing — the executable suite exists and passes against the **specified** sequence; the shipping NSIS path is unproven (`RELEASE-v0.2-RC.md` §4)
 - [x] Zero known data-loss defects — none known. Three update paths are unproven, which is stated as unproven rather than counted as clean
 
