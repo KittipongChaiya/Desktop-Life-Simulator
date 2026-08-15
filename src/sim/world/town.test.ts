@@ -18,6 +18,7 @@ import { toIndexUnchecked, toPosition } from '../../shared/geometry';
 import { validatePlacement, validateSellBuilding } from '../commands/building-commands';
 import { CORE_PATH } from '../content/tile-kinds';
 import {
+  CORE_CASTLE,
   CORE_COTTAGE,
   CORE_NOTICE_BOARD,
   CORE_WELL,
@@ -40,18 +41,21 @@ const META: SaveMeta = {
 
 function townBuildings(world: ReturnType<typeof createWorld>) {
   return [...world.buildings.values()].filter((building) =>
-    [CORE_COTTAGE, CORE_WELL, CORE_NOTICE_BOARD].includes(building.buildingId as never),
+    [CORE_COTTAGE, CORE_WELL, CORE_NOTICE_BOARD, CORE_CASTLE].includes(
+      building.buildingId as never,
+    ),
   );
 }
 
 describe('every world is founded with the same village (ADR-030 §4)', () => {
-  it('a new world has four cottages, a well, and a notice board', () => {
+  it('a new world has four cottages, a well, a notice board, and the castle', () => {
     const world = createWorld(7);
     const town = townBuildings(world);
 
     expect(town.filter((b) => b.buildingId === CORE_COTTAGE)).toHaveLength(4);
     expect(town.filter((b) => b.buildingId === CORE_WELL)).toHaveLength(1);
     expect(town.filter((b) => b.buildingId === CORE_NOTICE_BOARD)).toHaveLength(1);
+    expect(town.filter((b) => b.buildingId === CORE_CASTLE)).toHaveLength(1);
     expect(hasTown(world)).toBe(true);
   });
 
@@ -127,7 +131,7 @@ describe('founding is idempotent (ADR-030 §3)', () => {
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
     expect(loaded.value.world.buildings.size).toBe(world.buildings.size);
-    expect(townBuildings(loaded.value.world)).toHaveLength(6);
+    expect(townBuildings(loaded.value.world)).toHaveLength(TOWN_PLACEMENTS.length);
   });
 });
 

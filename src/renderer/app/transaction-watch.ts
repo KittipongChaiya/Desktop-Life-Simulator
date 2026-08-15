@@ -57,11 +57,18 @@ export function watchMajorTransactions(
   store: SnapshotStore,
   onTransaction: () => void,
 ): () => void {
-  let totals = readTotals(store);
+  // NULL until the first watched notification: the baseline is the world's
+  // FIRST DELIVERY, not the store's empty pre-pump state. Subscribing happens
+  // before the loop pumps, so a subscribe-time reading would see zero
+  // buildings and count the founded village (ADR-030 §3) — six buildings in
+  // every first snapshot — as a purchase, firing a save seconds into every
+  // fresh launch. A world announcing itself is not a transaction, and nothing
+  // can be bought before the first pump, so skipping it loses nothing.
+  let totals: TransactionTotals | null = null;
 
   const check = (): void => {
     const next = readTotals(store);
-    const major = isMajorTransaction(totals, next);
+    const major = totals !== null && isMajorTransaction(totals, next);
     totals = next;
     if (major) onTransaction();
   };

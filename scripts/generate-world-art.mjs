@@ -513,6 +513,53 @@ function noticeBoard() {
   return canvas;
 }
 
+/** Castle (`core:castle`): the village's landmark keep, asked for by the
+ * owner (2026-08-15). Stone where everything else is wood — but rounded and
+ * warm per the canon's "nothing threatens home" (WORLD_BIBLE §Philosophy):
+ * two round towers, a lit gate, Straw windows glowing, and a little pennant.
+ * The tallest stone silhouette in the game; never a fortress of menace. */
+function castle() {
+  const canvas = createCanvas(TILE, TILE);
+  const rng = prng(1405);
+  // Central keep body.
+  rect(canvas, 9, 12, 22, 28, STONE_BASE);
+  rect(canvas, 9, 12, 10, 28, STONE_LIGHT); // lit left face
+  // Two round-ish corner towers, slightly taller than the keep.
+  rect(canvas, 4, 10, 8, 28, STONE_BASE);
+  rect(canvas, 4, 10, 4, 28, STONE_LIGHT);
+  rect(canvas, 23, 10, 27, 28, STONE_BASE);
+  rect(canvas, 27, 11, 27, 28, STONE_DARK);
+  // Crenellations: alternating merlons on keep and towers.
+  for (const x of [4, 6, 8]) rect(canvas, x, 8, x, 9, STONE_BASE);
+  for (const x of [23, 25, 27]) rect(canvas, x, 8, x, 9, STONE_BASE);
+  for (const x of [11, 13, 15, 17, 19, 21]) rect(canvas, x, 10, x, 11, STONE_BASE);
+  set(canvas, 4, 8, STONE_LIGHT);
+  set(canvas, 11, 10, STONE_LIGHT);
+  // Stone seams, sparse, with a lit fleck in the upper-left quadrant.
+  for (let i = 0; i < 12; i += 1) {
+    const x = 5 + Math.floor(rng() * 22);
+    const y = 13 + Math.floor(rng() * 14);
+    if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, rng() < 0.35 ? STONE_LIGHT : STONE_DARK);
+  }
+  // Round-topped gate, warm inside — the door is open, and that is the point.
+  rect(canvas, 13, 21, 18, 28, SOIL_DARK);
+  rect(canvas, 14, 22, 17, 28, STRAW);
+  set(canvas, 14, 21, SOIL_DARK);
+  set(canvas, 17, 21, SOIL_DARK);
+  // Two lit tower windows.
+  rect(canvas, 5, 14, 6, 16, SOIL_DARK);
+  set(canvas, 6, 15, STRAW);
+  rect(canvas, 24, 14, 25, 16, SOIL_DARK);
+  set(canvas, 24, 15, STRAW);
+  // A pennant on the keep: one pole pixel-wide, a small Parchment flag.
+  rect(canvas, 15, 4, 15, 9, WOOD_BASE);
+  rect(canvas, 16, 4, 19, 5, PARCHMENT);
+  set(canvas, 19, 4, STRAW);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 13, 1.8);
+  return canvas;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 function main() {
@@ -539,6 +586,7 @@ function main() {
     [buildingsDir, 'cottage.png', cottage],
     [buildingsDir, 'well.png', well],
     [buildingsDir, 'notice_board.png', noticeBoard],
+    [buildingsDir, 'castle.png', castle],
   ];
 
   for (const [dir, name, paint] of assets) writePng(join(dir, name), paint());

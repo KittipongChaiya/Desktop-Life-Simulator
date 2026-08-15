@@ -101,11 +101,32 @@ describe('isMajorTransaction', () => {
 });
 
 describe('watchMajorTransactions', () => {
+  // In these tests the first publish plays the role of the first pump: the
+  // world announcing itself, which is never a purchase. In the real app that
+  // delivery always precedes any player action — the founded village
+  // (ADR-030 §3) guarantees the buildings slice notifies on the first pump.
+
+  it('treats the world’s first delivery as the baseline, never a purchase', () => {
+    // The regression this rule exists for: every world's first snapshot
+    // carries the six founded town buildings, and counting them as a
+    // transaction fired a save seconds into every fresh launch.
+    const store = stubStore();
+    const onTransaction = vi.fn();
+    watchMajorTransactions(store, onTransaction);
+
+    store.publish({
+      buildings: [building(1), building(2), building(3), building(4), building(5), building(6)],
+    });
+
+    expect(onTransaction).not.toHaveBeenCalled();
+  });
+
   it('triggers a save when a worker is hired', () => {
     const store = stubStore();
     const onTransaction = vi.fn();
     watchMajorTransactions(store, onTransaction);
 
+    store.publish({ buildings: [building(1)] }); // the first pump
     store.publish({ workers: [worker(1)] });
 
     expect(onTransaction).toHaveBeenCalledTimes(1);
@@ -116,7 +137,8 @@ describe('watchMajorTransactions', () => {
     const onTransaction = vi.fn();
     watchMajorTransactions(store, onTransaction);
 
-    store.publish({ buildings: [building(1)] });
+    store.publish({ buildings: [building(1)] }); // the first pump
+    store.publish({ buildings: [building(1), building(2)] });
     store.publish({ economy: { prices: [], expansionsPurchased: 1, nextExpansionCost: 200 } });
 
     expect(onTransaction).toHaveBeenCalledTimes(2);
@@ -147,7 +169,8 @@ describe('watchMajorTransactions', () => {
     const onTransaction = vi.fn();
     watchMajorTransactions(store, onTransaction);
 
-    store.publish({ workers: [worker(1)], buildings: [building(1)] });
+    store.publish({ buildings: [building(1)] }); // the first pump
+    store.publish({ workers: [worker(1)], buildings: [building(1), building(2)] });
 
     expect(onTransaction).toHaveBeenCalledTimes(1);
   });

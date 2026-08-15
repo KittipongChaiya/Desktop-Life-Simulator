@@ -22,6 +22,7 @@ import type { BuildingDefinition } from './buildings';
 export const CORE_COTTAGE = asContentId('core:cottage');
 export const CORE_WELL = asContentId('core:well');
 export const CORE_NOTICE_BOARD = asContentId('core:notice_board');
+export const CORE_CASTLE = asContentId('core:castle');
 
 /**
  * The village's buildings. Costs are zero because no coin path reaches them:
@@ -50,6 +51,13 @@ export const TOWN_BUILDINGS: readonly BuildingDefinition[] = [
     cost: 0,
     playerPlaceable: false,
   },
+  {
+    id: CORE_CASTLE,
+    displayName: 'Castle',
+    sprite: 'buildings:castle',
+    cost: 0,
+    playerPlaceable: false,
+  },
 ];
 
 /** The definition ids that mark a world as already having its town. */
@@ -65,8 +73,10 @@ export interface TownPlacement {
 
 /**
  * Where each building stands. Four cottages around the plaza (phase-19's
- * residents each get a door), the well at the plaza's centre, and the notice
- * board beside the road entrance where phase-20's contracts will hang.
+ * residents each get a door), the well at the plaza's centre, the notice
+ * board beside the road entrance where phase-20's contracts will hang, and
+ * the castle looking down the plaza from the north (owner's addition,
+ * 2026-08-15 — the village's landmark).
  */
 export const TOWN_PLACEMENTS: readonly TownPlacement[] = [
   { building: CORE_COTTAGE, x: 66, y: 27 },
@@ -75,6 +85,7 @@ export const TOWN_PLACEMENTS: readonly TownPlacement[] = [
   { building: CORE_COTTAGE, x: 76, y: 37 },
   { building: CORE_WELL, x: 71, y: 32 },
   { building: CORE_NOTICE_BOARD, x: 68, y: 30 },
+  { building: CORE_CASTLE, x: 71, y: 25 },
 ];
 
 /**
@@ -91,5 +102,7 @@ export function townPathTiles(): readonly { readonly x: number; readonly y: numb
   for (let y = 29; y <= 35; y += 1) {
     for (let x = 68; x <= 74; x += 1) tiles.push({ x, y });
   }
+  // The castle walk: two tiles north from the plaza to the gate.
+  for (let y = 27; y <= 28; y += 1) tiles.push({ x: 71, y });
   return tiles;
 }

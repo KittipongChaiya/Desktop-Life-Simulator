@@ -24,7 +24,13 @@ import { v6ToV7 } from '../src/persistence/migrations/v6-to-v7';
 import { CURRENT_SCHEMA_VERSION, type SaveDocument } from '../src/persistence/schema';
 import { coreContent, parseSaveDocument, repairSaveDocument } from '../src/persistence/validate';
 import { WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../src/shared/constants';
-import { CORE_COTTAGE, CORE_NOTICE_BOARD, CORE_WELL } from '../src/sim/content/town';
+import {
+  CORE_CASTLE,
+  CORE_COTTAGE,
+  CORE_NOTICE_BOARD,
+  CORE_WELL,
+  TOWN_PLACEMENTS,
+} from '../src/sim/content/town';
 
 const FIXTURES = resolve(import.meta.dirname, 'fixtures', 'saves');
 const v6Fixtures = readdirSync(FIXTURES).filter((name) => name.startsWith('v6-'));
@@ -210,11 +216,11 @@ describe('places survive the widening (ADR-030 §2)', () => {
     const document = migrated(name);
     const world = hydrateWorld(document);
 
-    const townIds = new Set<string>([CORE_COTTAGE, CORE_WELL, CORE_NOTICE_BOARD]);
+    const townIds = new Set<string>([CORE_COTTAGE, CORE_WELL, CORE_NOTICE_BOARD, CORE_CASTLE]);
     const town = [...world.buildings.values()].filter((b) => townIds.has(b.buildingId));
     const farm = [...world.buildings.values()].filter((b) => !townIds.has(b.buildingId));
 
-    expect(town).toHaveLength(6);
+    expect(town).toHaveLength(TOWN_PLACEMENTS.length);
     expect(farm.map((b) => [b.id, b.tile])).toEqual(
       document.world.buildings.map((b) => [b.id, b.tile]),
     );

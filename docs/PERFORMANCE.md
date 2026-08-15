@@ -163,7 +163,7 @@ Most likely sources, in order: undestroyed Pixi display objects (`CODE_STYLE.md`
 
 **"FPS while static = 0" is not a typo.** Rendering nothing when nothing changed is the design (ADR-001 §1), and a nonzero number here is a defect, not a healthy frame rate.
 
-The draw-call ceiling is the direct measurement of whether atlasing works (ADR-006 §3). A static 64×64 farm should cost ~16 terrain chunk quads plus a handful of sprite batches — if it costs hundreds, textures are not batching and the reason for choosing PixiJS has evaporated.
+The draw-call ceiling is the direct measurement of whether atlasing works (ADR-006 §3). A static 80×64 world (ADR-030) should cost ~20 terrain chunk quads plus a handful of sprite batches — if it costs hundreds, textures are not batching and the reason for choosing PixiJS has evaporated.
 
 ---
 
@@ -484,6 +484,14 @@ cost profile indefinitely. Collapsed mode is unaffected (Pixi destroyed,
 ADR-001 §2). Whether gameplay-feedback animators should be presence-gated
 like ambient motion is an open design question assigned to v0.3's NPC work —
 `docs/phases/phase-17-v03-baseline.md` §3 states it with the data.
+
+> **Re-measured 2026-08-15 (phase-18)** on the widened 80×64 world with the
+> founded village standing: p99 tick **0.4 ms**, mean 0.153 ms, surrender
+> intact — inside the phase-17 baseline, differing by less than the clock's
+> 0.1 ms coarsening, so the honest claim is "unchanged". The evidence file
+> also now records `awayPointerMoves`: the surrender assertion is skipped as
+> environment-blocked when a real pointer crossed the window during the away
+> wait, because a watched farm keeping its bed on is the feature working.
 
 ### Criterion 11 — heap under sustained effect density
 
