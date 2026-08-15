@@ -36,9 +36,11 @@ const META: SaveMeta = {
   saveCount: 1,
 };
 
-/** A small, fully valid document built through the real serializer. */
+/** A small, fully valid document built through the real serializer. Townless
+ * (ADR-030 §3), so `buildings[0]` is deterministically the shed these tests
+ * tamper with, and lengths count only what the test itself placed. */
 function validDocument(): SaveDocument {
-  const world = createWorld(7);
+  const world = createWorld(7, { foundTown: false });
   const cropTile = asTileIndex(2080);
   const shedTile = asTileIndex(2144);
   const workerTile = asTileIndex(2081);
@@ -447,7 +449,7 @@ describe('repairSaveDocument — the rules that had no test (§5.2, §5.3)', () 
 
   it('keeps a building standing on unwalkable terrain and only logs it', () => {
     const kinds = createInstalledRegistries().tileKinds;
-    const world = createWorld(7);
+    const world = createWorld(7, { foundTown: false });
     const shedTile = asTileIndex(2144);
     setOwned(world.tiles, shedTile, true);
     setKind(world.tiles, shedTile, kinds.indexOf(CORE_WATER));

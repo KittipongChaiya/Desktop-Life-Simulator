@@ -23,6 +23,7 @@ import { asBuildingId, asContentId, asTileIndex, asWorkerId } from '../shared/id
 import type { DayPhase } from '../sim/time/game-clock';
 import { createContainer, type Container } from '../sim/world/container';
 import { setBlocked } from '../sim/world/tile-grid';
+import { foundTown } from '../sim/world/town';
 import {
   WORKER_CARRY_CAPACITY,
   type Worker,
@@ -69,6 +70,9 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     daysPerSeason: saved.daysPerSeason,
     seasons: saved.seasons,
     ticksPerWeatherPeriod: saved.ticksPerWeatherPeriod,
+    // Deferred to the end of hydration (ADR-030 §3): founding now would
+    // allocate building ids the document is about to restore over.
+    foundTown: false,
   });
 
   world.tick = saved.tick;
@@ -201,6 +205,11 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
   }
 
   world.ids.setState({ worker: saved.ids.worker, building: saved.ids.building });
+
+  // The town, LAST (ADR-030 §3): a save that predates the village gains it —
+  // ids continue from the restored allocator, so nothing collides — and a
+  // save that has one keeps exactly what it has (`foundTown`'s guard).
+  foundTown(world);
 
   return world;
 }

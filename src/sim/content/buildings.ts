@@ -25,6 +25,12 @@ export interface BuildingDefinition {
   readonly cost: number;
   /** Slots of the container this building owns, if it stores items (ADR-011). */
   readonly storageSlots?: number;
+  /**
+   * `false` for buildings the player can never place — the town's, founded by
+   * world construction (ADR-030 §4). Absent means placeable, so every v0.1
+   * definition is unchanged.
+   */
+  readonly playerPlaceable?: boolean;
 }
 
 export const CORE_STORAGE_SHED = asContentId('core:storage_shed');

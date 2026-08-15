@@ -24,6 +24,7 @@ import { v6ToV7 } from '../src/persistence/migrations/v6-to-v7';
 import { CURRENT_SCHEMA_VERSION, type SaveDocument } from '../src/persistence/schema';
 import { coreContent, parseSaveDocument, repairSaveDocument } from '../src/persistence/validate';
 import { WORLD_HEIGHT, WORLD_TILE_COUNT, WORLD_WIDTH } from '../src/shared/constants';
+import { CORE_COTTAGE, CORE_NOTICE_BOARD, CORE_WELL } from '../src/sim/content/town';
 
 const FIXTURES = resolve(import.meta.dirname, 'fixtures', 'saves');
 const v6Fixtures = readdirSync(FIXTURES).filter((name) => name.startsWith('v6-'));
@@ -200,6 +201,26 @@ describe('places survive the widening (ADR-030 §2)', () => {
     }
     for (const worker of world.workers.values()) {
       expect(worker.position % WORLD_WIDTH).toBeLessThan(OLD_WIDTH);
+    }
+  });
+
+  it.each(v6Fixtures)('%s: a migrated farm gains the village, once, beside its own', (name) => {
+    // ADR-030 §3's payoff: the save predates the town, so hydration founds it
+    // — with ids continuing from the restored allocator, so nothing collides.
+    const document = migrated(name);
+    const world = hydrateWorld(document);
+
+    const townIds = new Set<string>([CORE_COTTAGE, CORE_WELL, CORE_NOTICE_BOARD]);
+    const town = [...world.buildings.values()].filter((b) => townIds.has(b.buildingId));
+    const farm = [...world.buildings.values()].filter((b) => !townIds.has(b.buildingId));
+
+    expect(town).toHaveLength(6);
+    expect(farm.map((b) => [b.id, b.tile])).toEqual(
+      document.world.buildings.map((b) => [b.id, b.tile]),
+    );
+    // Every town building stands east of the farm, on never-owned land.
+    for (const building of town) {
+      expect(building.tile % WORLD_WIDTH).toBeGreaterThanOrEqual(OLD_WIDTH);
     }
   });
 });

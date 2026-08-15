@@ -49,6 +49,7 @@ import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
+import { foundTown } from './town';
 import { createWallet, STARTING_COINS, type Wallet } from './wallet';
 import { createWorkerStore, type WorkerStore } from './worker';
 
@@ -279,6 +280,14 @@ export interface WorldOptions {
   readonly seasons?: readonly string[];
   /** The weather period's length, restored from a save. */
   readonly ticksPerWeatherPeriod?: number;
+  /**
+   * `false` defers the town (ADR-030 §3). HYDRATION's flag, nobody else's: a
+   * loaded world must restore its saved state first and found the town only if
+   * the save predates one — construction founding it here would allocate
+   * building ids the document is about to reuse. Absent means a new world,
+   * which gets its town immediately.
+   */
+  readonly foundTown?: boolean;
 }
 
 /**
@@ -370,6 +379,10 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   registerScheduleCommands(world.commands);
   registerBuildingCommands(world.commands);
   registerCommerceCommands(world.commands);
+
+  // The village stands before the first tick (ADR-030 §3). Hydration defers
+  // it — see `WorldOptions.foundTown` — and re-founds after restoring.
+  if (options.foundTown !== false) foundTown(world);
 
   return world;
 }

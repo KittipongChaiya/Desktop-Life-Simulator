@@ -51,6 +51,7 @@ import {
   CORE_WATER,
   type TileKindDefinition,
 } from '../../src/sim/content/tile-kinds';
+import { TOWN_BUILDINGS } from '../../src/sim/content/town';
 import {
   CORE_CLEAR,
   CORE_RAIN,
@@ -200,9 +201,14 @@ export function coreItems(): readonly ItemDefinition[] {
   return items;
 }
 
-/** Registers the v0.1 buildings — the `GAME_DESIGN.md` §5 table, exactly. */
+/**
+ * Registers the buildings: the `GAME_DESIGN.md` §5 farm table exactly, plus
+ * the village's three (phase-18, ADR-030 §4). The town definitions carry
+ * `playerPlaceable: false`, so the shop and `placeBuilding` never see them —
+ * they exist so `foundTown` and the renderer can.
+ */
 export function coreBuildings(): readonly BuildingDefinition[] {
-  return CORE_BUILDINGS;
+  return [...CORE_BUILDINGS, ...TOWN_BUILDINGS];
 }
 
 /**

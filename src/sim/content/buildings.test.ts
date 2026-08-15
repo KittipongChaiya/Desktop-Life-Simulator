@@ -27,6 +27,7 @@ import {
   STORAGE_SHED_SLOTS,
 } from './buildings';
 import { applyInstalledSources, createInstalledRegistries } from './installed';
+import { TOWN_BUILDINGS } from './town';
 
 const registered = (): BuildingRegistry => {
   const registry = createInstalledRegistries().buildings;
@@ -39,7 +40,10 @@ describe('the core buildings a world is created with', () => {
     for (const building of CORE_BUILDINGS) {
       expect(registry.has(building.id), building.id).toBe(true);
     }
-    expect(registry.size).toBe(CORE_BUILDINGS.length);
+    for (const building of TOWN_BUILDINGS) {
+      expect(registry.has(building.id), building.id).toBe(true);
+    }
+    expect(registry.size).toBe(CORE_BUILDINGS.length + TOWN_BUILDINGS.length);
   });
 
   it('registers the four buildings v0.1 ships', () => {

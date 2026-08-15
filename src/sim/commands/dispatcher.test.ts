@@ -175,7 +175,9 @@ describe('preview: legality without queuing', () => {
   });
 
   it('queues nothing and leaves the world untouched', () => {
-    const world = createWorld(1);
+    // Townless: the assertion below reads the whole blocked bitfield, and the
+    // founded village legitimately blocks six tiles (ADR-030 §3).
+    const world = createWorld(1, { foundTown: false });
     world.commands.preview(place(OWNED, CORE_STORAGE_SHED));
 
     expect(world.commands.pending()).toBe(0);

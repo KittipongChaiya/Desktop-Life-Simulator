@@ -29,8 +29,14 @@ function place(world: World, id: number, buildingId: string, tile: number): void
 }
 
 describe('projection', () => {
-  it('projects nothing for a farm with no buildings', () => {
-    expect(projectBuildings(createWorld(1))).toEqual([]);
+  it('projects nothing for a world with no buildings', () => {
+    // Townless — a REAL world always projects at least its village, which is
+    // the renderer's supply line for the town (ADR-030 §4).
+    expect(projectBuildings(createWorld(1, { foundTown: false }))).toEqual([]);
+  });
+
+  it('projects the founded village on a real world', () => {
+    expect(projectBuildings(createWorld(1)).length).toBeGreaterThanOrEqual(6);
   });
 
   it('carries the building kind, so a renderer can tell them apart', () => {
@@ -48,7 +54,7 @@ describe('projection', () => {
   });
 
   it('orders by id so the projection is deterministic', () => {
-    const world = createWorld(1);
+    const world = createWorld(1, { foundTown: false });
     place(world, 2, CORE_STORAGE_SHED, OTHER);
     place(world, 1, CORE_MARKET_STALL, TILE);
 

@@ -21,6 +21,7 @@
  * it, and this module needs no change.
  */
 
+import { FARM_SIZE } from '../shared/constants';
 import { appError, ErrorCode } from '../shared/errors';
 import { asContentId } from '../shared/ids';
 import { err, ok, type Result } from '../shared/result';
@@ -542,8 +543,12 @@ export function repairSaveDocument(
   doc.world.buildings = doc.world.buildings.filter((building) => {
     const unknown = !content.buildings.has(asContentId(building.buildingId));
     if (!unknown && inBounds(building.tile)) {
-      // Kept regardless — §5.2: keep the building, log the anomaly.
-      if (!isOwnedBit(owned, building.tile)) {
+      // Kept regardless — §5.2: keep the building, log the anomaly. Town land
+      // is the exception to the ownership rule, not to keeping: the village
+      // stands on never-owned tiles BY DESIGN (ADR-030 §1), so unowned ground
+      // east of the farm region is a building's normal address.
+      const inTownRegion = building.tile % width >= FARM_SIZE;
+      if (!isOwnedBit(owned, building.tile) && !inTownRegion) {
         log(
           'building-tile-not-owned',
           `building ${building.id} stands on unowned tile ${building.tile}`,

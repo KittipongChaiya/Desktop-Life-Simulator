@@ -46,6 +46,11 @@ export function validatePlacement(
   const definition = world.buildingRegistry.get(buildingId);
   if (!definition.ok) return err(definition.error);
 
+  // The town's buildings are founded, never bought (ADR-030 §4).
+  if (definition.value.playerPlaceable === false) {
+    return err(appError(ErrorCode.InvalidIntent, 'this building cannot be placed', { buildingId }));
+  }
+
   if (!isOwned(world.tiles, tile)) {
     return err(appError(ErrorCode.TileNotOwned, 'tile is outside the owned plot', { tile }));
   }
@@ -112,8 +117,17 @@ export function placeBuilding(
  * wait, exactly like a blocked harvest, ADR-011 §7).
  */
 export function validateSellBuilding(world: CommandWorld, building: BuildingId): ValidationResult {
-  if (!world.buildings.has(building)) {
+  const placed = world.buildings.get(building);
+  if (placed === undefined) {
     return err(appError(ErrorCode.InvalidIntent, 'no such building', { building }));
+  }
+
+  // Only a building on OWNED land is the player's to sell. Every farm
+  // building stands on owned tiles, so this restricts nothing that was
+  // possible — it closes the town's buildings to the refund path, which is
+  // what makes `foundTown`'s guard sound (ADR-030 §3).
+  if (!isOwned(world.tiles, placed.tile)) {
+    return err(appError(ErrorCode.TileNotOwned, 'not the player’s building to sell', { building }));
   }
 
   const storage = world.buildingStorage.get(building);

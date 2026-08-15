@@ -69,7 +69,9 @@ describe('the §5 building table', () => {
 
 describe('placement charges the wallet (crit 8)', () => {
   it('spends exactly the building cost', () => {
-    const world = createWorld(1);
+    // Townless: these tests count buildings, and the founded village would
+    // put six in the denominator (ADR-030 §3).
+    const world = createWorld(1, { foundTown: false });
     addCoins(world.wallet, 400); // 500 total
     place(world, CENTER, CORE_STORAGE_SHED); // 200
 
@@ -78,7 +80,7 @@ describe('placement charges the wallet (crit 8)', () => {
   });
 
   it('rejects an unaffordable building and places nothing (crit 7)', () => {
-    const world = createWorld(1); // 100 coins < 200
+    const world = createWorld(1, { foundTown: false }); // 100 coins < 200
     const result = world.commands.dispatch(
       { type: 'placeBuilding', tile: CENTER, buildingId: CORE_STORAGE_SHED },
       { source: CommandSource.Player },
@@ -101,7 +103,7 @@ describe('sellBuilding (crit 15)', () => {
   }
 
   it('refunds exactly 50% of cost, unblocks the tile, and removes the building', () => {
-    const world = createWorld(1);
+    const world = createWorld(1, { foundTown: false });
     const id = placedShed(world);
 
     world.commands.dispatch(
@@ -117,7 +119,7 @@ describe('sellBuilding (crit 15)', () => {
   });
 
   it('refuses to sell a storing building whose container is not empty', () => {
-    const world = createWorld(1);
+    const world = createWorld(1, { foundTown: false });
     const id = placedShed(world);
     const storage = world.buildingStorage.get([...world.buildingStorage.keys()][0]!);
     addItems(storage!, CORE_TURNIP, 3, DEFAULT_STACK_SIZE);

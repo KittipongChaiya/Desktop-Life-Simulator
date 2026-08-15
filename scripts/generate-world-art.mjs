@@ -409,6 +409,110 @@ function marketStall() {
   return canvas;
 }
 
+// ── Town buildings (phase-18, ADR-030 §4; village canon WORLD_BIBLE §Village) ─
+
+/** Cottage (`core:cottage`): a home, not a workshop — the fifth silhouette
+ * class. Steeper and narrower than the shed's working gable, and broken by a
+ * stone chimney; two warm Straw windows say somebody lives here. */
+function cottage() {
+  const canvas = createCanvas(TILE, TILE);
+  const rng = prng(1404);
+  // Walls: narrower than the shed's, lit left edge.
+  rect(canvas, 6, 14, 25, 28, WOOD_BASE);
+  rect(canvas, 6, 14, 7, 28, WOOD_LIGHT);
+  rect(canvas, 12, 15, 12, 28, SOIL_DARK); // one plank seam
+  rect(canvas, 19, 15, 19, 28, SOIL_DARK);
+  // Steep gable: ridge high, eaves just past the walls.
+  for (let y = 3; y <= 13; y += 1) {
+    const spread = Math.floor(((y - 3) * 11) / 10);
+    rect(canvas, 15 - spread, y, 16 + spread, y, STRAW);
+  }
+  thatch(canvas, rng, 5, 5, 26, 13);
+  rect(canvas, 15, 3, 16, 3, WOOD_LIGHT); // ridge cap
+  rect(canvas, 5, 13, 26, 13, WOOD_LIGHT); // eave edge
+  rect(canvas, 5, 14, 26, 14, SOIL_DARK); // eave shadow
+  // Stone chimney breaking the roof line on the shaded side.
+  rect(canvas, 21, 4, 24, 10, STONE_BASE);
+  rect(canvas, 21, 4, 21, 10, STONE_LIGHT);
+  rect(canvas, 21, 4, 24, 4, STONE_LIGHT);
+  set(canvas, 23, 9, STONE_DARK);
+  // Door, round-topped like the hut's — homes share the cozy read.
+  rect(canvas, 14, 22, 18, 28, SOIL_DARK);
+  rect(canvas, 15, 23, 17, 28, TILLED_SOIL);
+  // Two warm windows.
+  rect(canvas, 8, 18, 10, 20, SOIL_DARK);
+  set(canvas, 9, 19, STRAW);
+  rect(canvas, 21, 18, 23, 20, SOIL_DARK);
+  set(canvas, 22, 19, STRAW);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 12, 1.8);
+  return canvas;
+}
+
+/** Town well (`core:well`): the plaza's centre. A LOW round stone ring — the
+ * only circular building silhouette — under a little A-frame with a rope. */
+function well() {
+  const canvas = createCanvas(TILE, TILE);
+  // Posts and their crossbar first; the roof overhangs them.
+  rect(canvas, 8, 8, 9, 20, WOOD_BASE);
+  rect(canvas, 8, 8, 8, 20, WOOD_LIGHT);
+  rect(canvas, 22, 8, 23, 20, WOOD_BASE);
+  set(canvas, 22, 8, WOOD_LIGHT);
+  // Little gable roof over the shaft.
+  for (let y = 3; y <= 7; y += 1) {
+    const spread = Math.floor(((y - 3) * 10) / 4);
+    rect(canvas, 15 - spread, y, 16 + spread, y, STRAW);
+  }
+  rect(canvas, 15, 3, 16, 3, WOOD_LIGHT);
+  rect(canvas, 5, 7, 26, 7, WOOD_LIGHT);
+  // Rope down to the bucket.
+  rect(canvas, 15, 8, 15, 15, PARCHMENT);
+  rect(canvas, 14, 15, 16, 17, WOOD_BASE);
+  rect(canvas, 14, 15, 14, 17, WOOD_LIGHT);
+  // The stone ring: an ellipse with a dark water mouth.
+  ellipse(canvas, 16, 23, 10, 5, STONE_BASE, 0.15);
+  ellipse(canvas, 16, 22, 7, 3, WATER_DEEP, 0.15);
+  ellipse(canvas, 14, 21, 2, 1, WATER_LIGHT, 0.15); // a glint, lit upper-left
+  rect(canvas, 7, 23, 8, 25, STONE_LIGHT); // lit stones on the left rim
+  set(canvas, 10, 26, STONE_LIGHT);
+  set(canvas, 22, 26, STONE_DARK);
+  set(canvas, 24, 24, STONE_DARK);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 11, 1.8);
+  return canvas;
+}
+
+/** Notice board (`core:notice_board`): where phase-20's contracts will hang.
+ * Two posts, a plank board, and pinned Parchment notes — readable as "paper
+ * on wood" at a glance, which is the whole message. */
+function noticeBoard() {
+  const canvas = createCanvas(TILE, TILE);
+  // Posts.
+  rect(canvas, 6, 8, 7, 28, WOOD_BASE);
+  rect(canvas, 6, 8, 6, 28, WOOD_LIGHT);
+  rect(canvas, 24, 8, 25, 28, WOOD_BASE);
+  set(canvas, 24, 8, WOOD_LIGHT);
+  // Little rain cap.
+  rect(canvas, 4, 6, 27, 7, STRAW);
+  rect(canvas, 4, 6, 27, 6, WOOD_LIGHT);
+  // The board: planks with a lit top edge.
+  rect(canvas, 5, 9, 26, 22, WOOD_BASE);
+  rect(canvas, 5, 9, 26, 9, WOOD_LIGHT);
+  rect(canvas, 5, 15, 26, 15, SOIL_DARK); // plank seam
+  // Pinned notes: Parchment sheets, one Straw seal, one corner curled dark.
+  rect(canvas, 8, 11, 12, 16, PARCHMENT);
+  set(canvas, 8, 16, SOIL_DARK);
+  rect(canvas, 15, 12, 18, 18, PARCHMENT);
+  set(canvas, 16, 14, STRAW);
+  rect(canvas, 20, 11, 23, 14, PARCHMENT);
+  set(canvas, 10, 11, SOIL_DARK); // pins
+  set(canvas, 16, 12, SOIL_DARK);
+  set(canvas, 21, 11, SOIL_DARK);
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 11, 1.6);
+  return canvas;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 function main() {
@@ -432,6 +536,9 @@ function main() {
     [buildingsDir, 'rest_hut.png', restHut],
     [buildingsDir, 'seed_bin.png', seedBin],
     [buildingsDir, 'market_stall.png', marketStall],
+    [buildingsDir, 'cottage.png', cottage],
+    [buildingsDir, 'well.png', well],
+    [buildingsDir, 'notice_board.png', noticeBoard],
   ];
 
   for (const [dir, name, paint] of assets) writePng(join(dir, name), paint());

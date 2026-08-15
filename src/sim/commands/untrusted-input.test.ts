@@ -32,7 +32,9 @@ const CENTER = toIndexUnchecked(32, 32);
 
 /** A funded world, so affordability is never the reason for a rejection. */
 function fundedWorld(): World {
-  const world = createWorld(1);
+  // Townless, so "untouched" can be asserted as zero buildings — the founded
+  // village would otherwise sit in every count (ADR-030 §3).
+  const world = createWorld(1, { foundTown: false });
   addCoins(world.wallet, 10_000);
   return world;
 }

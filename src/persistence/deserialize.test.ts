@@ -38,7 +38,9 @@ const META: SaveMeta = {
 };
 
 function documentWithShed(): SaveDocument {
-  const world = createWorld(7);
+  // Townless (ADR-030 §3): `buildings[0]` must deterministically be the shed
+  // the tampering tests below aim at.
+  const world = createWorld(7, { foundTown: false });
   const shedTile = asTileIndex(2144);
   setOwned(world.tiles, shedTile, true);
   const shedId = world.ids.allocateBuilding();
