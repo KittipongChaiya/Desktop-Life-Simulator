@@ -19,6 +19,7 @@ import { CommandSource, type Command } from '../../../sim/commands/types';
 import { stepSimulation } from '../../../sim/tick';
 import { offersForDay } from '../../../sim/town/offers';
 import { addItems } from '../../../sim/world/container';
+import { FRIEND_AT } from '../../../sim/world/reputation';
 import { createWorld, type World } from '../../../sim/world/world';
 import { createSnapshotStore } from '../../bootstrap/snapshot-store';
 import { createActionFeedback } from '../action-feedback';
@@ -131,6 +132,38 @@ describe('BoardPanel', () => {
     expect(deliver.hasAttribute('disabled')).toBe(false);
     fireEvent.click(deliver);
     expect(submitted).toEqual([{ type: 'deliverContract', offerId: offer.offerId }]);
+  });
+
+  it('shows your name in town, with the next threshold (ADR-034 §1)', () => {
+    const world = createWorld(41);
+    mount(world);
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+
+    const standing = screen.getByTestId('standing');
+    expect(standing.textContent).toContain('Newcomer');
+    expect(standing.textContent).toContain(`next at ${String(FRIEND_AT)} delivered`);
+  });
+
+  it('a locked slot says who it is for instead of offering Accept (ADR-034 §2)', () => {
+    const world = createWorld(41);
+    mount(world);
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+
+    // Four rows derive; a newcomer may accept only the two open slots.
+    expect(screen.getAllByRole('button', { name: /^Accept/ })).toHaveLength(2);
+    expect(screen.getByText('for friends of the town')).toBeDefined();
+    expect(screen.getByText('for pillars of the town')).toBeDefined();
+  });
+
+  it('a Friend finds the third slot open', () => {
+    const world = createWorld(41);
+    world.contractStats.fulfilled = FRIEND_AT;
+    mount(world);
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+
+    expect(screen.getAllByRole('button', { name: /^Accept/ })).toHaveLength(3);
+    expect(screen.queryByText('for friends of the town')).toBeNull();
+    expect(screen.getByText('for pillars of the town')).toBeDefined();
   });
 
   it('the toggle badges the docket count', () => {

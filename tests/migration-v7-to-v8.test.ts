@@ -61,12 +61,13 @@ describe('the v7 golden fixtures', () => {
     expect(repairSaveDocument(document, coreContent()).repairs).toEqual([]);
   });
 
-  it.each(v7Fixtures)('%s gains an empty store and zero counters through BOTH links', (name) => {
+  it.each(v7Fixtures)('%s gains an empty store and zero counters through the chain', (name) => {
     const before = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as SaveDocument;
     const after = migrated(name);
 
     expect(after.world.contracts).toEqual([]);
-    expect(after.world.contractStats).toEqual({ fulfilled: 0, expired: 0 });
+    // byRequester arrived with v10 (ADR-034 §4), empty like the counters.
+    expect(after.world.contractStats).toEqual({ fulfilled: 0, expired: 0, byRequester: {} });
     // Every pre-existing world field is byte-identical.
     for (const [key, value] of Object.entries(before.world)) {
       expect(
@@ -92,10 +93,15 @@ describe('a held contract survives the round trip', () => {
     });
     world.contractStats.fulfilled = 3;
     world.contractStats.expired = 1;
+    world.contractStats.byRequester['core:resident_marla'] = 3;
 
     const loaded = hydrateWorld(JSON.parse(serializeSave(toSaveDocument(world, META))) as never);
 
     expect(loaded.contracts.get(14)).toEqual(world.contracts.get(14));
-    expect(loaded.contractStats).toEqual({ fulfilled: 3, expired: 1 });
+    expect(loaded.contractStats).toEqual({
+      fulfilled: 3,
+      expired: 1,
+      byRequester: { 'core:resident_marla': 3 },
+    });
   });
 });

@@ -30,6 +30,7 @@ import type { Container } from '../world/container';
 import type { ContractStats, ContractStore } from '../world/contracts';
 import type { CropStore } from '../world/crop';
 import type { EconomyState } from '../world/economy';
+import type { QuestLog } from '../world/quests';
 import type { TileGrid } from '../world/tile-grid';
 import type { Wallet } from '../world/wallet';
 import type { WorkerStore } from '../world/worker';
@@ -286,6 +287,8 @@ export interface CommandWorld {
   readonly contracts: ContractStore;
   /** Fulfilled/expired counters — event-maintained (ADR-032 §6). */
   readonly contractStats: ContractStats;
+  /** Quest payout watermarks — written only by the quest step (ADR-034 §4). */
+  readonly quests: QuestLog;
 }
 
 /**

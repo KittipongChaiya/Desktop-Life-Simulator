@@ -25,6 +25,7 @@ import { v5ToV6 } from './v5-to-v6';
 import { v6ToV7 } from './v6-to-v7';
 import { v7ToV8 } from './v7-to-v8';
 import { v8ToV9 } from './v8-to-v9';
+import { v9ToV10 } from './v9-to-v10';
 
 export const MIGRATIONS: readonly Migration[] = [
   // Phase-09b: the first link. Records the world's content sources (ADR-026 §4)
@@ -43,4 +44,7 @@ export const MIGRATIONS: readonly Migration[] = [
   // Phase-20, second link — the exploit fix its live verification earned:
   // delivered contracts persist to their deadline (see v8-to-v9.ts header).
   v8ToV9,
+  // Phase-22: offer ids re-key for the four-slot board; quest watermarks and
+  // per-requester counters appear, empty (ADR-034).
+  v9ToV10,
 ];

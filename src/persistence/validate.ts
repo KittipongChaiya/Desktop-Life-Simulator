@@ -389,6 +389,23 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
         'a non-negative integer',
       );
     }
+    // v10 (ADR-034 §4): counters the quest chains read.
+    req(isRecord(contractStats['byRequester']), 'world.contractStats.byRequester', 'a record');
+    for (const [requester, count] of Object.entries(
+      contractStats['byRequester'] as Record<string, unknown>,
+    )) {
+      req(
+        isInt(count) && count >= 0,
+        `world.contractStats.byRequester[${requester}]`,
+        'a non-negative integer',
+      );
+    }
+
+    // v10 (ADR-034 §4): paid watermarks — a malformed one risks double-pay.
+    req(isRecord(world['quests']), 'world.quests', 'a record');
+    for (const [chainId, paid] of Object.entries(world['quests'] as Record<string, unknown>)) {
+      req(isInt(paid) && paid >= 0, `world.quests[${chainId}]`, 'a non-negative integer');
+    }
 
     req(isRecord(doc['quarantine']), 'quarantine', 'a record');
     const quarantine = doc['quarantine'] as Record<string, unknown>;

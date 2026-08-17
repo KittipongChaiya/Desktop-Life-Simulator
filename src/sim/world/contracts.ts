@@ -19,7 +19,8 @@ export const MAX_ACTIVE_CONTRACTS = 3;
 
 export interface ActiveContract {
   /**
-   * The offer's identity: `day × OFFERS_PER_DAY + slot`. Doubles as the
+   * The offer's identity: `day × BOARD_SLOTS + slot` (re-keyed from the
+   * two-slot scheme by v10, ADR-034 §3). Doubles as the
    * store key and the double-acceptance guard — an offer accepted once can
    * never be accepted again, because its id is already present.
    */
@@ -66,8 +67,14 @@ export function createContractStore(): ContractStore {
 export interface ContractStats {
   fulfilled: number;
   expired: number;
+  /**
+   * Fulfilled deliveries per requester (v10, ADR-034 §4) — the counter the
+   * resident quest chains read. Empty on migration: per-resident history
+   * before v10 was never recorded, and inventing it would be fiction.
+   */
+  byRequester: Record<string, number>;
 }
 
 export function createContractStats(): ContractStats {
-  return { fulfilled: 0, expired: 0 };
+  return { fulfilled: 0, expired: 0, byRequester: {} };
 }

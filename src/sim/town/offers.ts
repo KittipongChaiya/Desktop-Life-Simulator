@@ -1,8 +1,11 @@
 /**
  * The notice board's offers, derived. Phase-20 — ADR-032 §1.
  *
- * Each day the board posts `OFFERS_PER_DAY` offers, every field a `mix32`
+ * Each day the board derives `BOARD_SLOTS` offers, every field a `mix32`
  * hash of `(seed, day, slot)` — never `world.rng` (ADR-022 §1, ADR-031 §2).
+ * Derivation is tier-blind: the later slots are GATED by standing at the
+ * command boundary (ADR-034 §2), not hidden from derivation, so every
+ * player sees what the town would ask of a proven name.
  * Offers are never stored: a reload recomputes the same board, and only what
  * the player ACCEPTS becomes state (`world/contracts.ts`).
  *
@@ -19,9 +22,27 @@ import type { ItemRegistry } from '../content/items';
 import { RESIDENTS } from '../content/residents';
 import { dayFor, seasonFor } from '../time/game-clock';
 import { demandAtSpell, DEMAND_SPELL_DAYS } from '../world/economy';
+import type { Standing } from '../world/reputation';
 
-/** Offers posted per day (ADR-032 §1). */
-export const OFFERS_PER_DAY = 2;
+/**
+ * Slots derived per day (ADR-034 §2–§3). Four, and frozen into offer
+ * identity: `offerId = day × BOARD_SLOTS + slot`, so widening the board
+ * again is another re-key migration (v10 was this one's).
+ */
+export const BOARD_SLOTS = 4;
+
+/**
+ * The standing each slot asks of the player (ADR-034 §2). Slots 0–1 are
+ * phase-20's open board; slot 2 opens to a Friend, slot 3 — the grand
+ * order — to a Pillar. The gate holds at the command boundary; derivation
+ * is tier-blind so every player sees what the town WOULD ask.
+ */
+export const SLOT_STANDING: readonly Standing[] = ['newcomer', 'newcomer', 'friend', 'pillar'];
+
+/** The standing an offer requires, from its identity alone. */
+export function requiredStandingFor(offerId: number): Standing {
+  return SLOT_STANDING[offerId % BOARD_SLOTS] ?? 'newcomer';
+}
 
 /** Days from the posting day's start to the deadline (ADR-032 §2). */
 export const CONTRACT_DAYS = 3;
@@ -37,11 +58,23 @@ export const PREMIUM_STEPS = [1.25, 1.3, 1.35, 1.4, 1.45, 1.5] as const;
 const TARGET_VALUE_MIN = 150;
 const TARGET_VALUE_RANGE = 451;
 
+/**
+ * The grand band slot 3 draws from (ADR-034 §2): 400–900 coins of base
+ * value — the town trusting its biggest orders to a proven name. The
+ * premium stays inside [1.25, 1.50]: tiers unlock more and bigger deals,
+ * never better prices.
+ */
+const GRAND_VALUE_MIN = 400;
+const GRAND_VALUE_RANGE = 501;
+
+/** The slot whose order draws from the grand band. */
+export const GRAND_SLOT = 3;
+
 /** No offer asks for fewer than this many units — a delivery, not an errand. */
 const MIN_QUANTITY = 2;
 
 export interface ContractOffer {
-  /** `day × OFFERS_PER_DAY + slot` — identity for acceptance (ADR-032 §2). */
+  /** `day × BOARD_SLOTS + slot` — identity for acceptance (ADR-032 §2). */
   readonly offerId: number;
   readonly day: number;
   readonly item: ContentId;
@@ -97,7 +130,7 @@ export function offersForDay(source: OfferSource, day: number): readonly Contrac
   });
 
   const offers: ContractOffer[] = [];
-  for (let slot = 0; slot < OFFERS_PER_DAY; slot += 1) {
+  for (let slot = 0; slot < BOARD_SLOTS; slot += 1) {
     const h = (k: number): number => mix32(mix32(mix32(source.seed, day), slot + 1), k) >>> 0;
 
     const crop = pool[h(0) % pool.length];
@@ -107,14 +140,17 @@ export function offersForDay(source: OfferSource, day: number): readonly Contrac
     if (!definition.ok) continue;
 
     const basePrice = definition.value.basePrice;
-    const targetValue = TARGET_VALUE_MIN + (h(1) % TARGET_VALUE_RANGE);
+    const targetValue =
+      slot === GRAND_SLOT
+        ? GRAND_VALUE_MIN + (h(1) % GRAND_VALUE_RANGE)
+        : TARGET_VALUE_MIN + (h(1) % TARGET_VALUE_RANGE);
     const quantity = Math.max(MIN_QUANTITY, Math.round(targetValue / basePrice));
     const premium = PREMIUM_STEPS[h(2) % PREMIUM_STEPS.length] ?? PREMIUM_STEPS[0];
     const requester = RESIDENTS[h(3) % RESIDENTS.length]?.id;
     if (requester === undefined) continue;
 
     offers.push({
-      offerId: day * OFFERS_PER_DAY + slot,
+      offerId: day * BOARD_SLOTS + slot,
       day,
       item: yieldItem,
       quantity,
@@ -129,6 +165,6 @@ export function offersForDay(source: OfferSource, day: number): readonly Contrac
 
 /** One day's offer by id, or undefined — the acceptance validator's lookup. */
 export function offerById(source: OfferSource, offerId: number): ContractOffer | undefined {
-  const day = Math.floor(offerId / OFFERS_PER_DAY);
+  const day = Math.floor(offerId / BOARD_SLOTS);
   return offersForDay(source, day).find((offer) => offer.offerId === offerId);
 }

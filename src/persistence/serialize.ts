@@ -200,7 +200,17 @@ export function toSaveDocument(
       contractStats: {
         fulfilled: world.contractStats.fulfilled,
         expired: world.contractStats.expired,
+        // v10 (ADR-034 §4): keys sorted, so the document stays byte-stable.
+        byRequester: Object.fromEntries(
+          Object.entries(world.contractStats.byRequester).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0,
+          ),
+        ),
       },
+      // v10 (ADR-034 §4): the paid watermarks, keys sorted.
+      quests: Object.fromEntries(
+        [...world.quests.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      ),
     },
     quarantine: {
       crops: quarantine.crops.map((crop) => ({ ...crop })),

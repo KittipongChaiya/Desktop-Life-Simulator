@@ -55,6 +55,7 @@ import {
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
+import { createQuestLog, type QuestLog } from './quests';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
 import { foundTown } from './town';
 import { createWallet, STARTING_COINS, type Wallet } from './wallet';
@@ -165,6 +166,12 @@ export interface World {
 
   /** Fulfilled/expired counters — event-maintained, not derivable (ADR-032 §6). */
   readonly contractStats: ContractStats;
+
+  /**
+   * Quest payout watermarks (phase-22, ADR-034 §4). Chain progress derives
+   * from the counters; this records only what has already been paid.
+   */
+  readonly quests: QuestLog;
 
   /**
    * Typed event bus. Queue-and-flush; subscribers run in `postUpdate` only
@@ -377,6 +384,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     lastPlanted: new Map(),
     contracts: createContractStore(),
     contractStats: createContractStats(),
+    quests: createQuestLog(),
     events,
     // Reads `world` lazily. The closure runs at dispatch time, never during
     // construction, so the self-reference is sound — and it is what keeps the

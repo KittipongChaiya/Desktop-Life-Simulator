@@ -13,8 +13,10 @@ import '../../../plugins/core';
 import { asContentId } from '../../shared/ids';
 import { acceptContract } from '../commands/contract-commands';
 import { stepSimulation } from '../tick';
-import { OFFERS_PER_DAY, offersForDay } from '../town/offers';
+import { BOARD_SLOTS, offersForDay } from '../town/offers';
 import { addItems } from '../world/container';
+import { MAX_ACTIVE_CONTRACTS } from '../world/contracts';
+import { FRIEND_AT, PILLAR_AT } from '../world/reputation';
 import { createWorld, type World } from '../world/world';
 
 import { contractsEqual, projectContracts } from './contracts-slice';
@@ -30,7 +32,7 @@ describe('projection', () => {
     const world = freshWorld();
     const slice = projectContracts(world);
 
-    expect(slice.offers).toHaveLength(OFFERS_PER_DAY);
+    expect(slice.offers).toHaveLength(BOARD_SLOTS);
     for (const offer of slice.offers) {
       expect(offer.itemName.length).toBeGreaterThan(0);
       expect(offer.requesterName.length).toBeGreaterThan(0);
@@ -38,6 +40,49 @@ describe('projection', () => {
     }
     expect(slice.active).toEqual([]);
     expect(slice.docketFull).toBe(false);
+  });
+
+  it('locks the later slots for a newcomer and unlocks them by standing (ADR-034 §2)', () => {
+    const world = freshWorld();
+
+    let locked = projectContracts(world).offers.map((offer) => offer.locked);
+    expect(locked).toEqual([false, false, true, true]);
+    expect(projectContracts(world).standing).toBe('newcomer');
+    expect(projectContracts(world).nextStandingAt).toBe(FRIEND_AT);
+
+    world.contractStats.fulfilled = FRIEND_AT;
+    locked = projectContracts(world).offers.map((offer) => offer.locked);
+    expect(locked).toEqual([false, false, false, true]);
+    expect(projectContracts(world).standing).toBe('friend');
+
+    world.contractStats.fulfilled = PILLAR_AT;
+    locked = projectContracts(world).offers.map((offer) => offer.locked);
+    expect(locked).toEqual([false, false, false, false]);
+    expect(projectContracts(world).standing).toBe('pillar');
+    expect(projectContracts(world).nextStandingAt).toBeNull();
+  });
+
+  it('a delivered receipt does not read as a full docket (the v9 rule, UI end)', () => {
+    const world = freshWorld();
+    for (let i = 0; i < MAX_ACTIVE_CONTRACTS; i += 1) {
+      world.contracts.set(1_000 + i, {
+        offerId: 1_000 + i,
+        item: asContentId('core:turnip'),
+        quantity: 5,
+        rewardCoins: 75,
+        deadlineTick: 999_999,
+        requester: asContentId('core:resident_marla'),
+        acceptedTick: 0,
+        fulfilledTick: null,
+      });
+    }
+    expect(projectContracts(world).docketFull).toBe(true);
+
+    // Delivering one frees its slot even though the receipt stays stored.
+    const first = world.contracts.get(1_000);
+    if (first === undefined) throw new Error('setup failed');
+    first.fulfilledTick = 5;
+    expect(projectContracts(world).docketFull).toBe(false);
   });
 
   it('flags an accepted offer and tracks held progress live', () => {

@@ -16,9 +16,10 @@
 
 import { appError, ErrorCode } from '../../shared/errors';
 import { err, ok, type Result } from '../../shared/result';
-import { offerById, offerDayOf } from '../town/offers';
+import { offerById, offerDayOf, requiredStandingFor } from '../town/offers';
 import { containerCount, removeItems } from '../world/container';
 import { MAX_ACTIVE_CONTRACTS, openContracts } from '../world/contracts';
+import { standingAtLeast, standingOf } from '../world/reputation';
 import { addCoins } from '../world/wallet';
 
 import { heldForSale, sellableContainers } from './commerce-commands';
@@ -27,8 +28,8 @@ import type { CommandWorld, ValidationResult } from './types';
 
 /**
  * Checks an acceptance is legal. Rejects: an offer that is not on TODAY's
- * board (yesterday's offers left with yesterday), one already accepted, or a
- * full docket.
+ * board (yesterday's offers left with yesterday), one already accepted, a
+ * slot above the player's standing (ADR-034 §2), or a full docket.
  */
 export function validateAccept(world: CommandWorld, offerId: number): ValidationResult {
   if (world.contracts.has(offerId)) {
@@ -38,6 +39,20 @@ export function validateAccept(world: CommandWorld, offerId: number): Validation
   const offer = offerById(world, offerId);
   if (offer === undefined || offer.day !== offerDayOf(world, world.tick)) {
     return err(appError(ErrorCode.InvalidIntent, 'no such offer on today’s board', { offerId }));
+  }
+
+  // The tier gate (ADR-034 §2): the later slots ask for a proven name. The
+  // gate lives here, at the command boundary, so no UI state can hold it.
+  const required = requiredStandingFor(offerId);
+  const standing = standingOf(world.contractStats);
+  if (!standingAtLeast(standing, required)) {
+    return err(
+      appError(ErrorCode.InvalidIntent, 'the town does not know you well enough for this order', {
+        offerId,
+        required,
+        standing,
+      }),
+    );
   }
 
   // OPEN contracts, not store size: a fulfilled contract rides in the store
@@ -142,6 +157,8 @@ export function deliverContract(world: CommandWorld, offerId: number): Result<vo
   // presence blocks re-accepting the same offer (the live-caught exploit).
   contract.fulfilledTick = world.tick;
   world.contractStats.fulfilled += 1;
+  world.contractStats.byRequester[contract.requester] =
+    (world.contractStats.byRequester[contract.requester] ?? 0) + 1;
   world.events.publish('itemSold', {
     item: contract.item,
     quantity: contract.quantity,

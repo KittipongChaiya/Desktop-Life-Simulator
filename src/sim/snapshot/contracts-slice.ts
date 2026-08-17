@@ -14,8 +14,9 @@
 import { heldForSale } from '../commands/commerce-commands';
 import type { CommandWorld } from '../commands/types';
 import { RESIDENTS } from '../content/residents';
-import { offerDayOf, offersForDay } from '../town/offers';
-import { MAX_ACTIVE_CONTRACTS } from '../world/contracts';
+import { offerDayOf, offersForDay, requiredStandingFor } from '../town/offers';
+import { MAX_ACTIVE_CONTRACTS, openContracts } from '../world/contracts';
+import { nextStandingAt, standingAtLeast, standingOf, type Standing } from '../world/reputation';
 
 /** One board offer, projected. */
 export interface OfferView {
@@ -28,6 +29,10 @@ export interface OfferView {
   readonly dueDay: number;
   readonly requesterName: string;
   readonly accepted: boolean;
+  /** The tier this slot asks for (ADR-034 §2). */
+  readonly requiredStanding: Standing;
+  /** True while the player's standing is below the slot's ask. */
+  readonly locked: boolean;
 }
 
 /** One accepted contract, projected with its live progress. */
@@ -52,6 +57,10 @@ export interface ContractsSlice {
   readonly docketFull: boolean;
   readonly fulfilled: number;
   readonly expired: number;
+  /** The player's name in town — derived, never stored (ADR-034 §1). */
+  readonly standing: Standing;
+  /** Deliveries the next tier asks for, or null at the top. */
+  readonly nextStandingAt: number | null;
 }
 
 const requesterName = (id: string): string =>
@@ -64,16 +73,22 @@ export function projectContracts(world: CommandWorld): ContractsSlice {
   };
   const dueDay = (deadlineTick: number): number => Math.floor(deadlineTick / world.ticksPerDay) + 1;
 
-  const offers = offersForDay(world, offerDayOf(world, world.tick)).map((offer) => ({
-    offerId: offer.offerId,
-    item: offer.item,
-    itemName: itemName(offer.item),
-    quantity: offer.quantity,
-    rewardCoins: offer.rewardCoins,
-    dueDay: dueDay(offer.deadlineTick),
-    requesterName: requesterName(offer.requester),
-    accepted: world.contracts.has(offer.offerId),
-  }));
+  const standing = standingOf(world.contractStats);
+  const offers = offersForDay(world, offerDayOf(world, world.tick)).map((offer) => {
+    const requiredStanding = requiredStandingFor(offer.offerId);
+    return {
+      offerId: offer.offerId,
+      item: offer.item,
+      itemName: itemName(offer.item),
+      quantity: offer.quantity,
+      rewardCoins: offer.rewardCoins,
+      dueDay: dueDay(offer.deadlineTick),
+      requesterName: requesterName(offer.requester),
+      accepted: world.contracts.has(offer.offerId),
+      requiredStanding,
+      locked: !standingAtLeast(standing, requiredStanding),
+    };
+  });
 
   const active = [...world.contracts.values()]
     .sort((a, b) => a.offerId - b.offerId)
@@ -97,9 +112,13 @@ export function projectContracts(world: CommandWorld): ContractsSlice {
   return {
     offers,
     active,
-    docketFull: world.contracts.size >= MAX_ACTIVE_CONTRACTS,
+    // OPEN contracts, matching the validator: a delivered receipt riding to
+    // its deadline must not read as a full docket (the v9 rule, both ends).
+    docketFull: openContracts(world.contracts) >= MAX_ACTIVE_CONTRACTS,
     fulfilled: world.contractStats.fulfilled,
     expired: world.contractStats.expired,
+    standing,
+    nextStandingAt: nextStandingAt(world.contractStats),
   };
 }
 
@@ -108,6 +127,8 @@ export function contractsEqual(a: ContractsSlice, b: ContractsSlice): boolean {
     a.fulfilled !== b.fulfilled ||
     a.expired !== b.expired ||
     a.docketFull !== b.docketFull ||
+    a.standing !== b.standing ||
+    a.nextStandingAt !== b.nextStandingAt ||
     a.offers.length !== b.offers.length ||
     a.active.length !== b.active.length
   ) {
@@ -118,7 +139,8 @@ export function contractsEqual(a: ContractsSlice, b: ContractsSlice): boolean {
     if (
       other === undefined ||
       offer.offerId !== other.offerId ||
-      offer.accepted !== other.accepted
+      offer.accepted !== other.accepted ||
+      offer.locked !== other.locked
     ) {
       return false;
     }

@@ -17,6 +17,7 @@ import { stepSimulation, stepSimulationBy } from '../tick';
 import { offerDayOf, offersForDay } from '../town/offers';
 import { addItems, containerCount, createContainer } from '../world/container';
 import { MAX_ACTIVE_CONTRACTS } from '../world/contracts';
+import { FRIEND_AT, PILLAR_AT } from '../world/reputation';
 import { createWorld, type World } from '../world/world';
 
 import {
@@ -101,6 +102,29 @@ describe('acceptContract (ADR-032 §2)', () => {
     }
 
     expect(validateAccept(world, firstOffer(world).offerId).ok).toBe(false);
+  });
+
+  it('gates the later slots by standing, and unlocks them as deliveries land (ADR-034 §2)', () => {
+    const world = freshWorld();
+    const board = offersForDay(world, offerDayOf(world, world.tick));
+    const friendSlot = board[2];
+    const pillarSlot = board[3];
+    expect(friendSlot).toBeDefined();
+    expect(pillarSlot).toBeDefined();
+    if (friendSlot === undefined || pillarSlot === undefined) return;
+
+    // A newcomer is refused both gated slots — the open board is slots 0–1.
+    expect(validateAccept(world, friendSlot.offerId).ok).toBe(false);
+    expect(validateAccept(world, pillarSlot.offerId).ok).toBe(false);
+
+    // A Friend passes slot 2 but not the grand order.
+    world.contractStats.fulfilled = FRIEND_AT;
+    expect(validateAccept(world, friendSlot.offerId).ok).toBe(true);
+    expect(validateAccept(world, pillarSlot.offerId).ok).toBe(false);
+
+    // A Pillar passes every door.
+    world.contractStats.fulfilled = PILLAR_AT;
+    expect(validateAccept(world, pillarSlot.offerId).ok).toBe(true);
   });
 
   it('a fulfilled contract frees its docket slot (v9)', () => {

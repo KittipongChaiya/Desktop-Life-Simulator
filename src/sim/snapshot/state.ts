@@ -12,6 +12,7 @@ import {
   DEFAULT_TICKS_PER_DAY,
   DEFAULT_TICKS_PER_WEATHER_PERIOD,
 } from '../../shared/constants';
+import { FRIEND_AT } from '../world/reputation';
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
 import { contractsEqual, projectContracts, type ContractsSlice } from './contracts-slice';
@@ -73,7 +74,15 @@ export function createSnapshotState(): SnapshotState {
     // Corrected on the first tick, like the wallet and inventory seeds.
     contracts: {
       version: 0,
-      value: { offers: [], active: [], docketFull: false, fulfilled: 0, expired: 0 },
+      value: {
+        offers: [],
+        active: [],
+        docketFull: false,
+        fulfilled: 0,
+        expired: 0,
+        standing: 'newcomer',
+        nextStandingAt: FRIEND_AT,
+      },
     },
     time: {
       version: 0,

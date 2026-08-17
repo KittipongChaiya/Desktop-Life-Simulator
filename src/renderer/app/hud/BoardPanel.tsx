@@ -17,6 +17,20 @@ import { usePlayer } from '../store-context';
 import styles from './BoardPanel.module.css';
 import { ItemIcon } from './ItemIcon';
 
+/** The tiers, worded for the panel (ADR-034 §1). */
+const STANDING_LABEL = {
+  newcomer: 'Newcomer',
+  friend: 'Friend of the town',
+  pillar: 'Pillar of the town',
+} as const;
+
+/** What a locked slot says instead of Accept (ADR-034 §2). */
+const LOCKED_LABEL = {
+  newcomer: '',
+  friend: 'for friends of the town',
+  pillar: 'for pillars of the town',
+} as const;
+
 export function BoardPanel(): ReactNode {
   const contracts = useSlice('contracts');
   const player = usePlayer();
@@ -37,6 +51,12 @@ export function BoardPanel(): ReactNode {
 
       {open && (
         <div className={styles['panel']}>
+          <div className={styles['muted']} data-testid="standing">
+            Your name in town: {STANDING_LABEL[contracts.standing]}
+            {contracts.nextStandingAt !== null &&
+              ` · next at ${String(contracts.nextStandingAt)} delivered`}
+          </div>
+
           <div className={styles['section']}>Today’s requests</div>
           {contracts.offers.length === 0 && <div className={styles['muted']}>A quiet day.</div>}
           {contracts.offers.map((offer) => (
@@ -46,7 +66,16 @@ export function BoardPanel(): ReactNode {
                 {offer.requesterName} asks for {offer.quantity} {offer.itemName.toLowerCase()}
                 <span className={styles['muted']}> · by day {offer.dueDay}</span>
               </span>
-              {offer.accepted ? (
+              {offer.locked ? (
+                // Visible but not acceptable (ADR-034 §2): the player sees
+                // what the town would ask of a proven name.
+                <span
+                  className={styles['muted']}
+                  title="Deliver more contracts and the town will trust you with this."
+                >
+                  {LOCKED_LABEL[offer.requiredStanding]}
+                </span>
+              ) : offer.accepted ? (
                 <span className={styles['muted']}>accepted</span>
               ) : (
                 <button

@@ -464,8 +464,9 @@ describe('the compatibility policy (7.2 §Compatibility Rules)', () => {
       [6, 7],
       [7, 8],
       [8, 9],
+      [9, 10],
     ]);
-    expect(CURRENT_SCHEMA_VERSION).toBe(9);
+    expect(CURRENT_SCHEMA_VERSION).toBe(10);
   });
 });
 

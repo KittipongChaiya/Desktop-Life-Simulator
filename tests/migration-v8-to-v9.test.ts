@@ -46,17 +46,24 @@ describe('the v8 golden fixtures', () => {
     expect(repairSaveDocument(document, coreContent()).repairs).toEqual([]);
   });
 
-  it.each(v8Fixtures)('%s keeps every world field except the marked contracts', (name) => {
+  it.each(v8Fixtures)('%s keeps every world field except what later links declare', (name) => {
     const before = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as SaveDocument;
     const after = migrated(name);
 
     for (const [key, value] of Object.entries(before.world)) {
-      if (key === 'contracts') continue;
+      // contracts: this link's own change. contractStats: v10 adds the empty
+      // byRequester map (ADR-034 §4) — asserted below rather than exempted.
+      if (key === 'contracts' || key === 'contractStats') continue;
       expect(
         JSON.stringify((after.world as unknown as Record<string, unknown>)[key]),
         `world.${key} changed`,
       ).toBe(JSON.stringify(value));
     }
+    expect(after.world.contractStats).toEqual({
+      ...before.world.contractStats,
+      byRequester: {},
+    });
+    expect(after.world.quests).toEqual({});
   });
 });
 

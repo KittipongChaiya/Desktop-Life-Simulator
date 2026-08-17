@@ -14,7 +14,15 @@ import { RESIDENTS } from '../content/residents';
 import { seasonFor } from '../time/game-clock';
 import { createWorld } from '../world/world';
 
-import { CONTRACT_DAYS, OFFERS_PER_DAY, offerById, offersForDay, PREMIUM_STEPS } from './offers';
+import {
+  BOARD_SLOTS,
+  CONTRACT_DAYS,
+  GRAND_SLOT,
+  offerById,
+  offersForDay,
+  PREMIUM_STEPS,
+  requiredStandingFor,
+} from './offers';
 
 const world = createWorld(20_260_817);
 
@@ -22,14 +30,14 @@ describe('the board derives', () => {
   it('posts the configured number of offers, identically every time', () => {
     for (const day of [0, 1, 5, 30]) {
       const offers = offersForDay(world, day);
-      expect(offers).toHaveLength(OFFERS_PER_DAY);
+      expect(offers).toHaveLength(BOARD_SLOTS);
       expect(offers).toEqual(offersForDay(world, day));
     }
   });
 
   it('gives every offer its identity and its day', () => {
     for (const [slot, offer] of offersForDay(world, 7).entries()) {
-      expect(offer.offerId).toBe(7 * OFFERS_PER_DAY + slot);
+      expect(offer.offerId).toBe(7 * BOARD_SLOTS + slot);
       expect(offer.day).toBe(7);
       expect(offerById(world, offer.offerId)).toEqual(offer);
     }
@@ -66,6 +74,43 @@ describe('every offer is actionable (ADR-032 §1)', () => {
     for (const offer of offersForDay(world, 3)) {
       expect(residentIds.has(offer.requester)).toBe(true);
       expect(offer.deadlineTick).toBe((3 + CONTRACT_DAYS) * world.ticksPerDay);
+    }
+  });
+});
+
+describe('the tier ladder (ADR-034 §2)', () => {
+  it('slots 0–1 are open, slot 2 asks for a Friend, slot 3 for a Pillar', () => {
+    for (const day of [0, 11]) {
+      expect(requiredStandingFor(day * BOARD_SLOTS + 0)).toBe('newcomer');
+      expect(requiredStandingFor(day * BOARD_SLOTS + 1)).toBe('newcomer');
+      expect(requiredStandingFor(day * BOARD_SLOTS + 2)).toBe('friend');
+      expect(requiredStandingFor(day * BOARD_SLOTS + 3)).toBe('pillar');
+    }
+  });
+
+  it('the grand slot asks for visibly more value than the open band allows', () => {
+    for (let day = 0; day < 30; day += 1) {
+      const grand = offersForDay(world, day)[GRAND_SLOT];
+      expect(grand).toBeDefined();
+      if (grand === undefined) continue;
+      const definition = world.itemRegistry.get(grand.item);
+      expect(definition.ok).toBe(true);
+      if (!definition.ok) continue;
+      const value = grand.quantity * definition.value.basePrice;
+      // The 400–900 band, with half-a-base rounding slop on either side.
+      expect(value).toBeGreaterThanOrEqual(400 - definition.value.basePrice / 2);
+      expect(value).toBeLessThanOrEqual(900 + definition.value.basePrice / 2);
+    }
+  });
+
+  it('the open slots keep the standard band — tiers never shrink the everyday board', () => {
+    for (let day = 0; day < 30; day += 1) {
+      for (const offer of offersForDay(world, day).slice(0, 2)) {
+        const definition = world.itemRegistry.get(offer.item);
+        if (!definition.ok) continue;
+        const value = offer.quantity * definition.value.basePrice;
+        expect(value).toBeLessThanOrEqual(600 + definition.value.basePrice / 2);
+      }
     }
   });
 });

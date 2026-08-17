@@ -219,6 +219,14 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
   }
   world.contractStats.fulfilled = saved.contractStats.fulfilled;
   world.contractStats.expired = saved.contractStats.expired;
+  for (const [requester, count] of Object.entries(saved.contractStats.byRequester)) {
+    world.contractStats.byRequester[requester] = count;
+  }
+
+  // v10 (ADR-034 §4): the paid watermarks — what keeps rewards exactly-once.
+  for (const [chainId, paid] of Object.entries(saved.quests)) {
+    world.quests.set(chainId, paid);
+  }
 
   world.ids.setState({ worker: saved.ids.worker, building: saved.ids.building });
 

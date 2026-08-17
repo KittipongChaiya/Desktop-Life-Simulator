@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -207,6 +207,12 @@ export interface SaveContract {
 export interface SaveContractStats {
   readonly fulfilled: number;
   readonly expired: number;
+  /**
+   * Fulfilled per requester (v10, ADR-034 §4) — what the resident quest
+   * chains read. Keys sorted, so the document stays byte-stable. Empty on
+   * migration: per-resident history before v10 was never recorded.
+   */
+  readonly byRequester: Readonly<Record<string, number>>;
 }
 
 /**
@@ -327,6 +333,14 @@ export interface SaveWorld {
   readonly contracts: readonly SaveContract[];
   /** Fulfilled / expired counters (v8) — not derivable from what remains. */
   readonly contractStats: SaveContractStats;
+  /**
+   * Quest payout watermarks: chain id → steps already paid, keys sorted
+   * (v10, ADR-034 §4). Chain PROGRESS is derived from the counters; what a
+   * derivation cannot know is whether a reward already landed — coins
+   * granted once must stay granted once. Standing is stored nowhere at all:
+   * it is a reading of `contractStats.fulfilled` (ADR-034 §1).
+   */
+  readonly quests: Readonly<Record<string, number>>;
 }
 
 /**
