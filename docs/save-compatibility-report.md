@@ -1,4 +1,4 @@
-# SAVE COMPATIBILITY REPORT — v0.1
+# SAVE COMPATIBILITY REPORT — v0.1 (§1–§11) · v0.3 addendum (§12)
 
 > **Status:** The v0.1 save-compatibility gate (`fix/0.1/7.2.md`). Verification only — this document records what the shipped pipeline does; it decides nothing.
 > **Owns:** The compatibility guarantees v0.1 makes to save files, and the evidence for each.
@@ -222,3 +222,59 @@ Two caveats belong to the version boundary rather than to this gate:
 
 1. **The project coverage threshold still fails** — 67.36% lines / 64.66% branches against 80% / 75%. The shortfall is in code unrelated to persistence: `main/index.ts`, `preload/index.ts`, `bootstrap/start.tsx`, the PixiJS view layer, devtools. `PLAN.md` §8 admits no waivers, so v0.1 cannot ship on that gate; nothing about it blocks the vertical slice.
 2. **`src/persistence` is below its own bar** — 90.76% lines / 84.15% branches against `TESTING.md` §4's 95% / 90%, the highest in the project because this code protects player data. This gate's 45 tests raised branches by two points and did not move lines, which is itself informative: the uncovered remainder is not compatibility behaviour but the defensive arms of validation and repair that arbitrary-world tests do not reach. Closing it means adversarial input tests rather than more scenarios.
+
+---
+
+## 12. v0.3 addendum (phase-23)
+
+Everything above still holds, verified by the same suite at every commit
+since. What v0.2 and v0.3 added to the promises:
+
+### 12.1 The chain, at v0.3
+
+`v1 → v10`, linear and append-only, with a golden fixture at **every** prior
+version (`tests/fixtures/saves/`). Two links are not simple field additions
+and carry extra proof obligations, both met:
+
+- **`v6 → v7` relays out the world** (64×64 → 80×64): every stored tile
+  index re-encodes. Invariant stated in coordinates — a thing at (x, y)
+  before the link is at (x, y) after — and pinned including a populated
+  quarantine, after an empty-fixture version of the test passed vacuously
+  and was caught.
+- **`v9 → v10` re-keys offer identity** (`day × 2 + slot` → `day × 4 +
+slot`): every frozen contract term rides through untouched, and the v9
+  fixture deliberately carries an open AND a fulfilled contract so the
+  re-key cannot pass vacuously — the v6→v7 lesson, applied on purpose.
+
+### 12.2 New guarantees carried by the save
+
+| Since | Fact                        | Guarantee                                                                                                       |
+| ----- | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| v8    | Accepted contracts          | Terms frozen at acceptance; no rebalance or derivation change rewrites a promise                                |
+| v9    | Delivered contracts         | Persist to their deadline as receipts — store presence is the double-acceptance guard (the live-caught exploit) |
+| v10   | `contractStats.byRequester` | Event-maintained; empty on migration — unrecorded history is never invented                                     |
+| v10   | `quests` watermarks         | A paid quest step can never pay again, across ticks, saves, and reloads                                         |
+
+Standing, offers, residents, weather, and demand are **derived** and carry
+nothing — a v0.3 save is bigger than a v0.2 save only by the rows above.
+
+### 12.3 Offline progress, extended
+
+The v0.1 table in §5 gains three rows, all proven:
+
+- **Contract expiry needs no model**: expiry is a tick comparison; the
+  first live tick sweeps overdue contracts. Nothing can fulfill while away.
+- **Quest steps cannot cross while away** (they follow deliveries), so
+  catch-up never pays a reward; a migrated save with recorded history is
+  paid on the first live tick, deliberately.
+- **Offline sales credit at the minimum demand** across the spells the gap
+  touched (ADR-033) — computed, exact within one spell, never above any
+  spell seen. Conservative crediting preserved.
+
+### 12.4 The two v0.1 caveats, closed
+
+Both §11 caveats are gone: the project coverage gate has been green since
+phase-08.0, and `src/persistence` now clears its 95 / 90 bar — the final
+points closed by exactly what §11 prescribed, adversarial-input tests
+(`tests/migration-defensive.test.ts`, `tests/serialize-ordering.test.ts`,
+phase-23).

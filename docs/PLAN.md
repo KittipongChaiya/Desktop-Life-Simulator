@@ -145,13 +145,13 @@ Three orderings are dictated by dependency rather than preference, and `ROADMAP.
 | Reputation     | Standing with the town, gating access    | New                                           |
 | Quests         | Simple objective chains                  | New                                           |
 
-**Success criteria**
+**Success criteria** (closed by phase-23; evidence in `RELEASE-v0.3-RC.md` §3)
 
-- [ ] NPCs follow believable daily schedules
-- [ ] Contracts create a reason to plant specific crops
-- [ ] The economy feels responsive without becoming unpredictable
-- [ ] Entity counts stay within `PERFORMANCE.md` — profile before adding more
-- [ ] Cross-platform is re-evaluated here at the earliest (`VISION.md` §5.1)
+- [x] NPCs follow believable daily schedules — **phase-19**: dawn-staggered wakes, day itineraries over the town's places, indoors by night; derived, so offline-exact (ADR-031)
+- [x] Contracts create a reason to plant specific crops — **phases 20–22**: the premium band is the only above-base coin; the board leans toward wanted crops; standing and quests pay for deliveries alone
+- [x] The economy feels responsive without becoming unpredictable — **phase-21**: demand moves prices inside a declared mean-1 band, one owner per axis; "feels" is evidenced by bounded rules and on-screen legibility, not playtesting, and the RC says so
+- [x] Entity counts stay within `PERFORMANCE.md` — profiled at **every** addition (phases 17, 18, 19, 21) and re-taken combined at the RC; §14
+- [x] Cross-platform is re-evaluated here — **re-evaluated and kept Windows-only** for v0.3; the evaluation is recorded in `RELEASE-v0.3-RC.md` §3, and v0.4 may revisit
 
 ---
 
