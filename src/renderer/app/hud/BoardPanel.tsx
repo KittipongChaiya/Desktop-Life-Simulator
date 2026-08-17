@@ -70,7 +70,7 @@ export function BoardPanel(): ReactNode {
                 // Visible but not acceptable (ADR-034 §2): the player sees
                 // what the town would ask of a proven name.
                 <span
-                  className={styles['muted']}
+                  className={styles['lock']}
                   title="Deliver more contracts and the town will trust you with this."
                 >
                   {LOCKED_LABEL[offer.requiredStanding]}

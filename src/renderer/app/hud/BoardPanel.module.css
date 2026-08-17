@@ -72,10 +72,23 @@
 
 .name {
   flex: 1;
+  /* Flex items default to min-width auto; without this a long request
+   * sentence pushes its row's trailing label out of the panel instead of
+   * wrapping (caught on screen, phase-22). */
+  min-width: 0;
 }
 
 .muted {
   opacity: 0.55;
+}
+
+/* A locked slot's label (ADR-034 §2): reads like the other quiet states,
+ * never wraps, never pushes past the panel edge. */
+.lock {
+  opacity: 0.55;
+  flex: none;
+  white-space: nowrap;
+  font-size: 11px;
 }
 
 .buy {
