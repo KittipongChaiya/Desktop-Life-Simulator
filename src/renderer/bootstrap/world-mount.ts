@@ -62,11 +62,14 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
   // Guards against a second mount starting while the first is still awaiting
   // GPU init — a fast collapse/expand toggle would otherwise create two apps.
   let mounting: Promise<void> | null = null;
+  // Set when a collapse lands while a build is still in flight. The build
+  // cannot be cancelled, so the world it produces is thrown away instead.
+  let abandoned = false;
 
   const build = async (): Promise<void> => {
     const size = options.viewport();
     try {
-      view = await createWorldView({
+      const built = await createWorldView({
         canvas: options.canvas,
         world: options.world,
         width: size.width,
@@ -82,7 +85,39 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
         environmentEnabled: options.environmentEnabled,
         debug: options.debug,
       });
+      // Collapsed while this was building: discard it before it is anything
+      // the rest of the app can see. Destroying here rather than adopting it
+      // is what keeps ADR-001 §2's promise literal — collapsed holds no GPU
+      // context — and it happens before input is attached, so no listener is
+      // ever bound to a world that is about to go.
+      if (abandoned) {
+        built.destroy();
+        return;
+      }
+
+      view = built;
       detachInput = view.attachInput(options.inputTarget);
+
+      // The window is a different size now than when this build started —
+      // routinely, on every expand. Collapse state is applied optimistically
+      // in the renderer (the UI must not wait on IPC), so the mount begins
+      // while the window is still at its COLLAPSED height and main resizes it
+      // a moment later. That resize arrives while this build is still awaiting
+      // the GPU, where `resize` has no view to forward it to and drops it.
+      //
+      // So the size sampled before the await is not evidence of anything: read
+      // the viewport again now that the view exists. A resize that lands after
+      // this point finds a live view and applies normally, so between the two
+      // every ordering is covered.
+      //
+      // Without this, expanding after a collapse left a renderer the height of
+      // the collapsed bar inside the expanded window, and the world below the
+      // status bar was simply not drawn — reported as "the game screen turned
+      // black".
+      const current = options.viewport();
+      if (current.width !== size.width || current.height !== size.height) {
+        view.resize(current.width, current.height);
+      }
     } catch (error) {
       // A GPU failure must not take the application down; the UI and the
       // simulation keep working without a world view.
@@ -96,14 +131,21 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
   return {
     async mount() {
       if (view !== null) return;
+      // An expand that arrives before an in-flight build resolves keeps that
+      // build: the world it is producing is the one now wanted.
+      abandoned = false;
       mounting ??= build();
       await mounting;
     },
 
     unmount() {
-      // If a mount is still in flight there is nothing to destroy yet; the
-      // caller re-checks collapse state once it resolves.
-      if (view === null) return;
+      // A build still in flight has nothing to destroy YET — but it will, and
+      // by then nobody is asking for it. Mark it so the build discards its own
+      // result rather than leaving a live GPU context behind a status bar.
+      if (view === null) {
+        if (mounting !== null) abandoned = true;
+        return;
+      }
       // Detach BEFORE destroying: a listener firing against a destroyed view
       // would throw on every pointer move.
       detachInput?.();
