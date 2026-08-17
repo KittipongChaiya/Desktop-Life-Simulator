@@ -8,6 +8,13 @@
 > see §4. The bump to `0.3.0` is the signing tripwire's expiry
 > (`tests/signing-exception.test.ts`, ADR-028 §5) and happens the day the
 > owner's certificate lands, not before.
+>
+> **Amended the same day, after play.** The owner collapsed the overlay and
+> expanded it again, and the world came back black. Every gate below was
+> green over that bug. It is fixed, with tests that fail on the old code —
+> see §5's amendment — and this notice stays rather than being edited away:
+> a document that claims fresh gates should also carry what the gates
+> missed.
 
 ---
 
@@ -174,6 +181,19 @@ Named in §3. Neither is new to this version and neither moved.
   instrumented long-run sat within 1.3% of its timeout and tipped on a busy
   run. Budgets that measure the runner, not the game, should gain headroom
   in the same commit that adds a tick system.
+- **A gate can be green over a defect a single gesture finds.** Amendment,
+  same day: collapse then expand left the world black, because the renderer
+  came back sized to the collapsed window. Collapse/expand had coverage —
+  the WINDOW resizes and stays docked, and a GPU-gated leak check — and
+  none of it asserted that the thing inside the window matches the window.
+  The seam (`world-mount.ts`) had no unit test at all, which is also how a
+  second defect hid there: a collapse arriving mid-build left a live GPU
+  context behind the status bar, the exact cost ADR-001 §2 exists to
+  remove. Both fixed, five unit tests and an end-to-end test of the
+  player's own gesture. The transferable lesson for v0.4, where async
+  rebuilds multiply: **when something is rebuilt asynchronously, the world
+  it was built for has already changed — reconcile on resolve, never trust
+  the snapshot taken before the await.**
 - **Presence-gating of gameplay-feedback animators stays an open design
   question** (phase-17's finding: a mature farm never reaches zero frames
   expanded). Assigned to v0.3's NPC work, not resolved by it; carried to

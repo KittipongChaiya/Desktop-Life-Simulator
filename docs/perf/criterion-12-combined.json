@@ -3,21 +3,21 @@
   "plantedTick": 6000,
   "whileActive": {
     "tickP50Ms": 0.2,
-    "tickP95Ms": 0.3,
+    "tickP95Ms": 0.4,
     "tickP99Ms": 0.5,
-    "tickAvgMs": 0.201,
-    "tickMaxMs": 8.4,
+    "tickAvgMs": 0.216,
+    "tickMaxMs": 7.9,
     "tickSamples": 1916,
-    "fps": 100,
+    "fps": 0,
     "heapMb": 13.6,
     "heapAtStartMb": 13.6,
-    "dirty": "no · 5 anim",
-    "ambience": "on 0.600"
+    "dirty": "Unavailable",
+    "ambience": "off"
   },
   "whenAway": {
-    "fps": 100,
+    "fps": 0,
     "ambience": "off",
-    "dirty": "no · 3 anim",
+    "dirty": "Unavailable",
     "awayPointerMoves": 0
   }
 }
