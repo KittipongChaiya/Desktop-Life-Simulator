@@ -59,6 +59,18 @@ freezing rule, applied to an agreement).
 At most `MAX_ACTIVE_CONTRACTS = 3` run concurrently: enough to plan around,
 too few to hoard the board.
 
+> **Amended 2026-08-17, the same day, before close (schema v9).** As first
+> shipped (v8), delivery DELETED the record — and the phase's own live
+> verification caught what that costs: the record's presence was the
+> double-acceptance guard, so a delivered offer reappeared as acceptable and
+> one good deal could be looped all day at premium, bypassing §6.2's decay
+> entirely. A fulfilled contract now stays in the store, marked with its
+> delivery tick, until the deadline sweep retires it (uncounted); it frees
+> its docket slot on delivery and blocks both re-acceptance and re-delivery.
+> The fix is a second migration link in one phase — against `SAVE_FORMAT.md`
+> §11.1's one-per-phase guidance, deliberately, because v8 had merged and
+> ADR-015's append-only rule is hard where the granularity guidance is soft.
+
 ### 3. The money: a declared premium, above base by design
 
 ```

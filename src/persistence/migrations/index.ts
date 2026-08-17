@@ -24,6 +24,7 @@ import { v4ToV5 } from './v4-to-v5';
 import { v5ToV6 } from './v5-to-v6';
 import { v6ToV7 } from './v6-to-v7';
 import { v7ToV8 } from './v7-to-v8';
+import { v8ToV9 } from './v8-to-v9';
 
 export const MIGRATIONS: readonly Migration[] = [
   // Phase-09b: the first link. Records the world's content sources (ADR-026 §4)
@@ -39,4 +40,7 @@ export const MIGRATIONS: readonly Migration[] = [
   v6ToV7,
   // Phase-20: the contract store and its counters, both empty (ADR-032).
   v7ToV8,
+  // Phase-20, second link — the exploit fix its live verification earned:
+  // delivered contracts persist to their deadline (see v8-to-v9.ts header).
+  v8ToV9,
 ];

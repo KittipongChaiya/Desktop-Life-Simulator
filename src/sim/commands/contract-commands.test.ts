@@ -62,6 +62,7 @@ describe('acceptContract (ADR-032 §2)', () => {
       deadlineTick: offer.deadlineTick,
       requester: offer.requester,
       acceptedTick: world.tick,
+      fulfilledTick: null,
     });
   });
 
@@ -95,10 +96,30 @@ describe('acceptContract (ADR-032 §2)', () => {
         deadlineTick: 999_999,
         requester: asContentId('core:resident_marla'),
         acceptedTick: 0,
+        fulfilledTick: null,
       });
     }
 
     expect(validateAccept(world, firstOffer(world).offerId).ok).toBe(false);
+  });
+
+  it('a fulfilled contract frees its docket slot (v9)', () => {
+    const world = freshWorld();
+    for (let i = 0; i < MAX_ACTIVE_CONTRACTS; i += 1) {
+      world.contracts.set(1_000 + i, {
+        offerId: 1_000 + i,
+        item: asContentId('core:turnip'),
+        quantity: 5,
+        rewardCoins: 75,
+        deadlineTick: 999_999,
+        requester: asContentId('core:resident_marla'),
+        acceptedTick: 0,
+        // One delivered: it rides in the store but is no longer a promise.
+        fulfilledTick: i === 0 ? 10 : null,
+      });
+    }
+
+    expect(validateAccept(world, firstOffer(world).offerId).ok).toBe(true);
   });
 });
 
@@ -115,14 +136,32 @@ describe('deliverContract (ADR-032 §5)', () => {
       published += 1;
     });
 
+    const deliveredAt = world.tick;
     expect(deliverContract(world, offer.offerId).ok).toBe(true);
     stepSimulation(world); // flush the event queue (ADR-008)
 
     expect(world.wallet.coins).toBe(coinsBefore + offer.rewardCoins);
     expect(containerCount(world.inventory, offer.item)).toBe(3);
-    expect(world.contracts.has(offer.offerId)).toBe(false);
+    // v9: the record STAYS, marked — its presence is the re-acceptance guard.
+    expect(world.contracts.get(offer.offerId)?.fulfilledTick).toBe(deliveredAt);
     expect(world.contractStats.fulfilled).toBe(1);
     expect(published).toBe(1);
+  });
+
+  it('a delivered offer cannot be accepted again — the live-caught exploit (v9)', () => {
+    // The regression this whole link exists for: v8 deleted the record on
+    // delivery, the offer reappeared as acceptable, and one good deal could
+    // be looped all day at premium, bypassing the spot market's decay.
+    const world = freshWorld();
+    const offer = firstOffer(world);
+    acceptContract(world, offer.offerId);
+    stock(world, offer.item, offer.quantity * 2);
+    deliverContract(world, offer.offerId);
+
+    expect(validateAccept(world, offer.offerId).ok).toBe(false);
+    expect(acceptContract(world, offer.offerId).ok).toBe(false);
+    // And it cannot be delivered twice either.
+    expect(validateDeliver(world, offer.offerId).ok).toBe(false);
   });
 
   it('draws from sheds too — delivery reaches what selling reaches', () => {
@@ -216,6 +255,20 @@ describe('the expiry sweep (ADR-032 §4)', () => {
     expect(result.ok).toBe(true);
     stepSimulation(world);
 
+    expect(world.contractStats.fulfilled).toBe(1);
+    expect(world.contractStats.expired).toBe(0);
+  });
+
+  it('a fulfilled contract retires at its deadline without counting as missed (v9)', () => {
+    const world = freshWorld();
+    const offer = firstOffer(world);
+    acceptContract(world, offer.offerId);
+    stock(world, offer.item, offer.quantity);
+    deliverContract(world, offer.offerId);
+
+    stepSimulationBy(world, offer.deadlineTick - world.tick + 1);
+
+    expect(world.contracts.has(offer.offerId)).toBe(false);
     expect(world.contractStats.fulfilled).toBe(1);
     expect(world.contractStats.expired).toBe(0);
   });

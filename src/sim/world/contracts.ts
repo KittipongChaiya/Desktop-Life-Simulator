@@ -33,10 +33,31 @@ export interface ActiveContract {
   /** The resident asking — attribution for the board, never mechanics. */
   readonly requester: ContentId;
   readonly acceptedTick: number;
+  /**
+   * The tick the goods were delivered, or null while open (v9, ADR-032 §2
+   * as amended). A fulfilled contract STAYS in the store until the deadline
+   * sweep retires it — its presence is the double-acceptance guard, and
+   * removing it on delivery was the exploit phase-20's live verification
+   * caught: the offer reappeared as acceptable and one good deal could be
+   * looped all day, bypassing the spot market's decay entirely.
+   */
+  fulfilledTick: number | null;
 }
 
-/** Keyed by offer id. Sparse; a farm holds at most `MAX_ACTIVE_CONTRACTS`. */
+/**
+ * Keyed by offer id. Holds at most `MAX_ACTIVE_CONTRACTS` OPEN contracts;
+ * fulfilled ones ride along until their deadline passes.
+ */
 export type ContractStore = Map<number, ActiveContract>;
+
+/** Contracts still awaiting delivery — the docket the cap counts. */
+export function openContracts(store: ContractStore): number {
+  let open = 0;
+  for (const contract of store.values()) {
+    if (contract.fulfilledTick === null) open += 1;
+  }
+  return open;
+}
 
 export function createContractStore(): ContractStore {
   return new Map();

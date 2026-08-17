@@ -372,6 +372,13 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       req((contract['quantity'] as number) > 0, `${path}.quantity`, 'a positive integer');
       req(isStr(contract['item']), `${path}.item`, 'a string');
       req(isStr(contract['requester']), `${path}.requester`, 'a string');
+      // v9: null while open; a delivery tick once fulfilled.
+      req(
+        contract['fulfilledTick'] === null ||
+          (isInt(contract['fulfilledTick']) && contract['fulfilledTick'] >= 0),
+        `${path}.fulfilledTick`,
+        'null or a non-negative integer',
+      );
     });
     req(isRecord(world['contractStats']), 'world.contractStats', 'a record');
     const contractStats = world['contractStats'] as Record<string, unknown>;

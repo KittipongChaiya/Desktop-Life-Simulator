@@ -18,6 +18,8 @@ export function contractSystem(world: World): void {
   for (const [offerId, contract] of world.contracts) {
     if (world.tick < contract.deadlineTick) continue;
     world.contracts.delete(offerId);
-    world.contractStats.expired += 1;
+    // A fulfilled contract riding to its deadline (v9 — its presence is the
+    // double-acceptance guard) retires without being counted as missed.
+    if (contract.fulfilledTick === null) world.contractStats.expired += 1;
   }
 }

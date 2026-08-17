@@ -195,6 +195,7 @@ export function toSaveDocument(
           deadlineTick: contract.deadlineTick,
           requester: contract.requester,
           acceptedTick: contract.acceptedTick,
+          fulfilledTick: contract.fulfilledTick,
         })),
       contractStats: {
         fulfilled: world.contractStats.fulfilled,

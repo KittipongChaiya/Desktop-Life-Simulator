@@ -214,6 +214,7 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
       deadlineTick: contract.deadlineTick,
       requester: asContentId(contract.requester),
       acceptedTick: contract.acceptedTick,
+      fulfilledTick: contract.fulfilledTick,
     });
   }
   world.contractStats.fulfilled = saved.contractStats.fulfilled;

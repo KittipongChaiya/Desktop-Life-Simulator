@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -195,6 +195,12 @@ export interface SaveContract {
   readonly deadlineTick: number;
   readonly requester: string;
   readonly acceptedTick: number;
+  /**
+   * Delivery tick, or null while open (v9). A fulfilled contract stays in
+   * the save until its deadline — its presence blocks re-accepting the same
+   * offer, the exploit phase-20's live verification caught after v8 merged.
+   */
+  readonly fulfilledTick: number | null;
 }
 
 /** Event-maintained contract counters (v8) — the `cropStats` pattern. */

@@ -61,7 +61,7 @@ describe('the v7 golden fixtures', () => {
     expect(repairSaveDocument(document, coreContent()).repairs).toEqual([]);
   });
 
-  it.each(v7Fixtures)('%s gains an empty store and zero counters, nothing else', (name) => {
+  it.each(v7Fixtures)('%s gains an empty store and zero counters through BOTH links', (name) => {
     const before = JSON.parse(readFileSync(join(FIXTURES, name), 'utf8')) as SaveDocument;
     const after = migrated(name);
 
@@ -88,6 +88,7 @@ describe('a held contract survives the round trip', () => {
       deadlineTick: 72_000,
       requester: asContentId('core:resident_marla'),
       acceptedTick: 9_001,
+      fulfilledTick: 12_345,
     });
     world.contractStats.fulfilled = 3;
     world.contractStats.expired = 1;

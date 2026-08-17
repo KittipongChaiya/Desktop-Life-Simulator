@@ -32,7 +32,7 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
 
 ```jsonc
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "magic": "desktop-life-simulator/save",
 
   "meta": {
@@ -114,6 +114,7 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
         "deadlineTick": 72000,
         "requester": "core:resident_marla",
         "acceptedTick": 9001,
+        "fulfilledTick": null,
       },
     ],
     "contractStats": { "fulfilled": 3, "expired": 1 },
@@ -599,6 +600,9 @@ Not one per commit, and not one for the whole version. A version is burned the m
 | `v5 → v6` | Per-worker schedule state                                                          | 14    | ADR-024 §4             |
 | `v6 → v7` | **Widens** the grid to 80×64 and re-lays every stored tile index                   | 18    | ADR-030 §2             |
 | `v7 → v8` | Accepted contracts and their counters, both empty                                  | 20    | ADR-032 §2             |
+| `v8 → v9` | Delivered contracts persist to their deadline (`fulfilledTick`)                    | 20    | ADR-032 §2 (amended)   |
+
+Phase-20 carries **two** links, against §11.1's one-per-phase guidance and recorded as such: v8 merged, then the phase's live verification caught that deleting a contract on delivery deleted the double-acceptance guard with it. ADR-015's append-only rule is hard where the granularity guidance is soft, so the fix is `v8 → v9`, never an edit to `v7 → v8`.
 
 Phases 08, 13, 15, and 16 change no persisted shape. That is a useful check that the audio, plugin-API, and updater designs were right: all three are outside the save by construction.
 

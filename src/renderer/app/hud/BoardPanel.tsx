@@ -80,16 +80,20 @@ export function BoardPanel(): ReactNode {
                     · {contract.requesterName} · by day {contract.dueDay}
                   </span>
                 </span>
-                <button
-                  type="button"
-                  className={ready ? styles['buy'] : styles['buyDisabled']}
-                  disabled={!ready}
-                  onClick={() =>
-                    player.submit({ type: 'deliverContract', offerId: contract.offerId })
-                  }
-                >
-                  Deliver · {contract.rewardCoins}g
-                </button>
+                {contract.fulfilled ? (
+                  <span className={styles['muted']}>delivered ✓</span>
+                ) : (
+                  <button
+                    type="button"
+                    className={ready ? styles['buy'] : styles['buyDisabled']}
+                    disabled={!ready}
+                    onClick={() =>
+                      player.submit({ type: 'deliverContract', offerId: contract.offerId })
+                    }
+                  >
+                    Deliver · {contract.rewardCoins}g
+                  </button>
+                )}
               </div>
             );
           })}

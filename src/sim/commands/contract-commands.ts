@@ -18,7 +18,7 @@ import { appError, ErrorCode } from '../../shared/errors';
 import { err, ok, type Result } from '../../shared/result';
 import { offerById, offerDayOf } from '../town/offers';
 import { containerCount, removeItems } from '../world/container';
-import { MAX_ACTIVE_CONTRACTS } from '../world/contracts';
+import { MAX_ACTIVE_CONTRACTS, openContracts } from '../world/contracts';
 import { addCoins } from '../world/wallet';
 
 import { heldForSale, sellableContainers } from './commerce-commands';
@@ -40,10 +40,14 @@ export function validateAccept(world: CommandWorld, offerId: number): Validation
     return err(appError(ErrorCode.InvalidIntent, 'no such offer on today’s board', { offerId }));
   }
 
-  if (world.contracts.size >= MAX_ACTIVE_CONTRACTS) {
+  // OPEN contracts, not store size: a fulfilled contract rides in the store
+  // until its deadline (that presence is the double-acceptance guard) and
+  // must not consume a docket slot.
+  const open = openContracts(world.contracts);
+  if (open >= MAX_ACTIVE_CONTRACTS) {
     return err(
       appError(ErrorCode.InvalidIntent, 'too many contracts already accepted', {
-        held: world.contracts.size,
+        held: open,
         limit: MAX_ACTIVE_CONTRACTS,
       }),
     );
@@ -71,6 +75,7 @@ export function acceptContract(world: CommandWorld, offerId: number): Result<voi
     deadlineTick: offer.deadlineTick,
     requester: offer.requester,
     acceptedTick: world.tick,
+    fulfilledTick: null,
   });
   return ok();
 }
@@ -85,6 +90,10 @@ export function validateDeliver(world: CommandWorld, offerId: number): Validatio
   const contract = world.contracts.get(offerId);
   if (contract === undefined) {
     return err(appError(ErrorCode.InvalidIntent, 'no such accepted contract', { offerId }));
+  }
+
+  if (contract.fulfilledTick !== null) {
+    return err(appError(ErrorCode.InvalidIntent, 'already delivered', { offerId }));
   }
 
   if (world.tick >= contract.deadlineTick) {
@@ -129,7 +138,9 @@ export function deliverContract(world: CommandWorld, offerId: number): Result<vo
   const credit = addCoins(world.wallet, contract.rewardCoins);
   if (!credit.ok) return credit; // unreachable — the reward is a frozen non-negative integer
 
-  world.contracts.delete(offerId);
+  // NOT deleted: the record stays, marked, until the deadline sweep — its
+  // presence blocks re-accepting the same offer (the live-caught exploit).
+  contract.fulfilledTick = world.tick;
   world.contractStats.fulfilled += 1;
   world.events.publish('itemSold', {
     item: contract.item,

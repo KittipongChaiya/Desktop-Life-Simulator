@@ -41,6 +41,8 @@ export interface ContractView {
   readonly rewardCoins: number;
   readonly dueDay: number;
   readonly requesterName: string;
+  /** Delivered (v9): the row shows a receipt, never a Deliver button. */
+  readonly fulfilled: boolean;
 }
 
 export interface ContractsSlice {
@@ -80,10 +82,16 @@ export function projectContracts(world: CommandWorld): ContractsSlice {
       item: contract.item,
       itemName: itemName(contract.item),
       quantity: contract.quantity,
-      held: Math.min(contract.quantity, heldForSale(world, contract.item)),
+      // A delivered contract's progress is settled; live counting it would
+      // republish the slice for goods that no longer matter to it.
+      held:
+        contract.fulfilledTick !== null
+          ? contract.quantity
+          : Math.min(contract.quantity, heldForSale(world, contract.item)),
       rewardCoins: contract.rewardCoins,
       dueDay: dueDay(contract.deadlineTick),
       requesterName: requesterName(contract.requester),
+      fulfilled: contract.fulfilledTick !== null,
     }));
 
   return {
@@ -117,7 +125,12 @@ export function contractsEqual(a: ContractsSlice, b: ContractsSlice): boolean {
   }
   for (const [i, contract] of a.active.entries()) {
     const other = b.active[i];
-    if (other === undefined || contract.offerId !== other.offerId || contract.held !== other.held) {
+    if (
+      other === undefined ||
+      contract.offerId !== other.offerId ||
+      contract.held !== other.held ||
+      contract.fulfilled !== other.fulfilled
+    ) {
       return false;
     }
   }
