@@ -1,0 +1,108 @@
+/* Notice board panel. Phase-20 — the ShopPanel's chrome, at its own anchor. */
+
+.container {
+  position: relative;
+  flex: none;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  color: #e8e8ec;
+  font:
+    12px/1.2 system-ui,
+    sans-serif;
+  user-select: none;
+}
+
+.toggle {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 22, 28, 0.82);
+  color: #e8e8ec;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.toggle:hover {
+  background: rgba(32, 35, 44, 0.9);
+}
+
+.panel {
+  /*
+   * The 07.9 edge rule: panels anchor to screen positions, never under their
+   * toggles, so the plot in the middle stays clickable. The left pair ends at
+   * 466; the board takes the next slot with a wider card, because a request
+   * is a sentence rather than a price.
+   */
+  position: fixed;
+  top: 58px;
+  left: 474px;
+  z-index: 1;
+  width: 340px;
+  max-height: 154px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(20, 22, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.section {
+  margin-top: 4px;
+  opacity: 0.6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section:first-child {
+  margin-top: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.name {
+  flex: 1;
+}
+
+.muted {
+  opacity: 0.55;
+}
+
+.buy {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(84, 128, 84, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.buy:hover {
+  background: rgba(104, 152, 104, 0.96);
+}
+
+/* Not ready or docket full: quiet, never alarming (§10.1). */
+.buyDisabled {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(40, 44, 54, 0.6);
+  color: rgba(232, 232, 236, 0.45);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: not-allowed;
+}

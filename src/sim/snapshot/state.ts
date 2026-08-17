@@ -14,6 +14,7 @@ import {
 } from '../../shared/constants';
 
 import { buildingsEqual, projectBuildings, type BuildingView } from './buildings-slice';
+import { contractsEqual, projectContracts, type ContractsSlice } from './contracts-slice';
 import { cropsEqual, projectCrops, type CropView } from './crops-slice';
 import {
   economyEquals,
@@ -45,6 +46,7 @@ export interface SnapshotState {
   readonly economy: VersionedSlice<EconomyView>;
   readonly time: VersionedSlice<TimeView>;
   readonly residents: VersionedSlice<readonly ResidentView[]>;
+  readonly contracts: VersionedSlice<ContractsSlice>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -68,6 +70,11 @@ export function createSnapshotState(): SnapshotState {
     // workers pattern, and correct at tick 0 regardless (everyone is indoors
     // before their first wake).
     residents: { version: 0, value: [] },
+    // Corrected on the first tick, like the wallet and inventory seeds.
+    contracts: {
+      version: 0,
+      value: { offers: [], active: [], docketFull: false, fulfilled: 0, expired: 0 },
+    },
     time: {
       version: 0,
       value: projectTime({
@@ -115,6 +122,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     economy: state.economy.version,
     time: state.time.version,
     residents: state.residents.version,
+    contracts: state.contracts.version,
   };
 }
 
@@ -137,4 +145,6 @@ export {
   projectTime,
   residentsEqual,
   projectResidents,
+  contractsEqual,
+  projectContracts,
 };

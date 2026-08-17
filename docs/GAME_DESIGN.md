@@ -346,11 +346,39 @@ Land competes with workers for the same coins. Land raises the ceiling; workers 
 | Sources                     | Sinks                |
 | --------------------------- | -------------------- |
 | Selling crops               | Seeds (recurring)    |
-| Starting capital: 100 coins | Workers (escalating) |
-|                             | Buildings (one-time) |
+| Contract deliveries (§6.5)  | Workers (escalating) |
+| Starting capital: 100 coins | Buildings (one-time) |
 |                             | Land (escalating)    |
 
 Escalating sinks against linear sources is what keeps the progression loop from terminating. There is no prestige or reset in v0.1.
+
+### 6.5 Contracts (v0.3, phase-20 — ADR-032)
+
+The town's notice board posts **2 offers per day**, derived from the seed
+(never stored, never rolled): a resident asks for a quantity of an in-season
+crop's produce by a deadline. Accepting freezes the deal into the save;
+delivering — all-or-nothing, drawn from inventory and sheds exactly as
+selling draws — pays the frozen reward.
+
+| Property        | Value                                                               |
+| --------------- | ------------------------------------------------------------------- |
+| Offers per day  | 2, refreshed at each day boundary                                   |
+| Concurrent held | 3 at most                                                           |
+| Reward          | `quantity × floor(basePrice × premium)`, premium ∈ **[1.25, 1.50]** |
+| Deadline        | 3 days from the posting day's start                                 |
+| Items asked     | Yields of crops plantable in the posting day's season               |
+| Expiry          | Silent: the contract leaves and is counted. No fee, no penalty.     |
+
+**The premium band is the second memorizable price rule** (§6.2 gives the
+first): a contract always pays more than base — above the spot channel's
+ceiling — and never more than half again. That is the whole reason to plant
+what the board asks rather than whatever is most efficient per second, which
+is `PLAN.md` §4's criterion for this phase. Delivering does **not** depress
+the §6.2 multiplier: goods sold to a named neighbour never touched the open
+market. (The market's reaction to demand is phase-21.)
+
+Expiring gently is `VISION.md` §2.2 applied: a missed contract is a missed
+premium — opportunity, never loss — and a fresh board posts every morning.
 
 ---
 

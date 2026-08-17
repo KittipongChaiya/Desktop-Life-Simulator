@@ -21,6 +21,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import styles from './App.module.css';
 import { shouldCaptureMouse } from './hit-test';
 import { ActionNotice } from './hud/ActionNotice';
+import { BoardPanel } from './hud/BoardPanel';
 import { CompanionToast } from './hud/CompanionToast';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { ReturnSummary } from './hud/ReturnSummary';
@@ -157,6 +158,7 @@ export function App(): ReactNode {
               <>
                 <WorkerPanel />
                 <ShopPanel />
+                <BoardPanel />
                 <InventoryPanel />
                 <SettingsPanel />
               </>

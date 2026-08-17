@@ -14,6 +14,7 @@
 import { ticksToWholeSeconds } from '../time/game-clock';
 
 import type { BuildingView } from './buildings-slice';
+import type { ContractsSlice } from './contracts-slice';
 import type { CropView } from './crops-slice';
 import type { EconomyView, WalletView } from './economy-slice';
 import type { InventoryView } from './inventory-slice';
@@ -57,6 +58,8 @@ export interface SliceMap {
    * the sleeping town publishes nothing. Phase-19.
    */
   readonly residents: readonly ResidentView[];
+  /** The notice board: today's offers, the docket, the counters. Phase-20. */
+  readonly contracts: ContractsSlice;
 }
 
 export type SliceName = keyof SliceMap;
@@ -71,6 +74,7 @@ export const SLICE_NAMES = [
   'economy',
   'time',
   'residents',
+  'contracts',
 ] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */
