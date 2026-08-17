@@ -124,7 +124,12 @@ describe('full idle: 8 hours unattended (crit 19 — the product thesis)', () =>
     // gate failed only under `--coverage`, silently, until phase-07e ran the
     // full v0.1 release-gate checklist. The budget is the runner's, not the
     // game's: `PERFORMANCE.md` §10.1 measures the simulation uninstrumented.
-  }, 900_000);
+    //
+    // Raised 900 s → 1,800 s at the v0.3 RC: the same 576,000 ticks now step
+    // contracts, quests, demand, and the town, and the instrumented run
+    // crossed 911 s on the reference machine — a runner allowance again,
+    // not a simulation budget (the uninstrumented run passes in minutes).
+  }, 1_800_000);
 });
 
 describe('balance: longer crops are strictly better coins/sec (crit 21)', () => {
