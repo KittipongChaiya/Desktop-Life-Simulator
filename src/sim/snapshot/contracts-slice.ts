@@ -1,14 +1,19 @@
 /**
- * Contracts snapshot projection. Phase-20 — ADR-032 §1, §6.
+ * Contracts snapshot projection. Phase-20 — ADR-032 §1, §6; phase-22 —
+ * ADR-034.
  *
  * The board as the player sees it: today's derived offers (flagged when
- * already accepted), the active docket with LIVE held counts so "12 / 40"
- * reads without opening the inventory, and the two §6 counters.
+ * already accepted, locked while standing is below the slot's ask), the
+ * active docket with LIVE held counts so "12 / 40" reads without opening
+ * the inventory, the §6 counters, the derived standing, and the quest
+ * chains with their current asks.
  *
  * Republish cadence: the offers half changes once per day; the docket half
  * changes on accept/deliver/expire and whenever the held count of a
- * contracted item moves — which is exactly when the panel's numbers change,
- * so every republish is a visible change (ADR-005 §2).
+ * contracted item moves; standing, locks, and chain progress move only
+ * when the counters or the paid watermark do — which is exactly when the
+ * panel's numbers change, so every republish is a visible change
+ * (ADR-005 §2).
  */
 
 import { heldForSale } from '../commands/commerce-commands';

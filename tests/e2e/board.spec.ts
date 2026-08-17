@@ -98,7 +98,8 @@ test.afterEach(async () => {
   await session.dispose();
 });
 
-test('the third delivery: the reward lands, standing steps up, the board unlocks, the milestones pay', async (_fixtures, testInfo) => {
+// eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form
+test('the third delivery: the reward lands, standing steps up, the board unlocks, the milestones pay', async ({}, testInfo) => {
   const window = await app.firstWindow();
   await setCollapsed(false);
 

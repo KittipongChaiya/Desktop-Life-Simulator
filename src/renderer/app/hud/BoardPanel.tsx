@@ -1,12 +1,13 @@
 /**
- * The notice board panel. Phase-20 — ADR-032.
+ * The notice board panel. Phase-20 — ADR-032; phase-22 — ADR-034.
  *
- * Where the world asks. Today's offers with Accept, the active docket with
- * live "held / wanted" progress and Deliver, and the two counters. Every
- * number comes from the `contracts` slice; every action is an ordinary
- * player command — buttons disable where the validator would reject anyway
- * (ADR-010 §6), and a full docket says so in words rather than a dead
- * button alone.
+ * Where the world asks, and where the player's name in town lives. Today's
+ * offers with Accept (or the tier a locked slot waits for), the active
+ * docket with live "held / wanted" progress and Deliver, the standing
+ * line, the town milestones, and the counters. Every number comes from the
+ * `contracts` slice; every action is an ordinary player command — buttons
+ * disable where the validator would reject anyway (ADR-010 §6), and a full
+ * docket says so in words rather than a dead button alone.
  */
 
 import { useState, type ReactNode } from 'react';

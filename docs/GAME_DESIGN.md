@@ -360,31 +360,33 @@ Land competes with workers for the same coins. Land raises the ceiling; workers 
 
 ### 6.4 Sinks and sources
 
-| Sources                     | Sinks                |
-| --------------------------- | -------------------- |
-| Selling crops               | Seeds (recurring)    |
-| Contract deliveries (§6.5)  | Workers (escalating) |
-| Starting capital: 100 coins | Buildings (one-time) |
-|                             | Land (escalating)    |
+| Sources                        | Sinks                |
+| ------------------------------ | -------------------- |
+| Selling crops                  | Seeds (recurring)    |
+| Contract deliveries (§6.5)     | Workers (escalating) |
+| Quest rewards (§6.6, one-time) | Buildings (one-time) |
+| Starting capital: 100 coins    | Land (escalating)    |
 
 Escalating sinks against linear sources is what keeps the progression loop from terminating. There is no prestige or reset in v0.1.
 
 ### 6.5 Contracts (v0.3, phase-20 — ADR-032)
 
-The town's notice board posts **2 offers per day**, derived from the seed
-(never stored, never rolled): a resident asks for a quantity of an in-season
-crop's produce by a deadline. Accepting freezes the deal into the save;
-delivering — all-or-nothing, drawn from inventory and sheds exactly as
-selling draws — pays the frozen reward.
+The town's notice board derives **4 offers per day** from the seed (never
+stored, never rolled): a resident asks for a quantity of an in-season
+crop's produce by a deadline. Slots 0–1 are open to everyone; slots 2–3 are
+**gated by standing** (§6.6) and visible while locked, so the board shows
+what the town would ask of a proven name. Accepting freezes the deal into
+the save; delivering — all-or-nothing, drawn from inventory and sheds
+exactly as selling draws — pays the frozen reward.
 
-| Property        | Value                                                               |
-| --------------- | ------------------------------------------------------------------- |
-| Offers per day  | 2, refreshed at each day boundary                                   |
-| Concurrent held | 3 at most                                                           |
-| Reward          | `quantity × floor(basePrice × premium)`, premium ∈ **[1.25, 1.50]** |
-| Deadline        | 3 days from the posting day's start                                 |
-| Items asked     | Yields of crops plantable in the posting day's season               |
-| Expiry          | Silent: the contract leaves and is counted. No fee, no penalty.     |
+| Property        | Value                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Offers per day  | 4 derived at each day boundary: 2 open, 1 for Friends, 1 for Pillars (the **grand order**, 400–900 coins of base value vs the open 150–600) |
+| Concurrent held | 3 at most                                                                                                                                   |
+| Reward          | `quantity × floor(basePrice × premium)`, premium ∈ **[1.25, 1.50]**                                                                         |
+| Deadline        | 3 days from the posting day's start                                                                                                         |
+| Items asked     | Yields of crops plantable in the posting day's season                                                                                       |
+| Expiry          | Silent: the contract leaves and is counted. No fee, no penalty.                                                                             |
 
 **The premium band is the second memorizable price rule** (§6.2 gives the
 first): a contract always pays more than base — above the spot channel's
@@ -396,6 +398,32 @@ market. (The market's reaction to demand is phase-21.)
 
 Expiring gently is `VISION.md` §2.2 applied: a missed contract is a missed
 premium — opportunity, never loss — and a fresh board posts every morning.
+
+### 6.6 Standing & quests (v0.3, phase-22 — ADR-034)
+
+**Standing is derived, never stored**: a reading of the fulfilled-contracts
+counter, in three tiers. The player's whole rule: **every delivery raises
+your name, and nothing lowers it** — expiry never subtracts, because
+standing that decayed while away would punish absence (`VISION.md` §2.2).
+
+| Tier     | At           | Opens                                    |
+| -------- | ------------ | ---------------------------------------- |
+| Newcomer | start        | The two open board slots                 |
+| Friend   | 3 delivered  | The board's third slot                   |
+| Pillar   | 10 delivered | The fourth slot — the grand order (§6.5) |
+
+Tiers unlock **more and bigger deals, never better prices**: the premium
+band is unchanged, so §6.2's and §6.5's memorizable price rules survive.
+Standing is the game's one progression axis with the town; nothing else
+gates anything.
+
+**Quests** are content-declared chains of thresholds over the contract
+counters — a town-wide chain (steps at 1, 3, and 10 deliveries,
+deliberately the tier milestones) and a short errand chain per villager.
+No deadlines, no failure, no branching: chains wait forever. Each crossed
+step pays a declared coin reward once — sized below contract premiums, so
+quests season the contract loop rather than replace it — and the board
+panel carries the chains under "Town milestones".
 
 ---
 
