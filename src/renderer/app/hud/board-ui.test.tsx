@@ -166,6 +166,33 @@ describe('BoardPanel', () => {
     expect(screen.getByText('for pillars of the town')).toBeDefined();
   });
 
+  it('lists the town milestones with the current ask and progress (ADR-034 §4)', () => {
+    const world = createWorld(41);
+    mount(world);
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+
+    expect(screen.getByText('Town milestones')).toBeDefined();
+    const asks = screen.getAllByText((text) => text.includes('Deliver your first contract'), {
+      exact: false,
+      selector: 'span',
+    });
+    expect(asks.length).toBeGreaterThan(0);
+    expect(asks.some((node) => (node.textContent ?? '').includes('0/1'))).toBe(true);
+  });
+
+  it('a finished chain reads as done', () => {
+    const world = createWorld(41);
+    world.quests.set('core:quest_good_neighbour', 3);
+    mount(world);
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }));
+
+    const done = screen.getAllByText((text) => text.includes('all done'), {
+      exact: false,
+      selector: 'span',
+    });
+    expect(done.length).toBeGreaterThan(0);
+  });
+
   it('the toggle badges the docket count', () => {
     const world = createWorld(41);
     const offer = offersForDay(world, 0)[0];

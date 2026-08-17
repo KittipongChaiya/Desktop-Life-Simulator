@@ -77,6 +77,7 @@ export function createSnapshotState(): SnapshotState {
       value: {
         offers: [],
         active: [],
+        questChains: [],
         docketFull: false,
         fulfilled: 0,
         expired: 0,

@@ -62,6 +62,33 @@ describe('projection', () => {
     expect(projectContracts(world).nextStandingAt).toBeNull();
   });
 
+  it('projects the quest chains with the current ask, and marks payouts (ADR-034 §4)', () => {
+    const world = freshWorld();
+
+    const fresh = projectContracts(world);
+    const town = fresh.questChains.find((chain) => chain.id === 'core:quest_good_neighbour');
+    expect(town).toBeDefined();
+    expect(town?.objective).toBe('Deliver your first contract');
+    expect(town?.progress).toBe(0);
+    expect(town?.threshold).toBe(1);
+    expect(town?.stepsDone).toBe(0);
+
+    // The watermark advancing alone (the quest step just paid) republishes.
+    world.quests.set('core:quest_good_neighbour', 1);
+    const paid = projectContracts(world);
+    expect(contractsEqual(fresh, paid)).toBe(false);
+    const paidTown = paid.questChains.find((chain) => chain.id === 'core:quest_good_neighbour');
+    expect(paidTown?.stepsDone).toBe(1);
+    expect(paidTown?.objective).toBe('Deliver 3 contracts');
+
+    // A finished chain reads as a receipt, not an ask.
+    world.quests.set('core:quest_good_neighbour', 3);
+    const done = projectContracts(world);
+    const doneTown = done.questChains.find((chain) => chain.id === 'core:quest_good_neighbour');
+    expect(doneTown?.objective).toBeNull();
+    expect(doneTown?.threshold).toBeNull();
+  });
+
   it('a delivered receipt does not read as a full docket (the v9 rule, UI end)', () => {
     const world = freshWorld();
     for (let i = 0; i < MAX_ACTIVE_CONTRACTS; i += 1) {

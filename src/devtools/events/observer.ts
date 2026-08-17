@@ -33,6 +33,7 @@ export const OBSERVED_EVENTS: readonly SimEventName[] = [
   'cropPlanted',
   'cropHarvested',
   'itemSold',
+  'questCompleted',
 ];
 
 /** What the observer writes to. Structural, so the ring stays independent. */

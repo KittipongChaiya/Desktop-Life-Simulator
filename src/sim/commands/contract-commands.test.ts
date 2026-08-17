@@ -162,7 +162,9 @@ describe('deliverContract (ADR-032 §5)', () => {
 
     const deliveredAt = world.tick;
     expect(deliverContract(world, offer.offerId).ok).toBe(true);
-    stepSimulation(world); // flush the event queue (ADR-008)
+    // Flush the bus directly rather than stepping: a full tick would also run
+    // the quest step, whose first-delivery payout is its own suite's business.
+    world.events.flush();
 
     expect(world.wallet.coins).toBe(coinsBefore + offer.rewardCoins);
     expect(containerCount(world.inventory, offer.item)).toBe(3);

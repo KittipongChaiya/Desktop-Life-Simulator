@@ -13,9 +13,11 @@
 
 import { heldForSale } from '../commands/commerce-commands';
 import type { CommandWorld } from '../commands/types';
+import { QUEST_CHAINS } from '../content/quests';
 import { RESIDENTS } from '../content/residents';
 import { offerDayOf, offersForDay, requiredStandingFor } from '../town/offers';
 import { MAX_ACTIVE_CONTRACTS, openContracts } from '../world/contracts';
+import { counterValue, stepsPaid } from '../world/quests';
 import { nextStandingAt, standingAtLeast, standingOf, type Standing } from '../world/reputation';
 
 /** One board offer, projected. */
@@ -50,9 +52,25 @@ export interface ContractView {
   readonly fulfilled: boolean;
 }
 
+/** One quest chain's live line (ADR-034 §4). */
+export interface QuestChainView {
+  readonly id: string;
+  readonly displayName: string;
+  /** The current step's ask, or null once the chain is complete. */
+  readonly objective: string | null;
+  /** Counter progress toward the current threshold, capped at it. */
+  readonly progress: number;
+  readonly threshold: number | null;
+  readonly rewardCoins: number | null;
+  readonly stepsDone: number;
+  readonly stepsTotal: number;
+}
+
 export interface ContractsSlice {
   readonly offers: readonly OfferView[];
   readonly active: readonly ContractView[];
+  /** Every chain, in content order — complete ones stay as receipts. */
+  readonly questChains: readonly QuestChainView[];
   /** True when the docket is full — every Accept button disables at once. */
   readonly docketFull: boolean;
   readonly fulfilled: number;
@@ -109,9 +127,26 @@ export function projectContracts(world: CommandWorld): ContractsSlice {
       fulfilled: contract.fulfilledTick !== null,
     }));
 
+  const questChains = QUEST_CHAINS.map((chain): QuestChainView => {
+    const stepsDone = stepsPaid(world.quests, chain.id);
+    const current = chain.steps[stepsDone];
+    const value = counterValue(world.contractStats, chain.counter);
+    return {
+      id: chain.id,
+      displayName: chain.displayName,
+      objective: current?.objective ?? null,
+      progress: current === undefined ? value : Math.min(value, current.threshold),
+      threshold: current?.threshold ?? null,
+      rewardCoins: current?.rewardCoins ?? null,
+      stepsDone,
+      stepsTotal: chain.steps.length,
+    };
+  });
+
   return {
     offers,
     active,
+    questChains,
     // OPEN contracts, matching the validator: a delivered receipt riding to
     // its deadline must not read as a full docket (the v9 rule, both ends).
     docketFull: openContracts(world.contracts) >= MAX_ACTIVE_CONTRACTS,
@@ -130,9 +165,22 @@ export function contractsEqual(a: ContractsSlice, b: ContractsSlice): boolean {
     a.standing !== b.standing ||
     a.nextStandingAt !== b.nextStandingAt ||
     a.offers.length !== b.offers.length ||
-    a.active.length !== b.active.length
+    a.active.length !== b.active.length ||
+    a.questChains.length !== b.questChains.length
   ) {
     return false;
+  }
+  // Chains are content-fixed in count and order; what moves is progress.
+  for (const [i, chain] of a.questChains.entries()) {
+    const other = b.questChains[i];
+    if (
+      other === undefined ||
+      chain.id !== other.id ||
+      chain.stepsDone !== other.stepsDone ||
+      chain.progress !== other.progress
+    ) {
+      return false;
+    }
   }
   for (const [i, offer] of a.offers.entries()) {
     const other = b.offers[i];

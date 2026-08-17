@@ -14,6 +14,7 @@ import { contractSystem } from './contract';
 import { economySystem } from './economy';
 import { eventFlushSystem, tickEventSystem } from './event-flush';
 import { movementSystem } from './movement';
+import { questSystem } from './quest';
 import type { SystemRegistration } from './scheduler';
 import { snapshotSystem } from './snapshot';
 import { workerSystem } from './worker';
@@ -44,6 +45,10 @@ export const TICK_SYSTEMS: readonly SystemRegistration[] = [
   // deadline-day tick resolves before the sweep can retire the contract —
   // the player's action wins the tie (phase-20, ADR-032 §4).
   { name: 'contract', phase: 'economy', run: contractSystem },
+
+  // Quest payouts AFTER contracts settle, so a delivery, its counters, and
+  // its reward land on one tick (phase-22, ADR-034 §4).
+  { name: 'quest', phase: 'economy', run: questSystem },
 
   { name: 'tickEvent', phase: 'postUpdate', run: tickEventSystem },
   { name: 'eventFlush', phase: 'postUpdate', run: eventFlushSystem },

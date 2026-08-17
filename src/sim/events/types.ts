@@ -94,6 +94,19 @@ export interface ItemSold {
 }
 
 /**
+ * Fired when a quest chain's step crosses its threshold and its reward pays
+ * out (phase-22, ADR-034 §4). Published by the quest step, at most once per
+ * chain step ever — the paid watermark is what makes that hold. Consumers:
+ * the celebration sound in the composition root, and the devtools ring.
+ */
+export interface QuestCompleted {
+  readonly chain: string;
+  /** 1-based index of the step just paid. */
+  readonly step: number;
+  readonly rewardCoins: number;
+}
+
+/**
  * The event map. Adding a member here is all a new event needs — the bus,
  * subscription, and dispatch are generic over it.
  *
@@ -108,6 +121,7 @@ export interface SimEventMap {
   readonly cropPlanted: CropPlanted;
   readonly cropHarvested: CropHarvested;
   readonly itemSold: ItemSold;
+  readonly questCompleted: QuestCompleted;
 }
 
 export type SimEventName = keyof SimEventMap;

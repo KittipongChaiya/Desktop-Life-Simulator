@@ -9,6 +9,8 @@
  * have already paid out.
  */
 
+import type { ContractStats } from './contracts';
+
 /** Chain id → steps already paid. Absent means zero. */
 export type QuestLog = Map<string, number>;
 
@@ -18,4 +20,14 @@ export function createQuestLog(): QuestLog {
 
 export function stepsPaid(log: QuestLog, chainId: string): number {
   return log.get(chainId) ?? 0;
+}
+
+/** Which counter a chain reads (ADR-034 §4). */
+export type QuestCounter =
+  { readonly kind: 'fulfilled' } | { readonly kind: 'requester'; readonly requester: string };
+
+export function counterValue(stats: ContractStats, counter: QuestCounter): number {
+  return counter.kind === 'fulfilled'
+    ? stats.fulfilled
+    : (stats.byRequester[counter.requester] ?? 0);
 }

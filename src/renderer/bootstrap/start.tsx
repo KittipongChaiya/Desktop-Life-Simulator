@@ -778,6 +778,18 @@ function composeApplication(world: World, session: SaveSession): void {
     worldMount.current()?.showNumber(FloatingKind.Coins, tile, event.coins);
   });
 
+  // A quest paying out is the town saying thank you (phase-22, ADR-034 §4).
+  // The coins land at the notice board — the place the promise was made —
+  // and the same coin sound says money arrived, because it did.
+  world.events.subscribe('questCompleted', (event) => {
+    sound.play(Sound.Coin);
+    const board = store.get('buildings').find((b) => b.buildingId === 'core:notice_board');
+    if (board === undefined) return;
+    const tile = asTileIndex(board.tile);
+    emitParticles(EffectKind.CoinBurst, tile, 6);
+    worldMount.current()?.showNumber(FloatingKind.Coins, tile, event.rewardCoins);
+  });
+
   // A deposit is the moment goods reach the player's holdings — which is
   // exactly the inventory slice growing. Harvest fires at the crop and this
   // fires at the shed, far enough apart that they never read as one doubled

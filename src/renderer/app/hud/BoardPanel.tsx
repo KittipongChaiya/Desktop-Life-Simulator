@@ -127,6 +127,23 @@ export function BoardPanel(): ReactNode {
             );
           })}
 
+          <div className={styles['section']}>Town milestones</div>
+          {contracts.questChains.map((chain) => (
+            <div key={chain.id} className={styles['row']}>
+              <span className={styles['name']}>
+                {chain.displayName}
+                {chain.objective === null ? (
+                  <span className={styles['muted']}> · all done ✓</span>
+                ) : (
+                  <span className={styles['muted']}>
+                    {' '}
+                    · {chain.objective} — {chain.progress}/{chain.threshold} · {chain.rewardCoins}g
+                  </span>
+                )}
+              </span>
+            </div>
+          ))}
+
           {(contracts.fulfilled > 0 || contracts.expired > 0) && (
             <div className={styles['muted']}>
               {contracts.fulfilled} fulfilled · {contracts.expired} missed

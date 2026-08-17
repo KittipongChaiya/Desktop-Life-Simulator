@@ -15,11 +15,18 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import '../plugins/core';
+import { hydrateWorld } from '../src/persistence/deserialize';
 import { runMigrations } from '../src/persistence/migrate';
 import { MIGRATIONS } from '../src/persistence/migrations';
 import { v9ToV10 } from '../src/persistence/migrations/v9-to-v10';
-import { CURRENT_SCHEMA_VERSION, type SaveDocument } from '../src/persistence/schema';
+import {
+  CURRENT_SCHEMA_VERSION,
+  type SaveDocument,
+  type SaveMeta,
+} from '../src/persistence/schema';
+import { serializeSave, toSaveDocument } from '../src/persistence/serialize';
 import { coreContent, parseSaveDocument, repairSaveDocument } from '../src/persistence/validate';
+import { createWorld } from '../src/sim/world/world';
 
 const FIXTURES = resolve(import.meta.dirname, 'fixtures', 'saves');
 const v9Fixtures = readdirSync(FIXTURES).filter((name) => name.startsWith('v9-'));
@@ -85,6 +92,27 @@ describe('the v9 golden fixtures', () => {
       byRequester: {},
     });
     expect(after.world.quests).toEqual({});
+  });
+});
+
+describe('the new stores survive the round trip', () => {
+  const META: SaveMeta = {
+    gameVersion: '0.3.0-dev',
+    createdAtUnixMs: 1_753_000_000_000,
+    savedAtUnixMs: 1_753_084_800_000,
+    playtimeTicks: 0,
+    saveCount: 1,
+  };
+
+  it('serialize → load restores watermarks and per-requester counters', () => {
+    const world = createWorld(31);
+    world.contractStats.byRequester['core:resident_prue'] = 2;
+    world.quests.set('core:quest_good_neighbour', 2);
+
+    const loaded = hydrateWorld(JSON.parse(serializeSave(toSaveDocument(world, META))) as never);
+
+    expect(loaded.contractStats.byRequester).toEqual({ 'core:resident_prue': 2 });
+    expect(loaded.quests.get('core:quest_good_neighbour')).toBe(2);
   });
 });
 
