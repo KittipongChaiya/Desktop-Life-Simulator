@@ -355,6 +355,34 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       req(isStr(value2), `world.disabledSources[${i}]`, 'a string');
     });
 
+    // v8 (ADR-032 §2). A contract's terms are money the player is owed on
+    // delivery; a malformed one is corruption, never something to guess at.
+    req(Array.isArray(world['contracts']), 'world.contracts', 'an array');
+    (world['contracts'] as unknown[]).forEach((value2, i) => {
+      const path = `world.contracts[${i}]`;
+      req(isRecord(value2), path, 'a contract record');
+      const contract = value2 as Record<string, unknown>;
+      for (const field of ['offerId', 'quantity', 'rewardCoins', 'deadlineTick', 'acceptedTick']) {
+        req(
+          isInt(contract[field]) && contract[field] >= 0,
+          `${path}.${field}`,
+          'a non-negative integer',
+        );
+      }
+      req((contract['quantity'] as number) > 0, `${path}.quantity`, 'a positive integer');
+      req(isStr(contract['item']), `${path}.item`, 'a string');
+      req(isStr(contract['requester']), `${path}.requester`, 'a string');
+    });
+    req(isRecord(world['contractStats']), 'world.contractStats', 'a record');
+    const contractStats = world['contractStats'] as Record<string, unknown>;
+    for (const field of ['fulfilled', 'expired'] as const) {
+      req(
+        isInt(contractStats[field]) && contractStats[field] >= 0,
+        `world.contractStats.${field}`,
+        'a non-negative integer',
+      );
+    }
+
     req(isRecord(doc['quarantine']), 'quarantine', 'a record');
     const quarantine = doc['quarantine'] as Record<string, unknown>;
     req(Array.isArray(quarantine['crops']), 'quarantine.crops', 'an array');
@@ -637,6 +665,26 @@ export function repairSaveDocument(
       log('last-planted-content-unknown', `memory "${entry.cropId}" at ${entry.tile} quarantined`);
       doc.quarantine.lastPlanted.push(entry);
       return false;
+    }
+    return true;
+  });
+
+  // Contracts (v8, ADR-032 §5): a duplicate offer id is corruption resolved
+  // in favour of the FIRST record (the store is keyed by it); an unknown item
+  // is KEPT and logged, never quarantined — the reward was never the player's
+  // yet, and an un-deliverable contract retires itself at its deadline.
+  const seenOffers = new Set<number>();
+  doc.world.contracts = doc.world.contracts.filter((contract) => {
+    if (seenOffers.has(contract.offerId)) {
+      log('contract-duplicate', `offer ${contract.offerId} appears twice — later record dropped`);
+      return false;
+    }
+    seenOffers.add(contract.offerId);
+    if (!content.hasItem(contract.item)) {
+      log(
+        'contract-item-unknown',
+        `contract ${contract.offerId} asks for "${contract.item}" — kept, expires by itself`,
+      );
     }
     return true;
   });

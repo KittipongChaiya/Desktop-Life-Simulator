@@ -45,6 +45,12 @@ import { DAY_PHASES } from '../time/game-clock';
 
 import { createBuildingStore, type BuildingStore } from './building';
 import { createContainer, type Container } from './container';
+import {
+  createContractStats,
+  createContractStore,
+  type ContractStats,
+  type ContractStore,
+} from './contracts';
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
@@ -149,6 +155,15 @@ export interface World {
    * (recording is free); worker task selection reads it only when one does.
    */
   readonly lastPlanted: Map<TileIndex, ContentId>;
+
+  /**
+   * Accepted contracts, terms frozen at acceptance (phase-20, ADR-032 §2).
+   * Written only by the contract commands and the expiry step.
+   */
+  readonly contracts: ContractStore;
+
+  /** Fulfilled/expired counters — event-maintained, not derivable (ADR-032 §6). */
+  readonly contractStats: ContractStats;
 
   /**
    * Typed event bus. Queue-and-flush; subscribers run in `postUpdate` only
@@ -359,6 +374,8 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     wallet: createWallet(STARTING_COINS),
     economy: createEconomyState(),
     lastPlanted: new Map(),
+    contracts: createContractStore(),
+    contractStats: createContractStats(),
     events,
     // Reads `world` lazily. The closure runs at dispatch time, never during
     // construction, so the self-reference is sound — and it is what keeps the

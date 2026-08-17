@@ -184,6 +184,22 @@ export function toSaveDocument(
         .sort(([a], [b]) => a - b)
         .map(([tile, cropId]) => ({ tile, cropId })),
       ids: { worker: allocator.worker, building: allocator.building },
+      // v8 (ADR-032 §2): the promises. Sorted by offer id; terms verbatim.
+      contracts: [...world.contracts.values()]
+        .sort((a, b) => a.offerId - b.offerId)
+        .map((contract) => ({
+          offerId: contract.offerId,
+          item: contract.item,
+          quantity: contract.quantity,
+          rewardCoins: contract.rewardCoins,
+          deadlineTick: contract.deadlineTick,
+          requester: contract.requester,
+          acceptedTick: contract.acceptedTick,
+        })),
+      contractStats: {
+        fulfilled: world.contractStats.fulfilled,
+        expired: world.contractStats.expired,
+      },
     },
     quarantine: {
       crops: quarantine.crops.map((crop) => ({ ...crop })),

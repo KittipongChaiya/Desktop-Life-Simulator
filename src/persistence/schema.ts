@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -181,6 +181,29 @@ export interface SaveIds {
 }
 
 /**
+ * An accepted contract, terms frozen at acceptance (v8, ADR-032 §2).
+ *
+ * Offers are derived and never stored; this is only what the player agreed
+ * to. `offerId` is the offer's derivation identity and the double-acceptance
+ * guard; everything else is the deal as it read on the board that day.
+ */
+export interface SaveContract {
+  readonly offerId: number;
+  readonly item: string;
+  readonly quantity: number;
+  readonly rewardCoins: number;
+  readonly deadlineTick: number;
+  readonly requester: string;
+  readonly acceptedTick: number;
+}
+
+/** Event-maintained contract counters (v8) — the `cropStats` pattern. */
+export interface SaveContractStats {
+  readonly fulfilled: number;
+  readonly expired: number;
+}
+
+/**
  * Entities referencing content that is not currently registered — an
  * uninstalled plugin, or removed core content (`SAVE_FORMAT.md` §5.3).
  *
@@ -294,6 +317,10 @@ export interface SaveWorld {
    * changes underneath a standing crop.
    */
   readonly ticksPerWeatherPeriod: number;
+  /** Accepted contracts, sorted by offer id (v8, ADR-032). */
+  readonly contracts: readonly SaveContract[];
+  /** Fulfilled / expired counters (v8) — not derivable from what remains. */
+  readonly contractStats: SaveContractStats;
 }
 
 /**

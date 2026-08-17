@@ -204,6 +204,21 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     world.lastPlanted.set(asTileIndex(entry.tile), asContentId(entry.cropId));
   }
 
+  // v8 (ADR-032 §2): the promises, verbatim — terms were frozen at acceptance.
+  for (const contract of saved.contracts) {
+    world.contracts.set(contract.offerId, {
+      offerId: contract.offerId,
+      item: asContentId(contract.item),
+      quantity: contract.quantity,
+      rewardCoins: contract.rewardCoins,
+      deadlineTick: contract.deadlineTick,
+      requester: asContentId(contract.requester),
+      acceptedTick: contract.acceptedTick,
+    });
+  }
+  world.contractStats.fulfilled = saved.contractStats.fulfilled;
+  world.contractStats.expired = saved.contractStats.expired;
+
   world.ids.setState({ worker: saved.ids.worker, building: saved.ids.building });
 
   // The town, LAST (ADR-030 §3): a save that predates the village gains it —

@@ -32,7 +32,7 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
 
 ```jsonc
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "magic": "desktop-life-simulator/save",
 
   "meta": {
@@ -101,6 +101,22 @@ v0.1 uses a single slot (`slot-0`). The path shape supports multiple slots witho
     "lastPlanted": [{ "tile": 4172, "cropId": "core:wheat" }],
 
     "ids": { "worker": 4, "building": 2 },
+
+    // v8 — ADR-032 §2. Accepted contracts, terms FROZEN at acceptance (a
+    // rebalance must never rewrite a promise). Offers are derived and never
+    // stored. Sorted by offer id; `contractStats` is event-maintained.
+    "contracts": [
+      {
+        "offerId": 14,
+        "item": "core:turnip",
+        "quantity": 40,
+        "rewardCoins": 600,
+        "deadlineTick": 72000,
+        "requester": "core:resident_marla",
+        "acceptedTick": 9001,
+      },
+    ],
+    "contractStats": { "fulfilled": 3, "expired": 1 },
 
     // v2 — ADR-026 §4. The content sources present when this save was written,
     // sorted by id. INFORMATIONAL: it never drives load behaviour, exactly as
@@ -582,6 +598,7 @@ Not one per commit, and not one for the whole version. A version is burned the m
 | `v4 → v5` | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant | 12    | ADR-022 §3             |
 | `v5 → v6` | Per-worker schedule state                                                          | 14    | ADR-024 §4             |
 | `v6 → v7` | **Widens** the grid to 80×64 and re-lays every stored tile index                   | 18    | ADR-030 §2             |
+| `v7 → v8` | Accepted contracts and their counters, both empty                                  | 20    | ADR-032 §2             |
 
 Phases 08, 13, 15, and 16 change no persisted shape. That is a useful check that the audio, plugin-API, and updater designs were right: all three are outside the save by construction.
 
