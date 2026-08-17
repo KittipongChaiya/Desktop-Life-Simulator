@@ -2,12 +2,12 @@
   "rainPeriod": 1,
   "plantedTick": 6000,
   "whileActive": {
-    "tickP50Ms": 0.3,
-    "tickP95Ms": 0.5,
-    "tickP99Ms": 0.8,
-    "tickAvgMs": 0.287,
-    "tickMaxMs": 8.2,
-    "tickSamples": 1916,
+    "tickP50Ms": 0.2,
+    "tickP95Ms": 0.4,
+    "tickP99Ms": 0.5,
+    "tickAvgMs": 0.211,
+    "tickMaxMs": 6.5,
+    "tickSamples": 1917,
     "fps": 100,
     "heapMb": 13.6,
     "heapAtStartMb": 13.6,
@@ -15,9 +15,9 @@
     "ambience": "on 0.600"
   },
   "whenAway": {
-    "fps": 100,
+    "fps": 0,
     "ambience": "off",
-    "dirty": "no · 3 anim",
-    "awayPointerMoves": 0
+    "dirty": "Unavailable",
+    "awayPointerMoves": 24
   }
 }
