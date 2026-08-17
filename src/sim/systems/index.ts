@@ -10,6 +10,7 @@
  */
 
 import { commandSystem } from './command';
+import { contractSystem } from './contract';
 import { economySystem } from './economy';
 import { eventFlushSystem, tickEventSystem } from './event-flush';
 import { movementSystem } from './movement';
@@ -38,6 +39,11 @@ export const TICK_SYSTEMS: readonly SystemRegistration[] = [
   // workers act, so a deposit made this tick is visible to the same tick's
   // sweep and views observe settled prices.
   { name: 'economy', phase: 'economy', run: economySystem },
+
+  // Contract expiry AFTER the economy settles, so a delivery dispatched on a
+  // deadline-day tick resolves before the sweep can retire the contract —
+  // the player's action wins the tie (phase-20, ADR-032 §4).
+  { name: 'contract', phase: 'economy', run: contractSystem },
 
   { name: 'tickEvent', phase: 'postUpdate', run: tickEventSystem },
   { name: 'eventFlush', phase: 'postUpdate', run: eventFlushSystem },

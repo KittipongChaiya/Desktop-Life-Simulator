@@ -27,6 +27,7 @@ import type { IdAllocator } from '../entities/id-allocator';
 import type { EventBus } from '../events/bus';
 import type { BuildingStore } from '../world/building';
 import type { Container } from '../world/container';
+import type { ContractStats, ContractStore } from '../world/contracts';
 import type { CropStore } from '../world/crop';
 import type { EconomyState } from '../world/economy';
 import type { TileGrid } from '../world/tile-grid';
@@ -163,6 +164,22 @@ export interface SetSourceEnabledCommand {
   readonly enabled: boolean;
 }
 
+/**
+ * Accept a notice-board offer (phase-20, ADR-032 §2). Carries only the
+ * offer's derivation identity; execution re-derives the terms and freezes
+ * them into the contract store.
+ */
+export interface AcceptContractCommand {
+  readonly type: 'acceptContract';
+  readonly offerId: number;
+}
+
+/** Deliver an accepted contract in full: goods leave, the frozen reward lands. */
+export interface DeliverContractCommand {
+  readonly type: 'deliverContract';
+  readonly offerId: number;
+}
+
 /** Assign a registered role to a worker (phase-14c, ADR-024 §2). */
 export interface AssignRoleCommand {
   readonly type: 'assignRole';
@@ -191,7 +208,9 @@ export type Command =
   | SellBuildingCommand
   | GrantCoinsCommand
   | ExpandLandCommand
-  | SetSourceEnabledCommand;
+  | SetSourceEnabledCommand
+  | AcceptContractCommand
+  | DeliverContractCommand;
 
 export type CommandType = Command['type'];
 
@@ -262,6 +281,11 @@ export interface CommandWorld {
   readonly seed: number;
   readonly ticksPerWeatherPeriod: number;
   readonly weatherKindRegistry: WeatherKindRegistry;
+
+  /** Accepted contracts. Written by the contract commands and the expiry step (ADR-032). */
+  readonly contracts: ContractStore;
+  /** Fulfilled/expired counters — event-maintained (ADR-032 §6). */
+  readonly contractStats: ContractStats;
 }
 
 /**

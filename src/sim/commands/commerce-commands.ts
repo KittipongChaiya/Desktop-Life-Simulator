@@ -65,15 +65,21 @@ import type { CommandWorld, ValidationResult } from './types';
  * The player's own inventory goes FIRST so that selling a few units empties
  * what the player is carrying before it touches a shed they were stockpiling.
  */
-function sellableContainers(world: CommandWorld): readonly Container[] {
+export function sellableContainers(world: CommandWorld): readonly Container[] {
   const sheds = [...world.buildingStorage.entries()]
     .sort(([a], [b]) => a - b)
     .map(([, container]) => container);
   return [world.inventory, ...sheds];
 }
 
-/** Total units of an item across everything the player owns. */
-function heldForSale(world: CommandWorld, itemId: ContentId): number {
+/**
+ * Total units of an item across everything the player owns.
+ *
+ * EXPORTED since phase-20: contract delivery draws from exactly what selling
+ * draws from (ADR-032 §5) — a second copy of this rule is how the two would
+ * silently drift apart.
+ */
+export function heldForSale(world: CommandWorld, itemId: ContentId): number {
   let total = 0;
   for (const container of sellableContainers(world)) total += containerCount(container, itemId);
   return total;
