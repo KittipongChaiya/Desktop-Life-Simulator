@@ -18,6 +18,7 @@ import { CommandSource, type Command } from '../../../sim/commands/types';
 import { CORE_WHEAT, DEFAULT_STACK_SIZE } from '../../../sim/content/items';
 import { stepSimulation } from '../../../sim/tick';
 import { addItems } from '../../../sim/world/container';
+import { demandMultiplier } from '../../../sim/world/economy';
 import { addCoins } from '../../../sim/world/wallet';
 import { createWorld, type World } from '../../../sim/world/world';
 import { createSnapshotStore } from '../../bootstrap/snapshot-store';
@@ -174,8 +175,18 @@ describe('WorkerPanel', () => {
 });
 
 describe('InventoryPanel sell rows', () => {
+  /** A world with day-0 wheat demand at exactly 1.0 — found, not hardcoded
+   * (phase-21): these rows assert exact coin text. */
+  function demandNeutralWorld(): World {
+    for (let seed = 1; seed <= 5_000; seed += 1) {
+      const world = createWorld(seed);
+      if (demandMultiplier(world, CORE_WHEAT) === 1) return world;
+    }
+    throw new Error('no demand-neutral seed in 5,000');
+  }
+
   it('shows the live price and submits sellItems for one and for all', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 7, DEFAULT_STACK_SIZE);
     const { submitted } = mount(world, <InventoryPanel />);
     fireEvent.click(screen.getByRole('button', { name: /^Inventory/ }));
@@ -189,8 +200,23 @@ describe('InventoryPanel sell rows', () => {
     ]);
   });
 
+  it('marks a wanted price with the up-arrow — the sell-it-now read (phase-21)', () => {
+    let world: World | null = null;
+    for (let seed = 1; seed <= 5_000 && world === null; seed += 1) {
+      const candidate = createWorld(seed);
+      if (demandMultiplier(candidate, CORE_WHEAT) > 1) world = candidate;
+    }
+    if (world === null) throw new Error('no wanted-wheat seed in 5,000');
+    addItems(world.inventory, CORE_WHEAT, 5, DEFAULT_STACK_SIZE);
+    mount(world, <InventoryPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /^Inventory/ }));
+
+    expect(screen.getByText(/g ↑$/)).toBeDefined();
+    expect(screen.getByTitle('The town wants these — normally 34g')).toBeDefined();
+  });
+
   it('marks a depressed price with the quiet amber down-arrow, never red', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 200, DEFAULT_STACK_SIZE);
     // Depress wheat before mounting: sell 100 through the real command path.
     world.commands.dispatch(

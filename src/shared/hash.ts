@@ -30,3 +30,20 @@ export function mix32(a: number, b: number): number {
   value ^= value >>> 16;
   return value >>> 0;
 }
+
+/**
+ * A stable 32-bit hash of a string — FNV-1a. Phase-21, for keying derived
+ * values by content id (demand's `hash(item)`, ADR-033 §1).
+ *
+ * The same freeze applies as `mix32`: any decent string hash would do, and
+ * changing THIS one changes every derived value keyed by a string, in every
+ * world, past and future.
+ */
+export function hashString(text: string): number {
+  let value = 0x811c_9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    value ^= text.charCodeAt(i);
+    value = Math.imul(value, 0x0100_0193) >>> 0;
+  }
+  return value >>> 0;
+}

@@ -45,6 +45,7 @@ import {
 } from '../sim/world/container';
 import {
   seasonalMultiplier,
+  worstDemandOver,
   MULTIPLIER_CAP,
   RECOVERY_PERIOD_TICKS,
   decayedMultiplier,
@@ -432,9 +433,19 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     );
     // The season at the END of the gap, which is where the sale lands. Using
     // the season at the start would credit a price the market no longer pays.
+    // Demand joins at the LOWEST spell the gap touched (ADR-033 §4) — the
+    // real sales happened at unknowable points across the gap's spells, and
+    // demand is queryable history (a hash), so the conservative bound is
+    // exact rather than assumed: never above any spell the gap saw, and
+    // equal to the truth whenever the gap sat inside one spell.
     coinsEarned +=
       units *
-      salePrice(definition.value.basePrice, floorMultiplier, seasonalMultiplier(world, item));
+      salePrice(
+        definition.value.basePrice,
+        floorMultiplier,
+        seasonalMultiplier(world, item),
+        worstDemandOver(world, item, start, end),
+      );
     const endMultiplier = recoveredMultiplier(floorMultiplier, periods);
     if (endMultiplier >= MULTIPLIER_CAP) world.economy.multipliers.delete(item);
     else world.economy.multipliers.set(item, endMultiplier);

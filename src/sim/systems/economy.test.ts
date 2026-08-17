@@ -16,7 +16,7 @@ import { CORE_MARKET_STALL } from '../content/buildings';
 import { DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation } from '../tick';
 import { addItems, containerTotal, type Container } from '../world/container';
-import { multiplierOf, recordSale } from '../world/economy';
+import { demandMultiplier, multiplierOf, recordSale } from '../world/economy';
 import { addCoins, STARTING_COINS } from '../world/wallet';
 import { createWorld, type World } from '../world/world';
 
@@ -102,9 +102,21 @@ describe('economySystem', () => {
 });
 
 describe('the market stall sweep (06c, §5.1)', () => {
-  /** A world with a stall placed; returns its container. */
+  /**
+   * A world with a stall placed; returns its container. The seed is FOUND so
+   * day-0 demand is exactly 1.0 for wheat and turnip (the criterion-9
+   * doctrine, phase-21): these tests pin the 10% tax and decay arithmetic,
+   * and a live demand would braid its band into every expected coin.
+   */
   function stallWorld(): { world: World; stall: Container } {
-    const world = createWorld(1);
+    let world: World | null = null;
+    for (let seed = 1; seed <= 5_000 && world === null; seed += 1) {
+      const candidate = createWorld(seed);
+      if (demandMultiplier(candidate, WHEAT) === 1 && demandMultiplier(candidate, TURNIP) === 1) {
+        world = candidate;
+      }
+    }
+    if (world === null) throw new Error('no demand-neutral seed in 5,000');
     addCoins(world.wallet, 1_200); // 1,300 total
     world.commands.dispatch(
       { type: 'placeBuilding', tile: toIndexUnchecked(30, 30), buildingId: CORE_MARKET_STALL },

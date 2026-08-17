@@ -13,8 +13,9 @@
 
 import type { ItemRegistry } from '../content/items';
 import {
+  demandMultiplier,
   seasonalMultiplier,
-  type SeasonalPricingSource,
+  type DemandPricingSource,
   expansionCost,
   multiplierOf,
   plotSizeAfter,
@@ -28,13 +29,21 @@ export interface WalletView {
   readonly coins: number;
 }
 
+/** The town's mood for an item — the ADR-033 spell, made legible. */
+export type DemandDirection = 'wanted' | 'steady' | 'quiet';
+
 /** One item's live market line. */
 export interface PriceView {
   readonly item: string;
-  /** The current sale price — `floor(basePrice × multiplier)`. Integer, always. */
+  /** The current sale price — `floor(basePrice × modifiers)`. Integer, always. */
   readonly price: number;
-  /** The undepressed reference, for "price is down" indicators. */
+  /** The anchor (ADR-033 §2), for "price is up/down" indicators. */
   readonly basePrice: number;
+  /**
+   * Which way the town leans this spell. Coarse on purpose: it changes at
+   * most once per spell, so it costs the republish gate nothing (phase-21).
+   */
+  readonly demand: DemandDirection;
 }
 
 export interface EconomyView {
@@ -47,7 +56,7 @@ export interface EconomyView {
 }
 
 /** The world state the projections read. `World` satisfies this structurally. */
-export interface EconomyProjectionSource extends SeasonalPricingSource {
+export interface EconomyProjectionSource extends DemandPricingSource {
   readonly wallet: Wallet;
   readonly economy: EconomyState;
   readonly itemRegistry: ItemRegistry;
@@ -67,15 +76,20 @@ export function walletEquals(a: WalletView, b: WalletView): boolean {
 export function projectEconomy(source: EconomyProjectionSource): EconomyView {
   const prices = source.itemRegistry
     .all()
-    .map((definition) => ({
-      item: definition.id,
-      price: salePrice(
-        definition.basePrice,
-        multiplierOf(source.economy, definition.id),
-        seasonalMultiplier(source, definition.id),
-      ),
-      basePrice: definition.basePrice,
-    }))
+    .map((definition): PriceView => {
+      const demand = demandMultiplier(source, definition.id);
+      return {
+        item: definition.id,
+        price: salePrice(
+          definition.basePrice,
+          multiplierOf(source.economy, definition.id),
+          seasonalMultiplier(source, definition.id),
+          demand,
+        ),
+        basePrice: definition.basePrice,
+        demand: demand > 1 ? 'wanted' : demand < 1 ? 'quiet' : 'steady',
+      };
+    })
     .sort((a, b) => (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
 
   const purchased = source.economy.expansionsPurchased;
@@ -101,7 +115,14 @@ export function economyEquals(a: EconomyView, b: EconomyView): boolean {
     const x = a.prices[i];
     const y = b.prices[i];
     if (x === undefined || y === undefined) return false;
-    if (x.item !== y.item || x.price !== y.price || x.basePrice !== y.basePrice) return false;
+    if (
+      x.item !== y.item ||
+      x.price !== y.price ||
+      x.basePrice !== y.basePrice ||
+      x.demand !== y.demand
+    ) {
+      return false;
+    }
   }
   return true;
 }

@@ -18,6 +18,7 @@ import { isInSeason, type CropRegistry } from '../content/crops';
 import type { ItemRegistry } from '../content/items';
 import { RESIDENTS } from '../content/residents';
 import { dayFor, seasonFor } from '../time/game-clock';
+import { demandAtSpell, DEMAND_SPELL_DAYS } from '../world/economy';
 
 /** Offers posted per day (ADR-032 §1). */
 export const OFFERS_PER_DAY = 2;
@@ -76,13 +77,24 @@ export function offersForDay(source: OfferSource, day: number): readonly Contrac
 
   // Crops plantable this season whose yield is a registered item, in
   // registration order — deterministic, like every content walk.
-  const pool = source.cropRegistry.all().filter((crop) => {
+  const eligible = source.cropRegistry.all().filter((crop) => {
     const yieldItem = crop.harvestYield[0]?.item;
     return (
       yieldItem !== undefined && isInSeason(crop, season) && source.itemRegistry.has(yieldItem)
     );
   });
-  if (pool.length === 0) return [];
+  if (eligible.length === 0) return [];
+
+  // The board leans with the town's wants (ADR-033 §4): a wanted crop enters
+  // the draw three times, steady twice, quiet once. Derived from derived —
+  // still a pure function of (seed, day).
+  const spell = Math.floor(day / DEMAND_SPELL_DAYS);
+  const pool = eligible.flatMap((crop) => {
+    const yieldItem = crop.harvestYield[0]?.item;
+    const demand = yieldItem === undefined ? 1 : demandAtSpell(source, yieldItem, spell);
+    const weight = demand >= 1.05 ? 3 : demand >= 0.95 ? 2 : 1;
+    return Array.from({ length: weight }, () => crop);
+  });
 
   const offers: ContractOffer[] = [];
   for (let slot = 0; slot < OFFERS_PER_DAY; slot += 1) {

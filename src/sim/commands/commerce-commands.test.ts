@@ -21,11 +21,25 @@ import { CORE_TURNIP_SEED, CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../conten
 import { projectInventory } from '../snapshot/inventory-slice';
 import { stepSimulation } from '../tick';
 import { addItems, containerCount, type Container } from '../world/container';
-import { multiplierOf } from '../world/economy';
+import { demandMultiplier, multiplierOf, salePrice } from '../world/economy';
 import { addCoins } from '../world/wallet';
 import { createWorld, type World } from '../world/world';
 
 import { CommandSource } from './types';
+
+/**
+ * A world whose day-0 demand is exactly 1.0 for wheat — FOUND, not hardcoded
+ * (the criterion-9 doctrine): the exact-arithmetic tests below pin the sale
+ * multiplier and batch rules, and a live demand would braid a second band
+ * into every expected value. Demand's own arithmetic has its own test.
+ */
+function demandNeutralWorld(): World {
+  for (let seed = 1; seed <= 5_000; seed += 1) {
+    const world = createWorld(seed);
+    if (demandMultiplier(world, CORE_WHEAT) === 1) return world;
+  }
+  throw new Error('no demand-neutral seed in 5,000');
+}
 
 /** Places a storage shed and returns its container — where worker deposits go. */
 function shedContainer(world: World): Container {
@@ -137,7 +151,7 @@ describe('buySeeds', () => {
 
 describe('sellItems', () => {
   it('credits coins at the current dynamic price and removes the goods (crit 1)', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 10, DEFAULT_STACK_SIZE);
 
     world.commands.dispatch(
@@ -148,6 +162,28 @@ describe('sellItems', () => {
 
     expect(world.wallet.coins).toBe(100 + 10 * 34); // multiplier 1.0, base 34
     expect(containerCount(world.inventory, CORE_WHEAT)).toBe(0);
+  });
+
+  it('the sale price rides the town’s demand (phase-21, ADR-033)', () => {
+    // A world where wheat is WANTED at day 0 — found, like the neutral one.
+    let world: World | null = null;
+    for (let seed = 1; seed <= 5_000 && world === null; seed += 1) {
+      const candidate = createWorld(seed);
+      if (demandMultiplier(candidate, CORE_WHEAT) > 1) world = candidate;
+    }
+    if (world === null) throw new Error('no wanted-wheat seed in 5,000');
+
+    addItems(world.inventory, CORE_WHEAT, 10, DEFAULT_STACK_SIZE);
+    const unit = salePrice(34, 1, 1, demandMultiplier(world, CORE_WHEAT));
+    expect(unit).toBeGreaterThan(34); // above the anchor — the amendment's point
+
+    world.commands.dispatch(
+      { type: 'sellItems', itemId: 'core:wheat', quantity: 10 },
+      { source: CommandSource.Player },
+    );
+    stepSimulation(world);
+
+    expect(world.wallet.coins).toBe(100 + 10 * unit);
   });
 
   it('drops the multiplier by exactly n × 0.002 (crit 2)', () => {
@@ -165,7 +201,7 @@ describe('sellItems', () => {
   });
 
   it('prices the whole batch at the pre-sale multiplier (interpretation 1)', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 200, DEFAULT_STACK_SIZE);
 
     world.commands.dispatch(
@@ -216,7 +252,7 @@ describe('sellItems', () => {
   });
 
   it('publishes itemSold with the goods, quantity, and coins', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 10, DEFAULT_STACK_SIZE);
     const seen: { item: string; quantity: number; coins: number; automatic: boolean }[] = [];
     world.events.subscribe('itemSold', (event) => seen.push({ ...event }));
@@ -247,7 +283,7 @@ describe('sellItems', () => {
    * the game most encourages — is what turns selling off.
    */
   it('sells goods that live only in a storage shed (07.9)', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     const shed = shedContainer(world);
     addItems(shed, CORE_WHEAT, 10, DEFAULT_STACK_SIZE);
     const before = world.wallet.coins;
@@ -282,7 +318,7 @@ describe('sellItems', () => {
   });
 
   it('prices a split sale as ONE batch at the pre-sale multiplier', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     const shed = shedContainer(world);
     addItems(world.inventory, CORE_WHEAT, 50, DEFAULT_STACK_SIZE);
     addItems(shed, CORE_WHEAT, 50, DEFAULT_STACK_SIZE);

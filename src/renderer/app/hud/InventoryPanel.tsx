@@ -87,6 +87,9 @@ export function InventoryPanel(): ReactNode {
                 const market = economy.prices.find((price) => price.item === stack.item);
                 const price = market?.price ?? 0;
                 const depressed = market !== undefined && market.price < market.basePrice;
+                // Above the anchor only ever means demand (ADR-033 §2) — the
+                // "sell it now" read, marked as warmly as ↓ is quietly.
+                const wanted = market !== undefined && market.price > market.basePrice;
                 return (
                   <div key={stack.item} className={styles['sellRow']} title={label(stack.item)}>
                     <div className={styles['stack']}>
@@ -95,14 +98,22 @@ export function InventoryPanel(): ReactNode {
                     </div>
                     <span className={styles['itemName']}>{label(stack.item)}</span>
                     <span
-                      className={depressed ? styles['priceDown'] : styles['price']}
+                      className={
+                        wanted
+                          ? styles['priceUp']
+                          : depressed
+                            ? styles['priceDown']
+                            : styles['price']
+                      }
                       title={
-                        depressed
-                          ? `Price recovering — normally ${market.basePrice}g`
-                          : `${price}g each`
+                        wanted
+                          ? `The town wants these — normally ${market.basePrice}g`
+                          : depressed
+                            ? `Price recovering — normally ${market.basePrice}g`
+                            : `${price}g each`
                       }
                     >
-                      {price}g{depressed ? ' ↓' : ''}
+                      {price}g{wanted ? ' ↑' : depressed ? ' ↓' : ''}
                     </span>
                     <button
                       type="button"

@@ -3,10 +3,12 @@
  * ADR-013 §Decision (pricing pipeline).
  *
  * Prices are content-defined bases passed through a bounded, deterministic
- * modifier pipeline (ADR-013). In v0.1 the pipeline is one modifier: the
- * per-item multiplier, depressed by sales and recovered by time, clamped to
- * [0.50, 1.00]. Future modifiers (regional, contracts, v0.3 demand) extend
- * the pipeline; they never replace it.
+ * modifier pipeline (ADR-013). Three modifiers now ride it: the per-item sale
+ * multiplier ([0.50, 1.00], depressed by sales, recovered by time), the
+ * seasonal factor ([0.90, 1.00], phase-11), and DEMAND ([0.85, 1.15],
+ * phase-21 — the modifier this header promised since phase-06). Since
+ * ADR-033 the base price is the ANCHOR, not the ceiling: the town's wants
+ * can pay a declared premium over it, and the player memorizes the bands.
  *
  * Multipliers are stored to 3 decimal places ROUNDED ON WRITE
  * (`SAVE_FORMAT.md` §3.3). Every mutation passes through `roundMultiplier`,
@@ -18,6 +20,7 @@
  * cheaply.
  */
 
+import { hashString, mix32 } from '../../shared/hash';
 import type { ContentId } from '../../shared/ids';
 import { cropYielding, isInSeason, type CropRegistry } from '../content/crops';
 import { dayFor, seasonFor } from '../time/game-clock';
@@ -83,9 +86,11 @@ export function salePrice(basePrice: number, ...modifiers: readonly number[]): n
  * — the product of the declared bands, which is the whole predictability
  * guarantee (ADR-013 §4).
  *
- * **It never exceeds 1.00, and that is deliberate.** ADR-013 §4 makes the base
- * price the ceiling — *"prices recover to the memorized value"* — so a seasonal
- * PREMIUM would break the one number a player is allowed to memorize.
+ * **It never exceeds 1.00, and that is deliberate.** A seasonal PREMIUM would
+ * double demand's job (ADR-021 §2's refusal, upheld by ADR-033 §2): since
+ * phase-21 the base price is the ANCHOR rather than the ceiling, and the one
+ * modifier allowed above it is demand, with its own declared band. The season
+ * still only ever shaves.
  *
  * **The band is shallow on purpose.** A player selling through a market stall
  * never meets it: produce is sold as it is harvested, in the season it grew in.
@@ -181,4 +186,81 @@ export function seasonalMultiplier(source: SeasonalPricingSource, item: ContentI
     source.seasons,
   );
   return isInSeason(crop, season) ? 1 : SEASON_MULTIPLIER_FLOOR;
+}
+
+// ── Demand (phase-21, ADR-033) ───────────────────────────────────────────────
+
+/** A demand spell's length, in days. Two days is 40 real minutes — a mood. */
+export const DEMAND_SPELL_DAYS = 2;
+
+/**
+ * The declared demand distribution (ADR-033 §1). The doubled `1.00` makes
+ * steady the commonest state, and the table's mean is exactly 1.0 — demand
+ * redistributes price over time rather than inflating or deflating it. This
+ * table IS the tuning surface (ADR-004 §5).
+ */
+export const DEMAND_STEPS = [0.85, 0.9, 0.95, 1.0, 1.0, 1.05, 1.1, 1.15] as const;
+
+/** The band's floor — what offline catch-up credits at (ADR-033 §4). */
+export const DEMAND_FLOOR = DEMAND_STEPS[0];
+
+/**
+ * What a spell lookup needs — seed and the crop registry alone, so the offer
+ * board (which has no `tick`) can ask about tomorrow without pretending to
+ * be a full pricing source.
+ */
+export interface DemandSpellSource {
+  readonly seed: number;
+  readonly cropRegistry: CropRegistry;
+}
+
+/** What live demand pricing reads. `World` satisfies this structurally. */
+export interface DemandPricingSource extends SeasonalPricingSource {
+  readonly seed: number;
+}
+
+/** The demand spell a tick falls in. */
+export function demandSpellFor(tick: number, ticksPerDay: number): number {
+  return Math.floor(dayFor(tick, ticksPerDay) / DEMAND_SPELL_DAYS);
+}
+
+/**
+ * The demand multiplier for an item at a SPELL, in the declared band.
+ *
+ * A hash, never a draw (ADR-022 §1): same seed, same item, same spell, same
+ * answer, on every machine — which is what lets catch-up query the past and
+ * the notice board lean toward tomorrow's wants. Non-yield items answer 1,
+ * the seasonal modifier's own guard: a seed's price is a crop's starting
+ * cost, not a market mood.
+ */
+export function demandAtSpell(source: DemandSpellSource, item: ContentId, spell: number): number {
+  const crop = cropYielding(source.cropRegistry, item);
+  if (crop === undefined) return 1;
+  const step = mix32(mix32(source.seed, hashString(item)), spell) % DEMAND_STEPS.length;
+  return DEMAND_STEPS[step] ?? 1;
+}
+
+/** The demand multiplier for an item NOW — the pipeline's third factor. */
+export function demandMultiplier(source: DemandPricingSource, item: ContentId): number {
+  return demandAtSpell(source, item, demandSpellFor(source.tick, source.ticksPerDay));
+}
+
+/**
+ * The LOWEST demand an item saw across a tick span — offline catch-up's
+ * conservative price point (ADR-033 §4). Exact when the span sits inside one
+ * spell; never above any spell the span touched.
+ */
+export function worstDemandOver(
+  source: DemandPricingSource,
+  item: ContentId,
+  fromTick: number,
+  toTick: number,
+): number {
+  const first = demandSpellFor(fromTick, source.ticksPerDay);
+  const last = demandSpellFor(toTick, source.ticksPerDay);
+  let worst = Infinity;
+  for (let spell = first; spell <= last; spell += 1) {
+    worst = Math.min(worst, demandAtSpell(source, item, spell));
+  }
+  return Number.isFinite(worst) ? worst : 1;
 }

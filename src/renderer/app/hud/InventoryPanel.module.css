@@ -128,6 +128,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Wanted price (phase-21): the sell-it-now read, in the HUD's own green. */
+.priceUp {
+  color: #8ec98e;
+  font-variant-numeric: tabular-nums;
+}
+
 .sell {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.18);

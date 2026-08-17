@@ -27,6 +27,7 @@ import {
   type Container,
 } from '../world/container';
 import {
+  demandMultiplier,
   seasonalMultiplier,
   expansionCost,
   multiplierOf,
@@ -169,6 +170,7 @@ export function sellItems(world: CommandWorld, itemId: ContentId, quantity: numb
       definition.value.basePrice,
       multiplierOf(world.economy, itemId),
       seasonalMultiplier(world, itemId),
+      demandMultiplier(world, itemId),
     );
 
   // Drain in order: the player's own inventory, then sheds by id. The total was

@@ -15,8 +15,22 @@ import { CommandSource } from '../commands/types';
 import { CORE_WHEAT, DEFAULT_STACK_SIZE } from '../content/items';
 import { stepSimulation, stepSimulationBy } from '../tick';
 import { addItems } from '../world/container';
-import { expansionCost } from '../world/economy';
-import { createWorld } from '../world/world';
+import { demandMultiplier, expansionCost } from '../world/economy';
+import { createWorld, type World } from '../world/world';
+
+/**
+ * A world whose day-0 wheat demand is exactly 1.0 — FOUND, not hardcoded
+ * (phase-21, the criterion-9 doctrine): these tests pin the multiplier and
+ * recovery arithmetic in exact coins, and a live demand would braid its band
+ * into every expected value.
+ */
+function demandNeutralWorld(): World {
+  for (let seed = 1; seed <= 5_000; seed += 1) {
+    const world = createWorld(seed);
+    if (demandMultiplier(world, CORE_WHEAT) === 1) return world;
+  }
+  throw new Error('no demand-neutral seed in 5,000');
+}
 
 describe('the wallet slice', () => {
   it('projects the balance and republishes only when it changes', () => {
@@ -40,7 +54,7 @@ describe('the wallet slice', () => {
 
 describe('the economy slice', () => {
   it('lists every item at its live integer price, sorted by id', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     stepSimulation(world);
 
     const prices = world.snapshots.economy.value.prices;
@@ -48,11 +62,11 @@ describe('the economy slice', () => {
     expect([...prices].map((p) => p.item)).toEqual([...prices].map((p) => p.item).sort());
 
     const wheat = prices.find((p) => p.item === 'core:wheat');
-    expect(wheat).toEqual({ item: 'core:wheat', price: 34, basePrice: 34 });
+    expect(wheat).toEqual({ item: 'core:wheat', price: 34, basePrice: 34, demand: 'steady' });
   });
 
   it('reflects a depressed price after a sale', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 100, DEFAULT_STACK_SIZE);
     world.commands.dispatch(
       { type: 'sellItems', itemId: 'core:wheat', quantity: 100 },
@@ -78,7 +92,7 @@ describe('the economy slice', () => {
   });
 
   it('does not republish every recovery period — only when a price changes (crit 16)', () => {
-    const world = createWorld(1);
+    const world = demandNeutralWorld();
     addItems(world.inventory, CORE_WHEAT, 100, DEFAULT_STACK_SIZE);
     world.commands.dispatch(
       { type: 'sellItems', itemId: 'core:wheat', quantity: 100 },

@@ -325,6 +325,23 @@ Dumping 100 wheat drops wheat to 0.80× and takes about 40 seconds to recover. T
 
 Multipliers are per-item, persisted, and recover during offline time via the economy system's `catchUp` (§9).
 
+**Since phase-21 (ADR-033), demand joins the pipeline** — and the base price
+becomes the **anchor rather than the ceiling**:
+
+```
+Sale price:  floor(basePrice × saleMultiplier × season × demand)
+Demand:      one of [0.85 … 1.15], per item, per two-day "spell",
+             derived from the seed like the weather — never stored, never
+             moved by anything the player does
+```
+
+The demand table's mean is exactly 1.0: over time the market redistributes
+price, never inflates it. The player's memorizable rules, in full: **spot**
+sells at base, swung ±15% by the town's wants, halved at worst by your own
+dumping, shaved a tenth out of season; **contracts** (§6.5) always pay 25–50%
+above base. The sell UI marks wanted goods ↑ and recovering ones ↓, and the
+notice board leans toward what the town currently wants.
+
 ### 6.3 Land expansion
 
 ```

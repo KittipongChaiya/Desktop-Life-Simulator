@@ -22,6 +22,7 @@
 import { CORE_MARKET_STALL } from '../content/buildings';
 import { removeItems } from '../world/container';
 import {
+  demandMultiplier,
   seasonalMultiplier,
   multiplierOf,
   RECOVERY_PERIOD_TICKS,
@@ -58,6 +59,7 @@ function sweepStalls(world: World): void {
             definition.value.basePrice,
             multiplierOf(world.economy, stack.item),
             seasonalMultiplier(world, stack.item),
+            demandMultiplier(world, stack.item),
           ),
       );
       removeItems(container, stack.item, stack.quantity);
