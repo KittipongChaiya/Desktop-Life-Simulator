@@ -94,9 +94,15 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
   const readCoins = async (): Promise<number> =>
     Number((await coins.textContent())?.replaceAll(/[^0-9]/g, '') ?? '0');
   const before = await readCoins();
+  // Read the price the ROW shows rather than assuming base: since phase-21
+  // the town's demand swings it ±15% per world seed (ADR-033), and what this
+  // asserts is the promise that matters — the panel's number is exactly what
+  // the sale credits.
+  const rowPrice = Number(
+    ((await panel.getByText(/^\d+g/).first().textContent()) ?? '0').replaceAll(/[^0-9]/g, ''),
+  );
   await panel.getByRole('button', { name: 'Sell 1' }).first().click();
-  // 12g at multiplier 1.0 credits within a tick; the tweened readout settles on it.
-  await expect.poll(readCoins).toBe(before + 12);
+  await expect.poll(readCoins).toBe(before + rowPrice);
   await inventory.click(); // close
 
   // ── Hire the first worker (150g — affordable thanks to the dev grant) ─────
