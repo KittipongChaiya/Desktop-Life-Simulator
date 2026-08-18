@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                                     |
 | ------------------- | ----------------------------------- |
 | **Current version** | **v0.4 — Automation & Exploration** |
-| **Current phase**   | **27 — The Wilds & Resources**      |
+| **Current phase**   | **28 — World Map & Expeditions**    |
 | **Status**          | **IN_PROGRESS**                     |
 
 | Phase | Name                     | Status      |
@@ -26,24 +26,22 @@ owner's memory (`AI_RULES.md` §10.4).
 | 24    | v0.4 Baseline            | COMPLETE    |
 | 25    | Recipes & Factories      | COMPLETE    |
 | 26    | Logistics & Reservation  | COMPLETE    |
-| 27    | The Wilds & Resources    | IN_PROGRESS |
-| 28    | World Map & Expeditions  | PENDING     |
+| 27    | The Wilds & Resources    | COMPLETE    |
+| 28    | World Map & Expeditions  | IN_PROGRESS |
 | 29    | Simulation Threading     | CONDITIONAL |
 | 30    | v0.4 Vertical Slice (RC) | PENDING     |
 
-**Phase 27 progress** (resume here):
+**Phase 27 — COMPLETE.** `docs/phases/phase-27-the-wilds.md` is the record.
+Five commits: ADR, derived nodes, the wider world and its migration, the
+gathering band, and the node layer. 2,990 tests across 234 files; p99 tick
+0.048 ms with a forager crew (`PERFORMANCE.md` §15).
 
-- DONE — ADR-037 written and accepted.
-- DONE — `content/resource-nodes.ts`: node definitions, `nodeAt` (pure hash,
-  no RNG draw), `isNodeReady`, `isSpawnableNode`. 20 tests.
-- DONE — grid widened to 112 (`WILDS_MIN_X = 80`), schema **v13** with the
-  tile re-lay and the `harvestedAt` map, v12 golden fixture, 11 migration
-  tests asserting every crop/building/worker survives at the same (x, y).
-- DONE — `WorkerTaskKind.Gather` band + command, opt-in via `core:forager`;
-  core node content (timber, stone, ore) and their items; ore-vein sprite and
-  the item icons (including phase-25's outstanding flour/bread).
-- NEXT — wild terrain paint (the band renders as default grass today), a
-  gathering entry in the phase doc, then close phase 27.
+**Phase 28 progress** (resume here):
+
+- NEXT — write the ADR before anything moves. The open questions are what an
+  expedition IS (a worker leaving the map for a duration, against a party
+  system), where its result comes from (derived like the wilds, against rolled
+  and stored), and whether the map is a screen or a region.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
@@ -51,8 +49,6 @@ owner's memory (`AI_RULES.md` §10.4).
   `0.4.0` version bump and publication, nothing else.
 - **Three update-behaviour tests** — BLOCKED behind a published release.
 - **Three GPU render criteria** — BLOCKED on hardware with a real adapter.
-- **`item_flour.png` / `item_bread.png`** — missing art; the HUD degrades to a
-  blank icon slot. On the §8 no-placeholders gate.
 
 **Deferred, with reasons recorded:**
 
@@ -60,7 +56,9 @@ owner's memory (`AI_RULES.md` §10.4).
   itself is not. Under-credits deliberately (`GAME_DESIGN.md` §9.2); makes §5
   criterion 4 PARTIAL rather than PASS. See `catch-up.ts`.
 - **Phase 29** is CONDITIONAL on ADR-003 §2's trigger (p99 tick > 3 ms).
-  Last measured **0.2 ms** at phase 24 — not re-measured under logistics load.
+  Last measured **0.048 ms** at phase 27, headless, with a forager crew
+  (`PERFORMANCE.md` §15) — not yet measured in the running app under the full
+  v0.4 load, which is phase 29's own first job.
 
 ---
 

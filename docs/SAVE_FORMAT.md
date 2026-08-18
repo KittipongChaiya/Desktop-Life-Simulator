@@ -607,22 +607,30 @@ v0.1 shipped `schemaVersion: 1` and, deliberately, no migration — version 1 is
 
 Not one per commit, and not one for the whole version. A version is burned the moment its golden fixture is committed (ADR-015 §2), so the unit has to be something whose shape is settled and independently testable — and a phase is the granularity this project already ships at.
 
-| Link        | Adds or changes                                                                            | Phase | Decided by             |
-| ----------- | ------------------------------------------------------------------------------------------ | ----- | ---------------------- |
-| `v1 → v2`   | Source manifest (§8.2); enablement set                                                     | 09    | ADR-026 §4, ADR-019 §7 |
-| `v2 → v3`   | Calendar constants (`ticksPerDay`, the phase set)                                          | 10    | ADR-020 §2             |
-| `v3 → v4`   | Season constants (`daysPerSeason`, the season list)                                        | 11    | ADR-021 §1             |
-| `v4 → v5`   | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant         | 12    | ADR-022 §3             |
-| `v5 → v6`   | Per-worker schedule state                                                                  | 14    | ADR-024 §4             |
-| `v6 → v7`   | **Widens** the grid to 80×64 and re-lays every stored tile index                           | 18    | ADR-030 §2             |
-| `v7 → v8`   | Accepted contracts and their counters, both empty                                          | 20    | ADR-032 §2             |
-| `v8 → v9`   | Delivered contracts persist to their deadline (`fulfilledTick`)                            | 20    | ADR-032 §2 (amended)   |
-| `v9 → v10`  | **Re-keys** offer ids for the four-slot board; adds `byRequester` and `quests`, both empty | 22    | ADR-034 §3, §6         |
-| `v10 → v11` | Adds `factories`, empty — a v10 world had no building any recipe could name                | 25    | ADR-035                |
+| Link        | Adds or changes                                                                                | Phase | Decided by             |
+| ----------- | ---------------------------------------------------------------------------------------------- | ----- | ---------------------- |
+| `v1 → v2`   | Source manifest (§8.2); enablement set                                                         | 09    | ADR-026 §4, ADR-019 §7 |
+| `v2 → v3`   | Calendar constants (`ticksPerDay`, the phase set)                                              | 10    | ADR-020 §2             |
+| `v3 → v4`   | Season constants (`daysPerSeason`, the season list)                                            | 11    | ADR-021 §1             |
+| `v4 → v5`   | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant             | 12    | ADR-022 §3             |
+| `v5 → v6`   | Per-worker schedule state                                                                      | 14    | ADR-024 §4             |
+| `v6 → v7`   | **Widens** the grid to 80×64 and re-lays every stored tile index                               | 18    | ADR-030 §2             |
+| `v7 → v8`   | Accepted contracts and their counters, both empty                                              | 20    | ADR-032 §2             |
+| `v8 → v9`   | Delivered contracts persist to their deadline (`fulfilledTick`)                                | 20    | ADR-032 §2 (amended)   |
+| `v9 → v10`  | **Re-keys** offer ids for the four-slot board; adds `byRequester` and `quests`, both empty     | 22    | ADR-034 §3, §6         |
+| `v10 → v11` | Adds `factories`, empty — a v10 world had no building any recipe could name                    | 25    | ADR-035                |
+| `v11 → v12` | Adds `routes` and its id counter (from 1, never 0); `hauling: null` on every worker            | 26    | ADR-036                |
+| `v12 → v13` | **Widens** the grid to 112×64 for the wilds and re-lays every stored index; adds `harvestedAt` | 27    | ADR-037 §1             |
 
 Phase-20 carries **two** links, against §11.1's one-per-phase guidance and recorded as such: v8 merged, then the phase's live verification caught that deleting a contract on delivery deleted the double-acceptance guard with it. ADR-015's append-only rule is hard where the granularity guidance is soft, so the fix is `v8 → v9`, never an edit to `v7 → v8`.
 
 Phases 08, 13, 15, and 16 change no persisted shape. That is a useful check that the audio, plugin-API, and updater designs were right: all three are outside the save by construction.
+
+`v12 → v13` (v0.4) is the chain's **second relayout**, and it is `v6 → v7` again at a different width — 80×64 becomes 112×64, with the same coordinate invariant and the same index remap. It is a near-copy of that link on purpose: a frozen link may never change behaviour, and sharing a helper with a later one is how one of them eventually does. Its dimensions are literals for the same reason, restated at the code — importing the live `WORLD_WIDTH` would have silently rewritten what `v6 → v7` does the moment this phase landed, which is exactly the trap §4.2's comment was guarding.
+
+**Nothing about the wilds' contents is migrated, because nothing about them is stored.** What stands on a wild tile is a pure hash of `(seed, tile)` (ADR-037 §3), so a v12 save loads into a fully-stocked wilderness with no data written. The one thing that is persisted is `harvestedAt` — tile → the tick its node was worked — and a migrated save starts with it empty, which is exact rather than a default: a v12 world had no wilds, so nothing in them has been worked.
+
+`harvestedAt` is the only collection in the save that could grow with **playtime** rather than with world size, which §3.4 names as the hazard. It does not, because an entry is pruned the moment its node regrows: absent and long-past mean the same thing to the readiness test, so an expired stamp carries no information. Measured over 120,000 ticks with three foragers it settles at 132 entries, and there is a test that says it stays bounded.
 
 `v6 → v7` (v0.3) is the chain's first **relayout**: no field is added or removed, but a flat tile index encodes the width it was computed against, so widening the world means re-encoding the four dense grid arrays and remapping every index — crops, worker positions and paths, task targets, schedule zones, buildings, `lastPlanted`, and the quarantine. The invariant is stated in coordinates: a thing at (x, y) before the link is at (x, y) after it. The migration adds no content — the town itself is founded by world construction, idempotently, one code path for new worlds and migrated saves alike (ADR-030 §3).
 

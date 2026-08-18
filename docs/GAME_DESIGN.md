@@ -44,13 +44,15 @@ Reaching stage 4 means the player can close the panel and the game genuinely pla
 
 ### 2.1 Tile grid
 
-| Property            | Value                                         | Notes                                                                           |
-| ------------------- | --------------------------------------------- | ------------------------------------------------------------------------------- |
-| World size          | 80 × 64 = 5,120 tiles                         | 64×64 in v0.1–v0.2; the eastern 16×64 band is town land since v0.3 (ADR-030 §1) |
-| Farm region         | The western 64 × 64                           | Ownership never leaves it; the shipped world, unmoved (ADR-030 §1)              |
-| Tile size           | 32 × 32 logical px                            | ADR-006 §5                                                                      |
-| Starting owned plot | 8 × 8 = 64 tiles, centered in the farm region |                                                                                 |
-| Expansion           | Ring of tiles around the owned area           | Cost escalates, §6.3; caps at the farm region's 64×64                           |
+| Property            | Value                                         | Notes                                                                       |
+| ------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| World size          | 112 × 64 = 7,168 tiles                        | 64×64 in v0.1–v0.2, 80×64 in v0.3; widened again for the wilds (ADR-037 §1) |
+| Farm region         | The western 64 × 64                           | Ownership never leaves it; the shipped world, unmoved (ADR-030 §1)          |
+| Town region         | `x` 64–79                                     | Where the village stands (ADR-030 §1)                                       |
+| Wilds               | `x` 80–111                                    | Unowned, ungrowable, gatherable — §2.5 (ADR-037 §1)                         |
+| Tile size           | 32 × 32 logical px                            | ADR-006 §5                                                                  |
+| Starting owned plot | 8 × 8 = 64 tiles, centered in the farm region |                                                                             |
+| Expansion           | Ring of tiles around the owned area           | Cost escalates, §6.3; caps at the farm region's 64×64                       |
 
 ### 2.2 Tile kinds
 
@@ -96,6 +98,47 @@ Night is a **legible dim, not a dark screen**. A player must be able to see that
 The day's length is fixed when a world is created and never changes for that world: altering it would silently renumber every day the player has already spent (ADR-020 §2).
 
 ---
+
+### 2.5 The wilds (v0.4, phase-27 — ADR-037)
+
+The eastern 32 × 64 band, beyond the town. Three facts define it:
+
+- **You never own it.** Ownership stops at the farm region and always has, so
+  the wilds need no new access-control model — nothing there can be tilled,
+  planted, built on, or bought, because all four already require the tile to be
+  yours.
+- **Things grow there on their own**, and are worth going to get.
+- **It is somewhere you GO.** The nearest wild tile is thirty-plus tiles from
+  the farm, which is minutes of walking each way. That distance is the design:
+  it is what makes gathering a decision rather than a free extra income.
+
+**What stands there is derived, not stored.** A node's existence is a pure hash
+of the world seed and the tile, so the wilds cost the save nothing at all and
+are exact after any absence — "is this ready at tick T" is arithmetic. Only the
+tick a node was last worked is persisted, and only until it regrows.
+
+| Node     | Yields    | To work | Regrows | Share of wild tiles |
+| -------- | --------- | ------- | ------- | ------------------- |
+| Timber   | 2 × wood  | 6 s     | 5 min   | 6.0%                |
+| Stone    | 2 × stone | 9 s     | 10 min  | 4.5%                |
+| Ore vein | 1 × ore   | 12 s    | 15 min  | 3.0%                |
+
+Seven eighths of the wilds is open ground. A band packed with nodes is a maze
+rather than a wilderness, and a worker has to be able to walk through it.
+
+Regrow times are long against gather times — minutes against seconds — so a
+crew cannot camp one node. The intended shape is a worker walking a circuit,
+which is also what makes the wilds feel like a place rather than a second
+field. Scarcity is **time**, never a rarity roll: ore is the scarce one because
+it takes the longest to come back, and a player can learn that by watching.
+
+**Gathering is opt-in.** A worker goes to the wilds only if its schedule names
+gathering, and `core:forager` is the role that does. This is the only band that
+works that way, and the reason is the distance above: default-on, an idle
+worker wanders off and the farm stops — measured, it stopped completely. The
+parallel is logistics, where hauling does not happen until the player declares
+a route. Both are long-distance work, and neither should start merely because
+nobody said no.
 
 ## 3. Crops
 
@@ -166,6 +209,12 @@ stage       : CropStage
 **AMENDED IN PHASE-03 (ADR-009 §2).** Growth is now DERIVED from `plantedTick`, not accumulated. A crop instance stores `cropId`, `tile`, and `plantedTick` only. The moisture multiplier below is deferred with it. The payoff: offline progress is **exact** — there is no catch-up pass and no error budget.
 
 ### 3.5 Moisture
+
+**Status: not implemented.** ADR-009 deferred moisture-modulated growth and
+nothing since has built it; v0.2 replaced the 0–100 level with a recorded
+`wateredAt` fact (ADR-022 §3) precisely so that a future model can derive
+wetness rather than accumulate it. What follows is the design as specified, not
+as shipped — no crop's growth rate reads moisture today, and no worker waters.
 
 Tiles hold moisture 0–100. Watered tiles grow crops at **1.25×**; dry tiles at **1.0×**. Moisture decays 1 point per 200 ticks (10 s) and is replenished by rain (v0.2) or a player/worker watering action.
 
@@ -251,13 +300,35 @@ Five states: `IDLE`, `MOVING`, `WORKING`, `SEEKING_REST`, `REST`.
 
 Workers select tasks by fixed priority, nearest-first within a priority band:
 
-1. **Harvest** a mature crop — realizing value beats creating it
-2. **Plant** on tilled soil, if seeds are available
-3. **Till** owned, empty, untilled grass
-4. **Water** a planted tile below 40 moisture
-5. **Deposit** if carrying ≥ 10 items and storage exists
+**Before any of it**, a worker with a full-enough hold deposits — carrying ≥ 10
+items, with storage in reach. That is not a band; it is a check that runs
+first, because a worker who cannot carry any more cannot do most of the list. A
+worker part-way through a haul is exempt: its hold is a delivery, and
+depositing it into the nearest shed would silently undo the haul.
 
-Priority is a fixed list in v0.1, not player-configurable. Configurable priorities are a v0.2 feature and would be premature here (`AI_RULES.md` §1.5).
+Then, in order:
+
+1. **Harvest** a mature crop — realizing value beats creating it
+2. **Haul** along a declared route (v0.4, ADR-036 §3)
+3. **Plant** on tilled soil, if seeds are available
+4. **Till** owned, empty, untilled grass
+5. **Gather** in the wilds — only if the worker's schedule names it (v0.4)
+
+**There is no Water band.** This list carried one from v0.1 until phase-27 and
+the code never had it: watering depends on the moisture model §3.5 describes,
+which ADR-009 deferred and nothing has built. It belongs under §11's future
+expansion points, not here, where it read as shipped.
+
+Two entries moved after being measured rather than reasoned about, and both
+are recorded at their ADRs. **Hauling sits above planting** because a factory
+starved of input stops a whole chain, where unplanted ground costs one plot one
+cycle — but it had to go above _tilling_ too, since ordinary tilling outranked
+hauling on any farm with untilled ground and hauls simply never ran.
+**Gathering sits last** because putting it higher emptied the farm: a worker
+who chose the wilds was gone for minutes and did nothing else.
+
+The list is the default order; it is data, so a role can reorder it
+(ADR-024 §3).
 
 Ties break by lowest tile index — never by RNG. Deterministic tie-breaking is required by ADR-007 §Validation.
 

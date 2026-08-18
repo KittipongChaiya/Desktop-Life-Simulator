@@ -560,3 +560,43 @@ confident 0.00 MB. It is preserved as
 clean and measured the wrong thing is worth more as a warning than as a deleted
 file. The harness now reports `activeShare` and asserts it exceeds 0.8, so the
 same mistake fails loudly instead of passing quietly.
+
+---
+
+## 15. Phase-27 measurement — what the wilds cost the tick
+
+Headless, `stepSimulationBy` in 100-tick batches, 120,000 ticks, three workers,
+seed 4242 — a plain farm crew against a crew of foragers, so the delta is the
+gathering band and nothing else.
+
+| Crew    | mean      | p50    | p95    | p99        | max    |
+| ------- | --------- | ------ | ------ | ---------- | ------ |
+| Farm    | 0.0341 ms | 0.0329 | 0.0433 | **0.0663** | 0.2116 |
+| Forager | 0.0317 ms | 0.0310 | 0.0408 | **0.0477** | 0.6564 |
+
+**PASS**, both roughly fifty times inside the 3 ms p99 budget (§65's row).
+
+**The forager crew is cheaper, and that is the expected direction.** Foragers
+spend most of their time walking, and walking a path is cheaper per tick than
+the full-farm harvest scan a farmhand runs on every replan. The wild scan is
+bounded to the 32-column band rather than the world, runs at most once per
+`IDLE_REPLAN_TICKS`, and — since ADR-037 §4's amendment made gathering
+last-resort — runs only when every nearer band came back empty.
+
+`harvestedAt` finished the forager run at **132 entries**, which is the
+bounded-by-regrow-period claim measured rather than asserted: it is bounded by
+how many nodes were worked in the last regrow window, never by how long the
+game has been running (`SAVE_FORMAT.md` §11.1).
+
+### What this measurement does not cover
+
+**The renderer's half.** This is `process`-side only: the node layer adds ~276
+static sprites in one atlas and one batch, holds no animation lease, and writes
+to a sprite only when the `wilds` slice republishes — but none of that is
+measured here. Phase 30's RC gate set measures the running app; phase 29 weighs
+the combined tick against ADR-003 §2's worker-migration trigger.
+
+**Any world older than 120,000 ticks.** The bound on `harvestedAt` is
+structural (an entry is pruned when its node regrows), and 120,000 ticks is
+about 100 minutes of play. The long-run suites cover eight hours; this one does
+not claim to.
