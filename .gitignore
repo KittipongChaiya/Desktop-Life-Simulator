@@ -33,3 +33,8 @@ npm-debug.log*
 # Environment
 .env
 .env.local
+
+# Scratch space `tests/boundaries.test.ts` writes and deletes while it runs.
+# Untracked but not ignored, a concurrent `git add -A` staged these mid-run and
+# the commit hook then linted deliberately-illegal fixtures (phase-30).
+src/sim/__boundary_fixtures__/

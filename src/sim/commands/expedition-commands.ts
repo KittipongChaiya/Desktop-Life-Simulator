@@ -17,7 +17,7 @@
  */
 
 import { appError, ErrorCode } from '../../shared/errors';
-import { asContentId, type ContentId, type WorkerId } from '../../shared/ids';
+import { asContentId, isContentId, type ContentId, type WorkerId } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
 import { haulFor, returnTickOf } from '../content/expeditions';
 import { addItems, containerCount, containerTotal, removeItems } from '../world/container';
@@ -196,20 +196,44 @@ export function returnExpedition(world: CommandWorld, worker: WorkerId): Result<
   return ok();
 }
 
+/**
+ * Parses a raw destination field (untrusted input, ADR-010 §5).
+ *
+ * `asContentId` THROWS on a malformed id, and the first version of the
+ * registration below called it directly — so a command carrying
+ * `"not-a-content-id"` crashed inside the dispatcher instead of being refused.
+ * Every source is untrusted here, not just the player's: a replay, the
+ * developer console, and a plugin all arrive through this door.
+ *
+ * Found by the RC's coverage gate going red and the rejection test written to
+ * close it, which is the second time a branch nobody had exercised turned out
+ * to be a defect rather than dead weight.
+ */
+function toDestination(destination: unknown): Result<ContentId> {
+  if (typeof destination !== 'string' || !isContentId(destination)) {
+    return err(
+      appError(ErrorCode.UnknownContent, 'malformed destination id', {
+        destination: String(destination),
+      }),
+    );
+  }
+  return ok(asContentId(destination));
+}
+
 export function registerExpeditionCommands(dispatcher: CommandDispatcher): void {
   dispatcher.register('sendExpedition', {
-    validate: (world, command) =>
-      validateSendExpedition(
-        world,
-        command.worker as WorkerId,
-        asContentId(String(command.destination)),
-      ),
-    execute: (context, command) =>
-      sendExpedition(
-        context.world,
-        command.worker as WorkerId,
-        asContentId(String(command.destination)),
-      ),
+    validate: (world, command) => {
+      const destination = toDestination(command.destination);
+      return destination.ok
+        ? validateSendExpedition(world, command.worker as WorkerId, destination.value)
+        : destination;
+    },
+    execute: (context, command) => {
+      const destination = toDestination(command.destination);
+      return destination.ok
+        ? sendExpedition(context.world, command.worker as WorkerId, destination.value)
+        : destination;
+    },
   });
 
   dispatcher.register('returnExpedition', {
