@@ -168,6 +168,37 @@ Three orderings are dictated by dependency rather than preference, and `ROADMAP.
 | Expeditions | Send workers away for timed returns      | v0.1 worker tasks + offline catch-up      |
 | Resources   | Mining, foraging, gathering              | v0.1 tile kinds                           |
 
+### 5.1 Phases
+
+| #   | Phase                    | Schema | Delivers                                            | Decided by |
+| --- | ------------------------ | ------ | --------------------------------------------------- | ---------- |
+| 24  | v0.4 Baseline            | —      | Every gate re-measured fresh; the production model  | ADR-035    |
+| 25  | Recipes & Factories      | v11    | Buildings that consume and produce; a 3-step chain  | ADR-035    |
+| 26  | Logistics & Reservation  | v12    | The chain runs itself; the 8-hour unattended proof  | ADR-036    |
+| 27  | The Wilds & Resources    | v13    | Walkable land past the town; mining, foraging       | ADR-037    |
+| 28  | World Map & Expeditions  | v14    | Regions as destinations; workers sent away and back | ADR-037    |
+| 29  | Simulation Threading     | —      | The renderer's world reference severed; the thread  | ADR-038    |
+| 30  | v0.4 Vertical Slice (RC) | —      | It feels like one game, and the gates are measured  | —          |
+
+Three orderings are dictated by dependency rather than preference:
+
+- **The production model before any factory (24 → 25).** The jam rules are the
+  part that cannot be retrofitted — a chain that stalls forever is invisible
+  to every test that does not already know to look for it — so ADR-035 states
+  them before a factory exists.
+- **Factories before logistics (25 → 26).** Logistics is designed once, on
+  purpose, against endpoints that already exist. Phase 25 deliberately ships a
+  factory that cannot feed itself, so that "how items get there" is not
+  invented as a mill's private convenience (ADR-035 §9).
+- **Threading last, and conditional (29).** ADR-003 §2 pre-committed the
+  migration trigger — p99 tick > 3 ms — and v0.3 measured 0.2–0.5 ms. Phase 29
+  is sequenced where the version's load finally exists to test that trigger
+  against. Its first half (severing the renderer's direct `world` reference,
+  which is where the migration's real cost sits — not `src/sim`, which is
+  already pure) is worth doing whether or not the trigger fires; its second
+  half runs only if it does, or if a successor ADR replaces the trigger. **The
+  RC records the measured number either way.**
+
 **Success criteria**
 
 - [ ] A production chain runs unattended for 8 hours without jamming
