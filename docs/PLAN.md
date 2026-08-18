@@ -38,12 +38,22 @@ every version's history would stop being a resume block.
 
 **Phase 31 progress** (resume here):
 
-- NEXT — ADR-040 first: the three evidence classes (§5A.2) are this version's
-  load-bearing new idea, and every later phase reports against them.
-- Then re-run every §8 gate fresh, as phase 24 did at v0.4's opening — and take
-  the PRODUCT baseline nothing has ever measured: what the first hour is
-  actually like, and how long the `GAME_DESIGN.md` §1.1 stage arc really takes.
-- Phase 36 is CONDITIONAL on that second measurement.
+- DONE — ADR-040: the three evidence classes, with each of the four criteria
+  pre-assigned to one before any of them was measured.
+- DONE — the plan-state guard follows the current version instead of a
+  hardcoded §5.1.
+- **DONE — the arc is measured, and the finding is the opposite of the fear.**
+  `tests/progression-arc.test.ts` plays the arc perfectly and reaches stage 4
+  in **12 minutes**: hire at 2m, shed 3m, seed bin 9m, market stall 12m.
+  `GAME_DESIGN.md` §1.1 claims 10–30 min for stage 2 and **3 hr+** for stage 4.
+  The criterion's four-hour ceiling passes with enormous room; the arc's SHAPE
+  does not survive contact with the numbers.
+- **PHASE 36 IS THEREFORE TRIGGERED** — not because the game is too slow to
+  reach, but because the early economy collapses roughly 15× faster than the
+  design document says. Code and document disagree and one of them has to move;
+  deciding which is phase 36's, with ADR-044.
+- NEXT — the rest of phase 31: re-run every §8 gate fresh (phase 24's rule at a
+  version boundary), and take criterion 1's idle-cost baseline.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
