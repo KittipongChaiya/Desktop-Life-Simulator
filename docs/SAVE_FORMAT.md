@@ -607,17 +607,18 @@ v0.1 shipped `schemaVersion: 1` and, deliberately, no migration — version 1 is
 
 Not one per commit, and not one for the whole version. A version is burned the moment its golden fixture is committed (ADR-015 §2), so the unit has to be something whose shape is settled and independently testable — and a phase is the granularity this project already ships at.
 
-| Link       | Adds or changes                                                                            | Phase | Decided by             |
-| ---------- | ------------------------------------------------------------------------------------------ | ----- | ---------------------- |
-| `v1 → v2`  | Source manifest (§8.2); enablement set                                                     | 09    | ADR-026 §4, ADR-019 §7 |
-| `v2 → v3`  | Calendar constants (`ticksPerDay`, the phase set)                                          | 10    | ADR-020 §2             |
-| `v3 → v4`  | Season constants (`daysPerSeason`, the season list)                                        | 11    | ADR-021 §1             |
-| `v4 → v5`  | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant         | 12    | ADR-022 §3             |
-| `v5 → v6`  | Per-worker schedule state                                                                  | 14    | ADR-024 §4             |
-| `v6 → v7`  | **Widens** the grid to 80×64 and re-lays every stored tile index                           | 18    | ADR-030 §2             |
-| `v7 → v8`  | Accepted contracts and their counters, both empty                                          | 20    | ADR-032 §2             |
-| `v8 → v9`  | Delivered contracts persist to their deadline (`fulfilledTick`)                            | 20    | ADR-032 §2 (amended)   |
-| `v9 → v10` | **Re-keys** offer ids for the four-slot board; adds `byRequester` and `quests`, both empty | 22    | ADR-034 §3, §6         |
+| Link        | Adds or changes                                                                            | Phase | Decided by             |
+| ----------- | ------------------------------------------------------------------------------------------ | ----- | ---------------------- |
+| `v1 → v2`   | Source manifest (§8.2); enablement set                                                     | 09    | ADR-026 §4, ADR-019 §7 |
+| `v2 → v3`   | Calendar constants (`ticksPerDay`, the phase set)                                          | 10    | ADR-020 §2             |
+| `v3 → v4`   | Season constants (`daysPerSeason`, the season list)                                        | 11    | ADR-021 §1             |
+| `v4 → v5`   | **Removes** `grid.moisture`; adds `grid.wateredAt` and the weather period constant         | 12    | ADR-022 §3             |
+| `v5 → v6`   | Per-worker schedule state                                                                  | 14    | ADR-024 §4             |
+| `v6 → v7`   | **Widens** the grid to 80×64 and re-lays every stored tile index                           | 18    | ADR-030 §2             |
+| `v7 → v8`   | Accepted contracts and their counters, both empty                                          | 20    | ADR-032 §2             |
+| `v8 → v9`   | Delivered contracts persist to their deadline (`fulfilledTick`)                            | 20    | ADR-032 §2 (amended)   |
+| `v9 → v10`  | **Re-keys** offer ids for the four-slot board; adds `byRequester` and `quests`, both empty | 22    | ADR-034 §3, §6         |
+| `v10 → v11` | Adds `factories`, empty — a v10 world had no building any recipe could name                | 25    | ADR-035                |
 
 Phase-20 carries **two** links, against §11.1's one-per-phase guidance and recorded as such: v8 merged, then the phase's live verification caught that deleting a contract on delivery deleted the double-acceptance guard with it. ADR-015's append-only rule is hard where the granularity guidance is soft, so the fix is `v8 → v9`, never an edit to `v7 → v8`.
 

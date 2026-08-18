@@ -253,6 +253,30 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       reqStacks(storage['stacks'], `${path}.stacks`);
     });
 
+    // FACTORIES (v11, ADR-035). Same treatment as storage: the boundary is
+    // untrusted (`AI_RULES.md` §2.4), so shape is checked here rather than
+    // trusted downstream, where a malformed entry would reach hydration.
+    req(Array.isArray(world['factories']), 'world.factories', 'an array');
+    (world['factories'] as unknown[]).forEach((value2, i) => {
+      const path = `world.factories[${i}]`;
+      req(isRecord(value2), path, 'a factory record');
+      const factory = value2 as Record<string, unknown>;
+      req(isInt(factory['building']), `${path}.building`, 'an integer');
+      req(
+        factory['recipeId'] === null || typeof factory['recipeId'] === 'string',
+        `${path}.recipeId`,
+        'a content id or null',
+      );
+      req(
+        factory['startedTick'] === null || isInt(factory['startedTick']),
+        `${path}.startedTick`,
+        'an integer or null',
+      );
+      req(isInt(factory['replanTick']), `${path}.replanTick`, 'an integer');
+      reqStacks(factory['input'], `${path}.input`);
+      reqStacks(factory['output'], `${path}.output`);
+    });
+
     reqStacks(world['inventory'], 'world.inventory');
 
     req(isRecord(world['wallet']), 'world.wallet', 'a record');

@@ -20,8 +20,10 @@
  */
 
 import { asBuildingId, asContentId, asTileIndex, asWorkerId } from '../shared/ids';
+import { DEFAULT_FACTORY_SLOTS } from '../sim/content/buildings';
 import type { DayPhase } from '../sim/time/game-clock';
 import { createContainer, type Container } from '../sim/world/container';
+import { createFactoryState } from '../sim/world/factory';
 import { setBlocked } from '../sim/world/tile-grid';
 import { foundTown } from '../sim/world/town';
 import {
@@ -186,6 +188,34 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     const container = createContainer(definition.value.storageSlots ?? 0);
     restoreStacks(container, storage.stacks);
     world.buildingStorage.set(id, container);
+  }
+
+  // FACTORIES (v11, ADR-035). Capacity comes from the definition rather than
+  // the document, exactly as storage capacity does: a rebalanced buffer size
+  // reaches old saves with no migration (ADR-004 §5).
+  for (const entry of saved.factories) {
+    const id = asBuildingId(entry.building);
+    const building = world.buildings.get(id);
+    if (building === undefined) {
+      throw new Error(`factory state for building ${entry.building}, which does not exist`);
+    }
+    const definition = world.buildingRegistry.get(building.buildingId);
+    if (!definition.ok) {
+      throw new Error(`building ${building.buildingId} is not registered`);
+    }
+    const slots = definition.value.factorySlots ?? DEFAULT_FACTORY_SLOTS;
+    const factory = createFactoryState(slots.input, slots.output);
+    // The recipe is restored as an id and NOT validated against the registry
+    // here. A save naming a recipe whose source was uninstalled must still
+    // load — the production system already treats an unresolvable recipe as
+    // "do nothing", and quarantining the goods instead would be a second
+    // policy for the same situation.
+    factory.recipeId = entry.recipeId === null ? null : asContentId(entry.recipeId);
+    factory.startedTick = entry.startedTick;
+    factory.replanTick = entry.replanTick;
+    restoreStacks(factory.input, entry.input);
+    restoreStacks(factory.output, entry.output);
+    world.factories.set(id, factory);
   }
 
   restoreStacks(world.inventory, saved.inventory);

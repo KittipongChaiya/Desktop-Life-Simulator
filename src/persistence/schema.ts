@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -139,6 +139,33 @@ export interface SaveBuilding {
 export interface SaveBuildingStorage {
   readonly building: number;
   readonly stacks: readonly SaveStack[];
+}
+
+/**
+ * A factory's production state, keyed by building id (v11, ADR-035 §2).
+ *
+ * TWO containers, kept apart for the reason the live model keeps them apart:
+ * with one, a mill's own flour would be indistinguishable from undelivered
+ * wheat and the next craft would eat its own output.
+ *
+ * `replanTick` is persisted for the same reason `SaveWorker` persists its own —
+ * ADR-015 §6, the authoritative set is what CONTINUING IDENTICALLY needs, not
+ * what looks interesting. A factory restored with its back-off cleared would
+ * re-examine on a tick the live one would have skipped, and that is a
+ * divergence however harmless it looks.
+ *
+ * `startedTick` is the whole of a craft's progress (ADR-035 §3): completion is
+ * `startedTick + craftTicks`, derived, never stored.
+ */
+export interface SaveFactory {
+  readonly building: number;
+  /** The chosen recipe, or null. Never inferred from the input (ADR-035 §5). */
+  readonly recipeId: string | null;
+  /** Tick the running craft began, or null when nothing is running. */
+  readonly startedTick: number | null;
+  readonly input: readonly SaveStack[];
+  readonly output: readonly SaveStack[];
+  readonly replanTick: number;
 }
 
 export interface SaveEconomy {
@@ -254,6 +281,8 @@ export interface SaveWorld {
   readonly buildings: readonly SaveBuilding[];
   /** Sorted by building id. */
   readonly buildingStorage: readonly SaveBuildingStorage[];
+  /** Factory production state, sorted by building id (v11, ADR-035). */
+  readonly factories: readonly SaveFactory[];
   /** The player inventory's stacks, in container order (order is state). */
   readonly inventory: readonly SaveStack[];
   readonly wallet: { readonly coins: number };

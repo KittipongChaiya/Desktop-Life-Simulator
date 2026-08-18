@@ -18,6 +18,7 @@
 import type { Migration } from '../migrate';
 
 import { v1ToV2 } from './v1-to-v2';
+import { v10ToV11 } from './v10-to-v11';
 import { v2ToV3 } from './v2-to-v3';
 import { v3ToV4 } from './v3-to-v4';
 import { v4ToV5 } from './v4-to-v5';
@@ -47,4 +48,7 @@ export const MIGRATIONS: readonly Migration[] = [
   // Phase-22: offer ids re-key for the four-slot board; quest watermarks and
   // per-requester counters appear, empty (ADR-034).
   v9ToV10,
+  // Phase-25: factories arrive, empty — a v10 world had no building a recipe
+  // could name (ADR-035).
+  v10ToV11,
 ];

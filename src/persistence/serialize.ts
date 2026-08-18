@@ -29,6 +29,7 @@ import {
   SAVE_MAGIC,
   type SaveBuilding,
   type SaveBuildingStorage,
+  type SaveFactory,
   type SaveCrop,
   type SaveDocument,
   type SaveMeta,
@@ -121,6 +122,19 @@ export function toSaveDocument(
     .sort(([a], [b]) => a - b)
     .map(([id, container]) => ({ building: id, stacks: stacksOf(container) }));
 
+  // Sorted by building id — the same rule every other keyed collection here
+  // follows, and what keeps the bytes stable across runs (`SAVE_FORMAT.md` §3.2).
+  const factories: SaveFactory[] = [...world.factories.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([id, factory]) => ({
+      building: id,
+      recipeId: factory.recipeId,
+      startedTick: factory.startedTick,
+      input: stacksOf(factory.input),
+      output: stacksOf(factory.output),
+      replanTick: factory.replanTick,
+    }));
+
   const allocator = world.ids.getState();
 
   return {
@@ -167,6 +181,7 @@ export function toSaveDocument(
       workers,
       buildings,
       buildingStorage,
+      factories,
       inventory: stacksOf(world.inventory),
       wallet: { coins: world.wallet.coins },
       economy: {
