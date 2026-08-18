@@ -636,3 +636,57 @@ measurements is reporting a selection.
 The renderer, and the running app. This is `process`-side only. Phase 29 owns
 the combined figure against ADR-003 §2, and phase 30's RC gate set measures the
 app.
+
+---
+
+## 17. Phase-29 measurement — the v0.4 tick against ADR-003 §2's trigger
+
+**This is the measurement that decided phase 29.** ADR-003 §2 pre-committed the
+condition for moving the simulation off the main thread, and `PLAN.md` §5.1
+sequenced the phase last in v0.4 so the version's own load would exist to test
+it against.
+
+`docs/perf/phase-29-v04-tick.json`, taken in the **running app**, on a save the
+game could genuinely have written: 36 crops, 6 hands, 13 buildings, a
+three-step chain with **both links routed**, a forager working the wilds, a
+hand away on an expedition, contracts on the docket. Expanded, every motion
+class on, the debug overlay open — criterion 12's presentation load.
+
+| Statistic | Measured     | Trigger  |
+| --------- | ------------ | -------- |
+| p50       | 0.200 ms     | —        |
+| p95       | 0.300 ms     | —        |
+| **p99**   | **0.400 ms** | **3 ms** |
+| mean      | 0.187 ms     | —        |
+| max       | 6.900 ms     | —        |
+| samples   | 1,272        | > 500    |
+| FPS       | 93.1         | —        |
+
+**PASS, and the trigger is NOT MET** — the p99 is roughly seven times inside
+it. The second clause, _tick execution measurably delaying frame
+presentation_, is not met either: the renderer held 93 FPS with the simulation
+ticking at 20 Hz on the same thread.
+
+### The 6.9 ms max, stated rather than buried
+
+One sample in 1,272 crossed the budget by more than double. The p95 and p99 sit
+at 0.3 and 0.4 ms, so the distribution is not approaching the ceiling from
+below — it has one outlier a long way from the body, which is what a
+garbage-collection pause looks like rather than a tick that does more work. The
+trigger is written on the p99 for exactly this reason.
+
+It is worth re-reading at the RC, and FPS is measured alongside for the same
+reason: if the outliers ever became a pattern, the frame-presentation clause is
+the one that would catch them.
+
+### Two runs, taken either side of the phase's own change
+
+| Run                        | p50 | p95 | p99     | max | FPS  |
+| -------------------------- | --- | --- | ------- | --- | ---- |
+| Before the boundary change | 0.2 | 0.3 | 0.5     | 7.0 | 94.0 |
+| After (shipped code)       | 0.2 | 0.3 | **0.4** | 6.9 | 93.1 |
+
+The difference is run-to-run variance, not an improvement — moving two reads
+from the live world to the snapshot removes two property lookups per frame,
+which is not measurable and was never claimed to be. Both are recorded so the
+number is a range rather than a single flattering sample.

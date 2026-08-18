@@ -52,6 +52,19 @@ export interface TimeView {
    * ADR-022 §6's amendment and the phase doc; presentation reads slices.
    */
   readonly weather: string | undefined;
+  /**
+   * Whether the current weather kind puts water on the ground. Phase-29.
+   *
+   * A BOOLEAN beside the id it is derived from, and the pair is deliberate:
+   * `weather` is the identity a future consumer may want to branch on, and
+   * this is the one question the renderer actually asks. Deriving it there
+   * would mean the renderer holding the weather registry to look up
+   * `rainfall`, which is a live simulation read for a fact the slice can
+   * simply carry (ADR-039 §4).
+   *
+   * It costs no republish: it can only change when `weather` does.
+   */
+  readonly raining: boolean;
 }
 
 /**
@@ -79,16 +92,19 @@ export function projectTime(source: TimeProjectionSource): TimeView {
 
   const season = seasonFor(day, source.daysPerSeason, source.seasons);
 
+  const kind = weatherFor(
+    source.seed,
+    weatherPeriodFor(source.tick, source.ticksPerWeatherPeriod),
+    season,
+    source.weatherKindRegistry.all(),
+  );
+
   return {
     day,
     phase: phaseFor(source.tick, source.ticksPerDay),
     season,
-    weather: weatherFor(
-      source.seed,
-      weatherPeriodFor(source.tick, source.ticksPerWeatherPeriod),
-      season,
-      source.weatherKindRegistry.all(),
-    )?.id,
+    weather: kind?.id,
+    raining: (kind?.rainfall ?? 0) > 0,
   };
 }
 
@@ -101,5 +117,9 @@ export function projectTime(source: TimeProjectionSource): TimeView {
  * this comparison should silently depend on.
  */
 export function timeEquals(a: TimeView, b: TimeView): boolean {
+  // `raining` is deliberately absent: it is a function of `weather`, so it
+  // cannot change without that changing, and comparing it would be comparing
+  // the same fact twice. If a weather kind's rainfall ever became mutable this
+  // would be wrong — and rainfall is content, which is frozen at startup.
   return a.day === b.day && a.phase === b.phase && a.season === b.season && a.weather === b.weather;
 }

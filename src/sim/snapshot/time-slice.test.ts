@@ -56,7 +56,15 @@ describe('projecting the calendar', () => {
         seasons: YEAR,
         ...NO_WEATHER,
       }),
-    ).toEqual({ day: 0, phase: DayPhase.Dawn, season: 'core:spring', weather: undefined });
+    ).toEqual({
+      day: 0,
+      phase: DayPhase.Dawn,
+      season: 'core:spring',
+      weather: undefined,
+      // Phase-29: a boolean beside the id it derives from, so the renderer
+      // stops holding the weather registry to ask one question (ADR-039 §4).
+      raining: false,
+    });
   });
 
   it('counts days from the world start, not from one', () => {
@@ -104,7 +112,11 @@ describe('projecting the calendar', () => {
     });
 
     expect(DAY_PHASES).toContain(view.phase);
-    expect(Object.keys(view).sort()).toEqual(['day', 'phase', 'season', 'weather']);
+    // The whole field set, pinned. A slice that quietly grows a field grows the
+    // republish surface with it — so an addition has to be a deliberate edit
+    // here, with a reason. Phase-29 added `raining` (ADR-039 §4), which costs
+    // no republish because it can only change when `weather` does.
+    expect(Object.keys(view).sort()).toEqual(['day', 'phase', 'raining', 'season', 'weather']);
   });
 });
 

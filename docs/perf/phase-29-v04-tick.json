@@ -1,0 +1,16 @@
+{
+  "scenario": "v0.4 full load — chain routed, forager, expedition out, contracts accepted",
+  "workers": 6,
+  "crops": 36,
+  "buildings": 13,
+  "routes": 2,
+  "expeditions": 1,
+  "workedWildTiles": 19,
+  "p50Ms": 0.2,
+  "p95Ms": 0.3,
+  "p99Ms": 0.4,
+  "avgMs": 0.187,
+  "maxMs": 6.9,
+  "samples": 1272,
+  "fps": 93.1
+}

@@ -34,9 +34,7 @@ import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
 import { seasonTint } from '../../sim/content/seasons';
 import { CORE_GRASS } from '../../sim/content/tile-kinds';
-import { isRaining } from '../../sim/content/weather-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
-import type { World } from '../../sim/world/world';
 
 import { createAmbientPresence, type AmbientPresence } from './ambient-presence';
 import { bindAnimationLease, type AnimationLease } from './animation-lease';
@@ -76,6 +74,7 @@ import { createWildNodeRenderer, type WildNodeRenderer } from './wild-node-view'
 import { planWildNodes } from './wild-nodes';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
 import type { WorldDebug } from './world-debug';
+import type { WorldRenderSource } from './world-source';
 
 export interface WorldView {
   readonly gate: DirtyGate;
@@ -172,7 +171,17 @@ export interface WorldView {
 
 export interface WorldViewOptions {
   readonly canvas: HTMLCanvasElement;
-  readonly world: World;
+  /**
+   * Everything the renderer may read from the simulation, NAMED (ADR-039 §3).
+   *
+   * This was `World` — the entire simulation — until phase 29, which means
+   * "what does the renderer depend on?" had no answer shorter than reading
+   * every line of this file. `World` still satisfies the interface
+   * structurally, so no call site changed; what changed is that a
+   * twenty-first direct read now has to widen a named interface with a reason,
+   * rather than reaching through an object that offers everything.
+   */
+  readonly world: WorldRenderSource;
   readonly width: number;
   readonly height: number;
   readonly resolution: number;
@@ -658,7 +667,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Decor is static until the plot grows, so it is re-planned only when
       // the expansion counter moves — never per frame. A tile that becomes
       // the player's loses its tree.
-      const expansions = options.world.economy.expansionsPurchased;
+      // From the SLICE too, for the same reason — the economy slice has
+      // carried this since phase-06d and the renderer was reading the live
+      // value for no reason at all.
+      const expansions = options.world.snapshots.economy.value.expansionsPurchased;
       if (expansions !== decorOwnedRevision) {
         decorOwnedRevision = expansions;
         replanDecor();
@@ -681,7 +693,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Rain asks the SAME presence answer, so it can never outlive the
       // conditions that permit it (ADR-022 §6). Whether it is raining is
       // simulation state, read from the slice like every other view.
-      rain.update(isRaining(options.world), ambient, ambientNow);
+      // From the SLICE, not from the live world (ADR-039 §4). `isRaining`
+      // needs the weather registry and the tick; the time slice already
+      // carries the answer and republishes only on a weather boundary.
+      rain.update(options.world.snapshots.time.value.raining, ambient, ambientNow);
 
       // Effects animate in REAL time, not simulation time: they acknowledge
       // an event to a person, so they must not stretch when the sim is
