@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                                     |
 | ------------------- | ----------------------------------- |
 | **Current version** | **v0.4 — Automation & Exploration** |
-| **Current phase**   | **29 — Simulation Threading**       |
+| **Current phase**   | **30 — v0.4 Vertical Slice (RC)**   |
 | **Status**          | **IN_PROGRESS**                     |
 
 | Phase | Name                     | Status      |
@@ -28,24 +28,27 @@ owner's memory (`AI_RULES.md` §10.4).
 | 26    | Logistics & Reservation  | COMPLETE    |
 | 27    | The Wilds & Resources    | COMPLETE    |
 | 28    | World Map & Expeditions  | COMPLETE    |
-| 29    | Simulation Threading     | IN_PROGRESS |
-| 30    | v0.4 Vertical Slice (RC) | PENDING     |
+| 29    | Simulation Threading     | COMPLETE    |
+| 30    | v0.4 Vertical Slice (RC) | IN_PROGRESS |
 
-**Phases 27 and 28 — COMPLETE.** `docs/phases/phase-27-the-wilds.md` and
-`docs/phases/phase-28-expeditions.md` are the records. All six of §5's v0.4
-milestones have now shipped.
+**Phases 24–29 — COMPLETE.** Each has its record in `docs/phases/`. All six of
+§5's v0.4 milestones have shipped, and phase 29's conditional resolved:
+**ADR-003 §2's threading trigger is NOT met** — p99 **0.4 ms** against 3 ms,
+measured in the running app under full v0.4 load, at 93 FPS
+(`PERFORMANCE.md` §17, `docs/perf/phase-29-v04-tick.json`). The simulation
+stays on the main thread and the trigger stands unchanged for v0.5.
 
-**Phase 29 progress** (resume here):
+**Phase 30 progress** (resume here):
 
-- The phase is CONDITIONAL on ADR-003 §2's trigger, and the number is now
-  taken: **p99 0.53 ms** under a real v0.4 farm (`PERFORMANCE.md` §16), against
-  a 3 ms trigger. **NOT MET** — headless. The first job is the same measurement
-  in the RUNNING APP, which is what the trigger is actually about, and the RC
-  records the number either way.
-- NEXT — ADR-039, then the half worth doing regardless: severing the
-  renderer's direct `world` reference. `world-view.ts` reads `options.world`
-  for the seed, the tile grid, the registries and the snapshots; only the last
-  is the sanctioned boundary (ADR-005 §2).
+- NEXT — the RC. §8's full gate set re-run FRESH rather than cited (the v0.3
+  lesson, applied at phase 24 and due again at the version boundary): the three
+  typechecks, lint, the unit suite, coverage against its thresholds, the e2e
+  suite, a runtime startup check, the memory soak, the full migration chain
+  against every golden fixture, asset validation, and the §5 success criteria
+  reported with evidence.
+- Then `RELEASE-v0.4-RC.md`, on the shape of `RELEASE-v0.3-RC.md`.
+- **The version does not bump.** ADR-028's signing tripwire holds `0.4.0`
+  hostage to the owner's certificate, exactly as it held `0.3.0`.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
