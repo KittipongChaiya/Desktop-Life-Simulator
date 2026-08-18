@@ -248,6 +248,14 @@ test('the v0.4 tick against ADR-003 §2, in the running app', async () => {
     maxMs: await metricNumber('Tick max'),
     samples: await metricNumber('Tick samples'),
     fps: await metricNumber('FPS'),
+    // v0.4 criterion 3 — "entity and building counts stay within budget".
+    // Read from the same overlay, in the same run, so the tick figure and the
+    // scene it was measured against are one measurement rather than two.
+    visibleSprites: await metricNumber('Visible sprites'),
+    liveWorkers: await metricNumber('Workers'),
+    liveCrops: await metricNumber('Crops'),
+    liveBuildings: await metricNumber('Buildings'),
+    containers: await metricNumber('Containers'),
   };
   report('phase-29-v04-tick', measured);
 
@@ -257,6 +265,15 @@ test('the v0.4 tick against ADR-003 §2, in the running app', async () => {
   // does not run; it failing means the worker migration is due, and either
   // outcome is the phase's deliverable.
   expect(measured.p99Ms).toBeLessThan(3);
+
+  // v0.4 criterion 3. `PERFORMANCE.md` §65's draw-call ceiling is written on
+  // BATCHES rather than sprites, and sprites are what the overlay exposes —
+  // so this is asserted against the scene-graph ceiling the decor system's own
+  // `MAX_DECOR` reasoning uses: a few hundred is a batch, thousands is a
+  // rewrite. The wilds alone add ~276 static nodes, which is the number this
+  // criterion existed to catch.
+  expect(measured.visibleSprites).toBeGreaterThan(0);
+  expect(measured.visibleSprites).toBeLessThan(2_000);
 });
 
 test.afterEach(async () => {

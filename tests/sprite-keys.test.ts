@@ -27,7 +27,7 @@
  * would make the cheapest possible check the most expensive one to run.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -36,6 +36,17 @@ import { createInstalledRegistries } from '../src/sim/content/installed';
 import { TILLED_SPRITE, WILD_SPRITE } from '../src/sim/content/tile-kinds';
 
 const ATLAS_DIR = join(__dirname, '..', 'assets', 'dist');
+
+/** Every `.ts`/`.tsx` file under a directory, recursively. */
+function sourceFiles(root: string): readonly string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(root)) {
+    const path = join(root, entry);
+    if (statSync(path).isDirectory()) found.push(...sourceFiles(path));
+    else if (/\.tsx?$/.test(entry)) found.push(path);
+  }
+  return found;
+}
 
 /** Frame names an atlas sheet declares, without the `.png` suffix. */
 function framesOf(atlas: string): ReadonlySet<string> {
@@ -124,6 +135,37 @@ describe('every declared sprite key names art that exists', () => {
     const missing = [TILLED_SPRITE, WILD_SPRITE].filter((sprite) => !resolves(sprite));
 
     expect(missing, 'these overrides would draw nothing at all').toEqual([]);
+  });
+
+  it('for every sprite key WRITTEN ANYWHERE in the source', () => {
+    // THE ONE THAT DOES NOT NEED WIDENING. Every check above enumerates a
+    // registry, which is why this file existed at phase 25 and still missed
+    // phase 27's invisible wilds: the resource-node registry was new, and a
+    // gate that lists what it knows about cannot know about the next thing.
+    //
+    // This one scans the SOURCE for anything shaped like a sprite key and
+    // resolves it. It covers the registries, the two render-time overrides,
+    // decor's prop table, the sway set, and any key a future view hardcodes —
+    // without anybody remembering to add a case.
+    const pattern = /'(?:buildings|terrain|ui-world|characters|crops):[a-z_0-9]+'/g;
+    const keys = new Set<string>();
+    for (const file of sourceFiles(join(__dirname, '..', 'src'))) {
+      for (const match of readFileSync(file, 'utf8').matchAll(pattern)) {
+        keys.add(match[0].replaceAll("'", ''));
+      }
+    }
+    for (const file of sourceFiles(join(__dirname, '..', 'plugins'))) {
+      for (const match of readFileSync(file, 'utf8').matchAll(pattern)) {
+        keys.add(match[0].replaceAll("'", ''));
+      }
+    }
+
+    // The scan finding nothing would pass vacuously, which is the failure mode
+    // a source-reading test has and a registry-reading one does not.
+    expect(keys.size, 'the scan found no sprite keys at all').toBeGreaterThan(40);
+
+    const missing = [...keys].filter((key) => !resolves(key)).sort();
+    expect(missing, 'these keys are written in the source and draw nothing').toEqual([]);
   });
 
   it('catches a key naming art that does not exist', () => {
