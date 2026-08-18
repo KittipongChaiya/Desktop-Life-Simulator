@@ -56,7 +56,7 @@ Write the concrete thing. Abstract on the **third** occurrence, not the first, a
 
 Forbidden without a written justification: generic base classes with one subclass, interfaces with one implementation, factories that construct one type, configuration for values that have never varied, "manager" and "helper" classes that only forward calls.
 
-The extension points that *are* permitted in advance are enumerated in `VISION.md` §4.2. That table is exhaustive.
+The extension points that _are_ permitted in advance are enumerated in `VISION.md` §4.2. That table is exhaustive.
 
 ### Rule 6 — No dead code, no placeholders
 
@@ -108,7 +108,7 @@ Validate everything crossing into the app: save file contents, IPC payloads, plu
 
 ### 3.1 Every phase must compile and run independently
 
-At the end of each phase the application builds, launches, and does something demonstrable. No phase may leave the tree in a state that requires the *next* phase to be runnable.
+At the end of each phase the application builds, launches, and does something demonstrable. No phase may leave the tree in a state that requires the _next_ phase to be runnable.
 
 ### 3.2 Respect phase scope
 
@@ -204,17 +204,42 @@ A change is complete only when **all** of these are true:
 
 ## 7. When to Stop and Ask
 
-Stop and ask rather than deciding unilaterally when:
+**Default: decide and proceed.** This project's failure mode has never been an
+AI that decided too much; it has been an AI that stopped mid-objective and made
+the owner act as project manager for routine engineering.
 
-- The requirement conflicts with an existing ADR
-- The change would break save compatibility
-- The change would exceed a performance budget
-- The requirement is out of the current phase's scope
-- Implementing it well requires rewriting a working system
-- You have attempted a fix twice without understanding the root cause
-- The requirement is ambiguous in a way that changes the design
+Stop and ask ONLY when the decision genuinely belongs to the owner:
 
-Asking costs one message. Guessing wrong costs a phase.
+- Money — purchases, subscriptions, certificates
+- Accounts, credentials, or external service ownership
+- Publishing under the owner's identity
+- Legal decisions
+- Irreversible deletion of the owner's data
+- A genuine conflict in product direction
+- Scope expansion beyond the assigned version
+- A requirement that is impossible as stated
+
+Everything else is yours. In particular, **these are no longer reasons to
+ask** — they are reasons to act:
+
+| Situation                             | Do this                                                                                 |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| The requirement conflicts with an ADR | Write a superseding ADR and proceed (§9 LEVEL 8)                                        |
+| A test exposes a bug                  | Fix the bug, do not merely report it                                                    |
+| An asset is missing                   | Create it through the project's pipeline                                                |
+| A fix failed twice                    | Inspect deeper — git history, the ADR, the actual constraint — then revise the approach |
+| The next phase is ready               | Start it                                                                                |
+
+Two rules from earlier versions survive unchanged, because they protect the
+one thing that cannot be undone:
+
+- **Never break save compatibility** without a migration link and its golden
+  fixture. That is not a decision to make quickly.
+- **Never exceed a performance budget silently.** Measure, record, and if the
+  budget genuinely cannot hold, that is a finding to surface — with numbers.
+
+Asking costs one message. Asking about something you could have decided costs
+the owner their attention, which is the scarcer resource.
 
 ---
 
@@ -222,18 +247,18 @@ Asking costs one message. Guessing wrong costs a phase.
 
 Named explicitly because they recur, and recognizing one in your own output is the cheapest possible intervention.
 
-| Anti-pattern | What it looks like | Do this instead |
-|---|---|---|
-| **Scope inflation** | "While implementing farming I also refactored the tile store" | One change. Note the rest. |
-| **Speculative generality** | An `IGrowthStrategy` interface with one crop type | A `growCrop` function |
-| **Confident hallucination** | Calling an API that does not exist in the installed version | Read the actual types before using a library |
-| **Silent divergence** | Ignoring an ADR because a different approach seemed better | Write a superseding ADR |
-| **Unverified completion** | "All tests pass" without running them | Run them; paste the output |
-| **Placeholder creep** | `// TODO: implement pathfinding` merged to main | Don't merge it |
-| **Test-fitting** | Changing the test until it passes | Fix the code; change the test only if it asserted the wrong thing |
-| **Doc drift** | Code changed, doc didn't | Same commit, always |
-| **Re-deciding** | Re-debating rendering choice in a later phase | The ADR decided it. Read it. |
-| **Boundary erosion** | One "harmless" `pixi.js` import in `src/sim/` | The linter will reject it. So should you. |
+| Anti-pattern                | What it looks like                                            | Do this instead                                                   |
+| --------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Scope inflation**         | "While implementing farming I also refactored the tile store" | One change. Note the rest.                                        |
+| **Speculative generality**  | An `IGrowthStrategy` interface with one crop type             | A `growCrop` function                                             |
+| **Confident hallucination** | Calling an API that does not exist in the installed version   | Read the actual types before using a library                      |
+| **Silent divergence**       | Ignoring an ADR because a different approach seemed better    | Write a superseding ADR                                           |
+| **Unverified completion**   | "All tests pass" without running them                         | Run them; paste the output                                        |
+| **Placeholder creep**       | `// TODO: implement pathfinding` merged to main               | Don't merge it                                                    |
+| **Test-fitting**            | Changing the test until it passes                             | Fix the code; change the test only if it asserted the wrong thing |
+| **Doc drift**               | Code changed, doc didn't                                      | Same commit, always                                               |
+| **Re-deciding**             | Re-debating rendering choice in a later phase                 | The ADR decided it. Read it.                                      |
+| **Boundary erosion**        | One "harmless" `pixi.js` import in `src/sim/`                 | The linter will reject it. So should you.                         |
 
 ---
 
@@ -249,3 +274,85 @@ When rules conflict, resolve in this order:
 6. **Style and convention** (`CODE_STYLE.md`)
 
 Speed of delivery is not on this list. It is never a reason to violate anything on it.
+
+### 9.1 Decision hierarchy
+
+When an engineering decision is open, resolve it in this order and stop at the
+first level that answers:
+
+1. An existing working implementation — match it
+2. The existing architecture
+3. An existing ADR
+4. The game design (`GAME_DESIGN.md`)
+5. Project conventions (`CODE_STYLE.md`, `PROJECT_STRUCTURE.md`)
+6. Established engineering practice
+7. The smallest safe implementation
+8. **Write a new ADR** when the decision is architecturally significant
+
+Only after all eight fail does the decision belong to the owner (§7).
+
+---
+
+## 10. Autonomous Execution
+
+### 10.1 The objective is the unit of work, not the phase
+
+An assigned version means the whole version. "Finish v0.4" means inspect the
+state, find the first incomplete phase, and continue to the release candidate —
+not implement the next phase and report back.
+
+**Phase completion means CONTINUE. Version completion means STOP.**
+
+Do not ask "shall I start phase N+1?" Read `PLAN.md`, read the phase's ADRs,
+and begin.
+
+### 10.2 The loop
+
+```
+INSPECT → PLAN → IMPLEMENT → TEST → DIAGNOSE → FIX → REGRESSION
+  → DOCUMENT → COMMIT → VERIFY → MARK COMPLETE → NEXT PHASE
+```
+
+### 10.3 A failure is not a stopping point
+
+`FAIL → INVESTIGATE → FIX → VERIFY → CONTINUE.` Read the failure, find the root
+cause, decide whether it is the implementation, the test, the documentation or
+an invalid assumption, and fix _that_. Reporting "test X failed" and halting is
+not a result.
+
+Do not apply repeated speculative fixes. If the same failure survives two
+attempts, stop patching and go read: the ADR, the git history, the actual
+constraint.
+
+### 10.4 The repository remembers, not the conversation
+
+A session can end at any moment — context exhaustion is the normal case, not
+the exception. `PLAN.md` §0 therefore carries the current version, the current
+phase, and every phase's status, and `tests/plan-state.test.ts` fails if that
+block goes stale. The next session must be able to resume from the repository
+alone, without the owner explaining anything.
+
+This is what makes §10.1 survivable rather than aspirational.
+
+### 10.5 Definition of done
+
+A **phase** is complete when: implementation is done, tests exist and pass,
+regressions pass, runtime behaviour is verified where the phase requires it,
+performance and save compatibility are measured where required, documentation
+is updated, and the phase is explicitly marked COMPLETE in `PLAN.md` §0.
+
+A **version** is complete when every mandatory phase is, and the release
+candidate has run the full gate set with each gate reported as one of
+**PASS / BLOCKED / DEFERRED / UNTESTED**. Never convert UNTESTED into PASS.
+
+### 10.6 Conditional phases are decided by measurement
+
+A phase marked conditional is implemented only if its documented trigger fires.
+Measure it, record the number, and either implement or formally defer. The
+release report carries the measurement either way — never the expectation.
+
+### 10.7 Blockers do not stop the version
+
+An external blocker (a certificate, a GPU, a published release) blocks its own
+item and nothing else. Mark it BLOCKED, complete everything that does not
+depend on it, and record it in `PLAN.md` §0.

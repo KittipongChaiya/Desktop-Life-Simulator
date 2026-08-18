@@ -8,6 +8,48 @@
 
 ---
 
+## 0. Current State
+
+**Machine-checked.** `tests/plan-state.test.ts` fails if this block goes stale
+or disagrees with the phase table in §5.1. It exists because a session can end
+at any moment and the next one must resume from the repository, not from the
+owner's memory (`AI_RULES.md` §10.4).
+
+|                     |                                     |
+| ------------------- | ----------------------------------- |
+| **Current version** | **v0.4 — Automation & Exploration** |
+| **Current phase**   | **27 — The Wilds & Resources**      |
+| **Status**          | **IN_PROGRESS**                     |
+
+| Phase | Name                     | Status      |
+| ----- | ------------------------ | ----------- |
+| 24    | v0.4 Baseline            | COMPLETE    |
+| 25    | Recipes & Factories      | COMPLETE    |
+| 26    | Logistics & Reservation  | COMPLETE    |
+| 27    | The Wilds & Resources    | IN_PROGRESS |
+| 28    | World Map & Expeditions  | PENDING     |
+| 29    | Simulation Threading     | CONDITIONAL |
+| 30    | v0.4 Vertical Slice (RC) | PENDING     |
+
+**Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
+
+- **Code signing** — BLOCKED on the owner's certificate purchase. Holds the
+  `0.4.0` version bump and publication, nothing else.
+- **Three update-behaviour tests** — BLOCKED behind a published release.
+- **Three GPU render criteria** — BLOCKED on hardware with a real adapter.
+- **`item_flour.png` / `item_bread.png`** — missing art; the HUD degrades to a
+  blank icon slot. On the §8 no-placeholders gate.
+
+**Deferred, with reasons recorded:**
+
+- **Offline hauling** — a chain's buffers are credited across a gap, the chain
+  itself is not. Under-credits deliberately (`GAME_DESIGN.md` §9.2); makes §5
+  criterion 4 PARTIAL rather than PASS. See `catch-up.ts`.
+- **Phase 29** is CONDITIONAL on ADR-003 §2's trigger (p99 tick > 3 ms).
+  Last measured **0.2 ms** at phase 24 — not re-measured under logistics load.
+
+---
+
 ## 1. Version Roadmap
 
 | Version  | Theme                    | Ships                                                 |
