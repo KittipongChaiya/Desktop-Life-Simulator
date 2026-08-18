@@ -18,6 +18,9 @@ import {
   validateSendExpedition,
 } from '../src/sim/commands/expedition-commands';
 import { catchUpWorld } from '../src/persistence/catch-up';
+import { hydrateWorld } from '../src/persistence/deserialize';
+import type { SaveDocument } from '../src/persistence/schema';
+import { serializeSave, toSaveDocument } from '../src/persistence/serialize';
 import { placeBuilding } from '../src/sim/commands/building-commands';
 import { plantCrop, tillTile } from '../src/sim/commands/crop-commands';
 import { hireWorker } from '../src/sim/commands/worker-commands';
@@ -399,5 +402,83 @@ describe('a hand who is away does no farm work while they are gone', () => {
     stepSimulationBy(world, 2);
 
     expect(world.expeditions.size).toBe(0);
+  });
+});
+
+describe('a save that disagrees with itself about who is away', () => {
+  /** Round-trips a world through serialize → parse → hydrate. */
+  function reload(world: World): World {
+    const document = JSON.parse(
+      serializeSave(
+        toSaveDocument(world, {
+          gameVersion: '0.4.0',
+          createdAtUnixMs: 1_753_000_000_000,
+          savedAtUnixMs: 1_753_000_000_000,
+          playtimeTicks: world.tick,
+          saveCount: 1,
+        }),
+      ),
+    ) as SaveDocument;
+    return hydrateWorld(document);
+  }
+
+  it('gives back a hand marked Away with no trip behind them', () => {
+    // THE ONE THAT COSTS THE PLAYER SOMETHING REAL. The FSM skips an away
+    // worker by design and only `expeditionSystem` brings one back, so an
+    // orphaned Away worker is a hand the player PAID FOR that can never work
+    // again — with nothing on screen to explain it.
+    const world = farm(1);
+    const worker = firstWorker(world);
+    sendExpedition(world, worker.id, CORE_RIVER_DELTA);
+    world.expeditions.clear(); // the corruption: state without its record
+
+    const loaded = reload(world);
+
+    const restored = [...loaded.workers.values()][0]!;
+    expect(restored.state).not.toBe(WorkerState.Away);
+    expect(loaded.expeditions.size).toBe(0);
+  });
+
+  it('puts a hand back on the trip their record says they are on', () => {
+    // The other direction: one worker farming on the grid AND listed as
+    // travelling, counted twice by the hire price. The trip is honoured
+    // because the supplies were already spent — completing it restores what
+    // was paid for rather than inventing value.
+    const world = farm(1);
+    const worker = firstWorker(world);
+    sendExpedition(world, worker.id, CORE_RIVER_DELTA);
+    worker.state = WorkerState.Idle; // the corruption: record without state
+
+    const loaded = reload(world);
+
+    expect([...loaded.workers.values()][0]!.state).toBe(WorkerState.Away);
+    expect(loaded.expeditions.size).toBe(1);
+  });
+
+  it('drops a trip naming nobody', () => {
+    const world = farm(1);
+    const worker = firstWorker(world);
+    sendExpedition(world, worker.id, CORE_RIVER_DELTA);
+    world.workers.delete(worker.id);
+
+    expect(reload(world).expeditions.size).toBe(0);
+  });
+
+  it('brings home a hand whose departure is in the future', () => {
+    // A departed tick past `world.tick` would never satisfy the return
+    // comparison in a way that means anything, so it is treated as now — the
+    // hand comes home on schedule rather than never.
+    const world = farm(1);
+    const worker = firstWorker(world);
+    sendExpedition(world, worker.id, CORE_RIVER_DELTA);
+    world.expeditions.set(worker.id, {
+      worker: worker.id,
+      destination: CORE_RIVER_DELTA,
+      departedTick: world.tick + 1_000_000,
+    });
+
+    const loaded = reload(world);
+
+    expect(loaded.expeditions.get(worker.id)?.departedTick).toBeLessThanOrEqual(loaded.tick);
   });
 });

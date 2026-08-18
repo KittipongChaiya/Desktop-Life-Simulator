@@ -29,8 +29,10 @@ import { setBlocked } from '../sim/world/tile-grid';
 import { foundTown } from '../sim/world/town';
 import {
   WORKER_CARRY_CAPACITY,
+  // A VALUE import: `reconcileExpeditions` compares against and assigns the
+  // enum members, not just their type.
+  WorkerState,
   type Worker,
-  type WorkerState,
   type WorkerTask,
   type WorkerTaskKind,
 } from '../sim/world/worker';
@@ -38,6 +40,54 @@ import { createWorld, type World, type WorldOptions } from '../sim/world/world';
 
 import { decodeBytes, decodeUint32 } from './base64';
 import type { SaveDocument, SaveStack } from './schema';
+
+/**
+ * Repairs the one cross-field invariant expeditions introduce:
+ * **a worker is `Away` if and only if a trip names them.**
+ *
+ * Both halves are written together by `serialize`, so a document breaking this
+ * is corrupt rather than old. `SAVE_FORMAT.md` §5.3's doctrine is that the
+ * loader REPAIRS rather than trusts, and an earlier version of this code said
+ * "there is nothing to reconcile here" — which was wrong in a way that costs
+ * the player something real:
+ *
+ * - **`Away` with no trip** strands the hand FOREVER. The FSM skips an away
+ *   worker by design and only `expeditionSystem` brings one back, so a worker
+ *   the player paid for becomes permanently unusable with nothing on screen to
+ *   explain it. They are returned to `Idle`.
+ * - **A trip whose worker is not `Away`** puts one hand in two places: farming
+ *   on the grid, listed as travelling on the map, and counted twice by the
+ *   hire price. The trip is honoured — the supplies were already spent, so
+ *   completing it restores what was paid for rather than inventing value.
+ *
+ * A trip naming a worker who does not exist at all is dropped: there is
+ * nobody to bring home.
+ */
+function reconcileExpeditions(world: World): void {
+  for (const [worker, trip] of [...world.expeditions]) {
+    const traveller = world.workers.get(worker);
+    if (traveller === undefined) {
+      world.expeditions.delete(worker);
+      continue;
+    }
+    if (trip.departedTick > world.tick) {
+      // A departure in the future would never satisfy the return comparison
+      // in a way that means anything. Treat it as now, which brings the hand
+      // home on schedule rather than never.
+      world.expeditions.set(worker, { ...trip, departedTick: world.tick });
+    }
+    traveller.state = WorkerState.Away;
+  }
+
+  for (const worker of world.workers.values()) {
+    if (worker.state === WorkerState.Away && !world.expeditions.has(worker.id)) {
+      worker.state = WorkerState.Idle;
+      worker.task = null;
+      worker.path = [];
+      worker.pathCursor = 0;
+    }
+  }
+}
 
 function restoreStacks(container: Container, stacks: readonly SaveStack[]): void {
   // Verbatim, order preserved — stack order is state (partial-stack top-up
@@ -240,9 +290,8 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
   }
 
   // EXPEDITIONS (v14, ADR-038 §3). Restored after workers, because each names
-  // one — and the worker's `Away` state came back with the worker itself, so
-  // there is nothing to reconcile here. A trip resumes mid-flight for free:
-  // its return is a comparison against `departedTick`, which is on disk.
+  // one. A trip resumes mid-flight for free: its return is a comparison
+  // against `departedTick`, which is on disk.
   for (const trip of saved.expeditions) {
     const worker = asWorkerId(trip.worker);
     world.expeditions.set(worker, {
@@ -251,6 +300,8 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
       departedTick: trip.departedTick,
     });
   }
+
+  reconcileExpeditions(world);
 
   restoreStacks(world.inventory, saved.inventory);
   world.wallet.coins = saved.wallet.coins;
