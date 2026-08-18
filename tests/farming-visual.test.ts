@@ -66,7 +66,16 @@ function spriteCanvas(spriteKey: string): Canvas {
   return decodePng(join(SOURCE_DIR, `${atlas ?? ''}{tps}`, `${frame ?? ''}.png`));
 }
 
-/** The composed frame for one tile: terrain, then the crop standing on it. */
+/**
+ * The composed frame for one tile: terrain, then the crop standing on it.
+ *
+ * Uses `tileSpriteKey` and NOT the renderer's `variantSprite` wrapper on top of
+ * it (phase-33). The gate is deliberately blind to ground variants: which of
+ * three grass faces a square shows is decoration, and pinning it here would
+ * make this fixture fail every time a variant is added while telling nobody
+ * anything about the crop art it exists to protect. The base tile is what it
+ * checks, and the base tile is what half the field draws.
+ */
 function composeFrame(world: World, tile: TileIndex): Canvas {
   const canvas = createCanvas(TILE_SIZE, TILE_SIZE);
   blitScaled(canvas, spriteCanvas(tileSpriteKey(world.tiles, world.tileKinds, tile)), 0, 0, 1);

@@ -435,10 +435,18 @@ export function coreSeasons(): readonly SeasonDefinition[] {
     // ground should read as the same farm in a different month, not as a
     // different biome, and `VISION.md` §2.1 puts this window beside real work
     // for hours at a time.
-    { id: CORE_SPRING, displayName: 'Spring', tint: 0xffffff },
-    { id: CORE_SUMMER, displayName: 'Summer', tint: 0xfff6dd },
-    { id: CORE_AUTUMN, displayName: 'Autumn', tint: 0xffdcae },
-    { id: CORE_WINTER, displayName: 'Winter', tint: 0xdde8ff },
+    //
+    // STRENGTHENED in phase-33 (ADR-041). The four were reviewed on one scene
+    // at 1x and spring and summer were indistinguishable, while autumn and
+    // winter showed only on the path and the stones. A multiply CANNOT shift a
+    // green very far — it removes blue, and grass stays green — so these are
+    // pushed to the edge of what the mechanism can do and no further. Summer is
+    // the reference now, because a multiply cannot brighten and the brightest
+    // season therefore has to be the one that leaves the art alone.
+    { id: CORE_SPRING, displayName: 'Spring', tint: 0xf2fff4 },
+    { id: CORE_SUMMER, displayName: 'Summer', tint: 0xffffff },
+    { id: CORE_AUTUMN, displayName: 'Autumn', tint: 0xffcb80 },
+    { id: CORE_WINTER, displayName: 'Winter', tint: 0xc8d8f5 },
   ];
   return seasons;
 }

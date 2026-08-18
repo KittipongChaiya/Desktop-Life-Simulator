@@ -15,45 +15,101 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                   |
-| ------------------- | --------------------------------- |
-| **Current version** | **v0.5 — The Playable Cut**       |
-| **Current phase**   | **31 — v0.5 Baseline & evidence** |
-| **Status**          | **IN_PROGRESS**                   |
+|                     |                             |
+| ------------------- | --------------------------- |
+| **Current version** | **v0.5 — The Playable Cut** |
+| **Current phase**   | **33 — The Ground**         |
+| **Status**          | **IN_PROGRESS**             |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
-| 31    | v0.5 Baseline & evidence     | IN_PROGRESS |
-| 32    | Audio That Earns Eight Hours | PENDING     |
-| 33    | Zone Painting                | PENDING     |
-| 34    | What Now                     | PENDING     |
-| 35    | First Run                    | PENDING     |
-| 36    | Balance & The Idle Cost      | CONDITIONAL |
-| 37    | v0.5 Release Candidate       | PENDING     |
+| 31    | v0.5 Baseline & evidence     | COMPLETE    |
+| 32    | Art Direction & The Palette  | IN_PROGRESS |
+| 33    | The Ground                   | PENDING     |
+| 34    | Buildings                    | PENDING     |
+| 35    | The Farm                     | PENDING     |
+| 36    | Characters & Small Life      | PENDING     |
+| 37    | Density & The Three Regions  | PENDING     |
+| 38    | The UI Joins The World       | PENDING     |
+| 39    | Motion & Overlay-Scale       | PENDING     |
+| 40    | Audio That Earns Eight Hours | PENDING     |
+| 41    | Zone Painting                | PENDING     |
+| 42    | What Now                     | PENDING     |
+| 43    | First Run                    | PENDING     |
+| 44    | Balance & The Idle Cost      | CONDITIONAL |
+| 45    | v0.5 Release Candidate       | PENDING     |
 
 **v0.4 shipped as a release candidate** on 2026-08-18 — phases 24–30, all six
 milestones, `RELEASE-v0.4-RC.md`. Its gate results live in that document and are
 not repeated here: §0 tracks the CURRENT version, and a §0 that accumulated
 every version's history would stop being a resume block.
 
-**Phase 31 progress** (resume here):
+**Phase 31 — COMPLETE.** ADR-040 fixed the three evidence classes before
+anything was measured; the plan-state guard now follows the current version; and
+the progression arc was timed for the first time in five versions — **stage 4 in
+12 minutes** against a design document claiming 3 hours+. Phase 44 is TRIGGERED
+by that, on the opposite reason to the one it was written for.
 
-- DONE — ADR-040: the three evidence classes, with each of the four criteria
-  pre-assigned to one before any of them was measured.
-- DONE — the plan-state guard follows the current version instead of a
-  hardcoded §5.1.
-- **DONE — the arc is measured, and the finding is the opposite of the fear.**
-  `tests/progression-arc.test.ts` plays the arc perfectly and reaches stage 4
-  in **12 minutes**: hire at 2m, shed 3m, seed bin 9m, market stall 12m.
-  `GAME_DESIGN.md` §1.1 claims 10–30 min for stage 2 and **3 hr+** for stage 4.
-  The criterion's four-hour ceiling passes with enormous room; the arc's SHAPE
-  does not survive contact with the numbers.
-- **PHASE 36 IS THEREFORE TRIGGERED** — not because the game is too slow to
-  reach, but because the early economy collapses roughly 15× faster than the
-  design document says. Code and document disagree and one of them has to move;
-  deciding which is phase 36's, with ADR-044.
-- NEXT — the rest of phase 31: re-run every §8 gate fresh (phase 24's rule at a
-  version boundary), and take criterion 1's idle-cost baseline.
+**THE ART TRACK (32–39) was added mid-version** at the owner's direction: a
+cozy-pixel-art revision of the whole visual identity. ADR-041 governs it. The
+playability track (40–44) is unchanged and still authoritative — the version
+now has two halves serving one goal, which is a game somebody wants to leave
+open.
+
+**Phase 32 — COMPLETE.** The foundation every later art phase draws on:
+
+- The **asset audit**. 170 source assets across 5 families. The finding is that
+  the LOOK IS A CONSEQUENCE OF THE DRAWING VOCABULARY — `pixel-art.mjs` offered
+  `rect`, `ellipse` and `outlineSilhouette`, so every asset is a box or a blob
+  in a uniform keyline, and five buildings share one silhouette.
+- **ADR-041**. Amends exactly one locked rule (R-04 — outlining becomes
+  SELECTIVE), authorises the palette expansion R-08 requires, mandates the new
+  vocabulary, and makes density a checkable Tier 1/2/3 hierarchy.
+- **The palette**, +14 colours by R-08's reviewed process: a warm stone ramp,
+  two more woods, a roof family so the mill and kitchen stop wearing straw,
+  creams, and two flower accents.
+- **`scripts/lib/pixel-craft.mjs`** — the drawing vocabulary. Ordered dither,
+  organic blobs, polygons and lines, five material patterns, selective outline,
+  ramp faces. All R-02 safe and deterministic.
+- **`tests/palette-lock.test.ts`** — R-08 and R-09 as a test rather than a
+  promise. Nothing had ever enforced them, and the first thing it caught was in
+  this phase's own work: two proposed flower colours sat inside the reserved
+  signal set, and were withdrawn.
+- **Three prototypes rendered and reviewed against the old assets**, which cost
+  three iterations and produced the ground rules now in `ART_DIRECTION.md`
+  §9.2 — chiefly that an ordered dither CANNOT texture a 32 px ground tile.
+
+**Phase 33 — The Ground: IN_PROGRESS.** All six terrain tiles rebuilt on the
+new vocabulary, plus the two instruments the rest of the art track needs:
+
+- **`scripts/generate-scene-sheet.mjs`** — composes a real SCENE from shipped
+  art at 1× and 2×, and under all four season tints with `--seasons`. The
+  contact sheet judges one asset at 4×; it cannot answer the two questions this
+  pass is graded on (does Tier 1 survive Tier 3, and does any of it work at
+  overlay size), because both are about assets TOGETHER.
+- **Ground variants.** `grass_b`, `grass_c`, `wild_b`, chosen per tile by
+  `src/renderer/render/tile-variants.ts` — DERIVED from the tile index, never
+  stored, the same argument ADR-009 §1 makes for tilled soil. Keys come from
+  the generated manifest (ADR-006 §4), so a variant that is named but not
+  shipped is a compile error rather than a blank tile.
+
+**What the first reviewed scene changed**, none of which was visible on a
+contact sheet:
+
+- The tilled field averaged into ONE FLAT BROWN SLAB at 1×. The furrows were
+  scattered pixels; they are full-width corduroy now.
+- Wild ground read as orange confetti — straw is nearly a signal against dark
+  green, and there was a highlight on every dry tuft. Cut by half.
+- **Tier separation PASSES**: crops and workers stand clear of the ground
+  texture at 1×, which is the density gate ADR-041 §4 sets.
+- **Seasons were nearly indistinguishable.** Measured, then pushed to the edge
+  of what a multiply tint can do; the structural limit is recorded in
+  `ART_DIRECTION.md` §9.3 along with what it would cost to lift it.
+
+REMAINING in 33: nothing blocking — the phase's open item is whether seasonal
+foliage VARIANTS are worth amending ADR-021 §6 for, which is a decision, not a
+task. Buildings being small and hard to tell apart is phase 34, and the
+reviewed scene is the evidence it starts from.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
@@ -319,23 +375,36 @@ That is what this version is for. **No new simulation system ships in v0.5.**
 
 ### 5A.1 Phases
 
-| #   | Phase                        | Schema | Delivers                                             | Decided by |
-| --- | ---------------------------- | ------ | ---------------------------------------------------- | ---------- |
-| 31  | v0.5 Baseline & evidence     | —      | Every gate fresh; the product baseline; ADR-040      | ADR-040    |
-| 32  | Audio That Earns Eight Hours | —      | Layered synthesis, derived variation, triggered beds | ADR-041    |
-| 33  | Zone Painting                | —      | The map interaction the command has waited for       | ADR-042    |
-| 34  | What Now                     | —      | The objectives surface; ADR-034 §7 amended           | ADR-043    |
-| 35  | First Run                    | v15?   | Onboarding that teaches by playing                   | ADR-043    |
-| 36  | Balance & The Idle Cost      | —      | **CONDITIONAL** on phase 31's measurements           | ADR-044    |
-| 37  | v0.5 Release Candidate       | —      | Every gate, and the four product criteria            | —          |
+Two tracks, one goal. The **art track** (32–39) was added mid-version at the
+owner's direction and is governed by ADR-041; the **playability track** (40–44)
+is the version's original scope and is unchanged.
 
-Two orderings are dictated rather than preferred:
+| #   | Phase                        | Track       | Delivers                                             | Decided by |
+| --- | ---------------------------- | ----------- | ---------------------------------------------------- | ---------- |
+| 31  | v0.5 Baseline & evidence     | —           | Evidence classes; the arc timed for the first time   | ADR-040    |
+| 32  | Art Direction & The Palette  | Art         | The palette, the drawing vocabulary, the rules       | ADR-041    |
+| 33  | The Ground                   | Art         | Grass, soil, wild ground, paths; season and weather  | ADR-041    |
+| 34  | Buildings                    | Art         | Every structure its own silhouette                   | ADR-041    |
+| 35  | The Farm                     | Art         | Crops with growth personality; field dressing        | ADR-041    |
+| 36  | Characters & Small Life      | Art         | Workers readable by role; ambient creatures          | ADR-041    |
+| 37  | Density & The Three Regions  | Art         | Props and decor; farm / town / wilds identity        | ADR-041    |
+| 38  | The UI Joins The World       | Art         | Panels and icons that belong to the same place       | ADR-041    |
+| 39  | Motion & Overlay-Scale       | Art         | Ambient motion; the consistency and cost pass        | ADR-041    |
+| 40  | Audio That Earns Eight Hours | Playability | Layered synthesis, derived variation, triggered beds | ADR-042    |
+| 41  | Zone Painting                | Playability | The map interaction the command has waited for       | ADR-043    |
+| 42  | What Now                     | Playability | The objectives surface; ADR-034 §7 amended           | ADR-044    |
+| 43  | First Run                    | Playability | Onboarding that teaches by playing                   | ADR-044    |
+| 44  | Balance & The Idle Cost      | Playability | **TRIGGERED** by phase 31's arc measurement          | ADR-045    |
+| 45  | v0.5 Release Candidate       | —           | Every gate, and the four product criteria            | —          |
 
-- **The baseline measures before anything is tuned (31 → 36).** Phase 36 is
-  CONDITIONAL: if phase 31 measures the stage arc inside its target, there is
-  no balance work to do, and inventing some would be changing numbers because
-  a phase exists rather than because a measurement asked.
-- **"What now?" before first run (34 → 35).** Onboarding teaches a player to
+Three orderings are dictated rather than preferred:
+
+- **The palette and the library before any asset (32 → 33–38).** ADR-041's
+  finding is that the vocabulary is the ceiling; authoring assets against the
+  old one would produce the old look more expensively.
+- **The ground before everything standing on it (33 → 34–37).** Grass is the
+  most-repeated pixel in the game, and every other asset is judged against it.
+- **"What now?" before first run (42 → 43).** Onboarding teaches a player to
   read the game; it cannot teach them to read a surface that does not exist.
 
 ### 5A.2 The three classes of evidence

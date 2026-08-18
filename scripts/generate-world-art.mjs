@@ -21,7 +21,10 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  BLOOM_BLUE,
+  BLOOM_ROSE,
   CARROT_ORANGE,
+  CREAM,
   GRASS_BASE,
   GRASS_LIGHT,
   GRASS_SHADOW,
@@ -32,9 +35,13 @@ import {
   PUMPKIN,
   SOFT_INK,
   SOIL_DARK,
+  SOIL_RICH,
   STONE_BASE,
   STONE_DARK,
   STONE_LIGHT,
+  STONE_WARM,
+  STONE_WARM_DARK,
+  STONE_WARM_LIGHT,
   STRAW,
   TILLED_SOIL,
   WATER_BASE,
@@ -53,6 +60,7 @@ import {
   set,
   writePng,
 } from './lib/pixel-art.mjs';
+import { ditherBand, ditherRect } from './lib/pixel-craft.mjs';
 
 const SRC = join(import.meta.dirname, '..', 'assets', 'src');
 const TILE = 32;
@@ -71,64 +79,149 @@ function scatter(canvas, rng, count, paint) {
   }
 }
 
-/** Terrain is the bottom of the attention hierarchy (VISUAL_REFERENCE §3):
- * low-contrast texture only, nothing that competes with crops or workers. */
-function grassTile() {
+/**
+ * Ground texture: hand-placed CLUSTERS, wrapped so the tile stays seamless.
+ *
+ * `ART_DIRECTION.md` §9.2 is binding here and cost three prototype iterations
+ * to learn: a 32 px tile cannot carry an ordered dither (a 4×4 matrix repeats
+ * eight times across it and resolves into a visible cross-hatch), and solid
+ * tonal blobs read as polka dots. Small marks in a low-contrast tone are what
+ * the eye reads as ground rather than as a pattern.
+ *
+ * @param {import('./lib/pixel-art.mjs').Canvas} canvas
+ * @param {() => number} rng
+ * @param {number} count how many marks
+ * @param {number[]} colour
+ * @param {number} length blades per mark; 2 is turf, 3 is tussock
+ * @param {number} [lean] 0 upright, 1 leaning right — a whole field leaning the
+ *   same way is what makes grass look combed rather than grown
+ * @returns {void}
+ */
+function blades(canvas, rng, count, colour, length, lean = 0) {
+  for (let i = 0; i < count; i += 1) {
+    const x = Math.floor(rng() * canvas.width);
+    const y = Math.floor(rng() * canvas.height);
+    for (let d = 0; d < length; d += 1) {
+      const dx = d > 0 && rng() < lean ? 1 : 0;
+      set(canvas, (x + dx) % canvas.width, (y + d) % canvas.height, colour);
+    }
+  }
+}
+
+/**
+ * Tended grass — the most-repeated pixel in the game, and therefore the one
+ * every other asset is judged against.
+ *
+ * TIER 3 (`ART_DIRECTION.md` §9.1). It must lose to everything standing on it,
+ * which is why the contrast between the marks and the base is deliberately
+ * small: a lively tile that a worker gets lost in has failed, however pretty.
+ *
+ * @param {number} [seed]
+ * @param {{ blooms?: number, tufts?: number }} [character] what makes this
+ *   VARIANT differ from its siblings. One tile repeated across a field is the
+ *   flat look the cozy pass exists to fix, and variation BETWEEN tiles is the
+ *   honest way to remove it — not more texture inside one tile.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
+function grassTile(seed = 1201, character = {}) {
+  const { blooms = 0, tufts = 6 } = character;
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => GRASS_BASE);
-  const rng = prng(1201);
-  // Short blade pairs: mostly light, some shade, a rare rim highlight.
-  scatter(canvas, rng, 24, (x, y) => {
-    const roll = rng();
-    const colour = roll < 0.55 ? GRASS_LIGHT : roll < 0.85 ? GRASS_SHADOW : LEAF_HIGHLIGHT;
-    set(canvas, x, y, colour);
-    set(canvas, x, (y + 1) % TILE, colour);
-  });
+  const rng = prng(seed);
+
+  // Turf: the low-contrast mass that reads as ground.
+  blades(canvas, rng, 26, GRASS_SHADOW, 2, 0.3);
+  blades(canvas, rng, 22, GRASS_LIGHT, 2, 0.3);
+  // Tussocks: a few taller marks, so the surface is not uniformly short.
+  blades(canvas, rng, tufts, GRASS_LIGHT, 3, 0.5);
+  // The rim highlight stays RARE. It is the brightest green in the palette and
+  // at any density it starts competing with crops, which are Tier 1.
+  blades(canvas, rng, 3, LEAF_HIGHLIGHT, 1);
+
+  // Blooms: two pixels, and only on the variants that carry them. A flower on
+  // every tile is a meadow, and the farm is not supposed to read as a meadow.
+  for (let i = 0; i < blooms; i += 1) {
+    const x = Math.floor(rng() * TILE);
+    const y = Math.floor(rng() * TILE);
+    const petal = rng() < 0.5 ? BLOOM_ROSE : rng() < 0.6 ? BLOOM_BLUE : CREAM;
+    set(canvas, x, y, petal);
+    if (rng() < 0.45) set(canvas, (x + 1) % TILE, y, petal);
+    set(canvas, x, (y + 1) % TILE, GRASS_SHADOW);
+  }
   return canvas;
 }
 
 /** The tilled-soil state (GAME_DESIGN §2.2): horizontal furrows, spacing that
- * continues across tile edges (period 4 rows), lit ridge above each groove. */
+ * continues across tile edges (period 4 rows), lit ridge above each groove.
+ *
+ * The ridge is SOIL_RICH now rather than a wood colour — freshly-turned earth
+ * catching the light. Wood on soil was the old palette having nothing else.
+ * @returns {import('./lib/pixel-art.mjs').Canvas} */
 function tilledTile() {
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => TILLED_SOIL);
   const rng = prng(1202);
+
+  // FULL-WIDTH furrows, period 4. The first attempt broke the groove into
+  // scattered pixels and the reviewed scene showed the result: at 1x a whole
+  // field averaged into one flat brown slab, because a texture that survives
+  // 4x inspection can vanish entirely at the size the game is played at.
+  // Corduroy is what a ploughed field looks like from above, and it also gives
+  // the crops standing on it a direction to sit against.
   for (let y = 2; y < TILE; y += 4) {
     for (let x = 0; x < TILE; x += 1) {
+      // The groove: two rows dark, so the shadow has width at 1x.
       set(canvas, x, y, SOIL_DARK);
-      // Light from the upper-left: a broken highlight on the ridge above.
-      if (rng() < 0.28) set(canvas, x, y - 1, WOOD_BASE);
+      if (rng() < 0.75) set(canvas, x, (y + 1) % TILE, SOIL_DARK);
+      // The ridge above it, lit from the upper-left. Broken, not ruled — an
+      // unbroken line reads as a drawn grid rather than as turned earth.
+      if (rng() < 0.8) set(canvas, x, (y + TILE - 1) % TILE, SOIL_RICH);
     }
   }
-  scatter(canvas, rng, 10, (x, y) => set(canvas, x, y, SOIL_DARK));
+
+  // Clods on the ridges, so the bands are not perfectly parallel.
+  for (let i = 0; i < 18; i += 1) {
+    const x = Math.floor(rng() * TILE);
+    const y = Math.floor(rng() * TILE);
+    set(canvas, x, y, rng() < 0.5 ? SOIL_RICH : SOIL_DARK);
+  }
   return canvas;
 }
 
 /** Decorative still water (`core:water`); the animated shimmer is a v0.2 spec
- * (ANIMATION_GUIDE §3 — the chunk renderer bakes static terrain today). */
+ * (ANIMATION_GUIDE §3 — the chunk renderer bakes static terrain today).
+ *
+ * The one place an ordered dither belongs on a tile: it spans the deep-to-base
+ * TRANSITION rather than the whole surface, which is the scale §9.2 permits.
+ * @returns {import('./lib/pixel-art.mjs').Canvas} */
 function waterTile() {
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => WATER_BASE);
   const rng = prng(1203);
-  // Deeper patches first, then calm horizontal light ripples over them.
-  scatter(canvas, rng, 5, (x, y) => {
-    for (let dx = 0; dx < 4; dx += 1) {
-      set(canvas, (x + dx) % TILE, y, WATER_DEEP);
-      if (dx > 0 && dx < 3) set(canvas, (x + dx) % TILE, (y + 1) % TILE, WATER_DEEP);
-    }
-  });
-  scatter(canvas, rng, 8, (x, y) => {
-    for (let dx = 0; dx < 3; dx += 1) set(canvas, (x + dx) % TILE, y, WATER_LIGHT);
-  });
+  // Deeper water toward the bottom, blended by a dithered band rather than a
+  // hard edge, so a pond has depth without a gradient (R-02).
+  ditherRect(canvas, 0, 23, TILE - 1, TILE - 1, WATER_DEEP, 0.9);
+  ditherBand(canvas, 0, 17, TILE - 1, 23, WATER_BASE, WATER_DEEP);
+  // Calm ripples, wrapped. Short and broken; a full-width line reads as a seam.
+  for (let i = 0; i < 9; i += 1) {
+    const x = Math.floor(rng() * TILE);
+    const y = Math.floor(rng() * TILE);
+    const len = 2 + Math.floor(rng() * 3);
+    for (let d = 0; d < len; d += 1) set(canvas, (x + d) % TILE, y, WATER_LIGHT);
+  }
   return canvas;
 }
 
-/** Decorative rock face (`core:stone`): cobble seams, facets lit upper-left. */
+/** Decorative rock face (`core:stone`): cobble seams, facets lit upper-left.
+ *
+ * Keeps the COLD stone ramp on purpose (`COLOR_PALETTE.md` §3.2c) — this is
+ * ore-bearing rock, the one material the brief's "no sterile grey" does not
+ * govern. The warm ramp went to paths and walls, which people touch.
+ * @returns {import('./lib/pixel-art.mjs').Canvas} */
 function stoneTile() {
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => STONE_BASE);
   const rng = prng(1204);
-  // Short seam lines, each with a lit edge above-left.
   scatter(canvas, rng, 7, (x, y) => {
     const len = 3 + Math.floor(rng() * 3);
     const vertical = rng() < 0.35;
@@ -140,21 +233,43 @@ function stoneTile() {
     set(canvas, (x + TILE - 1) % TILE, (y + TILE - 1) % TILE, STONE_LIGHT);
   });
   scatter(canvas, rng, 6, (x, y) => set(canvas, x, y, STONE_LIGHT));
+  // A few warm notes, so a rock face beside a warm path does not read as a
+  // different game. Sparse: the material is still cold.
+  scatter(canvas, rng, 4, (x, y) => set(canvas, x, y, STONE_WARM_DARK));
   return canvas;
 }
 
-/** Player-placed path (`core:path`, GAME_DESIGN §2.2): sun-worn packed earth,
- * clearly warmer/brighter than grass and tilled soil so routes read at a glance. */
+/** Player-placed path (`core:path`, GAME_DESIGN §2.2): packed earth with the
+ * stones trodden into it, clearly warmer and brighter than grass or soil so a
+ * route reads at a glance.
+ *
+ * Was WOOD_LIGHT over WOOD_BASE — a path made of the plank colours, because
+ * the old palette had no warm stone. It now uses the ramp that exists for it.
+ * @returns {import('./lib/pixel-art.mjs').Canvas} */
 function pathTile() {
   const canvas = createCanvas(TILE, TILE);
-  fill(canvas, () => WOOD_LIGHT);
+  fill(canvas, () => STONE_WARM_LIGHT);
   const rng = prng(1205);
-  scatter(canvas, rng, 14, (x, y) => {
-    set(canvas, x, y, WOOD_BASE);
-    if (rng() < 0.5) set(canvas, (x + 1) % TILE, y, WOOD_BASE);
+  // Worn hollows: irregular patches of the mid tone, so the surface is uneven
+  // rather than speckled.
+  scatter(canvas, rng, 9, (x, y) => {
+    const w = 2 + Math.floor(rng() * 3);
+    for (let dx = 0; dx < w; dx += 1) {
+      set(canvas, (x + dx) % TILE, y, STONE_WARM);
+      if (rng() < 0.55) set(canvas, (x + dx) % TILE, (y + 1) % TILE, STONE_WARM);
+    }
   });
-  scatter(canvas, rng, 5, (x, y) => set(canvas, x, y, TILLED_SOIL));
-  scatter(canvas, rng, 4, (x, y) => set(canvas, x, y, STRAW));
+  // Pebbles pressed into the surface — a dark base with a lit crown, the
+  // smallest shape that reads as an object rather than as dirt.
+  scatter(canvas, rng, 7, (x, y) => {
+    set(canvas, x, y, STONE_WARM_DARK);
+    set(canvas, (x + 1) % TILE, y, STONE_WARM_DARK);
+    set(canvas, x, (y + TILE - 1) % TILE, CREAM);
+  });
+  // Earth showing through, and the odd dry stalk — the warm accents that stop
+  // the path reading as poured concrete.
+  scatter(canvas, rng, 6, (x, y) => set(canvas, x, y, SOIL_RICH));
+  scatter(canvas, rng, 3, (x, y) => set(canvas, x, y, STRAW));
   return canvas;
 }
 
@@ -162,26 +277,34 @@ function pathTile() {
  * nothing is mown and nothing is owned. DARKER than `grass` at the base with
  * TALLER blades, so the two never read as one field at gameplay zoom — the
  * boundary between farmland and wilderness has to be legible without a fence.
- * Dry tufts and small stones are the texture that says "nobody works this". */
-function wildTile() {
+ * Dry tufts and small stones are the texture that says "nobody works this".
+ *
+ * @param {number} [seed]
+ * @param {{ stones?: number }} [character]
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
+function wildTile(seed = 1206, character = {}) {
+  const { stones = 9 } = character;
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => GRASS_SHADOW);
-  const rng = prng(1206);
-  // Tussocks: 3 px blades, against grass's 2 px pairs. Height is the tell.
-  scatter(canvas, rng, 30, (x, y) => {
-    const colour = rng() < 0.6 ? GRASS_BASE : GRASS_LIGHT;
-    for (let d = 0; d < 3; d += 1) set(canvas, x, (y + d) % TILE, colour);
-  });
+  const rng = prng(seed);
+  // Tussocks: 3 px blades against grass's 2 px pairs, and they LEAN. Height and
+  // disorder are the tell; a mown lawn is upright and even.
+  blades(canvas, rng, 30, GRASS_BASE, 3, 0.6);
+  blades(canvas, rng, 12, GRASS_LIGHT, 3, 0.6);
   // Dead growth — the one warm note, and sparse. Straw here would read as a
   // wheat field, so the dry tufts are WOOD_BASE and STRAW is a rare accent.
-  scatter(canvas, rng, 7, (x, y) => {
+  // Dead growth — the one warm note, and SPARSE. The first attempt put seven
+  // tufts with a straw highlight on each and the reviewed scene read as orange
+  // confetti scattered over the wilds. Straw is the brightest warm colour in
+  // the palette; against a dark green it is nearly a signal.
+  scatter(canvas, rng, 4, (x, y) => {
     set(canvas, x, y, WOOD_BASE);
     set(canvas, x, (y + 1) % TILE, WOOD_BASE);
-    if (rng() < 0.3) set(canvas, (x + 1) % TILE, y, STRAW);
   });
-  // Scree: single dark pixels, no seams. Suggests stony ground under the turf
-  // without competing with the stone TILE, which is a solid rock face.
-  scatter(canvas, rng, 9, (x, y) => set(canvas, x, y, STONE_DARK));
+  // Scree: suggests stony ground under the turf without competing with the
+  // stone TILE, which is a solid rock face.
+  scatter(canvas, rng, stones, (x, y) => set(canvas, x, y, STONE_DARK));
   return canvas;
 }
 
@@ -198,7 +321,15 @@ function foliage(canvas, lobes) {
     ellipse(canvas, cx - 2, cy - 2, rx - 1, ry - 1, GRASS_BASE, 0.15);
   }
   for (const [cx, cy, rx, ry] of lobes) {
-    ellipse(canvas, cx - 4, cy - 5, Math.max(2, rx * 0.55), Math.max(2, ry * 0.55), GRASS_LIGHT, 0.15);
+    ellipse(
+      canvas,
+      cx - 4,
+      cy - 5,
+      Math.max(2, rx * 0.55),
+      Math.max(2, ry * 0.55),
+      GRASS_LIGHT,
+      0.15,
+    );
   }
 }
 
@@ -785,12 +916,23 @@ function main() {
 
   /** @type {[string, string, () => import('./lib/pixel-art.mjs').Canvas][]} */
   const assets = [
-    [terrainDir, 'grass.png', grassTile],
+    // GRASS AND WILD SHIP VARIANTS. One tile stamped across two thousand
+    // squares is most of what made the world look flat, and it is the cheapest
+    // thing in this whole pass to fix. `terrain-tiles.ts` picks between them
+    // from the tile index, so which variant a square shows is DERIVED and
+    // nothing is stored (ADR-009's argument, one layer down).
+    //
+    // The base tile stays plain and is the common case; `b` is tuftier and `c`
+    // carries the blooms. Weighting lives in the renderer, not here.
+    [terrainDir, 'grass.png', () => grassTile(1201, { tufts: 6 })],
+    [terrainDir, 'grass_b.png', () => grassTile(1211, { tufts: 11 })],
+    [terrainDir, 'grass_c.png', () => grassTile(1221, { tufts: 8, blooms: 3 })],
     [terrainDir, 'tilled.png', tilledTile],
     [terrainDir, 'water.png', waterTile],
     [terrainDir, 'stone.png', stoneTile],
     [terrainDir, 'path.png', pathTile],
-    [terrainDir, 'wild.png', wildTile],
+    [terrainDir, 'wild.png', () => wildTile(1206, { stones: 9 })],
+    [terrainDir, 'wild_b.png', () => wildTile(1216, { stones: 16 })],
     [buildingsDir, 'tree.png', tree],
     [buildingsDir, 'rock.png', rock],
     [buildingsDir, 'ore_vein.png', oreVein],

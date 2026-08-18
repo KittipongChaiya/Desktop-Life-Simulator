@@ -28,6 +28,7 @@ import { isOwned, type TileGrid } from '../../sim/world/tile-grid';
 
 import { CHUNK_SIZE, chunkOrigin, type ChunkTracker } from './terrain-chunks';
 import { tileSpriteKey } from './terrain-tiles';
+import { variantSprite } from './tile-variants';
 
 const CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
 
@@ -106,7 +107,13 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
         if (worldX >= grid.width || worldY >= grid.height) continue;
 
         const tile = asTileIndex(worldY * WORLD_WIDTH + worldX);
-        const sprite = new Sprite(textureFor(tileSpriteKey(grid, tileKinds, tile)));
+        // WHICH ground, then which of its faces. `tileSpriteKey` answers the
+        // first and is the tile's identity; `variantSprite` answers the second
+        // and is pure decoration, which is why it lives out here rather than
+        // inside the selector — nothing but the chunk baker should care that
+        // grass has three faces (phase-33, ADR-041 §4).
+        const key = variantSprite(tileSpriteKey(grid, tileKinds, tile), tile);
+        const sprite = new Sprite(textureFor(key));
         sprite.x = tx * TILE_SIZE;
         sprite.y = ty * TILE_SIZE;
         if (!isOwned(grid, tile)) sprite.tint = UNOWNED_TINT;

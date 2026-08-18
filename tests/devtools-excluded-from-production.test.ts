@@ -87,7 +87,22 @@ describe('production build excludes developer tooling', () => {
   beforeAll(() => {
     // A real production build. Slow, but the whole point is to inspect the
     // artifact rather than trust the source.
-    execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'pipe', shell: true });
+    //
+    // `electron-vite build` DIRECTLY, not `npm run build`. That script chains
+    // `npm run assets` first, which re-packs every atlas and rewrites
+    // `assets/dist/manifest.ts` — while the ~250 other files in this suite are
+    // concurrently importing that manifest. On Windows that race made this
+    // file fail intermittently in full-suite runs while passing on its own,
+    // which is the worst kind of gate: red often enough to be ignored.
+    //
+    // Skipping the asset step costs nothing, because the suite cannot have
+    // started without those assets: every test that imports `@assets/manifest`
+    // would already have failed to resolve. Regenerating them here only ever
+    // rewrote files that were necessarily already correct.
+    if (!existsSync(join(ROOT, 'assets', 'dist', 'manifest.ts'))) {
+      throw new Error('assets/dist/manifest.ts is missing — run `npm run assets` first');
+    }
+    execFileSync('npx', ['electron-vite', 'build'], { cwd: ROOT, stdio: 'pipe', shell: true });
   }, 300_000);
 
   it('produces a renderer bundle', () => {
