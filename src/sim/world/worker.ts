@@ -30,6 +30,15 @@ export const WorkerState = {
   Working: 'working',
   SeekingRest: 'seekingRest',
   Rest: 'rest',
+  /**
+   * Sent on an expedition and off the grid entirely (phase-28, ADR-038 §2).
+   *
+   * Not a task and not a place — a worker in this state holds no task, claims
+   * no tile, is skipped by the FSM, and is ABSENT from the workers slice, so no
+   * view can draw a hand that is not there. Its position is left untouched,
+   * which is what it comes back to.
+   */
+  Away: 'away',
 } as const;
 
 export type WorkerState = (typeof WorkerState)[keyof typeof WorkerState];

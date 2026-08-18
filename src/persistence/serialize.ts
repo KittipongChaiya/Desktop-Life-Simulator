@@ -20,6 +20,7 @@
  */
 
 import type { Container } from '../sim/world/container';
+import { expeditionsInOrder } from '../sim/world/expedition';
 import { routesInOrder } from '../sim/world/route';
 import type { World } from '../sim/world/world';
 
@@ -31,6 +32,7 @@ import {
   type SaveBuilding,
   type SaveBuildingStorage,
   type SaveFactory,
+  type SaveExpedition,
   type SaveRoute,
   type SaveCrop,
   type SaveDocument,
@@ -146,6 +148,15 @@ export function toSaveDocument(
     item: route.item,
   }));
 
+  // Sorted by worker — the rule every keyed collection here follows. Only the
+  // departure is written: everything else about a trip is derived from it
+  // (ADR-038 §3).
+  const expeditions: SaveExpedition[] = expeditionsInOrder(world.expeditions).map((trip) => ({
+    worker: trip.worker,
+    destination: trip.destination,
+    departedTick: trip.departedTick,
+  }));
+
   const allocator = world.ids.getState();
 
   return {
@@ -194,6 +205,7 @@ export function toSaveDocument(
       buildingStorage,
       factories,
       routes,
+      expeditions,
       // Sorted by tile — stable bytes, the rule every keyed collection follows.
       harvestedAt: [...world.harvestedAt.entries()]
         .sort(([a], [b]) => a - b)

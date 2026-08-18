@@ -239,6 +239,19 @@ export function workerSystem(world: World): void {
       case WorkerState.Rest:
         stepRest(world, worker);
         break;
+      case WorkerState.Away:
+        // NOTHING, deliberately (phase-28, ADR-038 §2). A worker on an
+        // expedition is off the grid: no scan, no path, no energy. Energy in
+        // particular is worth stating — it drains while working and while
+        // walking, and a trip is hours long, so draining it here would land
+        // every returning hand at zero and send them straight to bed. Whether
+        // an expedition should tire someone is a design question with no
+        // answer yet; costing them nothing is the one that cannot be wrong in
+        // a way the player would notice as a bug.
+        //
+        // The case is written out rather than left to fall through, so the
+        // next state added to the enum is a compile error here as well.
+        break;
     }
   }
 }

@@ -21,6 +21,11 @@ const STATE_LABEL: Readonly<Record<WorkerState, string>> = {
   [WorkerState.Working]: 'Working',
   [WorkerState.SeekingRest]: 'Resting',
   [WorkerState.Rest]: 'Resting',
+  // Phase-28. A worker who is Away is absent from the workers slice entirely
+  // (ADR-038 §2), so this label is unreachable through selection today — it
+  // exists because the record is exhaustive, which is what caught the missing
+  // case the moment the state was added.
+  [WorkerState.Away]: 'Away',
 };
 
 const TASK_LABEL: Readonly<Record<WorkerTaskKind, string>> = {

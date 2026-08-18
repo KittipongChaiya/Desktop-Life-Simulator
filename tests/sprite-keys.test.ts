@@ -105,6 +105,17 @@ describe('every declared sprite key names art that exists', () => {
     expect(missing, 'these nodes would draw nothing at all').toEqual([]);
   });
 
+  it('for every expedition destination', () => {
+    // A destination with no icon is a row in the map panel that draws nothing —
+    // and unlike a building, the player cannot see where it should have been.
+    const missing = registries.expeditions
+      .all()
+      .filter((destination) => !resolves(destination.sprite))
+      .map((destination) => `${destination.id} → ${destination.sprite}`);
+
+    expect(missing, 'these destinations would draw nothing at all').toEqual([]);
+  });
+
   it('for the two sprites that belong to no definition at all', () => {
     // TILLED SOIL and WILD GROUND are render-time OVERRIDES, not tile kinds
     // (`terrain-tiles.ts`), so no registry names them and every loop above

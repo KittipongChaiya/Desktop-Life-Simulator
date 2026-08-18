@@ -17,6 +17,7 @@ import type { BuildingView } from './buildings-slice';
 import type { ContractsSlice } from './contracts-slice';
 import type { CropView } from './crops-slice';
 import type { EconomyView, WalletView } from './economy-slice';
+import type { ExpeditionsSlice } from './expeditions-slice';
 import type { FactoryView } from './factories-slice';
 import type { InventoryView } from './inventory-slice';
 import type { ResidentView } from './residents-slice';
@@ -69,6 +70,8 @@ export interface SliceMap {
    * renderer already holds (ADR-037 §3). Only what changes crosses. Phase-27.
    */
   readonly wilds: readonly number[];
+  /** The map: destinations, their locks, and who is away (phase-28). */
+  readonly expeditions: ExpeditionsSlice;
 }
 
 export type SliceName = keyof SliceMap;
@@ -86,6 +89,7 @@ export const SLICE_NAMES = [
   'factories',
   'contracts',
   'wilds',
+  'expeditions',
 ] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */

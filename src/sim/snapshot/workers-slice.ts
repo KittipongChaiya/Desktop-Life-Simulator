@@ -14,6 +14,13 @@
  * `moveFraction` and `facing` are DERIVED here rather than stored on the worker
  * — they are presentation concerns, not simulation state, so the `Worker` record
  * (ADR-004 §1) stays free of them.
+ *
+ * A WORKER WHO IS AWAY IS ABSENT, not present with a flag (phase-28, ADR-038
+ * §2). That is ADR-031's shape for the sleeping town: no view can draw a hand
+ * who is not there, because there is nothing to draw. The alternative — a
+ * `state: 'away'` view that every consumer must remember to skip — is one
+ * forgotten check away from a worker standing in the yard for the whole of a
+ * trip they are supposedly on.
  */
 
 import { toPosition } from '../../shared/geometry';
@@ -137,6 +144,7 @@ function roleMatching(registry: RoleRegistry, schedule: WorkerSchedule): string 
 
 export function projectWorkers(source: WorkerProjectionSource): readonly WorkerView[] {
   return [...source.workers.values()]
+    .filter((worker) => worker.state !== WorkerState.Away)
     .sort((a, b) => a.id - b.id)
     .map((worker) => projectWorker(source, worker));
 }

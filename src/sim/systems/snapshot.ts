@@ -30,6 +30,8 @@ import {
   walletEquals,
   wildsEqual,
   projectWilds,
+  expeditionsEqual,
+  projectExpeditions,
   workersEqual,
 } from '../snapshot/state';
 import type { World } from '../world/world';
@@ -66,4 +68,8 @@ export function snapshotSystem(world: World): void {
   // republishes twice per node per regrow cycle rather than 20 times a second
   // for the whole of one (ADR-005 §2).
   publishIfChanged(world.snapshots.wilds, projectWilds(world), wildsEqual);
+  // The map carries no countdown (ADR-038 §3), so this republishes when someone
+  // leaves, when someone returns, and when standing opens a destination —
+  // never per tick, on a mechanic that runs for hours.
+  publishIfChanged(world.snapshots.expeditions, projectExpeditions(world), expeditionsEqual);
 }

@@ -21,6 +21,7 @@ import { v1ToV2 } from './v1-to-v2';
 import { v10ToV11 } from './v10-to-v11';
 import { v11ToV12 } from './v11-to-v12';
 import { v12ToV13 } from './v12-to-v13';
+import { v13ToV14 } from './v13-to-v14';
 import { v2ToV3 } from './v2-to-v3';
 import { v3ToV4 } from './v3-to-v4';
 import { v4ToV5 } from './v4-to-v5';
@@ -57,4 +58,7 @@ export const MIGRATIONS: readonly Migration[] = [
   v11ToV12,
   // Phase-27: the grid widens again for the wilds; every tile index re-laid.
   v12ToV13,
+  // Phase-28: the expedition table, empty — a v13 world could send nobody
+  // anywhere (ADR-038).
+  v13ToV14,
 ];

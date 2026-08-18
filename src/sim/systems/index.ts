@@ -13,6 +13,7 @@ import { commandSystem } from './command';
 import { contractSystem } from './contract';
 import { economySystem } from './economy';
 import { eventFlushSystem, tickEventSystem } from './event-flush';
+import { expeditionSystem } from './expedition';
 import { movementSystem } from './movement';
 import { productionSystem } from './production';
 import { questSystem } from './quest';
@@ -34,6 +35,12 @@ export const TICK_SYSTEMS: readonly SystemRegistration[] = [
   // Worker AI decides, claims, works, and rests; movement then advances any
   // worker it set moving. Movement runs AFTER the decision so a worker acts on
   // the same tick it decides (ADR-007 §4 — order is data).
+  // Expeditions return BEFORE the worker AI runs (phase-28, ADR-038 §7), so a
+  // hand who lands this tick is given work on this tick rather than standing in
+  // the yard for one. Nothing here advances a trip: a return is a comparison
+  // against `departedTick`, which is why an eight-hour absence needs no
+  // catch-up model at all.
+  { name: 'expedition', phase: 'workers', run: expeditionSystem },
   { name: 'worker', phase: 'workers', run: workerSystem },
   { name: 'movement', phase: 'workers', run: movementSystem },
 

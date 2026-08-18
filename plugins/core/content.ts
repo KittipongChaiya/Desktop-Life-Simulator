@@ -27,14 +27,24 @@ import {
   type CropDefinition,
 } from '../../src/sim/content/crops';
 import {
+  CORE_HIGHLANDS,
+  CORE_OLD_QUARRY,
+  CORE_RIVER_DELTA,
+  type ExpeditionDestination,
+} from '../../src/sim/content/expeditions';
+import {
   CORE_BREAD,
+  CORE_CARROT as CORE_CARROT_ITEM,
   CORE_CARROT_SEED,
   CORE_FLOUR,
   CORE_ORE,
+  CORE_ORE as CORE_ORE_ITEM,
   CORE_STONE as CORE_STONE_ITEM,
+  CORE_TURNIP as CORE_TURNIP_ITEM,
   CORE_WOOD,
   CORE_PUMPKIN_SEED,
   CORE_TURNIP_SEED,
+  CORE_WHEAT as CORE_WHEAT_ITEM,
   CORE_WHEAT_SEED,
   DEFAULT_STACK_SIZE,
   type ItemDefinition,
@@ -306,6 +316,80 @@ export function coreTileKinds(): readonly TileKindDefinition[] {
     { id: CORE_PATH, walkable: true, tillable: false, moveCost: 0.7, sprite: 'terrain:path' },
   ];
   return kinds;
+}
+
+/**
+ * Where the farm can reach. Phase-28 — ADR-038 §1, §5.
+ *
+ * Three destinations, one per standing tier, so the map opens as the town comes
+ * to trust you. Each is a name, a distance in ticks, what it costs to outfit,
+ * and what a hand brings home.
+ *
+ * ## The numbers are set by the RATE RULE, not by taste
+ *
+ * ADR-038 §5: an expedition's haul, valued at base price, per tick of worker
+ * time, sits within half to double what the same worker would bring back
+ * GATHERING. Gathering is the comparable mechanic — both send someone away to
+ * fetch goods — and base price is the stable unit, because the sale multiplier
+ * decays with how much you sell rather than with how you got it.
+ * `tests/expedition-rate.test.ts` computes both sides and fails if any
+ * destination drifts out of band.
+ *
+ * ## Which is why the hauls are SCARCE goods
+ *
+ * A worker carries twenty items. Wood at 8 and stone at 14 cap a full pack at a
+ * few hundred coins, so a wood-and-stone destination has to be under two
+ * minutes away to pay a competitive rate — which is a walk, not an expedition.
+ * Ore and the wild produce carry the distance instead, and that is also the
+ * reason to go: the wilds already supply wood and stone, and a destination that
+ * competed with the band next door would be somewhere with no purpose.
+ */
+export function coreExpeditions(): readonly ExpeditionDestination[] {
+  const destinations: readonly ExpeditionDestination[] = [
+    {
+      id: CORE_RIVER_DELTA,
+      displayName: 'River Delta',
+      sprite: 'ui-world:place_delta',
+      description: 'Silt flats downriver. Things grow there without being asked.',
+      travelTicks: secondsToTicks(180),
+      supplies: [{ item: CORE_WHEAT_SEED, quantity: 4 }],
+      yields: [
+        { item: CORE_WHEAT_ITEM, quantity: 6 },
+        { item: CORE_TURNIP_ITEM, quantity: 8 },
+      ],
+      requires: 'newcomer',
+    },
+    {
+      id: CORE_OLD_QUARRY,
+      displayName: 'Old Quarry',
+      sprite: 'ui-world:place_quarry',
+      description: 'Worked out, they say. They have not looked lately.',
+      travelTicks: secondsToTicks(300),
+      supplies: [{ item: CORE_WHEAT_ITEM, quantity: 2 }],
+      yields: [
+        { item: CORE_ORE_ITEM, quantity: 12 },
+        { item: CORE_STONE_ITEM, quantity: 4 },
+      ],
+      requires: 'friend',
+    },
+    {
+      id: CORE_HIGHLANDS,
+      displayName: 'The Highlands',
+      sprite: 'ui-world:place_highlands',
+      description: 'Two days out, and cold. Only worth it for what grows up there.',
+      travelTicks: secondsToTicks(450),
+      supplies: [
+        { item: CORE_BREAD, quantity: 1 },
+        { item: CORE_WOOD, quantity: 2 },
+      ],
+      yields: [
+        { item: CORE_CARROT_ITEM, quantity: 8 },
+        { item: CORE_ORE_ITEM, quantity: 6 },
+      ],
+      requires: 'pillar',
+    },
+  ];
+  return destinations;
 }
 
 /**

@@ -239,6 +239,19 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     world.harvestedAt.set(asTileIndex(entry.tile), entry.at);
   }
 
+  // EXPEDITIONS (v14, ADR-038 §3). Restored after workers, because each names
+  // one — and the worker's `Away` state came back with the worker itself, so
+  // there is nothing to reconcile here. A trip resumes mid-flight for free:
+  // its return is a comparison against `departedTick`, which is on disk.
+  for (const trip of saved.expeditions) {
+    const worker = asWorkerId(trip.worker);
+    world.expeditions.set(worker, {
+      worker,
+      destination: asContentId(trip.destination),
+      departedTick: trip.departedTick,
+    });
+  }
+
   restoreStacks(world.inventory, saved.inventory);
   world.wallet.coins = saved.wallet.coins;
 

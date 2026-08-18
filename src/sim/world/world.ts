@@ -25,6 +25,7 @@ import {
   type CommandDispatcher,
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
+import { registerExpeditionCommands } from '../commands/expedition-commands';
 import { registerFactoryCommands } from '../commands/factory-commands';
 import { registerGatherCommands } from '../commands/gather-commands';
 import { registerHaulCommands } from '../commands/haul-commands';
@@ -33,6 +34,7 @@ import { registerSourceCommands } from '../commands/source-commands';
 import { registerWorkerCommands } from '../commands/worker-commands';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
+import type { ExpeditionRegistry } from '../content/expeditions';
 import { createInstalledRegistries, installedSources } from '../content/installed';
 import type { ItemRegistry } from '../content/items';
 import type { PhaseTintRegistry } from '../content/lighting';
@@ -60,6 +62,7 @@ import {
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
+import { createExpeditionStore, type ExpeditionStore } from './expedition';
 import { createFactoryStore, type FactoryStore } from './factory';
 import { createQuestLog, type QuestLog } from './quests';
 import { createRouteStore, type RouteStore } from './route';
@@ -122,6 +125,7 @@ export interface World {
 
   /** Registered resource-node kinds (ADR-037 §5). `nodeAt` reads this. */
   readonly resourceNodeRegistry: ResourceNodeRegistry;
+  readonly expeditionRegistry: ExpeditionRegistry;
   /**
    * Phase → tint, for the lighting layer only.
    *
@@ -171,6 +175,14 @@ export interface World {
    * nobody asked to move.
    */
   readonly routes: RouteStore;
+  /**
+   * Workers currently away, keyed by worker. Phase-28 — ADR-038 §3.
+   *
+   * The ONLY stored fact about a trip is the tick it began; the return, the
+   * haul, and the time remaining are all arithmetic on it, which is what lets
+   * an eight-hour absence resolve with no catch-up model.
+   */
+  readonly expeditions: ExpeditionStore;
 
   /**
    * When each wild tile's node was last worked (phase-27, ADR-037 §3).
@@ -384,6 +396,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   // test runner do that, and phase-09's loader will do it per discovered source.
   const {
     resourceNodes: resourceNodeRegistry,
+    expeditions: expeditionRegistry,
     crops: cropRegistry,
     items: itemRegistry,
     buildings: buildingRegistry,
@@ -425,6 +438,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildingRegistry,
     recipeRegistry,
     resourceNodeRegistry,
+    expeditionRegistry,
     phaseTintRegistry,
     seasonRegistry,
     roleRegistry,
@@ -433,6 +447,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildingStorage: new Map(),
     factories: createFactoryStore(),
     routes: createRouteStore(),
+    expeditions: createExpeditionStore(),
     harvestedAt: new Map(),
     cropStats,
     // The opening balance is the declared source `GAME_DESIGN.md` §6.4 names:
@@ -467,6 +482,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   registerFactoryCommands(world.commands);
   registerHaulCommands(world.commands);
   registerGatherCommands(world.commands);
+  registerExpeditionCommands(world.commands);
 
   // The village stands before the first tick (ADR-030 §3). Hydration defers
   // it — see `WorldOptions.foundTown` — and re-founds after restoring.

@@ -42,6 +42,7 @@ import { ok, type Result } from '../../shared/result';
 
 import { createBuildingRegistry } from './buildings';
 import { createCropRegistry } from './crops';
+import { createExpeditionRegistry } from './expeditions';
 import { createItemRegistry } from './items';
 import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
@@ -122,6 +123,7 @@ export function createInstalledRegistries(): ContentTargets {
     buildings: createBuildingRegistry(),
     recipes: createRecipeRegistry(),
     resourceNodes: createResourceNodeRegistry(),
+    expeditions: createExpeditionRegistry(),
     tileKinds: createTileKindRegistry(),
     phaseTints: createPhaseTintRegistry(),
     seasons: createSeasonRegistry(),

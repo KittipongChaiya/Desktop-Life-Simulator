@@ -25,6 +25,7 @@ import {
   type EconomyView,
   type WalletView,
 } from './economy-slice';
+import { expeditionsEqual, projectExpeditions, type ExpeditionsSlice } from './expeditions-slice';
 import { factoriesEqual, projectFactories, type FactoryView } from './factories-slice';
 import { inventoryEqual, projectInventory, type InventoryView } from './inventory-slice';
 import { projectResidents, residentsEqual, type ResidentView } from './residents-slice';
@@ -52,6 +53,7 @@ export interface SnapshotState {
   readonly factories: VersionedSlice<readonly FactoryView[]>;
   readonly contracts: VersionedSlice<ContractsSlice>;
   readonly wilds: VersionedSlice<readonly number[]>;
+  readonly expeditions: VersionedSlice<ExpeditionsSlice>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -95,6 +97,10 @@ export function createSnapshotState(): SnapshotState {
     // Empty is EXACT for a new world, not a placeholder: nothing in the wilds
     // has been worked before the first tick.
     wilds: { version: 0, value: [] },
+    // Corrected on the first tick, like the wallet and inventory seeds — the
+    // destination list comes from the installed registries, which a bare
+    // `createSnapshotState` has no handle on.
+    expeditions: { version: 0, value: { destinations: [], trips: [] } },
     time: {
       version: 0,
       value: projectTime({
@@ -145,6 +151,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     factories: state.factories.version,
     contracts: state.contracts.version,
     wilds: state.wilds.version,
+    expeditions: state.expeditions.version,
   };
 }
 
@@ -171,6 +178,8 @@ export {
   projectResidents,
   wildsEqual,
   projectWilds,
+  expeditionsEqual,
+  projectExpeditions,
   contractsEqual,
   projectContracts,
 };

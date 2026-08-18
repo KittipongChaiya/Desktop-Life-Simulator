@@ -19,6 +19,7 @@ import type { BuildingId, ContentId, TileIndex, WorkerId } from '../../shared/id
 import type { Result } from '../../shared/result';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
+import type { ExpeditionRegistry } from '../content/expeditions';
 import type { ItemRegistry } from '../content/items';
 import type { RecipeRegistry } from '../content/recipes';
 import type { ResourceNodeRegistry } from '../content/resource-nodes';
@@ -32,6 +33,7 @@ import type { Container } from '../world/container';
 import type { ContractStats, ContractStore } from '../world/contracts';
 import type { CropStore } from '../world/crop';
 import type { EconomyState } from '../world/economy';
+import type { ExpeditionStore } from '../world/expedition';
 import type { FactoryStore } from '../world/factory';
 import type { QuestLog } from '../world/quests';
 import type { RouteStore } from '../world/route';
@@ -140,6 +142,26 @@ export interface GatherNodeCommand {
   readonly type: 'gatherNode';
   readonly worker: number;
   readonly tile: number;
+}
+
+/** Send a worker to a destination; supplies leave the farm (ADR-038 §5). */
+export interface SendExpeditionCommand {
+  readonly type: 'sendExpedition';
+  readonly worker: number;
+  readonly destination: string;
+}
+
+/**
+ * Bring a worker home with their haul.
+ *
+ * Issued by `expeditionSystem`, never by the player — returning is not a
+ * decision, it is a tick passing. It is still a COMMAND because a system has no
+ * privileged write path either (ADR-010 §6), and the command refuses to run
+ * early, so nothing can shorten a trip by dispatching it.
+ */
+export interface ReturnExpeditionCommand {
+  readonly type: 'returnExpedition';
+  readonly worker: number;
 }
 
 /** Declare a standing instruction to move one item between two buildings. */
@@ -266,6 +288,8 @@ export type Command =
   | HaulPickupCommand
   | HaulDeliverCommand
   | GatherNodeCommand
+  | SendExpeditionCommand
+  | ReturnExpeditionCommand
   | GrantCoinsCommand
   | ExpandLandCommand
   | SetSourceEnabledCommand
@@ -322,6 +346,10 @@ export interface CommandWorld {
   readonly resourceNodeRegistry: ResourceNodeRegistry;
   /** When each wild node was last worked (ADR-037 section 3). */
   readonly harvestedAt: Map<TileIndex, number>;
+  /** Registered expedition destinations (ADR-038 section 1). */
+  readonly expeditionRegistry: ExpeditionRegistry;
+  /** Workers currently away, keyed by worker (ADR-038 section 3). */
+  readonly expeditions: ExpeditionStore;
   /** Building definitions, for placement validation and storage size. */
   readonly buildingRegistry: BuildingRegistry;
   /** The player's coins. Written by commerce commands only (phase-06). */

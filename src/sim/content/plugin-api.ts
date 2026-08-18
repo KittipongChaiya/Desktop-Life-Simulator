@@ -38,6 +38,11 @@ import { err, ok, type Result } from '../../shared/result';
 
 import type { BuildingDefinition, BuildingRegistry } from './buildings';
 import type { CropDefinition, CropRegistry } from './crops';
+import {
+  isReachableDestination,
+  type ExpeditionDestination,
+  type ExpeditionRegistry,
+} from './expeditions';
 import type { ItemDefinition, ItemRegistry } from './items';
 import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
 import { isRunnableRecipe, type RecipeDefinition, type RecipeRegistry } from './recipes';
@@ -68,6 +73,7 @@ export interface ContentTargets {
   readonly buildings: BuildingRegistry;
   readonly recipes: RecipeRegistry;
   readonly resourceNodes: ResourceNodeRegistry;
+  readonly expeditions: ExpeditionRegistry;
   readonly tileKinds: TileKindRegistry;
   readonly phaseTints: PhaseTintRegistry;
   readonly seasons: SeasonRegistry;
@@ -103,6 +109,7 @@ export interface ContentBundle {
    * every existing world's wilds. Same rule as weather kinds.
    */
   readonly resourceNodes?: readonly ResourceNodeDefinition[];
+  readonly expeditions?: readonly ExpeditionDestination[];
   readonly tileKinds?: readonly TileKindDefinition[];
   /** Phase → tint, for the lighting layer. Presentation only (ADR-020 §4). */
   readonly phaseTints?: readonly PhaseTintDefinition[];
@@ -210,6 +217,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('building', bundle.buildings, targets.buildings),
     ...of('recipe', bundle.recipes, targets.recipes),
     ...of('resourceNode', bundle.resourceNodes, targets.resourceNodes),
+    ...of('expedition', bundle.expeditions, targets.expeditions),
     ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
     ...of('season', bundle.seasons, targets.seasons),
     ...of('role', bundle.roles, targets.roles),
@@ -281,6 +289,20 @@ export function createPluginApi(source: ContentSource, targets: ContentTargets):
             appError(ErrorCode.InvalidIntent, 'resource node can never spawn or be worked', {
               source: source.id,
               id: node.id,
+            }),
+          );
+        }
+      }
+
+      // A destination nobody can come back from is the same failure a third
+      // content type over: no yields is a worker sent away for nothing, and no
+      // travel time is a haul a player can farm by re-sending (ADR-038 §1).
+      for (const destination of bundle.expeditions ?? []) {
+        if (!isReachableDestination(destination)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'expedition destination is unreachable', {
+              source: source.id,
+              id: destination.id,
             }),
           );
         }

@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 13;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -226,6 +226,23 @@ export interface SaveRoute {
 }
 
 /**
+ * A worker who is away (v14, ADR-038 §3).
+ *
+ * Three fields, and there is deliberately no fourth. The return tick, the haul
+ * and the time remaining are all arithmetic on `departedTick`, so storing any
+ * of them would be a second source of truth for a derivable fact — and a
+ * stored remaining-time would have to be decremented every tick, which is the
+ * accumulator ADR-009 §1 rejects wherever a recorded fact will do.
+ *
+ * No expedition id: a worker is on at most one trip, so `worker` is the key.
+ */
+export interface SaveExpedition {
+  readonly worker: number;
+  readonly destination: string;
+  readonly departedTick: number;
+}
+
+/**
  * An accepted contract, terms frozen at acceptance (v8, ADR-032 §2).
  *
  * Offers are derived and never stored; this is only what the player agreed
@@ -311,6 +328,8 @@ export interface SaveWorld {
    * grow without bound.
    */
   readonly harvestedAt: readonly { readonly tile: number; readonly at: number }[];
+  /** Workers away on expeditions, sorted by worker (v14, ADR-038). */
+  readonly expeditions: readonly SaveExpedition[];
   /** The player inventory's stacks, in container order (order is state). */
   readonly inventory: readonly SaveStack[];
   readonly wallet: { readonly coins: number };

@@ -25,8 +25,13 @@ import { join } from 'node:path';
 
 import {
   GOLD_HIGHLIGHT,
+  PARCHMENT,
   GRASS_BASE,
   GRASS_LIGHT,
+  GRASS_SHADOW,
+  WATER_BASE,
+  WATER_DEEP,
+  WATER_LIGHT,
   REWARD_GOLD,
   SKIN,
   SOFT_INK,
@@ -454,6 +459,97 @@ function iconToolHand() {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
+// ── Map destinations (phase-28) ─────────────────────────────────────
+
+/**
+ * The three destination icons read against each other by SILHOUETTE first, not
+ * by detail — the phase-25 mill/kitchen lesson, applied before the mistake
+ * rather than after it. Wide and flat, a jagged notch, a pointed peak: each is
+ * a different outline at a glance, and a player picking a trip from a list is
+ * reading a shape, not studying a picture.
+ */
+
+/** River Delta: flat water braided through silt. WIDE and low. @returns {Canvas} */
+function placeDelta() {
+  const canvas = createCanvas(16, 16);
+  // Silt bank across the base — the horizon that makes it read as a place.
+  rect(canvas, 1, 9, 14, 13, WOOD_BASE);
+  rect(canvas, 1, 9, 14, 9, WOOD_LIGHT);
+  // Three braided channels, widening downstream.
+  for (const [y, x0, x1] of [
+    [10, 3, 12],
+    [11, 2, 13],
+    [12, 1, 14],
+  ]) {
+    rect(canvas, x0, y, x1, y, WATER_BASE);
+  }
+  set(canvas, 7, 10, WATER_LIGHT);
+  set(canvas, 5, 11, WATER_LIGHT);
+  set(canvas, 10, 12, WATER_DEEP);
+  // Reeds on the near bank: the one vertical, so the shape is not a pure bar.
+  for (const x of [3, 4, 11]) {
+    set(canvas, x, 7, GRASS_BASE);
+    set(canvas, x, 8, GRASS_SHADOW);
+  }
+  set(canvas, 4, 6, GRASS_LIGHT);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/**
+ * Old Quarry: rock cut away in terraces. The STEPS ARE THE OUTLINE, not a
+ * pattern drawn on a block.
+ *
+ * The first attempt filled a rectangle and drew terraces inside it, and at icon
+ * scale it read as a grey box with lines on it — the phase-25 mill/kitchen
+ * mistake, made again one phase after writing it down. Silhouette first: what
+ * is LEFT after the cutting is a staircase, so that is what gets drawn.
+ * @returns {Canvas}
+ */
+function placeQuarry() {
+  const canvas = createCanvas(16, 16);
+  // Each step is [topY, height, rightEdge] — the cut eats in from the right.
+  const steps = [
+    [3, 3, 13],
+    [6, 3, 10],
+    [9, 3, 7],
+    [12, 2, 4],
+  ];
+  for (const [top, height, right] of steps) {
+    rect(canvas, 1, top, right, top + height - 1, STONE_BASE);
+    rect(canvas, 1, top, right, top, STONE_LIGHT); // lit tread
+    set(canvas, right, top + height - 1, STONE_DARK); // shadowed riser
+  }
+  // One ore glint in the face, so it reads as worth the trip rather than as
+  // scenery. Gold is VALUE in this palette (`COLOR_PALETTE.md` §4).
+  set(canvas, 8, 7, REWARD_GOLD);
+  set(canvas, 9, 8, GOLD_HIGHLIGHT);
+  set(canvas, 4, 10, REWARD_GOLD);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** The Highlands: a peak with snow on it. TALL and pointed. @returns {Canvas} */
+function placeHighlands() {
+  const canvas = createCanvas(16, 16);
+  // Two peaks, the near one taller — a range, not a triangle.
+  for (let y = 3; y < 14; y += 1) {
+    const spread = y - 3;
+    rect(canvas, 8 - spread, y, 8 + spread, y, STONE_BASE);
+  }
+  for (let y = 7; y < 14; y += 1) {
+    const spread = y - 7;
+    rect(canvas, 13 - spread, y, Math.min(15, 13 + spread), y, STONE_DARK);
+  }
+  // Snow cap, and the lit western face beneath it.
+  rect(canvas, 7, 3, 9, 4, PARCHMENT);
+  set(canvas, 6, 5, PARCHMENT);
+  set(canvas, 10, 5, PARCHMENT);
+  for (let y = 6; y < 13; y += 1) set(canvas, 8 - (y - 3), y, STONE_LIGHT);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
 function main() {
   const uiDir = join(SRC, 'ui-world{tps}');
 
@@ -474,6 +570,9 @@ function main() {
     ['icon_tool_seed', iconToolSeed],
     ['icon_tool_can', iconToolCan],
     ['icon_tool_hand', iconToolHand],
+    ['place_delta', placeDelta],
+    ['place_quarry', placeQuarry],
+    ['place_highlands', placeHighlands],
   ];
 
   for (const [name, paint] of icons) {
