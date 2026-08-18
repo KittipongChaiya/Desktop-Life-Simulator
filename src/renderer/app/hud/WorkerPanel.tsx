@@ -30,11 +30,19 @@ const STATE_LABELS: Record<string, string> = {
 
 export function WorkerPanel(): ReactNode {
   const workers = useSlice('workers');
+  const away = useSlice('expeditions').trips.length;
   const wallet = useSlice('wallet');
   const player = usePlayer();
   const [open, setOpen] = useState(false);
 
-  const cost = hireCost(workers.length);
+  // EVERY hand hired, including the ones off on an expedition. A worker who
+  // is away is absent from the workers slice by design (ADR-038 §2), and
+  // `hireWorker` charges `hireCost(world.workers.size)`, which counts them —
+  // so pricing off the slice alone would quote LESS than the command charges
+  // and enable Hire the player cannot afford. Found on the running app: the
+  // status bar read "0 workers" with one hand out at the delta.
+  const hired = workers.length + away;
+  const cost = hireCost(hired);
   const affordable = wallet.coins >= cost;
 
   return (
@@ -46,7 +54,8 @@ export function WorkerPanel(): ReactNode {
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
-          {workers.length} worker{workers.length === 1 ? '' : 's'}
+          {hired} worker{hired === 1 ? '' : 's'}
+          {away > 0 && ` · ${String(away)} away`}
         </button>
         <button
           type="button"
@@ -65,7 +74,7 @@ export function WorkerPanel(): ReactNode {
 
       {open && (
         <div className={styles['panel']}>
-          {workers.length === 0 ? (
+          {hired === 0 ? (
             <div className={styles['empty']}>No workers yet — sell a harvest first.</div>
           ) : (
             <>

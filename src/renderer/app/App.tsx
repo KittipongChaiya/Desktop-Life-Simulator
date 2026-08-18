@@ -25,6 +25,7 @@ import { BoardPanel } from './hud/BoardPanel';
 import { CompanionToast } from './hud/CompanionToast';
 import { FactoryPanel } from './hud/FactoryPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
+import { MapPanel } from './hud/MapPanel';
 import { ReturnSummary } from './hud/ReturnSummary';
 import { SaveNotice } from './hud/SaveNotice';
 import { SettingsPanel } from './hud/SettingsPanel';
@@ -160,6 +161,7 @@ export function App(): ReactNode {
                 <WorkerPanel />
                 <ShopPanel />
                 <BoardPanel />
+                <MapPanel />
                 <FactoryPanel />
                 <InventoryPanel />
                 <SettingsPanel />

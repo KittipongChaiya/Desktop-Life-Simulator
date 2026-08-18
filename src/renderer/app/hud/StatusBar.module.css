@@ -35,12 +35,20 @@
 .readout {
   font-size: 18px;
   letter-spacing: 0.02em;
+  /* Never break a phrase across two lines. Flex items shrink by default, so a
+     narrow screen wrapped "Day 1 · Dawn · Spring" mid-date once the phase-28
+     Map toggle joined the row — caught on screen at 1400px. Overflow now
+     lands on the panel row, which is a list of chips and can take it. */
+  white-space: nowrap;
+  flex: none;
 }
 
 .muted {
   color: rgb(232 236 244 / 55%);
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
+  flex: none;
 }
 
 /* The coin readout: icon + tweened count (CoinCounter.tsx). Gold-adjacent

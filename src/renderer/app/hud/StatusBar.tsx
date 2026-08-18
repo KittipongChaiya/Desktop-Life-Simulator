@@ -48,6 +48,15 @@ export interface StatusBarProps {
 export function StatusBar({ children }: StatusBarProps): ReactNode {
   const status = useSlice('status');
   const workers = useSlice('workers');
+  // Plus whoever is away: an expedition takes a hand off the grid and out of
+  // the workers slice (ADR-038 §2), and "0 workers" with someone out at the
+  // delta reads as a hand LOST rather than travelling.
+  //
+  // The COUNT only — no "· 1 away" note here. The first version had one and
+  // the extra characters pushed this bar past its width on screen, wrapping
+  // the date onto two lines. The worker panel's own toggle sits two elements
+  // away and has the room to say where they are.
+  const hired = workers.length + useSlice('expeditions').trips.length;
   const overlay = useOverlay();
   const collapsed = overlay.isCollapsed();
 
@@ -73,7 +82,7 @@ export function StatusBar({ children }: StatusBarProps): ReactNode {
       <ToolBar />
 
       <span className={styles['muted']} title="Workers hired">
-        {workers.length} {workers.length === 1 ? 'worker' : 'workers'}
+        {hired} {hired === 1 ? 'worker' : 'workers'}
       </span>
 
       {/* The panel toggles. Between the readouts and the collapse chevron, in

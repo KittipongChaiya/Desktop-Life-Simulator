@@ -29,6 +29,7 @@ import { unwrap } from '../../shared/result';
 import type { RoleRegistry } from '../content/roles';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import { enterCost } from '../pathing/astar';
+import { containerTotal } from '../world/container';
 import type { TileGrid } from '../world/tile-grid';
 import {
   WorkerState,
@@ -63,6 +64,17 @@ export interface WorkerView {
   /** A fresh copy of the current task, or null. Never the sim's own object. */
   readonly task: { readonly kind: WorkerTaskKind; readonly tile: number } | null;
   readonly energy: number;
+  /**
+   * How many items are in the hold. Phase-28.
+   *
+   * A COUNT, never the stacks: the panel needs to know whether a hand is
+   * free to be sent on an expedition (ADR-038 §5 — a worker leaves
+   * empty-handed), and projecting the contents would put a container's shape
+   * into a view nothing reads. Without it the Send button could not disable
+   * where the validator would reject, which is the rule every other button in
+   * the HUD follows.
+   */
+  readonly carrying: number;
   /**
    * The role this worker's schedule matches, or null for a bespoke one.
    *
@@ -110,6 +122,7 @@ function projectWorker(source: WorkerProjectionSource, worker: Worker): WorkerVi
     state: worker.state,
     task: worker.task === null ? null : { kind: worker.task.kind, tile: worker.task.tile },
     energy: worker.energy,
+    carrying: containerTotal(worker.carrying),
     role: roleMatching(source.roleRegistry, worker.schedule),
   };
 }
@@ -163,6 +176,7 @@ export function workersEqual(a: readonly WorkerView[], b: readonly WorkerView[])
       x.moveFraction !== y.moveFraction ||
       x.facing !== y.facing ||
       x.state !== y.state ||
+      x.carrying !== y.carrying ||
       x.energy !== y.energy
     ) {
       return false;

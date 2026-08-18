@@ -24,6 +24,7 @@ import { addItems, containerCount, containerTotal, removeItems } from '../world/
 import { standingAtLeast, standingOf } from '../world/reputation';
 import { WorkerState } from '../world/worker';
 
+import { heldForSale, sellableContainers } from './commerce-commands';
 import type { CommandDispatcher } from './dispatcher';
 import type { CommandWorld, ValidationResult } from './types';
 
@@ -84,8 +85,15 @@ export function validateSendExpedition(
 
   // All-or-nothing, the rule a craft and a gather both follow: every supply
   // must be present, or none is taken.
+  //
+  // ACROSS INVENTORY AND SHEDS, through the helper selling and contract
+  // delivery both use. Checking `world.inventory` alone was the first version
+  // and it is the phase-06 defect exactly, one system later: a player who had
+  // built a shed — which the game encourages — would find Send silently
+  // refused, because their seed had been tidied away. One definition of "what
+  // the farm holds" or the three channels drift apart.
   for (const stack of destination.supplies) {
-    if (containerCount(world.inventory, stack.item) < stack.quantity) {
+    if (heldForSale(world, stack.item) < stack.quantity) {
       return err(
         appError(ErrorCode.MissingItem, 'not enough supplies to outfit the trip', {
           destination: destinationId,
@@ -114,8 +122,16 @@ export function sendExpedition(
     return err(appError(ErrorCode.InvalidIntent, 'no such worker or destination', { worker }));
   }
 
+  // Drained the same way a sale and a contract delivery drain: the player's
+  // own inventory first, then sheds in id order (deterministic).
   for (const stack of found.value.supplies) {
-    removeItems(world.inventory, stack.item, stack.quantity);
+    let remaining = stack.quantity;
+    for (const container of sellableContainers(world)) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, containerCount(container, stack.item));
+      if (take <= 0) continue;
+      remaining -= removeItems(container, stack.item, take).removed;
+    }
   }
 
   // Off the grid (ADR-038 §2). The task and path go with them: a claim held by
