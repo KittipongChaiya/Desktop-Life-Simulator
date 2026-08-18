@@ -56,6 +56,12 @@ presentation load criterion 12 uses.
 | samples   | 1,269        | > 500    |
 | FPS       | 94           | —        |
 
+**Re-measured twice more since, on the phase's own shipped code and again at
+the RC: p99 lands at 0.4–0.5 ms every time, max 6.9–8.0 ms, FPS 93–94.**
+`PERFORMANCE.md` §17 carries all three runs, because a single sample is not a
+number — and the decision below rests on the range rather than on the row above
+it.
+
 **The p99 is six times inside the trigger.** The second clause — _tick execution
 measurably delaying frame presentation_ — is not met either: the renderer held
 94 FPS through the run, with the simulation ticking at 20 Hz on the same thread.

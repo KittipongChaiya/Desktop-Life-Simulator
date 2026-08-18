@@ -252,3 +252,28 @@ change while nobody is watching.
   deliberately (ADR-034 §7).
 
 ## 7. Release position
+
+**v0.4 is a release candidate.** The game is playable end to end, every gate
+that can be run on this machine has been run for this document, and the one
+criterion that is not a pass is reported as PARTIAL rather than rounded up.
+
+**What stands between this and a published `0.4.0` is unchanged from v0.3, and
+from v0.2 before it: a certificate.** Not code, not a gate, not a defect — a
+purchase the owner makes. The tripwire enforces it: the moment `package.json`
+says `0.4.0` without signing configured, the suite fails by design.
+
+That circularity is now three versions deep and worth stating plainly, because
+it is the project's largest single piece of unfinished business and no amount
+of engineering will close it. The three v0.2 update-path proofs need a
+published release to test against; the first published release needs signing;
+signing needs the purchase. **Everything downstream of that one item is an
+afternoon's work.**
+
+Nothing else here is waiting on anything. The version's six milestones shipped,
+the threading question that had been open since ADR-003 was measured and
+answered, and the two defects this RC found — a stranded worker and a
+three-versions-old over-credit — are fixed with tests that fail on the old
+code.
+
+**Recommendation:** hold at RC. Buy the certificate, publish, then close the
+three update paths and cut `0.4.0` in the same week.
