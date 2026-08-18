@@ -13,6 +13,7 @@
  */
 
 import type { TileIndex, WorkerId } from '../../shared/ids';
+import { selectGather } from '../ai/gather';
 import { selectHaul } from '../ai/haul';
 import { selectStorageTarget } from '../ai/storage-target';
 import { commandForTask, selectTask } from '../ai/worker-tasks';
@@ -138,7 +139,21 @@ function stepIdle(world: World, worker: Worker): void {
   // ADR-036 §3's declared ordering: a harvest is time-critical in a way a haul
   // is not, so it wins; hauling then outranks planting and tilling, which is
   // what makes a chain run on a farm that always has ground to till.
-  const task = ordinary?.kind === WorkerTaskKind.Harvest ? ordinary : (haul ?? ordinary);
+  // ORDERING: harvest, haul, then everything on the farm, and gathering LAST.
+  //
+  // ADR-037 §4 originally put gathering above plant and till, reasoning that a
+  // rock outranks ground that will still be there tomorrow. Measured, that was
+  // wrong and badly so: the wilds are thirty-plus tiles away, so a gather trip
+  // costs a long walk each way, and a worker that chose one did almost nothing
+  // else. `dry-farm` went to ZERO earnings and 28 catch-up assertions failed —
+  // the farm had simply stopped. The ADR carries the amendment.
+  //
+  // Last-resort is the honest ordering: the farm is the game, and the wilds are
+  // what a crew does when the farm has nothing for it. That also makes
+  // gathering's cost proportionate — the wild scan runs only when every nearer
+  // band came back empty.
+  const preferred = ordinary?.kind === WorkerTaskKind.Harvest ? ordinary : (haul ?? ordinary);
+  const task = preferred ?? selectGather(world, worker);
   if (task === null) {
     // No work — stay Idle and schedule the next scan (never jams, bounded
     // staleness of one second).

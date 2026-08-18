@@ -46,6 +46,8 @@ export interface RoleDefinition {
 export const CORE_FARMHAND = asContentId('core:farmhand');
 export const CORE_HARVESTER = asContentId('core:harvester');
 export const CORE_GROUNDSKEEPER = asContentId('core:groundskeeper');
+/** The wilds crew (phase-27). Gathering is opt-in and this role is the opt. */
+export const CORE_FORAGER = asContentId('core:forager');
 
 export type RoleRegistry = ContentRegistry<RoleDefinition>;
 

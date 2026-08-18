@@ -40,6 +40,7 @@
  */
 
 import type { ContentId } from '../../shared/ids';
+import { pruneHarvested } from '../commands/gather-commands';
 import type { RecipeDefinition } from '../content/recipes';
 import { acceptable, addItems, removeItems } from '../world/container';
 import {
@@ -119,6 +120,14 @@ function stepFactory(world: World, factory: FactoryState): void {
 }
 
 export function productionSystem(world: World): void {
+  // The wilds' one stored map is pruned here rather than in a system of its
+  // own: it is two lines of bookkeeping, it must happen exactly once a tick,
+  // and a `wildsSystem` whose entire body was this would be a phase in
+  // `PHASE_ORDER` earning nothing (ADR-007 §4 — adding one is a deliberate,
+  // reviewable act). Without it `harvestedAt` grows with PLAYTIME rather than
+  // world size, which `SAVE_FORMAT.md` §3.4 names as the hazard.
+  pruneHarvested(world);
+
   // Sorted by building id, never Map insertion order: insertion order after a
   // load is whatever the deserializer happened to do, and a tick whose result
   // depends on that is not reproducible across a save round-trip (ADR-007).

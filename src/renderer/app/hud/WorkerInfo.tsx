@@ -32,6 +32,7 @@ const TASK_LABEL: Readonly<Record<WorkerTaskKind, string>> = {
   // "carrying it there" without opening anything.
   [WorkerTaskKind.Haul]: 'Collecting',
   [WorkerTaskKind.Deliver]: 'Delivering',
+  [WorkerTaskKind.Gather]: 'Gathering',
 };
 
 function useSelectedId(): number | null {

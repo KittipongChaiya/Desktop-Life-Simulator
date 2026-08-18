@@ -264,6 +264,62 @@ function itemStone() {
   return canvas;
 }
 
+/** Ore: a stone chunk with metal showing through, so it reads as stone's
+ * richer cousin rather than a different family. @returns {Canvas} */
+function itemOre() {
+  const canvas = createCanvas(16, 16);
+  ellipse(canvas, 7.5, 9.5, 5.4, 3.6, STONE_DARK, 0.1);
+  ellipse(canvas, 7, 8.5, 4.8, 3.4, STONE_BASE, 0.1);
+  ellipse(canvas, 6, 7, 3, 2.2, STONE_LIGHT, 0.1);
+  // The metal: three warm flecks, never a solid seam. Gold reads as VALUE in
+  // this palette (`COLOR_PALETTE.md` §4), which is exactly the claim ore makes.
+  set(canvas, 8, 7, REWARD_GOLD);
+  set(canvas, 9, 8, GOLD_HIGHLIGHT);
+  set(canvas, 6, 10, REWARD_GOLD);
+  set(canvas, 9, 10, REWARD_GOLD);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Flour: a tied sack, slumped. Soft and pale against bread's baked crust, so
+ * the two steps of the chain never read as the same icon. @returns {Canvas} */
+function itemFlour() {
+  const canvas = createCanvas(16, 16);
+  // Body, wider at the base — a sack sits, it does not stand.
+  ellipse(canvas, 8, 10, 5, 4.4, STRAW, 0.1);
+  rect(canvas, 4, 9, 12, 13, STRAW);
+  rect(canvas, 4, 9, 5, 13, GOLD_HIGHLIGHT); // lit left face
+  rect(canvas, 3, 13, 12, 13, WOOD_BASE); // shadowed base
+  // Neck and tie.
+  rect(canvas, 6, 5, 9, 8, STRAW);
+  rect(canvas, 6, 7, 9, 7, SOIL_DARK);
+  // Gathered top.
+  set(canvas, 6, 4, STRAW);
+  set(canvas, 9, 4, STRAW);
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
+/** Bread: a domed loaf with a slashed crust. Round and dark where flour is
+ * square and pale. @returns {Canvas} */
+function itemBread() {
+  const canvas = createCanvas(16, 16);
+  ellipse(canvas, 8, 9.5, 6, 4.2, WOOD_BASE, 0.1);
+  ellipse(canvas, 7.5, 8.5, 5.4, 3.4, WOOD_LIGHT, 0.1);
+  ellipse(canvas, 6.5, 7.5, 3.2, 1.8, STRAW, 0.1);
+  // Three slashes across the crown — the mark that says "loaf" at 16 px.
+  for (const [x, y] of [
+    [6, 7],
+    [8, 8],
+    [10, 9],
+  ]) {
+    set(canvas, x, y, SOIL_DARK);
+    set(canvas, x + 1, y - 1, SOIL_DARK);
+  }
+  outlineSilhouette(canvas);
+  return canvas;
+}
+
 // ── Tools (24×24 — the toolbar, GAME_DESIGN.md §8.3) ─────────────────────────
 
 /** The hoe: worn handle, a flat blade hooking DOWN off the handle's end —
@@ -411,6 +467,9 @@ function main() {
     ['icon_notification_caution', iconNotificationCaution],
     ['item_wood', itemWood],
     ['item_stone', itemStone],
+    ['item_ore', itemOre],
+    ['item_flour', itemFlour],
+    ['item_bread', itemBread],
     ['icon_tool_hoe', iconToolHoe],
     ['icon_tool_seed', iconToolSeed],
     ['icon_tool_can', iconToolCan],

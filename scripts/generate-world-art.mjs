@@ -26,7 +26,9 @@ import {
   GRASS_LIGHT,
   GRASS_SHADOW,
   LEAF_HIGHLIGHT,
+  GOLD_HIGHLIGHT,
   PARCHMENT,
+  REWARD_GOLD,
   PUMPKIN,
   SOFT_INK,
   SOIL_DARK,
@@ -527,6 +529,74 @@ function kitchen() {
   return canvas;
 }
 
+/** Ore vein (`buildings:ore_vein`, ADR-037): angular crystal shards breaking
+ * upward out of a low base, banded with metal.
+ *
+ * SILHOUETTE-FIRST, and the second attempt. The first was `rock`'s rounded
+ * boulder with gold flecks scattered on it, and at gameplay scale it read as a
+ * plain grey rock — the flecks disappear, and a player cannot tell stone from
+ * ore. That is precisely the mistake phase-25 made with the mill and the
+ * kitchen, repeated one phase later on surface detail instead of shape.
+ *
+ * Shards point up and outward, so the outline is jagged where `rock`'s is
+ * smooth. The two are now different at a glance, before any colour is read.
+ */
+function oreVein() {
+  const canvas = createCanvas(TILE, TILE);
+
+  // Low base the shards grow out of — keeps it planted rather than floating.
+  ellipse(canvas, 16, 25, 9, 4, STONE_DARK, 0.15);
+  ellipse(canvas, 15, 24, 8, 3, STONE_BASE, 0.15);
+
+  /**
+   * One angular shard: a triangle from a base width up to an apex.
+   *
+   * @param {number} apexX
+   * @param {number} apexY
+   * @param {number} baseY
+   * @param {number} halfWidth
+   * @param {number[]} body
+   * @param {number[]} lit
+   * @returns {void}
+   */
+  const shard = (apexX, apexY, baseY, halfWidth, body, lit) => {
+    const height = baseY - apexY;
+    for (let y = apexY; y <= baseY; y += 1) {
+      const t = (y - apexY) / height;
+      const half = Math.max(0, Math.round(halfWidth * t));
+      rect(canvas, apexX - half, y, apexX + half, y, body);
+      // Lit left face — one column, so the facet reads as flat, not round.
+      set(canvas, apexX - half, y, lit);
+    }
+  };
+
+  // Three shards of different heights: a cluster, never a row.
+  shard(11, 14, 25, 4, STONE_BASE, STONE_LIGHT);
+  shard(21, 12, 25, 4, STONE_BASE, STONE_LIGHT);
+  shard(16, 7, 25, 5, STONE_BASE, STONE_LIGHT);
+
+  // Metal banding, following each shard's face rather than scattered over it —
+  // scattered flecks are what vanished at size.
+  for (const [x, y] of [
+    [16, 12],
+    [16, 13],
+    [17, 14],
+    [15, 15],
+    [11, 19],
+    [12, 20],
+    [21, 17],
+    [20, 18],
+  ]) {
+    set(canvas, x, y, REWARD_GOLD);
+  }
+  set(canvas, 16, 11, GOLD_HIGHLIGHT);
+  set(canvas, 21, 16, GOLD_HIGHLIGHT);
+
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 27, 10, 2);
+  return canvas;
+}
+
 // ── Town buildings (phase-18, ADR-030 §4; village canon WORLD_BIBLE §Village) ─
 
 /** Cottage (`core:cottage`): a home, not a workshop — the fifth silhouette
@@ -695,6 +765,7 @@ function main() {
     [terrainDir, 'path.png', pathTile],
     [buildingsDir, 'tree.png', tree],
     [buildingsDir, 'rock.png', rock],
+    [buildingsDir, 'ore_vein.png', oreVein],
     [buildingsDir, 'bush.png', bush],
     [buildingsDir, 'flower.png', flower],
     [buildingsDir, 'storage_shed.png', storageShed],

@@ -26,6 +26,7 @@ import {
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
 import { registerFactoryCommands } from '../commands/factory-commands';
+import { registerGatherCommands } from '../commands/gather-commands';
 import { registerHaulCommands } from '../commands/haul-commands';
 import { registerScheduleCommands } from '../commands/schedule-commands';
 import { registerSourceCommands } from '../commands/source-commands';
@@ -465,6 +466,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   registerContractCommands(world.commands);
   registerFactoryCommands(world.commands);
   registerHaulCommands(world.commands);
+  registerGatherCommands(world.commands);
 
   // The village stands before the first tick (ADR-030 §3). Hydration defers
   // it — see `WorldOptions.foundTown` — and re-founds after restoring.

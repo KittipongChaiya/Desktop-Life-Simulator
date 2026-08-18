@@ -30,6 +30,9 @@ import {
   CORE_BREAD,
   CORE_CARROT_SEED,
   CORE_FLOUR,
+  CORE_ORE,
+  CORE_STONE as CORE_STONE_ITEM,
+  CORE_WOOD,
   CORE_PUMPKIN_SEED,
   CORE_TURNIP_SEED,
   CORE_WHEAT_SEED,
@@ -43,7 +46,14 @@ import {
   type RecipeDefinition,
 } from '../../src/sim/content/recipes';
 import {
+  CORE_ORE as CORE_ORE_NODE,
+  CORE_STONE_NODE,
+  CORE_TIMBER,
+  type ResourceNodeDefinition,
+} from '../../src/sim/content/resource-nodes';
+import {
   CORE_FARMHAND,
+  CORE_FORAGER,
   CORE_GROUNDSKEEPER,
   CORE_HARVESTER,
   type RoleDefinition,
@@ -208,6 +218,32 @@ export function coreItems(): readonly ItemDefinition[] {
       displayName: 'Bread',
       sprite: 'ui-world:item_bread',
       basePrice: 230,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    // Gathered from the wilds (phase-27, ADR-037). Priced as RAW materials —
+    // below every processed good and every long crop — because they are the
+    // bottom of a chain rather than the end of one, and because gathering has
+    // no seed cost, no growth wait and no land to buy. A wild resource that
+    // outsold a farmed one would make the farm the side activity.
+    {
+      id: CORE_WOOD,
+      displayName: 'Wood',
+      sprite: 'ui-world:item_wood',
+      basePrice: 8,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_STONE_ITEM,
+      displayName: 'Stone',
+      sprite: 'ui-world:item_stone',
+      basePrice: 14,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_ORE,
+      displayName: 'Ore',
+      sprite: 'ui-world:item_ore',
+      basePrice: 40,
       stackSize: DEFAULT_STACK_SIZE,
     },
     {
@@ -427,6 +463,14 @@ export function coreRoles(): readonly RoleDefinition[] {
       taskKinds: [WorkerTaskKind.Harvest],
     },
     {
+      // The wilds crew (phase-27, ADR-037 §4 as amended). Gathering is opt-in,
+      // and this role is how a player opts in: assign it and the worker walks
+      // out to the band, leave it unassigned and the farm keeps its hands.
+      id: CORE_FORAGER,
+      displayName: 'Forager',
+      taskKinds: [WorkerTaskKind.Gather],
+    },
+    {
       id: CORE_GROUNDSKEEPER,
       displayName: 'Groundskeeper',
       taskKinds: [WorkerTaskKind.Till, WorkerTaskKind.Plant],
@@ -475,4 +519,58 @@ export function coreRecipes(): readonly RecipeDefinition[] {
     },
   ];
   return recipes;
+}
+
+/**
+ * What stands in the wilds. Phase-27 — ADR-037 §5.
+ *
+ * Three kinds, covering the three verbs `PLAN.md` §5 names — foraging, mining,
+ * gathering — and no more. Order IS significant: densities are summed in
+ * registration order against one hash value, so appending is safe and
+ * reordering re-rolls every existing world's wilds.
+ *
+ * The densities sum to 0.21, so roughly four fifths of the wilds is open
+ * ground. That is deliberate: a band packed with nodes is a maze rather than a
+ * wilderness, and a worker has to be able to walk through it to reach the far
+ * side.
+ *
+ * Regrow times are long relative to gather times — minutes against seconds —
+ * so a crew cannot camp one node. The intended shape is a worker walking a
+ * circuit, which is also what makes the wilds feel like somewhere you go
+ * rather than a second field.
+ */
+export function coreResourceNodes(): readonly ResourceNodeDefinition[] {
+  const nodes: readonly ResourceNodeDefinition[] = [
+    {
+      id: CORE_TIMBER,
+      displayName: 'Timber',
+      sprite: 'buildings:tree',
+      yields: [{ item: CORE_WOOD, quantity: 2 }],
+      gatherTicks: secondsToTicks(6),
+      regrowTicks: secondsToTicks(300),
+      density: 0.1,
+    },
+    {
+      id: CORE_STONE_NODE,
+      displayName: 'Stone',
+      sprite: 'buildings:rock',
+      yields: [{ item: CORE_STONE_ITEM, quantity: 2 }],
+      gatherTicks: secondsToTicks(9),
+      regrowTicks: secondsToTicks(600),
+      density: 0.07,
+    },
+    {
+      id: CORE_ORE_NODE,
+      displayName: 'Ore Vein',
+      sprite: 'buildings:ore_vein',
+      yields: [{ item: CORE_ORE, quantity: 1 }],
+      gatherTicks: secondsToTicks(12),
+      // The longest regrow of the three: ore is the scarce one, and scarcity
+      // here is time rather than a rarity roll — no hidden dice, and a player
+      // can learn the cadence by watching it.
+      regrowTicks: secondsToTicks(900),
+      density: 0.04,
+    },
+  ];
+  return nodes;
 }

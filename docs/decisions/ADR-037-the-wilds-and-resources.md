@@ -1,6 +1,6 @@
 # ADR-037: The Wilds and Gathered Resources
 
-**Status:** Accepted — v0.4 Phase 27.
+**Status:** Accepted — v0.4 Phase 27 (implemented, **with the §4 amendment below**).
 **Date:** 2026-08-18
 **Phase:** v0.4 Phase 27 (The Wilds & Resources) — walkable land past the town, and something out there worth going for.
 **Bound by (not re-litigated):** ADR-030 (two regions in one space; the grid extends by whole chunk columns; ownership is the access model; migration is pure index arithmetic); ADR-011 (resources are conserved quantities in owner-tagged containers; harvest is a declared source); ADR-009 (state is recorded facts, derived where possible); ADR-024 (the worker pipeline: discover → filter → select); ADR-036 (a task-shaped band joins that pipeline without new machinery); ADR-007 (determinism); `VISION.md` §2.2.
@@ -107,9 +107,10 @@ till and haul (ADR-024 §1). It therefore inherits zones, shifts, roles,
 priority ordering and the never-deadlock rule with no new code, and phase 26
 already proved a new band costs a discovery function and a command.
 
-**Priority: below harvest and haul, above plant and till.** A crop rots and a
-chain starves; a rock does not. Ordering is data (ADR-024 §3), so a role can
-send a worker out gathering first.
+**Priority: LAST, and OPT-IN.** See the amendment below: the original ordering
+put gathering above plant and till and it emptied the farm, and last-resort
+ordering alone still cost a farm its idle hands. A worker gathers only if its
+schedule names `Gather` — `core:forager` is the role that does.
 
 Yields go straight into the worker's carry hold — a declared **source**
 (ADR-011 §4), the same boundary a crop harvest crosses — and reach storage
@@ -137,6 +138,58 @@ and no more: **timber** (foraging), **stone** (gathering), **ore** (mining).
   arise yet.
 - **Rare or tiered resources.** One density per kind. Tiers are a balance
   feature with no consumer until v1.0's crafting depth.
+
+---
+
+## Amendment — gathering is last-resort, not mid-priority
+
+**Made during phase-27 implementation, 2026-08-18.** §4 above put gathering
+below harvest and haul but **above plant and till**, reasoning that "a crop
+rots and a chain starves; a rock does not — but a rock still outranks ground
+that will still be there tomorrow."
+
+Measured, that reasoning was wrong, and not marginally. The wilds begin
+thirty-plus tiles from the farm, so a gather trip costs a long walk in each
+direction. A worker that chose gathering therefore did **almost nothing else**
+for the rest of its day. With the original ordering:
+
+- `dry-farm` earned **zero** over a long unattended run — the farm had stopped.
+- **28** catch-up and dry-farm assertions failed, all of them measuring farm
+  output that no longer happened.
+
+The ordering is now **harvest → haul → plant → till → gather**. A crew works
+the farm, and goes out only when the farm has nothing for it.
+
+**And that was still not enough.** Last-resort ordering fixed the earnings but
+not the shape: a worker that reaches the wilds is gone for minutes, so a farm
+with one quiet moment lost a hand for a long time, and `worker.test.ts`'s
+"returns to Idle and waits when no task is available" became false — there is
+always a rock somewhere.
+
+So **gathering is opt-in, and it is the only band that is.** Everywhere else in
+ADR-024's model an absent `taskKinds` means unconstrained; gathering requires
+the worker's schedule to name it explicitly. `plugins/core` ships
+**`core:forager`** as that opt-in.
+
+This is the shape logistics already took, and the parallel is the argument:
+hauling does not happen until the player declares a ROUTE, and gathering does
+not happen until the player says which workers are for it. Both are
+long-distance work, and **neither should start merely because nobody said no.**
+
+Two things this gets right that the original did not:
+
+1. **The farm is the game.** `VISION.md` §1 is a farm that plays itself;
+   exploration is meant to _feed_ that (criterion 2), not replace it. An
+   ordering that let a rock outrank a field inverted the product.
+2. **The scan cost lands where it belongs.** Wild discovery walks a 32×64 band,
+   and it now runs only when every nearer band has come back empty — which on
+   a working farm is rarely.
+
+The general lesson, recorded because it is the second time a task band has been
+mispriced by reasoning rather than measurement (ADR-036 §3's haul ordering was
+the first, and it was right): **a band's priority is a claim about worker time,
+and worker time includes the walk.** Distance is part of the priority, and it
+is not visible in the reasoning — only in the run.
 
 ---
 

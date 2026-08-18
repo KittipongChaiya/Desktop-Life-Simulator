@@ -58,8 +58,9 @@ describe('the economy slice', () => {
     stepSimulation(world);
 
     const prices = world.snapshots.economy.value.prices;
-    // Four produce, four seeds, and the two processed goods phase-25 added.
-    expect(prices.length).toBe(10);
+    // Four produce, four seeds, the two processed goods phase-25 added, and
+    // the three gathered materials phase-27 added.
+    expect(prices.length).toBe(13);
     expect([...prices].map((p) => p.item)).toEqual([...prices].map((p) => p.item).sort());
 
     const wheat = prices.find((p) => p.item === 'core:wheat');

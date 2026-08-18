@@ -277,5 +277,7 @@ export function commandForTask(task: WorkerTask, worker: WorkerId): Command {
       return { type: 'haulPickup', worker, route: task.route ?? 0 };
     case WorkerTaskKind.Deliver:
       return { type: 'haulDeliver', worker, route: task.route ?? 0 };
+    case WorkerTaskKind.Gather:
+      return { type: 'gatherNode', worker, tile: task.tile };
   }
 }

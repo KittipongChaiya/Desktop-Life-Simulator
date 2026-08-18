@@ -39,8 +39,11 @@ owner's memory (`AI_RULES.md` §10.4).
 - DONE — grid widened to 112 (`WILDS_MIN_X = 80`), schema **v13** with the
   tile re-lay and the `harvestedAt` map, v12 golden fixture, 11 migration
   tests asserting every crop/building/worker survives at the same (x, y).
-- NEXT — `WorkerTaskKind.Gather` band + command; core node content (timber,
-  stone, ore); node art through `generate-world-art.mjs`; wild terrain paint.
+- DONE — `WorkerTaskKind.Gather` band + command, opt-in via `core:forager`;
+  core node content (timber, stone, ore) and their items; ore-vein sprite and
+  the item icons (including phase-25's outstanding flour/bread).
+- NEXT — wild terrain paint (the band renders as default grass today), a
+  gathering entry in the phase doc, then close phase 27.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

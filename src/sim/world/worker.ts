@@ -50,6 +50,8 @@ export const WorkerTaskKind = {
   Haul: 'haul',
   /** Carry collected route goods to their destination (phase-26). */
   Deliver: 'deliver',
+  /** Work a resource node in the wilds (phase-27, ADR-037 §4). */
+  Gather: 'gather',
 } as const;
 
 export type WorkerTaskKind = (typeof WorkerTaskKind)[keyof typeof WorkerTaskKind];
@@ -229,6 +231,10 @@ export const TASK_DURATION_TICKS: Readonly<Record<WorkerTaskKind, number>> = {
   // too would tax the same journey twice.
   [WorkerTaskKind.Haul]: 10,
   [WorkerTaskKind.Deliver]: 10,
+  // Overridden per node by its definition's `gatherTicks` — an ore vein takes
+  // longer than a tree. This entry is the fallback for a node whose kind has
+  // gone (an uninstalled source), and matches the shortest real gather.
+  [WorkerTaskKind.Gather]: 120,
 };
 
 /** Ticks to cross one tile at `moveCost` 1. §4.3 (10 ticks = 0.5 s). */

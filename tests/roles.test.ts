@@ -18,6 +18,7 @@ import { createInstalledRegistries } from '../src/sim/content/installed';
 import { createPluginApi } from '../src/sim/content/plugin-api';
 import {
   CORE_FARMHAND,
+  CORE_FORAGER,
   CORE_GROUNDSKEEPER,
   CORE_HARVESTER,
   createRoleRegistry,
@@ -38,12 +39,24 @@ function worldWithWorker(): { world: World; worker: WorkerId } {
 }
 
 describe('core ships roles through the public API', () => {
-  it('registers three, in a stable order', () => {
+  it('registers the shipped set, in a stable order', () => {
+    // Order matters and is asserted, not the count: roles are referenced by id
+    // so appending is safe, but a REORDER changes what a saved assignment
+    // means. Phase-27 appended `core:forager` — the wilds crew, and the opt-in
+    // that gathering requires (ADR-037 §4 as amended).
     expect(
       createInstalledRegistries()
         .roles.all()
         .map((role) => role.id),
-    ).toEqual([CORE_FARMHAND, CORE_HARVESTER, CORE_GROUNDSKEEPER]);
+    ).toEqual([CORE_FARMHAND, CORE_HARVESTER, CORE_FORAGER, CORE_GROUNDSKEEPER]);
+  });
+
+  it('ships a forager whose only task kind is gathering', () => {
+    // The opt-in has to be exact: a forager that could also farm would drift
+    // back to the plot, and a farmhand that could gather would wander off it.
+    const forager = createInstalledRegistries().roles.get(CORE_FORAGER);
+    expect(forager.ok).toBe(true);
+    if (forager.ok) expect(forager.value.taskKinds).toEqual([WorkerTaskKind.Gather]);
   });
 
   it('makes the farmhand the identity role, not a special case', () => {

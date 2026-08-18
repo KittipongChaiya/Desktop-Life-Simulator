@@ -21,6 +21,7 @@ import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
 import type { ItemRegistry } from '../content/items';
 import type { RecipeRegistry } from '../content/recipes';
+import type { ResourceNodeRegistry } from '../content/resource-nodes';
 import type { RoleRegistry } from '../content/roles';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import type { WeatherKindRegistry } from '../content/weather-kinds';
@@ -132,6 +133,13 @@ export interface SetFactoryRecipeCommand {
   readonly building: number;
   /** `null` clears the selection. */
   readonly recipeId: string | null;
+}
+
+/** Work a resource node in the wilds; its yield lands in the actor's hold. */
+export interface GatherNodeCommand {
+  readonly type: 'gatherNode';
+  readonly worker: number;
+  readonly tile: number;
 }
 
 /** Declare a standing instruction to move one item between two buildings. */
@@ -257,6 +265,7 @@ export type Command =
   | RemoveRouteCommand
   | HaulPickupCommand
   | HaulDeliverCommand
+  | GatherNodeCommand
   | GrantCoinsCommand
   | ExpandLandCommand
   | SetSourceEnabledCommand
@@ -309,6 +318,10 @@ export interface CommandWorld {
   readonly factories: FactoryStore;
   /** Standing logistics instructions (ADR-036 section 2). Written by route commands. */
   readonly routes: RouteStore;
+  /** Registered wild node kinds (ADR-037 section 5). */
+  readonly resourceNodeRegistry: ResourceNodeRegistry;
+  /** When each wild node was last worked (ADR-037 section 3). */
+  readonly harvestedAt: Map<TileIndex, number>;
   /** Building definitions, for placement validation and storage size. */
   readonly buildingRegistry: BuildingRegistry;
   /** The player's coins. Written by commerce commands only (phase-06). */

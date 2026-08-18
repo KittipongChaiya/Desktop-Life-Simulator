@@ -40,6 +40,11 @@ export const CORE_WHEAT = asContentId('core:wheat');
 export const CORE_CARROT = asContentId('core:carrot');
 export const CORE_PUMPKIN = asContentId('core:pumpkin');
 
+/** Gathered from the wilds (phase-27, ADR-037). */
+export const CORE_WOOD = asContentId('core:wood');
+export const CORE_STONE = asContentId('core:stone');
+export const CORE_ORE = asContentId('core:ore');
+
 /** Processed goods — the v0.4 chain's middle and end (phase-25, ADR-035). */
 export const CORE_FLOUR = asContentId('core:flour');
 export const CORE_BREAD = asContentId('core:bread');
