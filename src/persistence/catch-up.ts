@@ -84,6 +84,8 @@ export interface CatchUpReport {
   readonly harvests: number;
   /** Replants performed (each consumed one seed). */
   readonly replants: number;
+  /** Crafts completed by factories while away (phase-25, ADR-035). */
+  readonly crafts: number;
   /** Items landed in storage, the inventory, or worker holds. */
   readonly itemsStored: number;
   /** Items auto-sold through the market stall. */
@@ -97,6 +99,7 @@ const EMPTY_REPORT = (elapsedTicks: number): CatchUpReport => ({
   elapsedTicks,
   harvests: 0,
   replants: 0,
+  crafts: 0,
   itemsStored: 0,
   itemsSold: 0,
   coinsEarned: 0,
@@ -196,6 +199,93 @@ function anyWorkerMayWork(
   return false;
 }
 
+/**
+ * Advances every factory across the gap. Phase-25 — ADR-035, §9.2.
+ *
+ * EXACT, not statistical, and that is worth stating because everything else in
+ * this file is an approximation. A factory's three limits are all FIXED for the
+ * duration of a gap: the ticks available, the inputs it already holds, and the
+ * space already in its output. Nothing delivers to a factory while the player
+ * is away — logistics does not exist yet — so the smallest of those three is
+ * the answer rather than an estimate of it.
+ *
+ * **Phase 26 ends that.** Once haulers move goods between buildings, inputs
+ * grow during the gap and a chain has to be modelled: an upstream mill's output
+ * becomes a downstream kitchen's input at a rate that depends on both. The
+ * round-down rule will then bind here the way it binds worker production, and
+ * `tests/catch-up-factories.test.ts` is written so that transition surfaces as
+ * failures rather than as silence.
+ *
+ * The completion test is `>` rather than `>=` — a craft must finish STRICTLY
+ * inside the gap to be credited. That is the same margin the crop model keeps
+ * and the same place its 09c over-credit lived: crediting work that lands
+ * exactly on the boundary is crediting a tick the player was not away for.
+ */
+function catchUpFactories(world: World, start: number, end: number): number {
+  let crafted = 0;
+
+  // Building-id order, matching `productionSystem` — a catch-up whose result
+  // depended on Map insertion order would not survive a save round-trip.
+  for (const [, factory] of [...world.factories.entries()].sort(([a], [b]) => a - b)) {
+    if (factory.recipeId === null) continue;
+    const found = world.recipeRegistry.get(factory.recipeId);
+    if (!found.ok) continue; // a source was uninstalled; the goods stay put
+    const recipe = found.value;
+
+    const stackSize = (item: ContentId): number => {
+      const definition = world.itemRegistry.get(item);
+      return definition.ok ? definition.value.stackSize : 1;
+    };
+
+    // TIME. A craft already running finishes at its own tick; the ones after it
+    // follow at the recipe's cadence.
+    const firstAt = (factory.startedTick ?? start) + recipe.craftTicks;
+    if (firstAt > end) continue;
+    const byTime = 1 + Math.floor((end - firstAt) / recipe.craftTicks);
+
+    // INPUTS. The running craft's have already been consumed, so it needs none.
+    const running = factory.startedTick === null ? 0 : 1;
+    let byInputs = Number.POSITIVE_INFINITY;
+    for (const stack of recipe.inputs) {
+      byInputs = Math.min(
+        byInputs,
+        running + Math.floor(containerCount(factory.input, stack.item) / stack.quantity),
+      );
+    }
+    if (recipe.inputs.length === 0) byInputs = Number.POSITIVE_INFINITY;
+
+    // OUTPUT SPACE. Rule A across a gap: nothing is consumed that could not
+    // have been delivered.
+    let byOutput = Number.POSITIVE_INFINITY;
+    for (const stack of recipe.outputs) {
+      byOutput = Math.min(
+        byOutput,
+        Math.floor(acceptable(factory.output, stack.item, stackSize(stack.item)) / stack.quantity),
+      );
+    }
+
+    const count = Math.min(byTime, byInputs, byOutput);
+    if (count <= 0) continue;
+
+    // Apply. The running craft consumed its inputs before the gap began, so
+    // only the crafts STARTED during it pay for theirs.
+    for (const stack of recipe.inputs) {
+      removeItems(factory.input, stack.item, stack.quantity * (count - running));
+    }
+    for (const stack of recipe.outputs) {
+      addItems(factory.output, stack.item, stack.quantity * count, stackSize(stack.item));
+    }
+
+    factory.startedTick = null;
+    // Re-examined on the first live tick rather than sitting out a back-off
+    // that was entered before the player left.
+    factory.replanTick = end;
+    crafted += count;
+  }
+
+  return crafted;
+}
+
 export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport {
   if (elapsedTicks <= 0) return EMPTY_REPORT(0);
 
@@ -223,9 +313,19 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     }
   }
 
+  // FACTORIES — exact, and independent of the worker model below: nothing
+  // delivers to a factory during a gap, so its production depends on no other
+  // system's outcome (ADR-035; the honest limit is stated on the helper).
+  const crafts = catchUpFactories(world, start, end);
+
   // WORKER PRODUCTION — statistical, floor everything.
   const workerCount = world.workers.size;
-  if (workerCount === 0 || world.crops.size === 0) return EMPTY_REPORT(elapsedTicks);
+  // A farm with no crew, or nothing planted, still has factories: they were
+  // advanced above and their crafts must be reported rather than dropped by an
+  // early return written before factories existed.
+  if (workerCount === 0 || world.crops.size === 0) {
+    return { ...EMPTY_REPORT(elapsedTicks), crafts };
+  }
 
   const hasRestHut = [...world.buildings.values()].some((b) => b.buildingId === CORE_REST_HUT);
   // Replanting is modeled ONLY through the seed bin's per-tile memory — the
@@ -463,6 +563,7 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
     elapsedTicks,
     harvests,
     replants,
+    crafts,
     itemsStored,
     itemsSold,
     coinsEarned,
