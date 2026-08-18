@@ -1,0 +1,34 @@
+{
+  "plantedTick": 20500,
+  "measureMs": 45000,
+  "sampleMs": 1500,
+  "feedbackOn": {
+    "cpuPercentMean": 0.566,
+    "cpuPercentMax": 1.566,
+    "fpsMean": 30,
+    "animLeasesMean": 1.07,
+    "animLeasesMax": 6,
+    "heapMbStart": 12.1,
+    "heapMbEnd": 12.1,
+    "cropsStart": 4,
+    "cropsEnd": 4,
+    "samples": 30
+  },
+  "feedbackOff": {
+    "cpuPercentMean": 0.749,
+    "cpuPercentMax": 1.342,
+    "fpsMean": 74.3,
+    "animLeasesMean": 0.73,
+    "animLeasesMax": 1,
+    "heapMbStart": 12.1,
+    "heapMbEnd": 12.1,
+    "cropsStart": 4,
+    "cropsEnd": 4,
+    "samples": 30
+  },
+  "delta": {
+    "cpuPercent": -0.183,
+    "fps": -44.3,
+    "animLeases": 0.34
+  }
+}

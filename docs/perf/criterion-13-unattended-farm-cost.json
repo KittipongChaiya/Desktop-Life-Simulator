@@ -1,0 +1,14 @@
+{
+  "cropsAtPlant": 200,
+  "measureMs": 90000,
+  "sampleMs": 1500,
+  "samples": 60,
+  "cpuPercentMean": 1.175,
+  "cpuPercentMax": 1.808,
+  "fpsMean": 92,
+  "animLeasesMean": 3.72,
+  "animLeasesMax": 9,
+  "cropsFirst": 193,
+  "cropsLast": 143,
+  "heapMb": 12.1
+}

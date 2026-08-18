@@ -1,112 +1,1502 @@
 {
-  "soakMinutes": 2,
-  "sampleCount": 20,
-  "activeShare": 0.95,
-  "firstQuarterMeanMb": 13.6,
-  "lastQuarterMeanMb": 13.6,
-  "growthMb": 0,
-  "peakMb": 13.6,
-  "meanMb": 13.6,
+  "soakMinutes": 30,
+  "sampleCount": 298,
+  "activeShare": 0.997,
+  "firstQuarterMeanMb": 14.5,
+  "lastQuarterMeanMb": 10.7,
+  "growthMb": -3.8,
+  "peakMb": 14.5,
+  "meanMb": 13.22,
   "samples": [
     {
       "atMs": 0,
-      "heapMb": 13.6,
+      "heapMb": 14.5,
       "anim": "no · 0 anim"
     },
     {
-      "atMs": 6067,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 6060,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 12142,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 12146,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 18226,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 18194,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 24296,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 24256,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 30377,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 30325,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 36457,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 36394,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 42544,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 42459,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 48595,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 48535,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 54640,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 54584,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 60701,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 60651,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 66772,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 66710,
+      "heapMb": 14.5,
+      "anim": "no · 1 anim"
     },
     {
-      "atMs": 72838,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 72782,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 78911,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 78840,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 84951,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 84899,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 90987,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 90955,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 97047,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 97019,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 103120,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 103059,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 109197,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 109119,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
     },
     {
-      "atMs": 115275,
-      "heapMb": 13.6,
-      "anim": "no · 2 anim"
+      "atMs": 115158,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 121195,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 127247,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 133308,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 139354,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 145409,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 151455,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 157512,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 163583,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 169634,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 175691,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 181747,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 187818,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 193858,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 199920,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 205962,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 212020,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 218095,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 224156,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 230226,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 236282,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 242336,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 248383,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 254435,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 260476,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 266525,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 272581,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 278643,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 284694,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 290762,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 296811,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 302872,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 308924,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 314981,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 321046,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 327121,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 333156,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 339213,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 345281,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 351366,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 357440,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 363505,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 369567,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 375612,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 381663,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 387724,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 393766,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 399827,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 405893,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 411940,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 418010,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 424049,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 430088,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 436141,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 442181,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 448229,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 454266,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 460321,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 466388,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 472444,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 478528,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 484586,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 490632,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 496684,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 502744,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 508806,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 514875,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 520911,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 526977,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 533049,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 539103,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 545152,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 551201,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 557259,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 563325,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 569380,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 575450,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 581517,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 587578,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 593647,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 599698,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 605765,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 611822,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 617890,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 623943,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 629990,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 636071,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 642144,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 648205,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 654263,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 660342,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 666384,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 672461,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 678517,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 684558,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 690623,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 696701,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 702770,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 708817,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 714874,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 720955,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 727016,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 733055,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 739115,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 745187,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 751255,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 757296,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 763363,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 769407,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 775475,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 781531,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 787605,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 793666,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 799724,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 805783,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 811847,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 817910,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 823966,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 830019,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 836069,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 842150,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 848194,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 854257,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 860309,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 866382,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 872443,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 878490,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 884552,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 890605,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 896673,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 902726,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 908789,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 914861,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 920919,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 926980,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 933047,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 939111,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 945158,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 951209,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 957265,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 963325,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 969373,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 975436,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 981490,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 987546,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 993601,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 999652,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1005705,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1011772,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1017812,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1023861,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1029922,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1035980,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1042028,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1048081,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1054147,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1060190,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1066270,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1072317,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1078354,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1084415,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1090475,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1096535,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1102586,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1108643,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1114714,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1120750,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1126800,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1132864,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1138913,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1144968,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1151022,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1157079,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1163145,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1169230,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1175285,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1181357,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1187429,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1193508,
+      "heapMb": 14.5,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1199555,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1205603,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1211657,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1217734,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1223806,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1229870,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1235931,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1241993,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1248043,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1254093,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1260142,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1266204,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1272271,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1278351,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1284419,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1290485,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1296553,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1302616,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1308658,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1314727,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1320804,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1326870,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1332956,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1339014,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1345071,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1351145,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1357209,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1363275,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1369340,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1375398,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1381469,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1387532,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1393583,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1399647,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1405697,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1411756,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1417805,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1423868,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1429935,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1436009,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1442088,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1448134,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1454191,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1460244,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1466308,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1472379,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1478445,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1484494,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1490552,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1496614,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1502713,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1508803,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1514858,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1520908,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1526977,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1533040,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1539085,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1545127,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1551177,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1557247,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1563293,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1569360,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1575418,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1581474,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1587539,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1593596,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1599661,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1605710,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1611767,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1617835,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1623892,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1629959,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1636021,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1642081,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1648118,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1654168,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1660236,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1666286,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1672326,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1678368,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1684428,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1690486,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1696535,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1702575,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1708614,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1714662,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1720721,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1726773,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1732813,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1738883,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1744929,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1751003,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1757057,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1763110,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1769148,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1775208,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1781256,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1787316,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1793385,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
+    },
+    {
+      "atMs": 1799425,
+      "heapMb": 10.7,
+      "anim": "Unavailable"
     }
   ]
 }

@@ -251,7 +251,21 @@ Dev builds carry HMR, source maps, and React DevTools hooks. Measuring one produ
 
 The same fixture is used for every measurement, so numbers are comparable across phases and sessions:
 
-> **`v1-mature-farm`** — 16×16 owned plot, 200 planted crops of mixed types, 5 workers, 4 buildings, ~40 inventory stacks, 8 hours of playtime.
+> **`v1-mature-farm`** — **12×12 owned plot (2 expansions), 24 planted crops of wheat, 3 workers, 4 buildings, 2 inventory stacks, tick 500.**
+
+**Corrected in phase-24, and worth stating plainly.** From v0.1 until then this section described that fixture as _"16×16 owned plot, 200 planted crops of mixed types, 5 workers, 4 buildings, ~40 inventory stacks, 8 hours of playtime"_. Every quantity in that sentence was wrong except the building count. The fixture is roughly **eight times lighter in crops** than the document claimed, with three fifths of the workers.
+
+This does not invalidate any published number — each was a real measurement of a real farm, and all of them sit far inside their budgets — but it does mean the **headroom was being read against a scenario that did not exist**, and the discrepancy is exactly the shape of defect phase-08.0 found in the coverage gate: a document describing behaviour the artefact never had.
+
+**The fixture is not the thing to change.** `v1-mature-farm.json` is also the **v1 anchor of the save-compatibility chain** (ADR-015, `SAVE_FORMAT.md` §4.4): regenerating it would rewrite the evidence that every migration link is exercised against real v1 data. It stays exactly as it is.
+
+#### 9.3.1 The constructed heavy scenario
+
+Where a measurement needs the load §9.3 used to claim, the harness **builds it on top of the fixture**, deterministically, and says so in the test:
+
+> **`v1-mature-farm` + construction** — 16×16 owned plot, 200 mature wheat crops, 5 workers, 4 buildings, a deep seed stock.
+
+Used by criterion 13. The reason is not tidiness: a 24-crop farm worked by 3 workers is **supply-limited** — the crew drains it faster than it replants, so the load decays measurably within a minute. Any measurement that compares two states sequentially on that farm is reading the decay, not the states. At 200 crops the farm is **worker-limited**, the harvest rate is flat, and sequential arms become comparable. Criterion 13's first two executions each failed on exactly this, and both are kept beside it as `.INVALID-*.json`.
 
 ---
 

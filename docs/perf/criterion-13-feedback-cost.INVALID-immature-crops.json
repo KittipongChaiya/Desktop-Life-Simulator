@@ -1,0 +1,51 @@
+{
+  "plantedTick": 500,
+  "cropsAtPlant": 200,
+  "measureMs": 45000,
+  "sampleMs": 1500,
+  "feedbackOn": {
+    "cpuPercentMean": 0.556,
+    "cpuPercentMax": 1.338,
+    "fpsMean": 34,
+    "animLeasesMean": 0.73,
+    "animLeasesMax": 4,
+    "heapMbStart": 12.8,
+    "heapMbEnd": 12.8,
+    "cropsStart": 200,
+    "cropsEnd": 200,
+    "samples": 30
+  },
+  "feedbackOff": {
+    "cpuPercentMean": 0.263,
+    "cpuPercentMax": 0.458,
+    "fpsMean": 4.3,
+    "animLeasesMean": 0.03,
+    "animLeasesMax": 1,
+    "heapMbStart": 12.8,
+    "heapMbEnd": 12.8,
+    "cropsStart": 200,
+    "cropsEnd": 200,
+    "samples": 30
+  },
+  "feedbackOnAgain": {
+    "cpuPercentMean": 0.269,
+    "cpuPercentMax": 0.596,
+    "fpsMean": 4.3,
+    "animLeasesMean": 0,
+    "animLeasesMax": 0,
+    "heapMbStart": 12.8,
+    "heapMbEnd": 12.8,
+    "cropsStart": 200,
+    "cropsEnd": 200,
+    "samples": 30
+  },
+  "delta": {
+    "cpuPercent": 0.293,
+    "fps": 29.7,
+    "animLeases": 0.7
+  },
+  "drift": {
+    "cpuPercent": 0.287,
+    "fps": 29.7
+  }
+}

@@ -36,10 +36,16 @@ import { launchIsolated, type IsolatedSession } from './isolated-profile';
 // empty world.
 import { loadWorld } from '../../src/persistence/load';
 import { serializeSave, toSaveDocument } from '../../src/persistence/serialize';
+import { CORE_WHEAT, isMature } from '../../src/sim/content/crops';
+import { CORE_WHEAT_SEED, DEFAULT_STACK_SIZE } from '../../src/sim/content/items';
 import { isRaining } from '../../src/sim/content/weather-kinds';
 import { stepSimulation, stepSimulationBy } from '../../src/sim/tick';
 import { dayFor, seasonFor } from '../../src/sim/time/game-clock';
+import { growthProgress } from '../../src/sim/time/growth';
 import { weatherFor, weatherPeriodFor } from '../../src/sim/time/weather';
+import { addItems } from '../../src/sim/world/container';
+import { claimCenteredPlot, isOwned, tilesInRect } from '../../src/sim/world/tile-grid';
+import { createWorker } from '../../src/sim/world/worker';
 import { createWorld } from '../../src/sim/world/world';
 import '../../plugins/core';
 
@@ -668,4 +674,241 @@ test('criterion 12: budgets hold with weather, lighting, audio, and motion toget
       'the away window — somebody was at the machine, so absence cannot be measured.',
   );
   expect(whenAway.ambience).toContain('off');
+});
+
+/**
+ * Criterion 13 — what an unattended PRODUCING farm actually costs.
+ * Phase-24 (the v0.4 baseline).
+ *
+ * ## What this measures, and why it is not what it set out to measure
+ *
+ * Phase-17 found that a mature farm never reaches a zero-frame idle: workers
+ * keep farming whether or not anyone watches, and every harvest re-arms a
+ * transient animator — a crop's departure tween, a floating coin number, burst
+ * particles — faster than the last one finishes. It handed forward one design
+ * question with the data attached: should gameplay-feedback animators be
+ * presence-gated the way ADR-017 §2 gates ambient motion? v0.4's factories make
+ * it live, because a production chain fires feedback events with no player in
+ * the loop at all.
+ *
+ * **That comparison was attempted four times here and is not in this test.**
+ * The attempts are worth recording, because each one failed differently and
+ * every failure was silent:
+ *
+ * 1. Fast-forwarding 20,000 ticks "into steady state" drained the fixture's 25
+ *    wheat seeds and measured a four-crop farm
+ *    (`criterion-13-feedback-cost.INVALID-drained-farm.json`).
+ * 2. An A/B/A drift control was added, and immediately disqualified its own
+ *    run: the two A readings differed by more than A differed from B.
+ * 3. Building the §9.3-scale field back-dated `plantedTick` below zero, so 200
+ *    crops sat 10% grown and the farm never worked at all
+ *    (`…INVALID-immature-crops.json`).
+ * 4. With a genuinely ripe field, 200 simultaneously-mature crops turned out to
+ *    be a BURST rather than a steady state — the population fell monotonically
+ *    through all three arms, so "drift" was a trend rather than noise, and the
+ *    measured effect came out NEGATIVE (feedback-on cheaper than feedback-off)
+ *    with an error bar three quarters its own size.
+ *
+ * The conclusion drawn is about the instrument, not the question: **a crop farm
+ * is not a stationary workload** over the minutes a multi-arm comparison needs.
+ * It drains or it ripens in waves, and either way the load at the end of a run
+ * is not the load at the start. Summed `percentCPUUsage` across Electron
+ * processes cannot resolve a sub-1% effect against that.
+ *
+ * So this test measures the thing it CAN measure honestly — the absolute cost
+ * of an unattended producing farm against the §4 expanded-active ceiling, in
+ * the configuration players actually run (feedback on, ambient off, nobody
+ * watching). The comparison moves to **phase 26**, where a production chain at
+ * steady state is a stationary workload *by construction* (ADR-035) — which is
+ * precisely the instrument this measurement wanted and the farm cannot provide.
+ *
+ * ## The scenario is built, not loaded
+ *
+ * `PERFORMANCE.md` §9.3.1. The golden fixture ships 24 crops and 3 workers
+ * against a document that claimed 200 and 5; the fixture is the v1 anchor of
+ * the save-compatibility chain and must not change, so the load is constructed
+ * on top of it here and the document now says which is which.
+ */
+test('criterion 13: an unattended producing farm stays inside the expanded-active budget', async () => {
+  test.setTimeout(420_000);
+
+  // Its own launch, from a planted save — the same dance as criteria 9 and 12.
+  await session.dispose();
+
+  const fixturePath = join(import.meta.dirname, '..', 'fixtures', 'saves', 'v1-mature-farm.json');
+  const loaded = loadWorld(JSON.parse(readFileSync(fixturePath, 'utf8')), null);
+  expect(loaded.ok, 'the reference fixture must load').toBe(true);
+  if (!loaded.ok) return;
+  const world = loaded.value.world;
+
+  const wheat = world.cropRegistry.get(CORE_WHEAT);
+  expect(wheat.ok, 'core:wheat must be registered').toBe(true);
+  if (!wheat.ok) return;
+
+  claimCenteredPlot(world.tiles, 16);
+  world.economy.expansionsPurchased = 4; // 8 + 2×4 = 16, kept coherent
+
+  // Maturity STAGGERED across the growth period rather than ripening the field
+  // at once. A field that matures together is a burst the workers consume; a
+  // field whose ages are spread ripens at a constant rate, which is as close to
+  // a stationary crop workload as this farm can get.
+  //
+  // The CLOCK moves forward rather than the planting being back-dated: wheat
+  // takes 4,800 ticks and the fixture sits at tick 500, so subtracting growth
+  // from the tick clamps at zero and plants a field that is 10% grown (attempt
+  // 3 above). Maturity derives from `tick − plantedTick` (ADR-009 §2), so
+  // advancing the tick ripens the field with no simulation at all.
+  // The clock advances by exactly ONE growth period, not more. Overshooting
+  // ripens the whole field regardless of the stagger, and a field that is
+  // entirely ripe drains rather than idles: task priority is harvest → plant →
+  // till (`worker-tasks.ts`), so a crew facing 200 ripe crops harvests
+  // continuously and never reaches the tilling that would replant them. The
+  // first run of this arrangement advanced by `growth × 3` and watched the
+  // population fall 170 → 83 in ninety seconds.
+  //
+  // At one period the ages spread across `(0, growth]`: only the oldest tiles
+  // are ripe at any instant, ripening at 200/4,800 ≈ 0.042 tiles per tick,
+  // which is about what five workers clear per tick at ~120 ticks a
+  // harvest-till-plant cycle. That balance is the steady state.
+  const growth = wheat.value.growthTicks;
+  const base = world.tick;
+  world.tick += growth;
+
+  const owned = tilesInRect(world.tiles, 0, 0, world.tiles.width - 1, world.tiles.height - 1)
+    .filter((tile) => isOwned(world.tiles, tile))
+    .slice(0, 200);
+  owned.forEach((tile, index) => {
+    // Spread across one full growth period, oldest first.
+    // Oldest first: index 0 planted at `base` is exactly one period old and
+    // ripe; the last is freshly sown. A uniform spread of ages, so ripening is
+    // a steady trickle rather than a burst.
+    const plantedTick = base + Math.floor((index / owned.length) * growth);
+    world.tiles.tilledAt[tile] = plantedTick;
+    world.crops.set(tile, { cropId: CORE_WHEAT, tile, plantedTick });
+    world.lastPlanted.set(tile, CORE_WHEAT); // the seed bin's memory, so it replants
+  });
+
+  // ASSERT THE FIELD IS ACTUALLY RIPE. This is the part that has been wrong
+  // twice, and both times it failed silently — reporting a confident number
+  // about a farm that was doing nothing. Checked against the same maturity rule
+  // the workers use.
+  const sample = owned[0]!;
+  expect(
+    isMature(wheat.value, growthProgress(world, world.crops.get(sample)!, world.tick)),
+    'the constructed field must be ripe, or the workers have nothing to do',
+  ).toBe(true);
+
+  while (world.workers.size < 5) {
+    const id = world.ids.allocateWorker();
+    world.workers.set(id, createWorker(id, owned[world.workers.size] ?? owned[0]!));
+  }
+
+  // Deep seed stock: replanting consumes one per plant, and the loop stops
+  // being sustained the moment it runs out.
+  addItems(world.inventory, CORE_WHEAT_SEED, 2_000, DEFAULT_STACK_SIZE);
+
+  const cropsAtPlant = world.crops.size;
+  expect(cropsAtPlant, 'the constructed scenario must reach §9.3 scale').toBeGreaterThan(150);
+
+  session = await launchIsolated({}, (userData) => {
+    mkdirSync(join(userData, 'saves'), { recursive: true });
+    writeFileSync(
+      join(userData, 'saves', 'slot-0.json'),
+      serializeSave(
+        toSaveDocument(world, {
+          gameVersion: '0.3.0',
+          createdAtUnixMs: 1_753_000_000_000,
+          savedAtUnixMs: Date.now(), // no catch-up on load
+          playtimeTicks: world.tick,
+          saveCount: 1,
+        }),
+      ),
+      'utf8',
+    );
+  });
+  app = session.app;
+
+  await app.firstWindow();
+  await openWorld();
+
+  // The shipped default: gameplay feedback on, ambient motion off. Ambient is
+  // off so the presence gate never enters — this criterion is about the farm's
+  // own cost, and criteria 8, 9 and 12 already own presence.
+  await setMotion({
+    intensityPercent: 100,
+    particles: true,
+    cameraShake: true,
+    decorativeCreatures: false,
+    environmental: false,
+    reducedMotion: false,
+  });
+
+  /** CPU across every Electron process, read from the main process. */
+  const cpuSample = async (): Promise<number> =>
+    app.evaluate(({ app: electron }) =>
+      electron
+        .getAppMetrics()
+        .reduce((total, entry) => total + (entry.cpu?.percentCPUUsage ?? 0), 0),
+    );
+
+  const SETTLE_MS = 6_000;
+  const MEASURE_MS = 90_000;
+  const SAMPLE_MS = 1_500;
+
+  // Settle, then discard two readings: `percentCPUUsage` is an interval
+  // measure, so the first after a settings change describes the change.
+  await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+  await cpuSample();
+  await new Promise((resolve) => setTimeout(resolve, SAMPLE_MS));
+  await cpuSample();
+
+  const cpu: number[] = [];
+  const fps: number[] = [];
+  const anim: number[] = [];
+  const crops: number[] = [];
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < MEASURE_MS) {
+    await new Promise((resolve) => setTimeout(resolve, SAMPLE_MS));
+    cpu.push(await cpuSample());
+    fps.push(await metricNumber('FPS'));
+    // `Dirty` reads "yes / 3 anim"; the lease count is the number in it.
+    anim.push(Number.parseInt((await metric('Dirty')).replace(/[^0-9]/g, ''), 10) || 0);
+    crops.push(await metricNumber('Crops'));
+  }
+
+  const mean = (values: readonly number[]): number =>
+    values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
+
+  const measured = {
+    cropsAtPlant,
+    measureMs: MEASURE_MS,
+    sampleMs: SAMPLE_MS,
+    samples: cpu.length,
+    cpuPercentMean: Number(mean(cpu).toFixed(3)),
+    cpuPercentMax: Number(Math.max(...cpu).toFixed(3)),
+    fpsMean: Number(mean(fps).toFixed(1)),
+    animLeasesMean: Number(mean(anim).toFixed(2)),
+    animLeasesMax: Math.max(...anim),
+    cropsFirst: crops[0] ?? 0,
+    cropsLast: crops.at(-1) ?? 0,
+    heapMb: await metricNumber('Heap'),
+  };
+
+  report('criterion-13-unattended-farm-cost', measured);
+
+  // THE PREMISE, ASSERTED. A farm that was not producing while it was measured
+  // makes every number above describe something else — which is exactly how
+  // two earlier executions of this criterion reported confident nonsense.
+  expect(measured.samples).toBeGreaterThan(20);
+  expect(
+    measured.animLeasesMax,
+    'no animator ever ran — the farm was not producing while it was measured',
+  ).toBeGreaterThan(0);
+  expect(measured.cropsLast, 'the farm drained during the run').toBeGreaterThan(100);
+
+  // THE BUDGET. §4's expanded-active ceiling is the profile phase-17
+  // established a mature farm permanently occupies, and this is the last
+  // reading before factories start adding to it.
+  expect(measured.cpuPercentMean).toBeLessThan(5);
 });
