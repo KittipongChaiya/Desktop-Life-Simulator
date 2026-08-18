@@ -43,6 +43,20 @@ export const CORE_PATH = asContentId('core:path');
  */
 export const TILLED_SPRITE = 'terrain:tilled';
 
+/**
+ * Sprite for GRASS OUT IN THE WILDS — a region look, not a tile kind.
+ *
+ * The same argument as `TILLED_SPRITE`, one region wider. The wilds are fixed
+ * geometry (`WILDS_MIN_X`), so what grows there is decided by where the tile
+ * is and nothing else; a `core:wild_grass` KIND would have to be written into
+ * every tile east of the boundary, which means a save migration, a second
+ * source of truth for a fact the coordinate already answers, and a drift the
+ * first widening of the world would introduce.
+ *
+ * Phase-27, ADR-037 §1. Applied in `wild-ground.ts` at render time.
+ */
+export const WILD_SPRITE = 'terrain:wild';
+
 export type TileKindRegistry = ContentRegistry<TileKindDefinition>;
 
 export function createTileKindRegistry(): TileKindRegistry {

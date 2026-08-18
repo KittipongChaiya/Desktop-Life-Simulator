@@ -28,6 +28,8 @@ import {
   statusEquals,
   timeEquals,
   walletEquals,
+  wildsEqual,
+  projectWilds,
   workersEqual,
 } from '../snapshot/state';
 import type { World } from '../world/world';
@@ -60,4 +62,8 @@ export function snapshotSystem(world: World): void {
   // The board: offers change once a day; the docket on accept/deliver/expire
   // and whenever a contracted item's held count moves (phase-20, ADR-032).
   publishIfChanged(world.snapshots.contracts, projectContracts(world), contractsEqual);
+  // The wilds publish a BOOLEAN per worked node, never a countdown, so this
+  // republishes twice per node per regrow cycle rather than 20 times a second
+  // for the whole of one (ADR-005 §2).
+  publishIfChanged(world.snapshots.wilds, projectWilds(world), wildsEqual);
 }

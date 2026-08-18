@@ -18,11 +18,10 @@
  *   is lost and the worker simply tries again with a lighter hold.
  */
 
-import { WILDS_MIN_X } from '../../shared/constants';
 import { appError, ErrorCode } from '../../shared/errors';
-import { isValidIndex, toPosition } from '../../shared/geometry';
+import { isInWilds, isValidIndex } from '../../shared/geometry';
 import { asTileIndex, type TileIndex, type WorkerId } from '../../shared/ids';
-import { err, ok, unwrap, type Result } from '../../shared/result';
+import { err, ok, type Result } from '../../shared/result';
 import { isNodeReady, nodeAt } from '../content/resource-nodes';
 import { acceptable, addItems } from '../world/container';
 
@@ -49,8 +48,10 @@ export function validateGatherNode(
   // boundary is the caller that faces untrusted input (ADR-010 §5).
   //
   // Found by a test: without this, `nodeAt` reports a node on farm tiles too,
-  // and a worker could have "gathered" the middle of the plot.
-  if (unwrap(toPosition(tile)).x < WILDS_MIN_X) {
+  // and a worker could have "gathered" the middle of the plot. `isInWilds` is
+  // the one definition of the boundary — the wilds projection needs the same
+  // check for the same reason, and two spellings of it is one bug.
+  if (!isInWilds(tile)) {
     return err(appError(ErrorCode.InvalidIntent, 'that tile is not in the wilds', { tile }));
   }
 

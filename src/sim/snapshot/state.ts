@@ -30,6 +30,7 @@ import { inventoryEqual, projectInventory, type InventoryView } from './inventor
 import { projectResidents, residentsEqual, type ResidentView } from './residents-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
 import { projectTime, timeEquals, type TimeView } from './time-slice';
+import { projectWilds, wildsEqual } from './wilds-slice';
 import { projectWorkers, workersEqual, type WorkerView } from './workers-slice';
 
 export interface VersionedSlice<T> {
@@ -50,6 +51,7 @@ export interface SnapshotState {
   readonly residents: VersionedSlice<readonly ResidentView[]>;
   readonly factories: VersionedSlice<readonly FactoryView[]>;
   readonly contracts: VersionedSlice<ContractsSlice>;
+  readonly wilds: VersionedSlice<readonly number[]>;
 }
 
 export function createSnapshotState(): SnapshotState {
@@ -90,6 +92,9 @@ export function createSnapshotState(): SnapshotState {
         nextStandingAt: FRIEND_AT,
       },
     },
+    // Empty is EXACT for a new world, not a placeholder: nothing in the wilds
+    // has been worked before the first tick.
+    wilds: { version: 0, value: [] },
     time: {
       version: 0,
       value: projectTime({
@@ -139,6 +144,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     residents: state.residents.version,
     factories: state.factories.version,
     contracts: state.contracts.version,
+    wilds: state.wilds.version,
   };
 }
 
@@ -163,6 +169,8 @@ export {
   factoriesEqual,
   projectFactories,
   projectResidents,
+  wildsEqual,
+  projectWilds,
   contractsEqual,
   projectContracts,
 };

@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { WORLD_TILE_COUNT } from '../../shared/constants';
+import { FARM_SIZE, WILDS_MIN_X, WORLD_TILE_COUNT, WORLD_WIDTH } from '../../shared/constants';
 import { asTileIndex } from '../../shared/ids';
 import { createTileGrid, setBlocked, setOwned } from '../../sim/world/tile-grid';
 import { createWorld } from '../../sim/world/world';
@@ -125,19 +125,25 @@ describe('bounds and shape', () => {
 
   it('uses only sprites the buildings atlas actually contains', () => {
     // A typo here would be an invisible prop in a state nobody tests.
-    const allowed = new Set([
-      'buildings:tree',
-      'buildings:rock',
-      'buildings:bush',
-      'buildings:flower',
-    ]);
+    const allowed = new Set(['buildings:bush', 'buildings:flower']);
 
     for (const item of planDecor(grassGrid(), 7, GRASS)) {
       expect(allowed.has(item.sprite)).toBe(true);
     }
   });
 
-  it('draws on more than one species — a world of only rocks is a bug', () => {
+  it('never draws a tree or a rock — those mean something now', () => {
+    // Rule 4. The wilds' nodes use these two sprites, so a cosmetic copy of
+    // one is a thing the player will walk to and find they cannot work.
+    // Excluding the wilds alone was not enough: a live look showed identical
+    // trees either side of the boundary.
+    const species = new Set(planDecor(grassGrid(), 7, GRASS).map((item) => item.sprite));
+
+    expect(species.has('buildings:tree')).toBe(false);
+    expect(species.has('buildings:rock')).toBe(false);
+  });
+
+  it('draws on more than one species — a world of only bushes is a bug', () => {
     const species = new Set(planDecor(grassGrid(), 7, GRASS).map((item) => item.sprite));
 
     expect(species.size).toBeGreaterThan(1);
@@ -148,5 +154,31 @@ describe('bounds and shape', () => {
       expect(item.tile).toBeGreaterThanOrEqual(0);
       expect(item.tile).toBeLessThan(WORLD_TILE_COUNT);
     }
+  });
+});
+
+describe('decoration stays out of the wilds', () => {
+  it('places nothing east of the boundary', () => {
+    // THE DEFECT THIS CLOSES. Decor draws `buildings:tree` and `buildings:rock`
+    // — the exact sprites the timber and stone NODES use. A cosmetic tree
+    // standing next to a gatherable one is indistinguishable from it, so the
+    // player learns that trees sometimes work and sometimes do not.
+    //
+    // Phase-27 widened the world and this scan runs over all of it, so decor
+    // silently began scattering fakes through the wilds.
+    const grid = grassGrid();
+
+    for (const item of planDecor(grid, 7, GRASS)) {
+      expect(item.tile % WORLD_WIDTH).toBeLessThan(WILDS_MIN_X);
+    }
+  });
+
+  it('still decorates the town band it shares with nothing', () => {
+    // The exclusion is the WILDS, not everything unowned — the countryside
+    // between farm and town is what decor was written for.
+    const grid = grassGrid();
+    const items = planDecor(grid, 7, GRASS);
+
+    expect(items.some((item) => item.tile % WORLD_WIDTH >= FARM_SIZE)).toBe(true);
   });
 });

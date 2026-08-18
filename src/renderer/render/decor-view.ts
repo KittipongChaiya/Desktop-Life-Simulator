@@ -23,26 +23,9 @@ import { Sprite, type Container, type Texture } from 'pixi.js';
 import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
 
 import type { DecorItem } from './decor';
-import { derivedUnit } from './presentation-rng';
-
-/**
- * Sprites that sway. Rocks do not, which is the whole of the rule.
- *
- * Keyed by sprite rather than by a kind enum because `decor.ts` describes its
- * items by sprite key and nothing else — inventing a parallel taxonomy here
- * would be a second source of truth for the same fact.
- */
-const SWAYS: ReadonlySet<string> = new Set([
-  'buildings:flower',
-  'buildings:bush',
-  'buildings:tree',
-]);
-
-/** Peak lean, in radians. Small: this is a breeze, not a storm. */
-const SWAY_RADIANS = 0.035;
-
-/** Milliseconds per full sway cycle. Slow enough to read as wind. */
-const SWAY_PERIOD_MS = 3400;
+// The sway rule moved to `sway.ts` in phase-27, unchanged, when the wilds got
+// a second layer of trees that has to lean by exactly the same numbers.
+import { SWAYS, swayPhase, swayRotation } from './sway';
 
 export interface DecorRenderer {
   /** Replaces every prop with `items`. Cheap to call; rare in practice. */
@@ -103,7 +86,7 @@ export function createDecorRenderer(options: DecorRendererOptions): DecorRendere
           sprite.y += TILE_SIZE;
           // Phase DERIVED from the tile (ADR-017 §5), so a hedgerow ripples
           // instead of pulsing as one block, identically on every launch.
-          swaying.push({ sprite, phase: derivedUnit(item.tile, 0) * Math.PI * 2 });
+          swaying.push({ sprite, phase: swayPhase(item.tile) });
         }
       }
     },
@@ -120,9 +103,8 @@ export function createDecorRenderer(options: DecorRendererOptions): DecorRendere
       }
 
       leaning = true;
-      const radians = (nowMs / SWAY_PERIOD_MS) * Math.PI * 2;
       for (const entry of swaying) {
-        entry.sprite.rotation = Math.sin(radians + entry.phase) * SWAY_RADIANS;
+        entry.sprite.rotation = swayRotation(nowMs, entry.phase);
       }
     },
 

@@ -26,9 +26,28 @@
  *    decor never lands on the plot, on tilled soil, on water, or under a
  *    building. Land expansion is handled by re-planning when ownership
  *    changes: a tile that becomes yours loses its tree.
+ *
+ * 4. **AND IT NEVER DRAWS A TREE OR A ROCK** (phase-27). Rule 1 says a prop is
+ *    not a thing — a worker walks straight through a bush. That was harmless
+ *    until the wilds arrived, because `tree` and `rock` are exactly the sprites
+ *    the timber and stone NODES use, and two identical trees where one can be
+ *    worked and one cannot is not decoration: it is a lie about what the world
+ *    contains, and it costs the player a walk to find out.
+ *
+ *    Excluding the wilds from this scan was the first fix and it was not
+ *    enough — a live look showed identical trees either side of the boundary,
+ *    with nothing but a shade of ground between them. So the RULE is now the
+ *    simple one a player can actually learn:
+ *
+ *        A tree or a rock is something you can work. Everything else is
+ *        scenery.
+ *
+ *    Decor keeps flowers and bushes at the same density, so the countryside is
+ *    a MEADOW and the wilds are a FOREST — which reads as geography instead of
+ *    as a rule, and reinforces where the gathering is.
  */
 
-import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
+import { WILDS_MIN_X, WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
 import { mix32 } from '../../shared/hash';
 import { asTileIndex, type TileIndex } from '../../shared/ids';
 import { getKind, isBlocked, isOwned, type TileGrid } from '../../sim/world/tile-grid';
@@ -42,15 +61,16 @@ export interface DecorItem {
 /**
  * The props, with their relative weights.
  *
- * Weighted so the world reads as grassland with occasional stands of trees,
- * not as a forest the farm was carved out of: flowers and bushes are the
- * texture, trees and rocks the landmarks.
+ * Weighted so the world reads as meadow: flowers scattered through, bushes as
+ * the occasional mass. Trees and rocks were here until phase-27 and are gone
+ * for rule 4 — they mean something now.
+ *
+ * The relative weights of the survivors are unchanged, so the countryside has
+ * the same texture it had, minus its landmarks.
  */
 const PROPS: readonly { readonly sprite: string; readonly weight: number }[] = [
   { sprite: 'buildings:flower', weight: 4 },
   { sprite: 'buildings:bush', weight: 3 },
-  { sprite: 'buildings:tree', weight: 2 },
-  { sprite: 'buildings:rock', weight: 1 },
 ];
 
 const TOTAL_WEIGHT = PROPS.reduce((sum, prop) => sum + prop.weight, 0);
@@ -97,6 +117,8 @@ export function planDecor(grid: TileGrid, seed: number, grassKindIndex: number):
     if (items.length >= MAX_DECOR) break;
 
     const tile = asTileIndex(index);
+    // Rule 4: the wilds grow their own trees, and those ones mean something.
+    if (index % WORLD_WIDTH >= WILDS_MIN_X) continue;
     // Off the farm, on plain grass, and nowhere a building stands.
     if (isOwned(grid, tile) || isBlocked(grid, tile)) continue;
     if (getKind(grid, tile) !== grassKindIndex) continue;

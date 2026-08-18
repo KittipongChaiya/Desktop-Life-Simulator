@@ -529,10 +529,18 @@ export function coreRecipes(): readonly RecipeDefinition[] {
  * registration order against one hash value, so appending is safe and
  * reordering re-rolls every existing world's wilds.
  *
- * The densities sum to 0.21, so roughly four fifths of the wilds is open
+ * The densities sum to 0.135, so roughly seven eighths of the wilds is open
  * ground. That is deliberate: a band packed with nodes is a maze rather than a
  * wilderness, and a worker has to be able to walk through it to reach the far
  * side.
+ *
+ * THE FIRST NUMBERS WERE 0.21 AND THEY WERE WRONG ON SCREEN. A live look at
+ * the running app showed a solid wall of canopy — because a tile density is
+ * not a visual density: the tree sprite's crown overflows its tile and closes
+ * the gaps either side, so one tile in five reads as about one in two. A
+ * worker walking through it was lost among the trunks, and watching the little
+ * people work is the whole of `VISION.md` §1. Cut by a third, measured by
+ * looking again.
  *
  * Regrow times are long relative to gather times — minutes against seconds —
  * so a crew cannot camp one node. The intended shape is a worker walking a
@@ -548,7 +556,7 @@ export function coreResourceNodes(): readonly ResourceNodeDefinition[] {
       yields: [{ item: CORE_WOOD, quantity: 2 }],
       gatherTicks: secondsToTicks(6),
       regrowTicks: secondsToTicks(300),
-      density: 0.1,
+      density: 0.06,
     },
     {
       id: CORE_STONE_NODE,
@@ -557,7 +565,7 @@ export function coreResourceNodes(): readonly ResourceNodeDefinition[] {
       yields: [{ item: CORE_STONE_ITEM, quantity: 2 }],
       gatherTicks: secondsToTicks(9),
       regrowTicks: secondsToTicks(600),
-      density: 0.07,
+      density: 0.045,
     },
     {
       id: CORE_ORE_NODE,
@@ -569,7 +577,7 @@ export function coreResourceNodes(): readonly ResourceNodeDefinition[] {
       // here is time rather than a rarity roll — no hidden dice, and a player
       // can learn the cadence by watching it.
       regrowTicks: secondsToTicks(900),
-      density: 0.04,
+      density: 0.03,
     },
   ];
   return nodes;

@@ -225,3 +225,37 @@ describe('gathering reaches the farm economy', () => {
     expect(held).toBeGreaterThan(0);
   });
 });
+
+describe('the wilds reach the screen', () => {
+  it('publishes a worked node for the renderer to draw', () => {
+    // The whole chain, in one assertion: a forager walks out, works a node,
+    // the stamp lands in `harvestedAt`, and the `wilds` slice carries it to
+    // the view that fades the sprite. Before the node layer existed, every
+    // link of this worked and the wilds were thirty-two columns of blank
+    // grass — the gathering was real and completely invisible.
+    const world = wildsWorld(3);
+
+    stepSimulationBy(world, 20_000);
+
+    expect(world.snapshots.wilds.value.length).toBeGreaterThan(0);
+    for (const tile of world.snapshots.wilds.value) {
+      expect(nodeAt(world.resourceNodeRegistry, world.seed, tile as TileIndex)).not.toBeNull();
+    }
+  });
+
+  it('takes it off the slice again once it has regrown', () => {
+    const world = wildsWorld(1);
+    const worker = [...world.workers.values()][0]!;
+    const tile = firstNodeTile(world);
+    const node = nodeAt(world.resourceNodeRegistry, world.seed, tile)!;
+    gatherNode(world, worker.id, tile);
+
+    stepSimulationBy(world, 1);
+    expect(world.snapshots.wilds.value).toContain(tile);
+
+    world.tick += node.regrowTicks;
+    stepSimulationBy(world, 1);
+
+    expect(world.snapshots.wilds.value).not.toContain(tile);
+  });
+});

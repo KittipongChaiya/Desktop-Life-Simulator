@@ -158,6 +158,33 @@ function pathTile() {
   return canvas;
 }
 
+/** Untamed ground (`terrain:wild`, phase-27 — ADR-037 §1): the wilds, where
+ * nothing is mown and nothing is owned. DARKER than `grass` at the base with
+ * TALLER blades, so the two never read as one field at gameplay zoom — the
+ * boundary between farmland and wilderness has to be legible without a fence.
+ * Dry tufts and small stones are the texture that says "nobody works this". */
+function wildTile() {
+  const canvas = createCanvas(TILE, TILE);
+  fill(canvas, () => GRASS_SHADOW);
+  const rng = prng(1206);
+  // Tussocks: 3 px blades, against grass's 2 px pairs. Height is the tell.
+  scatter(canvas, rng, 30, (x, y) => {
+    const colour = rng() < 0.6 ? GRASS_BASE : GRASS_LIGHT;
+    for (let d = 0; d < 3; d += 1) set(canvas, x, (y + d) % TILE, colour);
+  });
+  // Dead growth — the one warm note, and sparse. Straw here would read as a
+  // wheat field, so the dry tufts are WOOD_BASE and STRAW is a rare accent.
+  scatter(canvas, rng, 7, (x, y) => {
+    set(canvas, x, y, WOOD_BASE);
+    set(canvas, x, (y + 1) % TILE, WOOD_BASE);
+    if (rng() < 0.3) set(canvas, (x + 1) % TILE, y, STRAW);
+  });
+  // Scree: single dark pixels, no seams. Suggests stony ground under the turf
+  // without competing with the stone TILE, which is a solid rock face.
+  scatter(canvas, rng, 9, (x, y) => set(canvas, x, y, STONE_DARK));
+  return canvas;
+}
+
 // ── Props (outlined, lit upper-left, contact shadow) ─────────────────────────
 
 /** Stepped foliage: shadow mass, then the lit body offset toward the light,
@@ -763,6 +790,7 @@ function main() {
     [terrainDir, 'water.png', waterTile],
     [terrainDir, 'stone.png', stoneTile],
     [terrainDir, 'path.png', pathTile],
+    [terrainDir, 'wild.png', wildTile],
     [buildingsDir, 'tree.png', tree],
     [buildingsDir, 'rock.png', rock],
     [buildingsDir, 'ore_vein.png', oreVein],

@@ -72,6 +72,8 @@ import { createRainRenderer, type RainRenderer } from './rain-view';
 import { createResidentRenderer, type ResidentRenderer } from './resident-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
+import { createWildNodeRenderer, type WildNodeRenderer } from './wild-node-view';
+import { planWildNodes } from './wild-nodes';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
 import type { WorldDebug } from './world-debug';
 
@@ -477,6 +479,22 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // buildings so props, buildings, and workers interleave correctly by depth.
   const decor: DecorRenderer = createDecorRenderer({ layer: app.layers.objects, textureFor });
 
+  // The wilds' nodes (phase-27). The same layer again, because a worker
+  // chopping a tree has to sort against it — but NOT the same thing as decor:
+  // every sprite here is gatherable, which is why decor now stops at the
+  // boundary rather than scattering identical fakes among them.
+  //
+  // Positions are a hash of the seed (ADR-037 §3), so this is planned once and
+  // never rebuilt; only the worked/standing look changes, from the slice.
+  const wildNodes: WildNodeRenderer = createWildNodeRenderer({
+    layer: app.layers.objects,
+    textureFor,
+    gate,
+  });
+  wildNodes.set(
+    planWildNodes(options.world.resourceNodeRegistry, options.world.seed, options.world.tiles),
+  );
+
   // AMBIENT MOTION (07.7j, ADR-017 §2). Its lease is the one thing in this
   // file that could be held indefinitely, so all four conditions are resolved
   // in one place, every frame, and the answer drives both the drawing and the
@@ -645,12 +663,19 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
         decorOwnedRevision = expansions;
         replanDecor();
       }
+      // The wilds republish twice per node per regrow cycle (ADR-005 §2), so
+      // this is a reference comparison on all but a handful of frames.
+      wildNodes.setWorked(options.world.snapshots.wilds.value);
+
       // Ambient motion, and the lease that pays for it. Both come from one
       // answer so they can never disagree — a swaying world with no lease
       // would stutter, and a lease with no sway would be a permanent cost.
       const ambientNow = performance.now();
       const ambient = ambientAllowed(ambientNow);
       decor.sway(ambientNow, ambient);
+      // The wilds lean on the same answer, so the forest and the hedgerow one
+      // tile apart are never in different states.
+      wildNodes.sway(ambientNow, ambient);
       ambientLease.sync(ambient);
 
       // Rain asks the SAME presence answer, so it can never outlive the
@@ -828,6 +853,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       ambientLease.release();
       presence.clear();
       decor.destroy();
+      wildNodes.destroy();
       // Before the gate goes: a lease outliving its view is a permanent frame
       // cost on the next scene (ADR-001 §2 destroys and rebuilds on collapse).
       numberRenderer.destroy();

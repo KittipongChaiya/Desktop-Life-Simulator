@@ -33,6 +33,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createInstalledRegistries } from '../src/sim/content/installed';
+import { TILLED_SPRITE, WILD_SPRITE } from '../src/sim/content/tile-kinds';
 
 const ATLAS_DIR = join(__dirname, '..', 'assets', 'dist');
 
@@ -90,6 +91,28 @@ describe('every declared sprite key names art that exists', () => {
       .map((kind) => `${kind.id} → ${String(kind.sprite)}`);
 
     expect(missing, 'these tiles would draw nothing at all').toEqual([]);
+  });
+
+  it('for every resource node in the wilds', () => {
+    // Same trap, one phase later and worse: a node whose sprite is missing is
+    // a gatherable thing drawn as nothing, so a worker would walk to an empty
+    // tile, stand there, and come back carrying wood.
+    const missing = registries.resourceNodes
+      .all()
+      .filter((node) => !resolves(node.sprite))
+      .map((node) => `${node.id} → ${node.sprite}`);
+
+    expect(missing, 'these nodes would draw nothing at all').toEqual([]);
+  });
+
+  it('for the two sprites that belong to no definition at all', () => {
+    // TILLED SOIL and WILD GROUND are render-time OVERRIDES, not tile kinds
+    // (`terrain-tiles.ts`), so no registry names them and every loop above
+    // misses them. Tilled soil has already been shipped invisible once — the
+    // atlas held the art and no code path reached it (CHANGELOG, phase-07.7).
+    const missing = [TILLED_SPRITE, WILD_SPRITE].filter((sprite) => !resolves(sprite));
+
+    expect(missing, 'these overrides would draw nothing at all').toEqual([]);
   });
 
   it('catches a key naming art that does not exist', () => {

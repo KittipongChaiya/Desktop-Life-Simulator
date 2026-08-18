@@ -7,7 +7,7 @@
  * off-by-one grid bugs get in.
  */
 
-import { WORLD_HEIGHT, WORLD_WIDTH } from './constants';
+import { WILDS_MIN_X, WORLD_HEIGHT, WORLD_WIDTH } from './constants';
 import { appError, ErrorCode } from './errors';
 import { asTileIndex, type TileIndex } from './ids';
 import { err, ok, type Result } from './result';
@@ -27,6 +27,22 @@ export function isInBounds(x: number, y: number): boolean {
     x < WORLD_WIDTH &&
     y < WORLD_HEIGHT
   );
+}
+
+/**
+ * True if the tile lies in the wilds. Phase-27 — ADR-037 §1.
+ *
+ * ONE DEFINITION, because `nodeAt` deliberately has none. That function is a
+ * pure hash over `(seed, tile)` and answers for any tile in the world, so every
+ * caller has to know the boundary — and by the end of phase-27 three of them
+ * did: the gather command, the wilds projection, and the discovery scan. Three
+ * inline `x >= WILDS_MIN_X` comparisons is the shape a boundary bug arrives in.
+ *
+ * It lives here rather than beside the nodes because it is a fact about
+ * coordinates, exactly like `isInBounds`.
+ */
+export function isInWilds(tile: TileIndex): boolean {
+  return tile % WORLD_WIDTH >= WILDS_MIN_X;
 }
 
 /** True if the index addresses a tile in the world grid. */

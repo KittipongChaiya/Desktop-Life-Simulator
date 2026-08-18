@@ -62,6 +62,13 @@ export interface SliceMap {
   readonly factories: readonly FactoryView[];
   /** The notice board: today's offers, the docket, the counters. Phase-20. */
   readonly contracts: ContractsSlice;
+  /**
+   * Tiles in the wilds whose node has been worked and has not come back.
+   *
+   * WHERE the nodes are is absent by design — it is a hash of the seed the
+   * renderer already holds (ADR-037 §3). Only what changes crosses. Phase-27.
+   */
+  readonly wilds: readonly number[];
 }
 
 export type SliceName = keyof SliceMap;
@@ -78,6 +85,7 @@ export const SLICE_NAMES = [
   'residents',
   'factories',
   'contracts',
+  'wilds',
 ] as const satisfies readonly SliceName[];
 
 /** Projects the status slice from world state. Pure. */

@@ -193,6 +193,60 @@ is not visible in the reasoning — only in the run.
 
 ---
 
+## Amendment — what the wilds LOOK like, and what a live look changed
+
+Written after the first screenshots of the running app, in the same phase.
+
+### The ground is a render-time override, not a tile kind
+
+The wilds are fixed geometry, so a tile east of `WILDS_MIN_X` is wilderness by
+virtue of its coordinate. Writing a `core:wild_grass` KIND into two thousand
+tiles to record that would need a migration link, a golden fixture, and a
+second source of truth that the gather command's boundary check could then
+disagree with. So `terrain:wild` is painted the way `terrain:tilled` already
+is — over whatever kind the grid holds, at draw time, stored nowhere.
+
+It applies to GRASS only, so a content pack that puts water out there keeps its
+water.
+
+**The drawn edge is ragged and the gameplay edge is straight**, and the fringe
+may only reach INWARD. Wild ground says _you can gather here_; the node region
+says _there is something to gather_. Rough ground with nothing on it is a patch
+of scrub and needs no explanation; a node standing on mown farm grass is a lie
+about the ground. So `wildEdgeX(y) <= WILDS_MIN_X`, always, with a test.
+
+### Nodes are drawn from the hash, and only their STATE is published
+
+The `wilds` slice carries the tiles whose node has been worked — nothing else.
+Positions are `nodeAt`, which the renderer can compute from the seed it already
+holds, so publishing four hundred fixed positions would be shipping a derivable
+fact across a boundary that exists for the underivable ones.
+
+The projection is a BOOLEAN, never a countdown: "ticks until regrown" would
+differ on every tick and republish at 20 Hz for the whole of a regrow period,
+which is the defect ADR-005 §2 names. A worked node is drawn faded and small
+rather than hidden, because an empty tile says _nothing ever grew here_ and a
+player who felled a stand would think they had exhausted it.
+
+### Two things the screenshots changed
+
+**Decor no longer draws trees or rocks anywhere in the world.** `decor.ts`
+scatters cosmetic props the simulation knows nothing about, and two of them
+were `tree` and `rock` — the exact sprites the timber and stone nodes use.
+Excluding the wilds from that scan was the first fix and it was not enough: the
+live view showed identical trees either side of the boundary with a shade of
+ground between them. The rule is now the one a player can learn without being
+told — **a tree or a rock is something you can work; everything else is
+scenery** — and the countryside keeps the same prop density in flowers and
+bushes, so it reads as MEADOW against the wilds' FOREST.
+
+**The densities were cut by a third**, from 0.21 to 0.135. A tile density is
+not a visual density: the tree sprite's crown overflows its tile and closes the
+gaps either side, so one tile in five rendered as a solid wall of canopy with a
+worker lost among the trunks. §5's own words — _a band packed with nodes is a
+maze rather than a wilderness_ — were already the right rule; the number
+serving it was wrong, and only looking could say so.
+
 ## Consequences
 
 **Immediate (phase 27 implements)**
