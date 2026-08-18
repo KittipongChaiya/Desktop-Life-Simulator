@@ -621,10 +621,17 @@ Not one per commit, and not one for the whole version. A version is burned the m
 | `v10 → v11` | Adds `factories`, empty — a v10 world had no building any recipe could name                    | 25    | ADR-035                |
 | `v11 → v12` | Adds `routes` and its id counter (from 1, never 0); `hauling: null` on every worker            | 26    | ADR-036                |
 | `v12 → v13` | **Widens** the grid to 112×64 for the wilds and re-lays every stored index; adds `harvestedAt` | 27    | ADR-037 §1             |
+| `v13 → v14` | Adds `expeditions`, empty — a v13 world could send nobody anywhere                             | 28    | ADR-038 §3             |
 
 Phase-20 carries **two** links, against §11.1's one-per-phase guidance and recorded as such: v8 merged, then the phase's live verification caught that deleting a contract on delivery deleted the double-acceptance guard with it. ADR-015's append-only rule is hard where the granularity guidance is soft, so the fix is `v8 → v9`, never an edit to `v7 → v8`.
 
 Phases 08, 13, 15, and 16 change no persisted shape. That is a useful check that the audio, plugin-API, and updater designs were right: all three are outside the save by construction.
+
+`v13 → v14` is the **smallest link in the chain**: one empty collection, no id counter, and no per-worker field. There is no counter because an expedition is keyed by the worker on it — a worker is on at most one trip — and no worker field because `WorkerState.Away` rides in `state`, which was already persisted. A v13 document containing an away worker would therefore be malformed rather than old, and the link deliberately does not paper over that.
+
+Empty is **exact rather than a default**: a v13 world had no way to send anyone anywhere.
+
+What an expedition stores is three fields — `{ worker, destination, departedTick }` — and there is deliberately no fourth. The return tick, the haul, and the time remaining are all arithmetic on the departure (ADR-038 §3), so storing any of them would be a second source of truth for a derivable fact, and a stored remaining-time would have to be decremented every tick, which is the accumulator ADR-009 §1 rejects wherever a recorded fact will do. A save written mid-flight resumes mid-flight for free.
 
 `v12 → v13` (v0.4) is the chain's **second relayout**, and it is `v6 → v7` again at a different width — 80×64 becomes 112×64, with the same coordinate invariant and the same index remap. It is a near-copy of that link on purpose: a frozen link may never change behaviour, and sharing a helper with a later one is how one of them eventually does. Its dimensions are literals for the same reason, restated at the code — importing the live `WORLD_WIDTH` would have silently rewritten what `v6 → v7` does the moment this phase landed, which is exactly the trap §4.2's comment was guarding.
 

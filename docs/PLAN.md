@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                                     |
 | ------------------- | ----------------------------------- |
 | **Current version** | **v0.4 — Automation & Exploration** |
-| **Current phase**   | **28 — World Map & Expeditions**    |
+| **Current phase**   | **29 — Simulation Threading**       |
 | **Status**          | **IN_PROGRESS**                     |
 
 | Phase | Name                     | Status      |
@@ -27,25 +27,25 @@ owner's memory (`AI_RULES.md` §10.4).
 | 25    | Recipes & Factories      | COMPLETE    |
 | 26    | Logistics & Reservation  | COMPLETE    |
 | 27    | The Wilds & Resources    | COMPLETE    |
-| 28    | World Map & Expeditions  | IN_PROGRESS |
-| 29    | Simulation Threading     | CONDITIONAL |
+| 28    | World Map & Expeditions  | COMPLETE    |
+| 29    | Simulation Threading     | IN_PROGRESS |
 | 30    | v0.4 Vertical Slice (RC) | PENDING     |
 
-**Phase 27 — COMPLETE.** `docs/phases/phase-27-the-wilds.md` is the record.
-Five commits: ADR, derived nodes, the wider world and its migration, the
-gathering band, and the node layer. 2,990 tests across 234 files; p99 tick
-0.048 ms with a forager crew (`PERFORMANCE.md` §15).
+**Phases 27 and 28 — COMPLETE.** `docs/phases/phase-27-the-wilds.md` and
+`docs/phases/phase-28-expeditions.md` are the records. All six of §5's v0.4
+milestones have now shipped.
 
-**Phase 28 progress** (resume here):
+**Phase 29 progress** (resume here):
 
-- DONE — ADR-038 written and accepted. The map is a LIST of content
-  destinations, not more grid (no third relayout); a worker away is off the
-  grid and absent from the slice; only the departure is stored and the return
-  tick, haul, and remaining time are arithmetic on it; the haul is derived from
-  the departure so an eight-hour absence needs no catch-up model.
-- NEXT — the expedition side-table, schema **v14**, and its golden fixture.
-  Then the command pair (send/return), the system, core destinations, the rate
-  test, and the map panel.
+- The phase is CONDITIONAL on ADR-003 §2's trigger, and the number is now
+  taken: **p99 0.53 ms** under a real v0.4 farm (`PERFORMANCE.md` §16), against
+  a 3 ms trigger. **NOT MET** — headless. The first job is the same measurement
+  in the RUNNING APP, which is what the trigger is actually about, and the RC
+  records the number either way.
+- NEXT — ADR-039, then the half worth doing regardless: severing the
+  renderer's direct `world` reference. `world-view.ts` reads `options.world`
+  for the seed, the tile grid, the registries and the snapshots; only the last
+  is the sanctioned boundary (ADR-005 §2).
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

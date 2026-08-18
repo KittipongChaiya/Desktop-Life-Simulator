@@ -140,6 +140,44 @@ parallel is logistics, where hauling does not happen until the player declares
 a route. Both are long-distance work, and neither should start merely because
 nobody said no.
 
+### 2.6 The world map (v0.4, phase-28 — ADR-038)
+
+Beyond the wilds is somewhere you cannot walk. **Destinations are a list, not
+terrain**: a name, a distance in ticks, what it costs to outfit, what a hand
+brings back, and the standing the town wants before it vouches for you.
+
+| Destination   | Away   | Takes           | Brings              | Needs    |
+| ------------- | ------ | --------------- | ------------------- | -------- |
+| River Delta   | 3 min  | 4 wheat seed    | ~6 wheat, ~8 turnip | Newcomer |
+| Old Quarry    | 5 min  | 2 wheat         | ~12 ore, ~4 stone   | Friend   |
+| The Highlands | 7½ min | 1 bread, 2 wood | ~8 carrot, ~6 ore   | Pillar   |
+
+The `~` is real: a haul lands within a quarter either way of the stated figure,
+derived from the seed, the worker and the tick they left. **It never comes back
+empty** — variance is in how much, never in whether, because a trip that
+returned nothing would punish a decision made an hour ago (`VISION.md` §2.2).
+
+**A hand who is away is off the map entirely.** No sprite, no tasks, no energy,
+and no farm work credited while the player is gone. They still count as a
+worker you hired — the hire price does not drop because someone is travelling.
+
+**The real cost is the worker, not the supplies.** An expedition's value per
+tick of worker time sits within half to double what the same hand would bring
+back gathering in the wilds; a mechanic that paid better than everything else
+would make everything else pointless, and one that paid worse would be content
+nobody uses. That band is a test, not an intention
+(`tests/expedition-rate.test.ts`).
+
+**There is no recall.** Supplies are spent at departure, so a cancellable trip
+would be a free option on an outcome already decided. A player who changes
+their mind waits, exactly as they would for a crop.
+
+**Why the hauls are the scarce goods.** A worker carries twenty items, so a
+destination paying in wood and stone would have to be two minutes away to be
+worth the trip — a walk, not an expedition. Ore and wild produce carry the
+distance, and the wilds already supply the rest, so no destination competes
+with the band next door.
+
 ## 3. Crops
 
 ### 3.1 The v0.1 crop table
