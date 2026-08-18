@@ -54,6 +54,10 @@ The art the shipping game already references as placeholders, plus the small gap
 
 The item icons have no stand-in and need none — the HUD's item rows degrade to a blank icon slot, which is legible rather than misleading.
 
+**What the phase-25 live pass showed, and it raises the priority.** Both factories appear in the shop at the right prices with working Build buttons, and both draw on the map — so the stand-in decision does its job. But side by side on the plot, `storage_shed` and `cottage` are **near-indistinguishable at gameplay scale**: a player cannot tell which building is the mill and which is the kitchen without clicking one. That is a usability defect the stand-ins cause and the real art fixes, and it is the reason these rows are P0 rather than something to sweep up at the RC.
+
+**A regression gate now exists for the invisible-building case**: `tests/sprite-keys.test.ts` asserts that every declared building, crop-stage and tile sprite key resolves to a real frame in the atlas, resolving keys exactly the way `world-view.ts` does. It reproduces the phase-25 mistake on demand. What it deliberately does **not** check is whether the art is the RIGHT art — a stand-in resolves perfectly well, which is why the catalog rows above, not the test, are what tracks them.
+
 **These are blocking items on the `PLAN.md` §8 "no placeholders" release gate**, and the gate is what must catch them before v0.4 ships. Flip these rows and delete the stand-ins in the same commit as the art (§Rules 3).
 
 ---
