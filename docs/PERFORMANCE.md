@@ -679,14 +679,43 @@ It is worth re-reading at the RC, and FPS is measured alongside for the same
 reason: if the outliers ever became a pattern, the frame-presentation clause is
 the one that would catch them.
 
-### Two runs, taken either side of the phase's own change
+### Three runs, and the number is a range
 
 | Run                        | p50 | p95 | p99     | max | FPS  |
 | -------------------------- | --- | --- | ------- | --- | ---- |
 | Before the boundary change | 0.2 | 0.3 | 0.5     | 7.0 | 94.0 |
-| After (shipped code)       | 0.2 | 0.3 | **0.4** | 6.9 | 93.1 |
+| After the boundary change  | 0.2 | 0.3 | **0.4** | 6.9 | 93.1 |
+| At the RC (frozen code)    | 0.2 | 0.3 | **0.5** | 8.0 | 93.5 |
 
-The difference is run-to-run variance, not an improvement — moving two reads
-from the live world to the snapshot removes two property lookups per frame,
-which is not measurable and was never claimed to be. Both are recorded so the
-number is a range rather than a single flattering sample.
+**p99 is 0.4–0.5 ms across three runs**, and the differences are run-to-run
+variance rather than an improvement or a regression — moving two reads from the
+live world to the snapshot removes two property lookups per frame, which is not
+measurable and was never claimed to be. All three are recorded so the number is
+a range rather than a single flattering sample.
+
+The max drifts 6.9–8.0 ms across the same three runs, always one sample in
+~1,270, always with p95 and p99 an order of magnitude below it. That is the
+shape of a GC pause and not of a tick doing more work.
+
+### v0.4 criterion 3 — entity and building counts
+
+Read from the same overlay in the same run as the tick, so the figure and the
+scene it was measured on are one measurement:
+
+| Metric          | Measured |
+| --------------- | -------- |
+| Visible sprites | **515**  |
+| Buildings       | 13       |
+| Workers (live)  | 5        |
+| Crops           | 3        |
+| Containers      | 7        |
+
+**PASS.** 515 sprites is a scene that batches — the wilds' ~276 static nodes
+are the bulk of it, and they hold no animation lease, so they cost nothing per
+frame once drawn.
+
+**The worker count is 5 against a save holding 6**, and that is the design
+showing up in a metric rather than a discrepancy: a hand on an expedition is
+absent from the workers slice (ADR-038 §2), and the overlay reads the slice.
+The crop count is 3 because the crew harvested the other 33 during the 60-second
+settle, which is the farm working.

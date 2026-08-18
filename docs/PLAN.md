@@ -260,12 +260,23 @@ Three orderings are dictated by dependency rather than preference:
   half runs only if it does, or if a successor ADR replaces the trigger. **The
   RC records the measured number either way.**
 
-**Success criteria**
+**Success criteria** — closed at phase 30, with evidence in
+`RELEASE-v0.4-RC.md` §3.3.
 
-- [ ] A production chain runs unattended for 8 hours without jamming
-- [ ] Exploration yields meaningfully feed the farm economy
-- [ ] Entity and building counts stay within budget — **worker-thread migration likely lands here** (ADR-003 §2)
-- [ ] Offline catch-up remains accurate with production chains active
+- [x] A production chain runs unattended for 8 hours without jamming —
+      `tests/chain-longrun.test.ts`, 576,000 ticks, three claims asserted
+- [x] Exploration yields meaningfully feed the farm economy — gathering and
+      expeditions both reach storage through the existing deposit path, and
+      `tests/expedition-rate.test.ts` holds every destination inside
+      half-to-double a forager's rate
+- [x] Entity and building counts stay within budget — **515 visible sprites**
+      under full v0.4 load (`PERFORMANCE.md` §17). The worker-thread migration
+      did **not** land here: ADR-003 §2's trigger was measured and **not met**
+      (p99 0.4–0.5 ms against 3 ms), and ADR-039 records the decision
+- [ ] Offline catch-up remains accurate with production chains active —
+      **PARTIAL**. A chain's buffers are credited; the chain is not, because
+      nothing models hauling offline. It under-credits deliberately, which
+      `GAME_DESIGN.md` §9.2 permits and the reverse would not
 
 ---
 

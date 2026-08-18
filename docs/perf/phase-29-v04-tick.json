@@ -8,9 +8,14 @@
   "workedWildTiles": 19,
   "p50Ms": 0.2,
   "p95Ms": 0.3,
-  "p99Ms": 0.4,
+  "p99Ms": 0.5,
   "avgMs": 0.187,
-  "maxMs": 6.9,
-  "samples": 1272,
-  "fps": 93.1
+  "maxMs": 8,
+  "samples": 1271,
+  "fps": 93.5,
+  "visibleSprites": 515,
+  "liveWorkers": 5,
+  "liveCrops": 3,
+  "liveBuildings": 13,
+  "containers": 7
 }

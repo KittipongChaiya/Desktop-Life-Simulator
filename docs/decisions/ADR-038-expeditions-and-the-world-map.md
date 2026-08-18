@@ -216,6 +216,55 @@ is a worker who waits, never a haul that vanishes.
 
 ---
 
+## Amendment — the carry cap, and the invariant §3 created
+
+Written during implementation, in the same phase.
+
+### §5 said supplies are not the lever. The CARRY CAP turned out to be one.
+
+A worker carries twenty items, and nothing in the decision above accounted for
+that. Its consequences were both structural and both had to be built:
+
+- **`isReachableDestination` refuses a destination whose BIGGEST possible haul
+  cannot fit an empty hold.** Not the declared figure — the top of §4's band,
+  since a yield that just fits still overflows a quarter of the time. Without
+  this, a return would have more than the hold can take, and ADR-011 §7 leaves
+  no third option: a conserved quantity may not be silently discarded.
+- **A worker leaves empty-handed**, refused by `validateSendExpedition`
+  otherwise. That is what makes the guarantee above hold at runtime rather than
+  on paper, and it is the legible rule anyway: you drop off, then you go.
+
+**And the cap chose the content.** Wood at 8 and stone at 14 cap a full pack at
+a few hundred coins, so a wood-and-stone destination would have to be under two
+minutes away to satisfy §5's rate rule — which is a walk, not an expedition.
+The shipped destinations pay in ore and wild produce for that reason, not for
+flavour, and the wilds already supply the rest so no destination competes with
+the band next door.
+
+### §3 created a cross-field invariant, and the loader has to repair it
+
+**A worker is `Away` if and only if a trip names them.** Both halves are written
+together, so a document breaking it is corrupt rather than old — and
+`SAVE_FORMAT.md` §5.3's doctrine is that the loader repairs rather than trusts.
+
+The expensive direction was missed on the first pass and its comment said so
+out loud (_"there is nothing to reconcile here"_): **`Away` with no trip strands
+the hand for ever.** The FSM skips an away worker by design and only
+`expeditionSystem` brings one back, so a worker the player paid for becomes
+permanently unusable with nothing on screen to explain it.
+
+The repairs, each chosen to restore what was paid for without inventing
+anything:
+
+| Corruption              | Repair                                     |
+| ----------------------- | ------------------------------------------ |
+| `Away`, no trip         | Back to `Idle` — the hand is returned      |
+| Trip, worker not `Away` | Honoured — the supplies were already spent |
+| Trip naming no worker   | Dropped — there is nobody to bring home    |
+| Departure after `tick`  | Clamped to now — home on schedule, never   |
+
+---
+
 ## Consequences
 
 **Good**

@@ -684,17 +684,24 @@ Hidden and click-through compose over any base state; work mode is a variant of 
 
 Where each future system attaches. **Designed for, not built** (`VISION.md` §4.2).
 
-| Future system                  | Attaches via                                        | Cost paid in v0.1                              |
-| ------------------------------ | --------------------------------------------------- | ---------------------------------------------- |
-| Seasons, weather               | Growth-rate modifiers; render layers 4–5            | Moisture already modifies growth; layers exist |
-| ~~Day/night~~ **BUILT (v0.2)** | Lighting layer; worker schedules                    | Layer 5 claimed in phase-10c; see §2.4         |
-| NPCs (v0.3)                    | Worker state machine generalizes to any actor       | FSM is data-driven, not worker-specific        |
-| Town, contracts                | Economy price multipliers become demand curves      | Dynamic pricing already exists                 |
-| Trading                        | Item registry + price model                         | Both exist                                     |
-| Factory (v0.4)                 | Buildings that consume and produce items            | Building + inventory model supports it         |
-| Exploration                    | World grid extends beyond the owned plot            | Grid is already 64× the starting plot          |
-| Combat (v1.0)                  | `health` side-table over entity stores (ADR-004 §4) | Composition model supports it                  |
-| Mods                           | Content registries + namespaced IDs                 | ADR-003 §6                                     |
+| Future system                    | Attaches via                                        | Cost paid in v0.1                              |
+| -------------------------------- | --------------------------------------------------- | ---------------------------------------------- |
+| Seasons, weather                 | Growth-rate modifiers; render layers 4–5            | Moisture already modifies growth; layers exist |
+| ~~Day/night~~ **BUILT (v0.2)**   | Lighting layer; worker schedules                    | Layer 5 claimed in phase-10c; see §2.4         |
+| NPCs (v0.3)                      | Worker state machine generalizes to any actor       | FSM is data-driven, not worker-specific        |
+| Town, contracts                  | Economy price multipliers become demand curves      | Dynamic pricing already exists                 |
+| Trading                          | Item registry + price model                         | Both exist                                     |
+| ~~Factory~~ **BUILT (v0.4)**     | Buildings that consume and produce items            | Recipes name their building; see §2.5, ADR-035 |
+| ~~Exploration~~ **BUILT (v0.4)** | The wilds (grid) and the map (content)              | §2.5–2.6; ADR-037 and ADR-038                  |
+| Watering                         | A `Water` worker band over §3.5's moisture model    | `wateredAt` is recorded per tile since v0.2    |
+| Combat (v1.0)                    | `health` side-table over entity stores (ADR-004 §4) | Composition model supports it                  |
+| Mods                             | Content registries + namespaced IDs                 | ADR-003 §6                                     |
+
+**Watering is listed because §4.4 used to claim it.** The task-priority list
+carried a `Water` band from v0.1 until phase-27 and the code never had one —
+the moisture model it depends on was deferred by ADR-009 and nothing has built
+it. It belongs here, as a thing designed for and not built, rather than there,
+where it read as shipped behaviour.
 
 **None of these may add v0.1 scope.** Each phase document's _Out of Scope_ section is binding (`AI_RULES.md` §3.2).
 
