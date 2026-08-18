@@ -33,6 +33,7 @@ import type { CropRegistry } from '../content/crops';
 import { createInstalledRegistries, installedSources } from '../content/installed';
 import type { ItemRegistry } from '../content/items';
 import type { PhaseTintRegistry } from '../content/lighting';
+import type { RecipeRegistry } from '../content/recipes';
 import type { RoleRegistry } from '../content/roles';
 import { seasonOrder, type SeasonRegistry } from '../content/seasons';
 import type { ContentSource } from '../content/sources';
@@ -102,6 +103,16 @@ export interface World {
 
   /** Registered building definitions. Instances reference these by id. */
   readonly buildingRegistry: BuildingRegistry;
+
+  /**
+   * Registered recipe definitions (ADR-035 §1). A factory stores the id of the
+   * one it was set to run and looks the definition up here.
+   *
+   * Which recipes a building kind can run is a QUERY over this registry
+   * (`recipesFor`), never a list on the building — that direction is what lets
+   * a content pack add a recipe to the first-party mill without editing core.
+   */
+  readonly recipeRegistry: RecipeRegistry;
   /**
    * Phase → tint, for the lighting layer only.
    *
@@ -335,6 +346,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     crops: cropRegistry,
     items: itemRegistry,
     buildings: buildingRegistry,
+    recipes: recipeRegistry,
     tileKinds,
     phaseTints: phaseTintRegistry,
     seasons: seasonRegistry,
@@ -370,6 +382,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     itemRegistry,
     inventory: createContainer(BASE_INVENTORY_SLOTS),
     buildingRegistry,
+    recipeRegistry,
     phaseTintRegistry,
     seasonRegistry,
     roleRegistry,

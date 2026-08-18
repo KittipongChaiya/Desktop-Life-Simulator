@@ -45,6 +45,7 @@ import { createCropRegistry } from './crops';
 import { createItemRegistry } from './items';
 import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
+import { createRecipeRegistry } from './recipes';
 import { createRoleRegistry } from './roles';
 import { createSeasonRegistry } from './seasons';
 import { createSoundRegistry } from './sounds';
@@ -118,6 +119,7 @@ export function createInstalledRegistries(): ContentTargets {
     crops: createCropRegistry(),
     items: createItemRegistry(),
     buildings: createBuildingRegistry(),
+    recipes: createRecipeRegistry(),
     tileKinds: createTileKindRegistry(),
     phaseTints: createPhaseTintRegistry(),
     seasons: createSeasonRegistry(),

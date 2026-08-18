@@ -40,6 +40,7 @@ import type { BuildingDefinition, BuildingRegistry } from './buildings';
 import type { CropDefinition, CropRegistry } from './crops';
 import type { ItemDefinition, ItemRegistry } from './items';
 import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
+import { isRunnableRecipe, type RecipeDefinition, type RecipeRegistry } from './recipes';
 import { isSatisfiableRole, type RoleDefinition, type RoleRegistry } from './roles';
 import type { SeasonDefinition, SeasonRegistry } from './seasons';
 import { isPlayableDefinition, type RegisteredSound, type SoundRegistry } from './sounds';
@@ -60,6 +61,7 @@ export interface ContentTargets {
   readonly crops: CropRegistry;
   readonly items: ItemRegistry;
   readonly buildings: BuildingRegistry;
+  readonly recipes: RecipeRegistry;
   readonly tileKinds: TileKindRegistry;
   readonly phaseTints: PhaseTintRegistry;
   readonly seasons: SeasonRegistry;
@@ -78,6 +80,15 @@ export interface ContentBundle {
   readonly crops?: readonly CropDefinition[];
   readonly items?: readonly ItemDefinition[];
   readonly buildings?: readonly BuildingDefinition[];
+  /**
+   * Transformations, each naming the building kind that runs it (ADR-035 §1).
+   *
+   * Order is NOT significant — a recipe is referenced by id, never by index —
+   * so appending, reordering, and registering against another source's
+   * building are all safe. That last one is the point: this is how a content
+   * pack extends `core:mill` without editing core.
+   */
+  readonly recipes?: readonly RecipeDefinition[];
   readonly tileKinds?: readonly TileKindDefinition[];
   /** Phase → tint, for the lighting layer. Presentation only (ADR-020 §4). */
   readonly phaseTints?: readonly PhaseTintDefinition[];
@@ -183,6 +194,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('crop', bundle.crops, targets.crops),
     ...of('item', bundle.items, targets.items),
     ...of('building', bundle.buildings, targets.buildings),
+    ...of('recipe', bundle.recipes, targets.recipes),
     ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
     ...of('season', bundle.seasons, targets.seasons),
     ...of('role', bundle.roles, targets.roles),
@@ -243,6 +255,21 @@ export function createPluginApi(source: ContentSource, targets: ContentTargets):
           );
         }
         seen.add(key);
+      }
+
+      // An unrunnable recipe is the same failure one content type over: a
+      // factory that silently never produces reads to a player as a building
+      // that does nothing, with nothing on screen to explain it. Refused here,
+      // where the author is told (ADR-035 §1, `recipes.ts` for each rule).
+      for (const recipe of bundle.recipes ?? []) {
+        if (!isRunnableRecipe(recipe)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'recipe can never run', {
+              source: source.id,
+              id: recipe.id,
+            }),
+          );
+        }
       }
 
       // An unsatisfiable role can never permit a single task, on any farm, at
