@@ -42,23 +42,43 @@ The art the shipping game already references as placeholders, plus the small gap
 | Icons (tools)      | hoe / seed / hand toolbar icons (`GAME_DESIGN.md §8`)                | P0       | v0.1  | S   | needed      | `ICON_GUIDE.md`, `UI_STYLE_GUIDE.md`       |
 | UI (world)         | selection, hover, build ghost (`ui-world` atlas)                     | P0       | v0.1  | S   | partial     | `UI_STYLE_GUIDE.md`                        |
 
-### 2.1 v0.4 — the factories (phase-25)
+### 2.1 v0.4 — the factories
 
-| Class     | Class detail                                         | Priority | Phase | Est | Status      | Depends on                      |
-| --------- | ---------------------------------------------------- | -------- | ----- | --- | ----------- | ------------------------------- |
-| Buildings | `mill.png` — the flour factory (ADR-035)             | P0       | v0.4  | S   | placeholder | `WORLD_BIBLE.md §2`, style lock |
-| Buildings | `kitchen.png` — the bread factory (ADR-035)          | P0       | v0.4  | S   | placeholder | `WORLD_BIBLE.md §2`, style lock |
-| Items     | `item_flour.png`, `item_bread.png` (`ICON_GUIDE.md`) | P0       | v0.4  | S   | needed      | `ICON_GUIDE.md`                 |
+| Class     | Class detail                                         | Priority | Phase | Est | Status   | Depends on                      |
+| --------- | ---------------------------------------------------- | -------- | ----- | --- | -------- | ------------------------------- |
+| Buildings | `mill.png` — the flour factory (ADR-035)             | P0       | v0.4  | S   | **done** | `WORLD_BIBLE.md §2`, style lock |
+| Buildings | `kitchen.png` — the bread factory (ADR-035)          | P0       | v0.4  | S   | **done** | `WORLD_BIBLE.md §2`, style lock |
+| Items     | `item_flour.png`, `item_bread.png` (`ICON_GUIDE.md`) | P0       | v0.4  | S   | needed   | `ICON_GUIDE.md`                 |
 
-**Both buildings currently render a stand-in from the shipped atlas** — the mill draws `storage_shed`, the kitchen draws `cottage` — and the substitution is marked at the definitions in `src/sim/content/buildings.ts`. It is deliberate rather than sloppy: `textureFor` resolves an unknown sprite key to `Texture.EMPTY`, so naming art that does not exist ships a building that is **silently invisible in the running game**, with nothing anywhere to say why. A wrong-looking building is a bug a player reports; an invisible one is a bug nobody can describe.
+**Both buildings now have their own art** (phase-26), painted by
+`scripts/generate-world-art.mjs` like every other building in the atlas.
 
-The item icons have no stand-in and need none — the HUD's item rows degrade to a blank icon slot, which is legible rather than misleading.
+They were stand-ins through phase 25 — the mill drew `storage_shed`, the
+kitchen drew `cottage` — and the live pass found the two **indistinguishable on
+the plot**: a player could not tell which building made flour and which made
+bread. The replacements are therefore designed **silhouette-first**, the same
+rule `rest_hut` follows against `storage_shed`:
 
-**What the phase-25 live pass showed, and it raises the priority.** Both factories appear in the shop at the right prices with working Build buttons, and both draw on the map — so the stand-in decision does its job. But side by side on the plot, `storage_shed` and `cottage` are **near-indistinguishable at gameplay scale**: a player cannot tell which building is the mill and which is the kitchen without clicking one. That is a usability defect the stand-ins cause and the real art fixes, and it is the reason these rows are P0 rather than something to sweep up at the RC.
+- **Mill** — a tall, narrow stone tower with a conical straw cap and an
+  external water wheel breaking the outline on the left. Vertical, hard-edged,
+  asymmetric: it reads as industry.
+- **Kitchen** — a low, wide bakehouse with a thin chimney and a glowing brick
+  oven bulge on the right. Horizontal and domestic, the deliberate opposite.
 
-**A regression gate now exists for the invisible-building case**: `tests/sprite-keys.test.ts` asserts that every declared building, crop-stage and tile sprite key resolves to a real frame in the atlas, resolving keys exactly the way `world-view.ts` does. It reproduces the phase-25 mistake on demand. What it deliberately does **not** check is whether the art is the RIGHT art — a stand-in resolves perfectly well, which is why the catalog rows above, not the test, are what tracks them.
+The two are told apart by shape before colour, which is what a player reads at
+a glance and at a distance.
 
-**These are blocking items on the `PLAN.md` §8 "no placeholders" release gate**, and the gate is what must catch them before v0.4 ships. Flip these rows and delete the stand-ins in the same commit as the art (§Rules 3).
+**The item icons are still needed.** `core:flour` and `core:bread` name
+`ui-world:item_flour` and `ui-world:item_bread`, which do not exist — the HUD
+degrades to a blank icon slot, which is legible rather than misleading, but it
+is unfinished and remains on the `PLAN.md` §8 gate.
+
+**The regression gate**: `tests/sprite-keys.test.ts` asserts that every declared
+building, crop-stage and tile sprite key resolves to a real frame in the atlas,
+resolving keys exactly the way `world-view.ts` does. It reproduces the phase-25
+mistake on demand. What it deliberately does **not** check is whether the art is
+the RIGHT art — a stand-in resolves perfectly well — which is why these rows,
+not the test, are what track the real work.
 
 ---
 

@@ -118,25 +118,23 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
   // deposit-target path, so a worker cannot fill a mill with turnips
   // (ADR-035 §2).
   //
-  // ART IS A RECORDED PLACEHOLDER, not an oversight. `buildings:mill` and
-  // `buildings:kitchen` do not exist in the atlas, and `textureFor` resolves a
-  // miss to `Texture.EMPTY` — so naming them would ship two buildings that are
-  // silently INVISIBLE in the running game, which is worse than a stand-in
-  // because nothing anywhere would say so. Both are logged in
-  // `ASSET_CATALOG.md` as needed for v0.4 and both are blocking items on the
-  // `PLAN.md` §8 "no placeholders" release gate. The stand-ins are the closest
-  // shapes the shipped atlas has: a shed for the mill, a cottage for the
-  // kitchen.
+  // ART IS REAL SINCE PHASE-26. Both were stand-ins through phase 25 — the
+  // mill drew `storage_shed`, the kitchen drew `cottage` — and the live pass
+  // found them indistinguishable on the plot. `generate-world-art.mjs` now
+  // paints both, designed silhouette-first: the mill is a tall stone tower with
+  // an external water wheel breaking its outline, the kitchen a low wide
+  // bakehouse with a chimney and an oven bulge. Told apart by SHAPE before
+  // colour, which is what a player reads at a glance.
   {
     id: CORE_MILL,
     displayName: 'Mill',
-    sprite: 'buildings:storage_shed', // PLACEHOLDER — awaiting `mill.png`
+    sprite: 'buildings:mill',
     cost: 900,
   },
   {
     id: CORE_KITCHEN,
     displayName: 'Kitchen',
-    sprite: 'buildings:cottage', // PLACEHOLDER — awaiting `kitchen.png`
+    sprite: 'buildings:kitchen',
     cost: 1600,
   },
 ];

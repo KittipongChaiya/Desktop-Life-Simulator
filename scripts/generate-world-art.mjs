@@ -409,6 +409,124 @@ function marketStall() {
   return canvas;
 }
 
+// ── v0.4 factories (phase-26; ADR-035) ───────────────────────────────────────
+//
+// The brief these two answer is legibility, not decoration. Phase-25 shipped
+// them borrowing `storage_shed` and `cottage`, and the live pass found the two
+// indistinguishable on the plot — a player could not tell which building made
+// flour and which made bread. So the SILHOUETTES are designed to differ first
+// and the detail second, the same rule `restHut` follows against `storageShed`:
+// a mill is tall and narrow with a wheel breaking its outline; a kitchen is
+// low and wide with a chimney and a lit window.
+
+/** Mill (`buildings:mill`, ADR-035): a tall stone tower with an external
+ * water wheel. Reads as INDUSTRY — vertical, hard-edged, asymmetric — against
+ * every other farm building, which are wide and soft. The wheel is what makes
+ * the silhouette unmistakable at a glance and at a distance. */
+function mill() {
+  const canvas = createCanvas(TILE, TILE);
+  const rng = prng(1408);
+
+  // Stone tower: narrow, tall, slightly tapered so it reads as built rather
+  // than extruded. Left edge lit (upper-left key light, ASSETS.md §2).
+  rect(canvas, 10, 6, 24, 28, STONE_BASE);
+  rect(canvas, 10, 6, 12, 28, STONE_LIGHT);
+  rect(canvas, 23, 7, 24, 28, STONE_DARK);
+  // Coursed stonework — staggered, never a grid, or it reads as tile.
+  for (let y = 9; y <= 27; y += 3) {
+    for (let x = 11; x <= 23; x += 1) {
+      if (rng() < 0.22) set(canvas, x, y, STONE_DARK);
+    }
+  }
+
+  // Conical cap in straw, so it belongs to the same village as the shed.
+  for (let y = 1; y <= 6; y += 1) {
+    const spread = Math.floor(((y - 1) * 8) / 5);
+    rect(canvas, 17 - spread, y, 17 + spread, y, STRAW);
+  }
+  thatch(canvas, rng, 10, 3, 25, 6);
+  rect(canvas, 9, 6, 26, 6, WOOD_LIGHT); // eave, overhanging the tower
+
+  // Door and a single small window: a working tower, not a home.
+  rect(canvas, 15, 21, 19, 28, SOIL_DARK);
+  rect(canvas, 16, 22, 18, 28, TILLED_SOIL);
+  rect(canvas, 15, 12, 18, 15, SOFT_INK);
+  rect(canvas, 16, 13, 17, 14, STRAW); // lit from within
+
+  // THE WATER WHEEL — the silhouette break. Outside the tower on the left, so
+  // the outline is asymmetric and unlike anything else in the atlas.
+  ellipse(canvas, 6, 20, 5, 5, WOOD_BASE);
+  ellipse(canvas, 6, 20, 3, 3, GRASS_SHADOW);
+  for (const [dx, dy] of [
+    [0, -5],
+    [0, 5],
+    [-5, 0],
+    [5, 0],
+    [-3, -3],
+    [3, 3],
+    [-3, 3],
+    [3, -3],
+  ]) {
+    set(canvas, 6 + dx, 20 + dy, WOOD_LIGHT);
+  }
+  rect(canvas, 6, 19, 10, 21, WOOD_BASE); // axle into the tower
+
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 17, 29, 12, 1.8);
+  return canvas;
+}
+
+/** Kitchen (`buildings:kitchen`, ADR-035): a low wide bakehouse — a brick
+ * oven bulge, a smoking chimney, a warmly lit window. Reads as DOMESTIC and
+ * horizontal, the deliberate opposite of the mill's vertical tower, so the two
+ * are told apart by shape before colour. */
+function kitchen() {
+  const canvas = createCanvas(TILE, TILE);
+  const rng = prng(1409);
+
+  // Wide low walls.
+  rect(canvas, 2, 15, 29, 28, WOOD_BASE);
+  rect(canvas, 2, 15, 3, 28, WOOD_LIGHT);
+  for (const x of [9, 15, 21]) rect(canvas, x, 16, x, 28, SOIL_DARK);
+
+  // Brick oven bulge on the right — the feature that says "bread" and the
+  // second silhouette break after the chimney.
+  ellipse(canvas, 24, 22, 6, 6, CARROT_ORANGE);
+  ellipse(canvas, 24, 22, 4, 4, PUMPKIN);
+  rect(canvas, 22, 21, 26, 24, SOIL_DARK); // oven mouth
+  rect(canvas, 23, 22, 25, 23, STRAW); // fire inside, glowing
+
+  // Shallow roof — deliberately much flatter than the shed's gable.
+  for (let y = 9; y <= 14; y += 1) {
+    const spread = Math.floor(((y - 9) * 14) / 5);
+    rect(canvas, 15 - spread, y, 16 + spread, y, STRAW);
+  }
+  thatch(canvas, rng, 3, 10, 28, 14);
+  rect(canvas, 1, 14, 30, 14, WOOD_LIGHT);
+  rect(canvas, 1, 15, 30, 15, SOIL_DARK);
+
+  // Chimney with smoke — the tall element, kept THIN so the mass still reads
+  // horizontal.
+  rect(canvas, 6, 3, 9, 13, STONE_BASE);
+  rect(canvas, 6, 3, 6, 13, STONE_LIGHT);
+  rect(canvas, 5, 2, 10, 3, STONE_DARK);
+  for (const [x, y] of [
+    [7, 1],
+    [8, 0],
+  ]) {
+    set(canvas, x, y, PARCHMENT);
+  }
+
+  // A warmly lit window: somebody is baking.
+  rect(canvas, 11, 18, 16, 23, SOFT_INK);
+  rect(canvas, 12, 19, 15, 22, STRAW);
+  rect(canvas, 13, 19, 13, 22, SOIL_DARK); // mullion
+
+  outlineSilhouette(canvas);
+  contactShadow(canvas, 16, 29, 15, 1.8);
+  return canvas;
+}
+
 // ── Town buildings (phase-18, ADR-030 §4; village canon WORLD_BIBLE §Village) ─
 
 /** Cottage (`core:cottage`): a home, not a workshop — the fifth silhouette
@@ -583,6 +701,8 @@ function main() {
     [buildingsDir, 'rest_hut.png', restHut],
     [buildingsDir, 'seed_bin.png', seedBin],
     [buildingsDir, 'market_stall.png', marketStall],
+    [buildingsDir, 'mill.png', mill],
+    [buildingsDir, 'kitchen.png', kitchen],
     [buildingsDir, 'cottage.png', cottage],
     [buildingsDir, 'well.png', well],
     [buildingsDir, 'notice_board.png', noticeBoard],
