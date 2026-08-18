@@ -271,7 +271,21 @@ function catchUpFactories(world: World, start: number, end: number): number {
     // ticks) after the first fix: a completion landing exactly on `end` is a
     // tick the player was not away for, and claiming it is the one direction
     // this model may never fail in.
-    const byTime = 1 + Math.floor((end - firstAt - 1) / recipe.craftTicks);
+    //
+    // AND THE CADENCE IS `craftTicks + 1`, NOT `craftTicks` — the same
+    // off-by-one as the first start, at every restart. A factory that
+    // completes on tick T is IDLE on tick T; the earliest it can begin again
+    // is T + 1, so consecutive completions are `craftTicks + 1` apart. Measured
+    // rather than reasoned: a live mill completes at 1201, 2402, 3603, 4804 —
+    // a constant 1,201 gap for a 1,200-tick recipe.
+    //
+    // This is the THIRD over-credit the never-over property has found in this
+    // one function, and it survived phase 26 because it only bites on gaps
+    // long enough to hold many crafts: the property fails on roughly one run
+    // in three, and passing runs are not evidence. Found at (22 wheat, 13,202
+    // ticks), where the model claimed 11 and the simulation completes 10.
+    const cadence = recipe.craftTicks + 1;
+    const byTime = 1 + Math.floor((end - firstAt - 1) / cadence);
 
     // INPUTS. The running craft's have already been consumed, so it needs none.
     const running = factory.startedTick === null ? 0 : 1;
@@ -349,11 +363,23 @@ export function catchUpWorld(world: World, elapsedTicks: number): CatchUpReport 
   const crafts = catchUpFactories(world, start, end);
 
   // WORKER PRODUCTION — statistical, floor everything.
-  const workerCount = world.workers.size;
+  //
+  // MINUS ANYONE AWAY (phase-28, ADR-038 §2). A hand on an expedition does no
+  // farm work for the whole trip, so counting them here would credit a harvest
+  // nobody performed — an OVER-credit, which `GAME_DESIGN.md` §9.2 forbids
+  // outright ("may credit less, never more").
+  //
+  // Everyone currently away is excluded for the WHOLE gap, even one who would
+  // have come home part-way through it. That under-credits, which is the safe
+  // direction and the same round-down every other line here takes. Their haul
+  // is not lost: the expedition system brings them in on the first live tick
+  // after the gap, because a return is a comparison against `departedTick`
+  // rather than anything catch-up has to model.
+  const workerCount = world.workers.size - world.expeditions.size;
   // A farm with no crew, or nothing planted, still has factories: they were
   // advanced above and their crafts must be reported rather than dropped by an
   // early return written before factories existed.
-  if (workerCount === 0 || world.crops.size === 0) {
+  if (workerCount <= 0 || world.crops.size === 0) {
     return { ...EMPTY_REPORT(elapsedTicks), crafts };
   }
 

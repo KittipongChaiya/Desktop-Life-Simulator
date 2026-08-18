@@ -17,10 +17,13 @@ import {
   sendExpedition,
   validateSendExpedition,
 } from '../src/sim/commands/expedition-commands';
+import { catchUpWorld } from '../src/persistence/catch-up';
 import { placeBuilding } from '../src/sim/commands/building-commands';
+import { plantCrop, tillTile } from '../src/sim/commands/crop-commands';
 import { hireWorker } from '../src/sim/commands/worker-commands';
 import { CORE_STORAGE_SHED } from '../src/sim/content/buildings';
 import { CORE_OLD_QUARRY, CORE_RIVER_DELTA, haulFor } from '../src/sim/content/expeditions';
+import { CORE_WHEAT as CORE_WHEAT_CROP } from '../src/sim/content/crops';
 import { CORE_WHEAT_SEED, CORE_WHEAT } from '../src/sim/content/items';
 import { FRIEND_AT } from '../src/sim/world/reputation';
 import { stepSimulationBy } from '../src/sim/tick';
@@ -41,6 +44,18 @@ function farm(workers = 1): World {
 }
 
 const firstWorker = (world: World): Worker => [...world.workers.values()][0]!;
+
+/** The same farm with a dozen wheat in the ground — a crop for catch-up to credit. */
+function plantedFarm(workers: number): World {
+  const world = farm(workers);
+  addItems(world.inventory, CORE_WHEAT_SEED, 60, 99);
+  for (let i = 0; i < 12; i += 1) {
+    const tile = toIndexUnchecked(28 + (i % 6), 32 + Math.floor(i / 6));
+    tillTile(world, tile);
+    plantCrop(world, tile, CORE_WHEAT_CROP);
+  }
+  return world;
+}
 
 describe('sending a hand away', () => {
   it('takes them off the grid', () => {
@@ -341,5 +356,48 @@ describe('an expedition survives a save', () => {
       containerTotal(worker.carrying) +
       [...world.buildingStorage.values()].reduce((sum, c) => sum + containerTotal(c), 0);
     expect(held).toBeGreaterThan(0);
+  });
+});
+
+describe('a hand who is away does no farm work while they are gone', () => {
+  it('is not counted by offline catch-up', () => {
+    // `GAME_DESIGN.md` §9.2: catch-up may credit LESS, never more. Counting a
+    // worker who spent the whole gap at the river delta would credit a harvest
+    // nobody performed — found by reading `catchUpWorld` against ADR-038 §2,
+    // which removes them from the grid but not from `world.workers`.
+    //
+    // Asserted as an EQUIVALENCE rather than an inequality: two hands with one
+    // away must credit exactly what one hand alone credits. An inequality
+    // between two farms is the comparison phase-24 spent four attempts
+    // learning not to trust — here both hit the same crop ceiling and the
+    // first version of this test read `12 < 12`.
+    const oneAway = plantedFarm(2);
+    const oneHand = plantedFarm(1);
+    sendExpedition(oneAway, firstWorker(oneAway).id, CORE_RIVER_DELTA);
+
+    const away = catchUpWorld(oneAway, 60_000);
+    const alone = catchUpWorld(oneHand, 60_000);
+
+    expect(away.harvests).toBe(alone.harvests);
+    expect(away.replants).toBe(alone.replants);
+  });
+
+  it('credits nothing at all when the whole crew is away', () => {
+    const world = plantedFarm(1);
+    sendExpedition(world, firstWorker(world).id, CORE_RIVER_DELTA);
+
+    expect(catchUpWorld(world, 200_000).harvests).toBe(0);
+  });
+
+  it('still brings them home on the first tick after the gap', () => {
+    // The haul is not lost by being excluded above: a return is a comparison
+    // against `departedTick`, so catch-up has nothing to model (ADR-038 §3).
+    const world = farm(1);
+    sendExpedition(world, firstWorker(world).id, CORE_RIVER_DELTA);
+
+    catchUpWorld(world, 200_000);
+    stepSimulationBy(world, 2);
+
+    expect(world.expeditions.size).toBe(0);
   });
 });

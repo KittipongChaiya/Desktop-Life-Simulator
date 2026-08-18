@@ -600,3 +600,39 @@ the combined tick against ADR-003 §2's worker-migration trigger.
 structural (an entry is pruned when its node regrows), and 120,000 ticks is
 about 100 minutes of play. The long-run suites cover eight hours; this one does
 not claim to.
+
+---
+
+## 16. Phase-28 measurement — the tick under a real v0.4 farm
+
+Headless, `stepSimulationBy` in 100-tick batches, 200,000 ticks, three hands,
+twenty-four crops in the ground, a shed, seed 4242. This is the load phase 27's
+measurement did not have: an **empty** farm measures an idle simulation.
+
+| Crew     | mean      | p50    | p95    | p99        | max    |
+| -------- | --------- | ------ | ------ | ---------- | ------ |
+| All home | 0.3920 ms | 0.3863 | 0.4349 | **0.5261** | 0.7663 |
+| One away | 0.4255 ms | 0.4012 | 0.5581 | **0.8359** | 0.9281 |
+
+**PASS** — p99 **0.53 ms** against §65's 3 ms budget, roughly six times inside
+it, and the same number ADR-003 §2 names as the worker-migration trigger.
+**The trigger is not met.**
+
+### Two things this measurement is honest about
+
+**The jump from phase 27's 0.048 ms is the CROPS, not the expeditions.** Phase
+27 profiled a farm with nothing planted, which measures an idle world; growth,
+harvest scanning, and the deposit path are what the ten-fold difference buys.
+Comparing the two numbers directly would be comparing two different farms.
+
+**The second row is not a clean comparison.** The river delta trip is 3,600
+ticks and the run is 200,000, so the hand is home for 98% of it — the gap
+between the rows is run-to-run variance, not a measured cost of being away. It
+is kept rather than dropped because a phase that reports only its conclusive
+measurements is reporting a selection.
+
+### What it does not cover
+
+The renderer, and the running app. This is `process`-side only. Phase 29 owns
+the combined figure against ADR-003 §2, and phase 30's RC gate set measures the
+app.

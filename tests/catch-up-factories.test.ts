@@ -92,13 +92,28 @@ describe('a factory produces while the player is away', () => {
     expect(containerCount(factory.input, CORE_WHEAT)).toBe(8);
   });
 
-  it('credits several crafts over a long gap', () => {
-    const { world, factory } = millWorld(10);
+  it('credits several crafts over a long gap — the number the simulation reaches', () => {
+    // CORRECTED IN PHASE 28, and the correction is the finding. This asserted
+    // FIVE, which is `gap / craftTicks` and is what the old model computed —
+    // the test was pinning the model's answer rather than the game's. The real
+    // cadence is `craftTicks + 1`, because a factory that completes on tick T
+    // is idle on T and cannot restart until T + 1, so five crafts need
+    // 5 × 1,201 ticks and this gap holds four.
+    //
+    // Asserted against a LIVE run rather than a new literal, so the next time
+    // the cadence changes this test moves with the game instead of pinning
+    // whatever the model happened to say.
+    const offline = millWorld(10);
+    const live = millWorld(10);
+    const gap = craftTicks(offline.world) * 5 + 2;
 
-    catchUpWorld(world, craftTicks(world) * 5 + 2);
+    catchUpWorld(offline.world, gap);
+    stepSimulationBy(live.world, gap);
 
-    expect(containerCount(factory.output, CORE_FLOUR)).toBe(5);
-    expect(containerCount(factory.input, CORE_WHEAT)).toBe(0);
+    expect(containerCount(offline.factory.output, CORE_FLOUR)).toBe(
+      containerCount(live.factory.output, CORE_FLOUR),
+    );
+    expect(containerCount(offline.factory.output, CORE_FLOUR)).toBe(4);
   });
 
   it('stops at the inputs it had — nothing delivers during a gap', () => {
@@ -201,5 +216,51 @@ describe('the round-down rule (GAME_DESIGN.md §9.2)', () => {
       ),
       { numRuns: 200 },
     );
+  });
+});
+
+describe('the cadence between crafts, pinned', () => {
+  /**
+   * The counterexamples the never-over property found, as EXAMPLES.
+   *
+   * The property fails on roughly one run in three, which means a green run
+   * proves nothing — and it was green for the whole of phase 26. These pin the
+   * exact cases deterministically, so the same regression fails every time
+   * rather than a third of the time.
+   */
+  it.each([
+    [22, 13_202, 10],
+    [18, 10_802, 8],
+  ])('%i wheat over %i ticks credits exactly %i', (wheat, gap, expected) => {
+    const offline = millWorld(wheat);
+    const live = millWorld(wheat);
+
+    catchUpWorld(offline.world, gap);
+    stepSimulationBy(live.world, gap);
+
+    expect(containerCount(live.factory.output, CORE_FLOUR)).toBe(expected);
+    expect(containerCount(offline.factory.output, CORE_FLOUR)).toBe(expected);
+  });
+
+  it('completes at craftTicks + 1 intervals, which is what the model must use', () => {
+    // Measured, not assumed. A factory that completes on tick T is IDLE on
+    // tick T, so the earliest it can start again is T + 1 — the same
+    // off-by-one as the first start, at every restart.
+    const { world, factory } = millWorld(40);
+    const completions: number[] = [];
+    let previous = 0;
+
+    for (let i = 0; i < 5_000; i += 1) {
+      stepSimulationBy(world, 1);
+      const flour = containerCount(factory.output, CORE_FLOUR);
+      if (flour !== previous) {
+        completions.push(world.tick);
+        previous = flour;
+      }
+    }
+
+    const gaps = completions.slice(1).map((tick, i) => tick - completions[i]!);
+    expect(gaps.length).toBeGreaterThan(1);
+    expect(new Set(gaps)).toEqual(new Set([craftTicks(world) + 1]));
   });
 });
