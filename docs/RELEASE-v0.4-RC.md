@@ -84,7 +84,38 @@ being omitted from the file. Nothing new is blocked at this version.
 The suite includes `tests/e2e/v04-tick.spec.ts`, added at phase 29, which
 drives the real app on a full v0.4 save and is where §3.2's numbers come from.
 
-_Unit suite and coverage: filled from the fresh run below._
+**Unit suite: 3,159 tests across 244 files**, all passing, in 7m 50s. That
+includes the memory soak (`memory-longrun`), the eight-hour chain acceptance
+run (`chain-longrun`, 576,000 ticks), and the worker and economy long-runs —
+none of which are excluded or shortened for this document.
+
+**Coverage: green on every threshold**, and it took two rounds to get there.
+
+| Metric     | Measured                 | Project bar |
+| ---------- | ------------------------ | ----------- |
+| Statements | **93.40%** (7,243/7,754) | —           |
+| Branches   | **86.68%** (3,775/4,355) | —           |
+| Functions  | **93.12%** (1,692/1,817) | —           |
+| Lines      | **95.30%** (6,454/6,772) | —           |
+
+Per-area thresholds all met, including `src/sim` branches at 85%+ and
+`src/persistence` at 90%+.
+
+**The first run was RED and that is the point of running it.** `src/sim`
+branches came in at 83.44% against 85%, `src/persistence` at 87.79% against
+90%, and the gap had a single shape: v0.4 added four command modules and a
+relayout migration, and every one of them was tested on what it DOES far more
+than on what it REFUSES. That is phase 23's finding at the v0.3 RC, in the same
+directory, for the same reason — a phase writes the happy path because that is
+the feature, and the guards are what nobody demonstrates.
+
+Closing it took **68 tests** across three files, every one asserting a
+behaviour rather than colouring a line: 21 command rejections, 21 for the
+logistics commands specifically (the largest single gap in `src/sim`, at 45
+uncovered branch points), and 13 feeding the second relayout malformed
+documents.
+
+**And one of those branches was a defect, not dead weight** — see §3.4.
 
 ### 3.2 Performance
 
@@ -147,7 +178,27 @@ credits work the simulation would have refused.
 Expeditions and the wilds, by contrast, need **no offline model at all**:
 both resolve by comparison against a stored tick.
 
-### 3.4 Two over-credits found at this RC
+### 3.4 Three defects found at this RC, and how each was found
+
+**A worker could be stranded for ever** — found by reading phase 28's own
+deserializer against the invariant it created. Expeditions require that a
+worker is `Away` if and only if a trip names them, and the loader trusted it
+rather than repairing it; a worker marked away with no trip behind them is
+skipped by the FSM by design and brought back by nothing. A hand the player
+paid for, permanently unusable. Four corruptions, four repairs, four tests.
+
+**A malformed command crashed the dispatcher instead of being refused** —
+found by writing the coverage-closing test for a branch nobody had run.
+`sendExpedition` parsed its destination with `asContentId`, which throws, so a
+command carrying `"not-a-content-id"` threw inside the dispatcher in violation
+of ADR-010 §5. Every source arriving at that door is untrusted, not just the
+player's.
+
+That is the argument for a coverage threshold being a threshold rather than a
+target: **twice at this RC, a line with no test behind it had something wrong
+behind it.**
+
+### 3.5 Two over-credits found at this RC
 
 Both in `catchUpWorld`, both fixed, both now under-crediting:
 
@@ -164,7 +215,7 @@ in phase 26 for a reason worth carrying: **the never-over property fails on
 about one run in three, so a green run was never evidence.** Both
 counterexamples are now pinned as deterministic examples beside the property.
 
-### 3.5 The economy, validated rather than asserted
+### 3.6 The economy, validated rather than asserted
 
 `tests/economy-loops.test.ts`, eleven executable claims. The framing is the
 useful part — not _nothing profits_, but:

@@ -15,40 +15,45 @@ or disagrees with the phase table in §5.1. It exists because a session can end
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                     |
-| ------------------- | ----------------------------------- |
-| **Current version** | **v0.4 — Automation & Exploration** |
-| **Current phase**   | **30 — v0.4 Vertical Slice (RC)**   |
-| **Status**          | **IN_PROGRESS**                     |
+|                     |                                            |
+| ------------------- | ------------------------------------------ |
+| **Current version** | **v0.4 — Automation & Exploration**        |
+| **Current phase**   | **30 — v0.4 Vertical Slice (RC)**          |
+| **Status**          | **COMPLETE — v0.4 is a release candidate** |
 
-| Phase | Name                     | Status      |
-| ----- | ------------------------ | ----------- |
-| 24    | v0.4 Baseline            | COMPLETE    |
-| 25    | Recipes & Factories      | COMPLETE    |
-| 26    | Logistics & Reservation  | COMPLETE    |
-| 27    | The Wilds & Resources    | COMPLETE    |
-| 28    | World Map & Expeditions  | COMPLETE    |
-| 29    | Simulation Threading     | COMPLETE    |
-| 30    | v0.4 Vertical Slice (RC) | IN_PROGRESS |
+| Phase | Name                     | Status   |
+| ----- | ------------------------ | -------- |
+| 24    | v0.4 Baseline            | COMPLETE |
+| 25    | Recipes & Factories      | COMPLETE |
+| 26    | Logistics & Reservation  | COMPLETE |
+| 27    | The Wilds & Resources    | COMPLETE |
+| 28    | World Map & Expeditions  | COMPLETE |
+| 29    | Simulation Threading     | COMPLETE |
+| 30    | v0.4 Vertical Slice (RC) | COMPLETE |
 
-**Phases 24–29 — COMPLETE.** Each has its record in `docs/phases/`. All six of
-§5's v0.4 milestones have shipped, and phase 29's conditional resolved:
-**ADR-003 §2's threading trigger is NOT met** — p99 **0.4 ms** against 3 ms,
-measured in the running app under full v0.4 load, at 93 FPS
-(`PERFORMANCE.md` §17, `docs/perf/phase-29-v04-tick.json`). The simulation
-stays on the main thread and the trigger stands unchanged for v0.5.
+**v0.4 IS COMPLETE.** All seven phases (24–30) are closed with records in
+`docs/phases/`, all six of §5's milestones shipped, and `RELEASE-v0.4-RC.md` is
+the version's honest position.
 
-**Phase 30 progress** (resume here):
+**Where the gates landed**, all re-run fresh at phase 30:
 
-- NEXT — the RC. §8's full gate set re-run FRESH rather than cited (the v0.3
-  lesson, applied at phase 24 and due again at the version boundary): the three
-  typechecks, lint, the unit suite, coverage against its thresholds, the e2e
-  suite, a runtime startup check, the memory soak, the full migration chain
-  against every golden fixture, asset validation, and the §5 success criteria
-  reported with evidence.
-- Then `RELEASE-v0.4-RC.md`, on the shape of `RELEASE-v0.3-RC.md`.
-- **The version does not bump.** ADR-028's signing tripwire holds `0.4.0`
-  hostage to the owner's certificate, exactly as it held `0.3.0`.
+| Gate                | Result                                                       |
+| ------------------- | ------------------------------------------------------------ |
+| Unit suite          | 3,159 tests, 244 files, all passing                          |
+| Coverage            | Green — 86.68% branches, 95.30% lines (**red on first run**) |
+| E2E                 | 78 passed, 4 skipped (environment-gated, each with a reason) |
+| Boundaries / cycles | Clean — 349 modules, 1,255 dependencies                      |
+| Migration chain     | `v1 → v14`, every golden fixture, zero repairs               |
+| Performance         | p99 tick **0.4–0.5 ms** against a 3 ms trigger, 93 FPS       |
+| Runtime startup     | Production build, 12 s                                       |
+| `npm audit` (prod)  | 0 vulnerabilities                                            |
+
+**Success criteria: three PASS, one PARTIAL** (offline credits a chain's
+buffers, not the chain — under-crediting deliberately).
+
+**The next session starts v0.5.** `PLAN.md` §6 holds the v1.0 shape; v0.5 has
+no scope yet and choosing it is the owner's call. Nothing in v0.4 is left
+half-done.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
