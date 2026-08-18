@@ -38,10 +38,14 @@ gathering band, and the node layer. 2,990 tests across 234 files; p99 tick
 
 **Phase 28 progress** (resume here):
 
-- NEXT — write the ADR before anything moves. The open questions are what an
-  expedition IS (a worker leaving the map for a duration, against a party
-  system), where its result comes from (derived like the wilds, against rolled
-  and stored), and whether the map is a screen or a region.
+- DONE — ADR-038 written and accepted. The map is a LIST of content
+  destinations, not more grid (no third relayout); a worker away is off the
+  grid and absent from the slice; only the departure is stored and the return
+  tick, haul, and remaining time are arithmetic on it; the haul is derived from
+  the departure so an eight-hour absence needs no catch-up model.
+- NEXT — the expedition side-table, schema **v14**, and its golden fixture.
+  Then the command pair (send/return), the system, core destinations, the rate
+  test, and the map panel.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
@@ -230,8 +234,8 @@ Three orderings are dictated by dependency rather than preference, and `ROADMAP.
 | 25  | Recipes & Factories      | v11    | Buildings that consume and produce; a 3-step chain  | ADR-035    |
 | 26  | Logistics & Reservation  | v12    | The chain runs itself; the 8-hour unattended proof  | ADR-036    |
 | 27  | The Wilds & Resources    | v13    | Walkable land past the town; mining, foraging       | ADR-037    |
-| 28  | World Map & Expeditions  | v14    | Regions as destinations; workers sent away and back | ADR-037    |
-| 29  | Simulation Threading     | —      | The renderer's world reference severed; the thread  | ADR-038    |
+| 28  | World Map & Expeditions  | v14    | Regions as destinations; workers sent away and back | ADR-038    |
+| 29  | Simulation Threading     | —      | The renderer's world reference severed; the thread  | ADR-039    |
 | 30  | v0.4 Vertical Slice (RC) | —      | It feels like one game, and the gates are measured  | —          |
 
 Three orderings are dictated by dependency rather than preference:
