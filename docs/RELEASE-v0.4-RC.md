@@ -60,21 +60,31 @@ animations — so no art in the build is unaccounted for.
 
 ### The gates, run fresh
 
-| Check               | Result                                                                |
-| ------------------- | --------------------------------------------------------------------- |
-| Typecheck (×3)      | Clean                                                                 |
-| Lint                | Clean, `--max-warnings 0`                                             |
-| Unit suite          | See §3.1                                                              |
-| Coverage            | See §3.1                                                              |
-| Runtime startup     | **Production** build launched and stayed up 12 s (`smoke-launch.mjs`) |
-| Migration chain     | `v1 → v14` against every golden fixture, zero repairs                 |
-| Asset regeneration  | Byte-identical to committed                                           |
-| Boundaries / cycles | Clean                                                                 |
-| `npm audit` (prod)  | 0 vulnerabilities                                                     |
+| Check               | Result                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| Typecheck (×3)      | Clean                                                                                     |
+| Lint                | Clean, `--max-warnings 0`                                                                 |
+| Unit suite          | See §3.1                                                                                  |
+| Coverage            | See §3.1                                                                                  |
+| Runtime startup     | **Production** build launched and stayed up 12 s (`smoke-launch.mjs`)                     |
+| E2E suite           | **78 passed, 4 skipped**, 9.8 minutes — every skip environment-gated with a stated reason |
+| Migration chain     | `v1 → v14` against every golden fixture, zero repairs                                     |
+| Asset regeneration  | Byte-identical to committed                                                               |
+| Boundaries / cycles | Clean                                                                                     |
+| `npm audit` (prod)  | 0 vulnerabilities                                                                         |
 
 ### 3.1 Suites and coverage
 
-_Filled from the fresh run — see the numbers below._
+**End to end: 78 passed, 4 skipped**, 9.8 minutes, on a debug build. The four
+skips are the same environment-gated criteria v0.2 and v0.3 declared — the
+three that need a real GPU adapter, and the renderer-side heap soak that needs
+`performance.memory` — each one skipping with its reason printed rather than
+being omitted from the file. Nothing new is blocked at this version.
+
+The suite includes `tests/e2e/v04-tick.spec.ts`, added at phase 29, which
+drives the real app on a full v0.4 save and is where §3.2's numbers come from.
+
+_Unit suite and coverage: filled from the fresh run below._
 
 ### 3.2 Performance
 
