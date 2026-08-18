@@ -1,0 +1,130 @@
+/* Factory panel. Phase-25. Mirrors InventoryPanel's toggle-in-the-bar shape. */
+
+.container {
+  position: relative;
+  flex: none;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  color: #e8e8ec;
+  font:
+    500 12px/1.2 system-ui,
+    sans-serif;
+}
+
+.toggle {
+  padding: 4px 10px;
+  border: 1px solid #4a4a55;
+  border-radius: 4px;
+  background: #23232b;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: #2c2c36;
+}
+
+/*
+ * Anchored to the bar rather than floating over the plot: the middle of the
+ * overlay is where the player tills, plants and places, and a panel there
+ * swallows the click (the 07.9 collision lesson).
+ */
+.panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 260px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid #4a4a55;
+  border-radius: 6px;
+  background: #1b1b22;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  /*
+   * `min-width: 0` so a long recipe name shrinks instead of pushing the status
+   * out of the panel — the exact overflow the phase-22 live pass found on the
+   * board's request rows, fixed here before it could happen again.
+   */
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  flex: none;
+  color: #9fd39f;
+}
+
+/* Amber, never red: a stall is an ordinary condition, not a fault. */
+.idle {
+  flex: none;
+  color: #d8b46a;
+}
+
+.bar {
+  height: 4px;
+  border-radius: 2px;
+  background: #33333d;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: #6fae6f;
+}
+
+.contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  color: #b9b9c4;
+}
+
+.label {
+  color: #74747f;
+}
+
+.stack {
+  white-space: nowrap;
+}
+
+.empty {
+  color: #74747f;
+  font-style: italic;
+}
+
+.clear {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid #4a4a55;
+  border-radius: 4px;
+  background: #23232b;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

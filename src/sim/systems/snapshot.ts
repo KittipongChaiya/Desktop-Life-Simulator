@@ -23,6 +23,8 @@ import {
   projectTime,
   publishIfChanged,
   residentsEqual,
+  factoriesEqual,
+  projectFactories,
   statusEquals,
   timeEquals,
   walletEquals,
@@ -54,6 +56,7 @@ export function snapshotSystem(world: World): void {
   // walks, on dwell boundaries otherwise, and never while the town sleeps —
   // the night slice is empty and empty equals empty.
   publishIfChanged(world.snapshots.residents, projectResidents(world), residentsEqual);
+  publishIfChanged(world.snapshots.factories, projectFactories(world), factoriesEqual);
   // The board: offers change once a day; the docket on accept/deliver/expire
   // and whenever a contracted item's held count moves (phase-20, ADR-032).
   publishIfChanged(world.snapshots.contracts, projectContracts(world), contractsEqual);

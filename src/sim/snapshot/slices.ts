@@ -17,6 +17,7 @@ import type { BuildingView } from './buildings-slice';
 import type { ContractsSlice } from './contracts-slice';
 import type { CropView } from './crops-slice';
 import type { EconomyView, WalletView } from './economy-slice';
+import type { FactoryView } from './factories-slice';
 import type { InventoryView } from './inventory-slice';
 import type { ResidentView } from './residents-slice';
 import type { TimeView } from './time-slice';
@@ -58,6 +59,7 @@ export interface SliceMap {
    * the sleeping town publishes nothing. Phase-19.
    */
   readonly residents: readonly ResidentView[];
+  readonly factories: readonly FactoryView[];
   /** The notice board: today's offers, the docket, the counters. Phase-20. */
   readonly contracts: ContractsSlice;
 }
@@ -74,6 +76,7 @@ export const SLICE_NAMES = [
   'economy',
   'time',
   'residents',
+  'factories',
   'contracts',
 ] as const satisfies readonly SliceName[];
 

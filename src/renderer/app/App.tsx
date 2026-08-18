@@ -23,6 +23,7 @@ import { shouldCaptureMouse } from './hit-test';
 import { ActionNotice } from './hud/ActionNotice';
 import { BoardPanel } from './hud/BoardPanel';
 import { CompanionToast } from './hud/CompanionToast';
+import { FactoryPanel } from './hud/FactoryPanel';
 import { InventoryPanel } from './hud/InventoryPanel';
 import { ReturnSummary } from './hud/ReturnSummary';
 import { SaveNotice } from './hud/SaveNotice';
@@ -159,6 +160,7 @@ export function App(): ReactNode {
                 <WorkerPanel />
                 <ShopPanel />
                 <BoardPanel />
+                <FactoryPanel />
                 <InventoryPanel />
                 <SettingsPanel />
               </>

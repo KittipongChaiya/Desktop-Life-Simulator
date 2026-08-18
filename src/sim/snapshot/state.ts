@@ -25,6 +25,7 @@ import {
   type EconomyView,
   type WalletView,
 } from './economy-slice';
+import { factoriesEqual, projectFactories, type FactoryView } from './factories-slice';
 import { inventoryEqual, projectInventory, type InventoryView } from './inventory-slice';
 import { projectResidents, residentsEqual, type ResidentView } from './residents-slice';
 import { projectStatus, statusEquals, type SliceMap, type StatusSlice } from './slices';
@@ -47,6 +48,7 @@ export interface SnapshotState {
   readonly economy: VersionedSlice<EconomyView>;
   readonly time: VersionedSlice<TimeView>;
   readonly residents: VersionedSlice<readonly ResidentView[]>;
+  readonly factories: VersionedSlice<readonly FactoryView[]>;
   readonly contracts: VersionedSlice<ContractsSlice>;
 }
 
@@ -71,6 +73,9 @@ export function createSnapshotState(): SnapshotState {
     // workers pattern, and correct at tick 0 regardless (everyone is indoors
     // before their first wake).
     residents: { version: 0, value: [] },
+    // Empty until the first tick projects the real set — the workers pattern,
+    // and correct at tick 0 regardless, since a new world has no factory.
+    factories: { version: 0, value: [] },
     // Corrected on the first tick, like the wallet and inventory seeds.
     contracts: {
       version: 0,
@@ -132,6 +137,7 @@ export function sliceVersions(state: SnapshotState): Record<keyof SliceMap, numb
     economy: state.economy.version,
     time: state.time.version,
     residents: state.residents.version,
+    factories: state.factories.version,
     contracts: state.contracts.version,
   };
 }
@@ -154,6 +160,8 @@ export {
   timeEquals,
   projectTime,
   residentsEqual,
+  factoriesEqual,
+  projectFactories,
   projectResidents,
   contractsEqual,
   projectContracts,
