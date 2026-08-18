@@ -28,7 +28,7 @@ Each rule is a **prohibition** with a **because**. The prohibition is binding; t
 
 ## B. Perspective & form
 
-**R-04 — Do NOT vary outline thickness.** Exactly **1 px** at 1×, on every entity and object, everywhere (`PIXEL_GUIDE.md §5`). _Because_ variable line weight is the single most obvious tell of mixed-source art; uniform 1 px is what makes independently-authored sprites look like one hand made them.
+**R-04 — Do NOT vary outline thickness, and do NOT outline uniformly.** An outline is exactly **1 px** at 1× wherever it is drawn (`PIXEL_GUIDE.md §5`). Outline where an object must **separate from what is behind it** — not everywhere. Interior edges, and edges already separated by value, take a darker step of the object's own ramp instead of the outline ink. _Because_ variable line weight is still the single most obvious tell of mixed-source art, which is why the 1 px part is untouched; but a keyline traced all the way round every object is what makes a scene read as **stickers laid on a background** rather than things standing in a place. **Amended by ADR-041 §1 (v0.5 phase 32)** — the only amendment this document has taken. Use `outlineSelective()` from `scripts/lib/pixel-craft.mjs`; `outlineSilhouette()` remains correct for objects that genuinely sit against arbitrary backgrounds.
 
 **R-05 — Do NOT mix perspectives.** Ground is flat top-down; standing objects use the one shallow 3/4 tilt (`PIXEL_GUIDE.md §6`, `ASSETS.md §2`). No true isometric, no vanishing-point perspective, no front-elevation buildings among top-down ones. _Because_ a scene that mixes projections cannot be made to read as one coherent space at a glance.
 

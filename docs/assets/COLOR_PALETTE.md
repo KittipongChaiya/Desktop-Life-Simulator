@@ -55,9 +55,83 @@ The colours the player sees most. Each ramp is shadow → base → light; author
 | ------------- | --------- | ----------------------------------------------- |
 | Soil Dark     | `#5A3A28` | Tilled-soil shadow, deep wood                   |
 | Tilled Soil   | `#6E5236` | Tilled ground base (`core:tilled`), roof timber |
+| Soil Rich     | `#7E5C3A` | Freshly-turned earth, the lit face of a furrow  |
 | Wood Base     | `#96704A` | Structures, fences, tool handles                |
 | Wood Light    | `#B58A5E` | Sunlit planks, worn edges                       |
 | Straw / Wheat | `#E0C260` | Ripe grain, thatch, hay                         |
+
+**Added in phase-32 (ADR-041 §2): a second and third wood.** One ramp meant
+every wooden thing in the game — cottage walls, fences, crates, tool handles,
+market stalls, signs — was the same two browns, which is a large part of why
+buildings failed to separate from each other.
+
+| Name        | Hex       | Role                                                   |
+| ----------- | --------- | ------------------------------------------------------ |
+| Timber Dark | `#6B4A31` | Beams, door frames, the shadow side of structural wood |
+| Timber Warm | `#A87C4F` | Weathered structural wood — barns, posts, cart bodies  |
+| Birch Pale  | `#D8BC93` | Pale planking, new wood, interior boards, signage      |
+
+### 3.2b Roofs — so buildings stop sharing a hat
+
+**Added in phase-32 (ADR-041 §2).** Every building in the game had a straw
+roof, because straw was the only roof colour that existed. A roof is the
+largest, highest-contrast shape a small building has, so it is the cheapest
+possible way to make structures distinguishable at a glance — and it was being
+spent on making them identical.
+
+| Name             | Hex       | Role                                           |
+| ---------------- | --------- | ---------------------------------------------- |
+| Roof Terracotta  | `#C4623F` | Cottages and homes — the warm domestic roof    |
+| Roof Clay        | `#9B4A32` | The shadow step of terracotta; ridge lines     |
+| Roof Slate       | `#5E6E7A` | Civic and production buildings — mill, kitchen |
+| Roof Slate Light | `#7C8D99` | The lit face of slate                          |
+| Roof Moss        | `#6E8A55` | Old, settled roofs — the well, outbuildings    |
+
+### 3.2c Warm stone and cream — replacing the grey
+
+**Added in phase-32 (ADR-041 §2).** §3.4's stone ramp is grey-violet, which the
+brief names directly: _avoid sterile grey environments_. The old ramp is kept
+for genuinely cold material — ore-bearing rock, cobble in shadow — and these
+carry everything built or walked on.
+
+| Name             | Hex       | Role                                  |
+| ---------------- | --------- | ------------------------------------- |
+| Stone Warm Dark  | `#6E5F52` | Shadowed masonry, wall bases          |
+| Stone Warm       | `#94836F` | Walls, paths, wells, garden borders   |
+| Stone Warm Light | `#B8A78F` | Sunlit masonry, path highlights       |
+| Cream            | `#EFE3C8` | Plaster walls, canvas, awnings, paper |
+| Cream Shade      | `#D6C4A2` | The shaded face of plaster and canvas |
+
+### 3.2d Flower accents — gentle, and checked against the reserved set
+
+**Added in phase-32 (ADR-041 §2).** Distinct from §4's reserved accents on
+purpose: these carry NO meaning and may be spent freely on decoration, which is
+exactly what R-09 forbids for Reward Gold. They exist so that a decorative
+flower does not have to borrow a colour that signals something.
+
+| Name       | Hex       | Role                                    |
+| ---------- | --------- | --------------------------------------- |
+| Bloom Rose | `#E38FA6` | Pink blossom, clover, cottage borders   |
+| Bloom Blue | `#7FA8D8` | Cornflower, forget-me-not, wild scatter |
+
+White and cream flowers use the existing **Cream `#EFE3C8`** from §3.2c rather
+than a fourth near-identical value.
+
+<!-- palette-lock:ignore-start -->
+
+**Two colours were proposed and withdrawn**, which is the reserved set doing its
+job rather than a change of mind:
+
+| Withdrawn             | Collided with         | Why it mattered                                                                 |
+| --------------------- | --------------------- | ------------------------------------------------------------------------------- |
+| Bloom Poppy `#D95A4E` | Danger Red `#C8443C`  | §5 **forbids Danger Red in-world**; an in-world near-twin defeats that outright |
+| Bloom Lilac `#A98FD0` | Rare Violet `#9B6FC4` | Sat between Rare Violet and Rare Light — purple is spent, rarity owns it        |
+
+<!-- palette-lock:ignore-end -->
+
+`tests/palette-lock.test.ts` enforces a minimum RGB distance between every
+decorative accent and every reserved one, so the next flower colour cannot be
+added without answering the same question.
 
 ### 3.3 Water & sky — the cool relief
 

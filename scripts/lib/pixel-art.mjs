@@ -44,6 +44,32 @@ export const TILLED_SOIL = rgba('#6E5236');
 export const WOOD_BASE = rgba('#96704A');
 export const WOOD_LIGHT = rgba('#B58A5E');
 export const STRAW = rgba('#E0C260');
+
+// ── The cozy pass (phase-32, ADR-041 §2) ────────────────────────────────────
+// Added because the library had ONE wood ramp, ONE roof colour (straw), and a
+// grey-violet stone — so every wooden thing was the same brown, every building
+// wore the same hat, and every wall read as sterile. See COLOR_PALETTE §3.2–3.2d.
+export const SOIL_RICH = rgba('#7E5C3A');
+export const TIMBER_DARK = rgba('#6B4A31');
+export const TIMBER_WARM = rgba('#A87C4F');
+export const BIRCH_PALE = rgba('#D8BC93');
+
+export const ROOF_TERRACOTTA = rgba('#C4623F');
+export const ROOF_CLAY = rgba('#9B4A32');
+export const ROOF_SLATE = rgba('#5E6E7A');
+export const ROOF_SLATE_LIGHT = rgba('#7C8D99');
+export const ROOF_MOSS = rgba('#6E8A55');
+
+export const STONE_WARM_DARK = rgba('#6E5F52');
+export const STONE_WARM = rgba('#94836F');
+export const STONE_WARM_LIGHT = rgba('#B8A78F');
+export const CREAM = rgba('#EFE3C8');
+export const CREAM_SHADE = rgba('#D6C4A2');
+
+// Deliberately NOT reserved (R-09): these carry no meaning and may be spent on
+// decoration, which is the whole reason they exist.
+export const BLOOM_ROSE = rgba('#E38FA6');
+export const BLOOM_BLUE = rgba('#7FA8D8');
 // §3.3 Water & sky
 export const WATER_DEEP = rgba('#2E5A7A');
 export const WATER_BASE = rgba('#3E7FA8');

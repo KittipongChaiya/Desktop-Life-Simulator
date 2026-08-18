@@ -109,6 +109,71 @@ The world should tell its small story without a word of dialogue. In v0.1 the vo
 
 ---
 
+## 9.1 Density is a hierarchy, not an amount
+
+**Added in v0.5 phase 32 (ADR-041 §4).** §9 asks for environmental
+storytelling; this says how much, and where, so that "denser" cannot quietly
+become "busier".
+
+| Tier | What                                                     | Must be                        |
+| ---- | -------------------------------------------------------- | ------------------------------ |
+| 1    | Workers, crops, interactable buildings, resource nodes   | Readable instantly, always     |
+| 2    | Buildings, paths, fields, the structure of a region      | Visible, never competing       |
+| 3    | Flowers, tufts, props, ambient creatures, ground texture | Enriching, never noticed first |
+
+**A density pass fails when a Tier 1 object is lost inside Tier 3** — not when
+a scene "looks empty". That is the test, and it is checked on the contact sheet
+at 1×, never at inspection zoom.
+
+## 9.2 The craft floor — what the ground may and may not do
+
+**Added in v0.5 phase 32.** Three findings from prototyping the new vocabulary
+against the old assets, recorded because each one cost an iteration and phase 33
+onward should not pay for them again:
+
+- **An ordered dither cannot texture a 32 px ground tile.** A 4×4 Bayer matrix
+  repeats eight times across the tile, so at any density high enough to see it
+  resolves into a visible cross-hatch — a screen door, not grass. Dither is for
+  **small faces and transitions** (a roof slope, a soil-to-grass edge, a
+  shadowed wall), where it spans a handful of pixels and never repeats enough to
+  read as a pattern.
+- **Solid tonal blobs on ground read as polka dots.** Large-scale value
+  variation across a field is the job of **tile variants and scattered props**,
+  not of texture inside a single tile.
+- **Ground texture is hand-placed clusters.** Two- and three-pixel marks in a
+  low-contrast tone, which the eye reads as blades. Low contrast is the whole
+  trick: the ground is Tier 3 and must lose to everything standing on it.
+
+## 9.3 Seasons: what a multiply tint can and cannot do
+
+**Measured in v0.5 phase 33**, by rendering one scene under all four season
+tints at 1× (`scripts/generate-scene-sheet.mjs --seasons`) rather than
+reasoning about the hex values.
+
+The season is applied as a **multiply over the finished terrain** (ADR-021 §6),
+which is why a season change costs a tint assignment per visible chunk and no
+chunk redraw at all. That choice has a consequence nobody had looked at:
+
+- **A multiply cannot brighten.** White means "leave the art alone", so the
+  brightest season has to be the one that does nothing — which is why summer
+  is now the reference and spring carries the cool tint, not the reverse.
+- **A multiply cannot move a hue far.** Warm-tinting grass removes blue and
+  leaves it green. Autumn CAN reach olive and khaki, and does; it cannot reach
+  the browns and reds of actual autumn foliage.
+- **Winter has no snow**, and cannot have any by tinting. Cool-tinting green
+  gives cold green.
+
+So the tints are pushed to the edge of the mechanism and no further. All four
+seasons are now distinguishable at 1×, which they were not before.
+
+**What is deferred, and why it is a decision rather than a task:** foliage that
+actually changes colour needs seasonal tile and prop VARIANTS, selected the way
+`tile-variants.ts` already selects ground variants. That is affordable — the
+machinery exists — but it means the season is baked into cached chunk textures,
+and ADR-021 §6 records that invalidating every cached texture four times a year
+is _"the one thing this renderer exists to avoid"_. Overriding a recorded
+decision belongs in an amendment to it, not in an art phase.
+
 ## 10. Animation philosophy
 
 Motion in this game is **gentle, purposeful, and calm** — the moving equivalent of the palette. The philosophy:
