@@ -11,49 +11,39 @@
 ## 0. Current State
 
 **Machine-checked.** `tests/plan-state.test.ts` fails if this block goes stale
-or disagrees with the phase table in §5.1. It exists because a session can end
+or disagrees with the CURRENT version's phase table — §5A.1 today. It exists because a session can end
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                            |
-| ------------------- | ------------------------------------------ |
-| **Current version** | **v0.4 — Automation & Exploration**        |
-| **Current phase**   | **30 — v0.4 Vertical Slice (RC)**          |
-| **Status**          | **COMPLETE — v0.4 is a release candidate** |
+|                     |                                   |
+| ------------------- | --------------------------------- |
+| **Current version** | **v0.5 — The Playable Cut**       |
+| **Current phase**   | **31 — v0.5 Baseline & evidence** |
+| **Status**          | **IN_PROGRESS**                   |
 
-| Phase | Name                     | Status   |
-| ----- | ------------------------ | -------- |
-| 24    | v0.4 Baseline            | COMPLETE |
-| 25    | Recipes & Factories      | COMPLETE |
-| 26    | Logistics & Reservation  | COMPLETE |
-| 27    | The Wilds & Resources    | COMPLETE |
-| 28    | World Map & Expeditions  | COMPLETE |
-| 29    | Simulation Threading     | COMPLETE |
-| 30    | v0.4 Vertical Slice (RC) | COMPLETE |
+| Phase | Name                         | Status      |
+| ----- | ---------------------------- | ----------- |
+| 31    | v0.5 Baseline & evidence     | IN_PROGRESS |
+| 32    | Audio That Earns Eight Hours | PENDING     |
+| 33    | Zone Painting                | PENDING     |
+| 34    | What Now                     | PENDING     |
+| 35    | First Run                    | PENDING     |
+| 36    | Balance & The Idle Cost      | CONDITIONAL |
+| 37    | v0.5 Release Candidate       | PENDING     |
 
-**v0.4 IS COMPLETE.** All seven phases (24–30) are closed with records in
-`docs/phases/`, all six of §5's milestones shipped, and `RELEASE-v0.4-RC.md` is
-the version's honest position.
+**v0.4 shipped as a release candidate** on 2026-08-18 — phases 24–30, all six
+milestones, `RELEASE-v0.4-RC.md`. Its gate results live in that document and are
+not repeated here: §0 tracks the CURRENT version, and a §0 that accumulated
+every version's history would stop being a resume block.
 
-**Where the gates landed**, all re-run fresh at phase 30:
+**Phase 31 progress** (resume here):
 
-| Gate                | Result                                                       |
-| ------------------- | ------------------------------------------------------------ |
-| Unit suite          | 3,159 tests, 244 files, all passing                          |
-| Coverage            | Green — 86.68% branches, 95.30% lines (**red on first run**) |
-| E2E                 | 78 passed, 4 skipped (environment-gated, each with a reason) |
-| Boundaries / cycles | Clean — 349 modules, 1,255 dependencies                      |
-| Migration chain     | `v1 → v14`, every golden fixture, zero repairs               |
-| Performance         | p99 tick **0.4–0.5 ms** against a 3 ms trigger, 93 FPS       |
-| Runtime startup     | Production build, 12 s                                       |
-| `npm audit` (prod)  | 0 vulnerabilities                                            |
-
-**Success criteria: three PASS, one PARTIAL** (offline credits a chain's
-buffers, not the chain — under-crediting deliberately).
-
-**The next session starts v0.5.** `PLAN.md` §6 holds the v1.0 shape; v0.5 has
-no scope yet and choosing it is the owner's call. Nothing in v0.4 is left
-half-done.
+- NEXT — ADR-040 first: the three evidence classes (§5A.2) are this version's
+  load-bearing new idea, and every later phase reports against them.
+- Then re-run every §8 gate fresh, as phase 24 did at v0.4's opening — and take
+  the PRODUCT baseline nothing has ever measured: what the first hour is
+  actually like, and how long the `GAME_DESIGN.md` §1.1 stage arc really takes.
+- Phase 36 is CONDITIONAL on that second measurement.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
@@ -82,7 +72,14 @@ half-done.
 | **v0.2** | A Living World           | Seasons, weather, day/night, audio, the plugin loader |
 | **v0.3** | Town & Trade             | NPCs, settlement, contracts, a market that moves      |
 | **v0.4** | Automation & Exploration | Factories, logistics, a map beyond the farm           |
+| **v0.5** | The Playable Cut         | The systems become a game someone can live with       |
 | **v1.0** | Full Life Simulator      | RPG, dungeons, bosses, city defense, mod ecosystem    |
+
+**v0.5 was inserted after v0.4 shipped**, and the reason is in §5A. The shipped
+versions keep the names they were released under — those names appear in
+`RELEASE-v0.2-RC.md`, `RELEASE-v0.3-RC.md`, `RELEASE-v0.4-RC.md` and every
+phase document, and renaming a version after its release report is written
+makes the record disagree with itself.
 
 Ordering rationale — why each tier is a prerequisite rather than an arbitrary sequence — is in `VISION.md` §4.1.
 
@@ -282,6 +279,85 @@ Three orderings are dictated by dependency rather than preference:
       **PARTIAL**. A chain's buffers are credited; the chain is not, because
       nothing models hauling offline. It under-credits deliberately, which
       `GAME_DESIGN.md` §9.2 permits and the reverse would not
+
+---
+
+## 5A. v0.5 — The Playable Cut
+
+**Numbered 5A rather than renumbering §6 onward**, so that every existing
+reference to §6, §7 and §8 — the release gates most of all — keeps pointing at
+what it always pointed at.
+
+**Goal:** the game stops being system-complete and starts being _playable_.
+
+v0.1 through v0.4 built a farm, a world, a town, and automation. Not one of
+them closed **v0.1's four product criteria** (§2.2), which have been carried
+unmet through four versions. The technical gates have been green since phase
+08; the product gates have never been measured at all, and none of them can be
+closed by a test.
+
+That is what this version is for. **No new simulation system ships in v0.5.**
+
+| Milestone         | Delivers                                                        | Depends on               |
+| ----------------- | --------------------------------------------------------------- | ------------------------ |
+| Audio worth hours | Real synthesis, per-play variation, beds that now have triggers | v0.2 audio wiring        |
+| Zone painting     | Drawing a worker's zone on the map                              | v0.2 `setWorkerZone`     |
+| "What now?"       | One surface answering what is in flight and what is next        | v0.3 contracts, v0.4 map |
+| First run         | The opening minutes teach themselves                            | "What now?"              |
+| Balance           | The stage arc measured, and tuned only if the number says so    | v0.4's five income paths |
+| The idle cost     | The presence-gating question, resolved with measurement         | v0.3's open question     |
+
+### 5A.1 Phases
+
+| #   | Phase                        | Schema | Delivers                                             | Decided by |
+| --- | ---------------------------- | ------ | ---------------------------------------------------- | ---------- |
+| 31  | v0.5 Baseline & evidence     | —      | Every gate fresh; the product baseline; ADR-040      | ADR-040    |
+| 32  | Audio That Earns Eight Hours | —      | Layered synthesis, derived variation, triggered beds | ADR-041    |
+| 33  | Zone Painting                | —      | The map interaction the command has waited for       | ADR-042    |
+| 34  | What Now                     | —      | The objectives surface; ADR-034 §7 amended           | ADR-043    |
+| 35  | First Run                    | v15?   | Onboarding that teaches by playing                   | ADR-043    |
+| 36  | Balance & The Idle Cost      | —      | **CONDITIONAL** on phase 31's measurements           | ADR-044    |
+| 37  | v0.5 Release Candidate       | —      | Every gate, and the four product criteria            | —          |
+
+Two orderings are dictated rather than preferred:
+
+- **The baseline measures before anything is tuned (31 → 36).** Phase 36 is
+  CONDITIONAL: if phase 31 measures the stage arc inside its target, there is
+  no balance work to do, and inventing some would be changing numbers because
+  a phase exists rather than because a measurement asked.
+- **"What now?" before first run (34 → 35).** Onboarding teaches a player to
+  read the game; it cannot teach them to read a surface that does not exist.
+
+### 5A.2 The three classes of evidence
+
+The product criteria are not tests, and pretending otherwise is the one way
+this version can lie. ADR-040 defines three classes, and every criterion is
+reported in exactly one:
+
+| Class                  | Means                                                  | May I mark PASS? |
+| ---------------------- | ------------------------------------------------------ | ---------------- |
+| **Machine-verifiable** | A test or measurement asserts it, repeatably           | Yes              |
+| **AI-observable**      | I drove the app and observed it; the judgement is mine | Yes, labelled    |
+| **Human-playtest**     | Requires a person's reaction                           | **Never**        |
+
+**Success criteria** — v0.1's four, promoted to v0.5's release gates:
+
+- [ ] Runs an 8-hour workday without being noticed in Task Manager —
+      _machine-verifiable_
+- [ ] Reaching stage 4 (`GAME_DESIGN.md` §1.1) takes under ~4 hours of play —
+      _AI-observable_, with a machine-verifiable bound
+- [ ] The first worker hire produces a visible "oh, I see" moment —
+      **human-playtest**
+- [ ] A tester returns unprompted on a second day — **human-playtest**
+
+The last two **cannot be closed by this session**, and the v0.5 report will say
+so rather than reporting a substitute and calling it the criterion.
+
+### 5A.3 Out of scope, bindingly
+
+No RPG progression, combat, dungeons, bosses, or city defense. No new
+simulation systems. No factories beyond v0.4's model, and no world-map
+expansion. Those are v1.0's (§6), and this section does not move them.
 
 ---
 

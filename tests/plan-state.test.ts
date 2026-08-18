@@ -8,9 +8,18 @@
  * is.
  *
  * So this test asserts the block exists, parses, and agrees with the phase
- * table in §5.1 — the same doc-and-machine-agree pattern
- * `coverage-policy.test.ts` uses, and for the same reason: a number that lives
- * in two places drifts.
+ * table of the version §0 names as CURRENT — the same doc-and-machine-agree
+ * pattern `coverage-policy.test.ts` uses, and for the same reason: a number
+ * that lives in two places drifts.
+ *
+ * PHASE-31 CORRECTION. This hardcoded `### 5.1 Phases`, which was v0.4's
+ * table. The moment v0.5 opened, the guard was comparing the new resume block
+ * against the OLD version's phases and failing for a reason that had nothing
+ * to do with staleness. A guard pinned to one version guards one version.
+ *
+ * It now finds the current version's own table by the version string §0
+ * declares, so the next version needs no edit here at all — which is the
+ * property this file should have had from the start.
  */
 
 import { readFileSync } from 'node:fs';
@@ -35,16 +44,39 @@ function stateRows(): { phase: string; status: string }[] {
   return rows;
 }
 
-/** Phase numbers declared by §5.1's roadmap table. */
+/** The version §0 declares as current, e.g. `v0.5`. */
+function currentVersion(): string {
+  const match = /\*\*Current version\*\*\s*\|\s*\*\*(v[\d.]+)/.exec(PLAN);
+  expect(match?.[1], '§0 must name a current version like **v0.5 — ...**').toBeDefined();
+  return match?.[1] ?? '';
+}
+
+/**
+ * Phase numbers declared by the CURRENT version's own phase table.
+ *
+ * Located by the version string §0 declares rather than by a hardcoded section
+ * number — see the header. The next version needs no edit here.
+ */
 function roadmapPhases(): string[] {
-  // Searched FORWARD from §5.1, not from the top: three earlier versions have
-  // their own "Success criteria" heading, and slicing to the first one found
-  // ran the range backwards and silently produced an empty list — a guard test
-  // that passes over nothing.
-  const start = PLAN.indexOf('### 5.1 Phases');
-  const section = PLAN.slice(start, PLAN.indexOf('**Success criteria**', start));
+  const version = currentVersion();
+  const lines = PLAN.split('\n');
+
+  const sectionAt = lines.findIndex(
+    (line) => line.startsWith('## ') && line.includes(`${version} —`),
+  );
+  expect(sectionAt, `PLAN.md has no "## ... ${version} — ..." section`).toBeGreaterThan(-1);
+
+  // Walked FORWARD from that section, never from the top: every version has a
+  // "Success criteria" heading, and slicing to the first one found ran the
+  // range backwards and silently produced an empty list — a guard test that
+  // passes over nothing.
   const phases: string[] = [];
-  for (const line of section.split('\n')) {
+  let inTable = false;
+  for (const line of lines.slice(sectionAt + 1)) {
+    if (line.startsWith('## ')) break;
+    if (line.startsWith('###') && line.includes('Phases')) inTable = true;
+    if (line.includes('**Success criteria**')) break;
+    if (!inTable) continue;
     const match = /^\|\s*(\d+)\s*\|/.exec(line);
     if (match?.[1] !== undefined) phases.push(match[1]);
   }
@@ -70,7 +102,7 @@ describe('PLAN.md §0 — the resume block', () => {
     }
   });
 
-  it('covers exactly the phases §5.1 declares — no drift in either direction', () => {
+  it('covers exactly the phases the current version declares — no drift either way', () => {
     // The failure this catches: a phase added to the roadmap and never given a
     // status, or a status left behind for a phase that was renumbered away.
     expect(stateRows().map((row) => row.phase)).toEqual(roadmapPhases());
