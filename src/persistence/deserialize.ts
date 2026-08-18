@@ -24,6 +24,7 @@ import { DEFAULT_FACTORY_SLOTS } from '../sim/content/buildings';
 import type { DayPhase } from '../sim/time/game-clock';
 import { createContainer, type Container } from '../sim/world/container';
 import { createFactoryState } from '../sim/world/factory';
+import { asRouteId } from '../sim/world/route';
 import { setBlocked } from '../sim/world/tile-grid';
 import { foundTown } from '../sim/world/town';
 import {
@@ -145,6 +146,9 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     }
 
     const record: Worker = {
+      // A v11 save has no field and migrates to null, which is exactly
+      // "not part-way through a route".
+      hauling: worker.hauling === null ? null : asRouteId(worker.hauling),
       id: asWorkerId(worker.id),
       position: asTileIndex(worker.position),
       state: worker.state as WorkerState,
@@ -218,6 +222,17 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     world.factories.set(id, factory);
   }
 
+  // ROUTES (v12, ADR-036). Restored before anything reads them; a worker's
+  // `hauling` may name one, and discovery asks for it on the first tick.
+  for (const route of saved.routes) {
+    world.routes.set(asRouteId(route.id), {
+      id: asRouteId(route.id),
+      from: asBuildingId(route.from),
+      to: asBuildingId(route.to),
+      item: asContentId(route.item),
+    });
+  }
+
   restoreStacks(world.inventory, saved.inventory);
   world.wallet.coins = saved.wallet.coins;
 
@@ -258,7 +273,13 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     world.quests.set(chainId, paid);
   }
 
-  world.ids.setState({ worker: saved.ids.worker, building: saved.ids.building });
+  world.ids.setState({
+    worker: saved.ids.worker,
+    building: saved.ids.building,
+    // v12 adds the route counter. A v11 document migrates to `1`, which is
+    // correct: it had no routes, so the first one allocated must be id 1.
+    route: saved.ids.route,
+  });
 
   // The town, LAST (ADR-030 §3): a save that predates the village gains it —
   // ids continue from the restored allocator, so nothing collides — and a

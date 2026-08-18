@@ -12,7 +12,7 @@
  */
 
 import { manhattanDistance, toPosition } from '../../shared/geometry';
-import { type ContentId, type TileIndex } from '../../shared/ids';
+import { type ContentId, type TileIndex, type WorkerId } from '../../shared/ids';
 import { unwrap } from '../../shared/result';
 import { type Command } from '../commands/types';
 import { CORE_SEED_BIN } from '../content/buildings';
@@ -261,7 +261,7 @@ export function selectTask(
  * Workers submit these through the same dispatcher the player uses — no
  * privileged write path (ADR-010 §6).
  */
-export function commandForTask(task: WorkerTask): Command {
+export function commandForTask(task: WorkerTask, worker: WorkerId): Command {
   switch (task.kind) {
     case WorkerTaskKind.Harvest:
       return { type: 'harvestCrop', tile: task.tile };
@@ -271,5 +271,11 @@ export function commandForTask(task: WorkerTask): Command {
       return { type: 'plantCrop', tile: task.tile, cropId: task.cropId ?? WORKER_DEFAULT_CROP };
     case WorkerTaskKind.Till:
       return { type: 'tillTile', tile: task.tile };
+    case WorkerTaskKind.Haul:
+      // `actor` routes the collected goods into THIS worker's hold, exactly as
+      // it routes a harvest's yield (ADR-011 §5).
+      return { type: 'haulPickup', worker, route: task.route ?? 0 };
+    case WorkerTaskKind.Deliver:
+      return { type: 'haulDeliver', worker, route: task.route ?? 0 };
   }
 }

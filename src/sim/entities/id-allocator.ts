@@ -25,6 +25,8 @@ import { asBuildingId, asWorkerId, type BuildingId, type WorkerId } from '../../
 export const EntityKind = {
   Worker: 'worker',
   Building: 'building',
+  /** Routes (phase-26, ADR-036). Ids are never reused, like every other kind. */
+  Route: 'route',
 } as const;
 
 export type EntityKind = (typeof EntityKind)[keyof typeof EntityKind];
@@ -59,6 +61,7 @@ export function createIdAllocator(): IdAllocator {
   const next: Record<EntityKind, number> = {
     [EntityKind.Worker]: FIRST_ID,
     [EntityKind.Building]: FIRST_ID,
+    [EntityKind.Route]: FIRST_ID,
   };
 
   const allocate = (kind: EntityKind): number => {

@@ -26,6 +26,7 @@ import {
   type CommandDispatcherOptions,
 } from '../commands/dispatcher';
 import { registerFactoryCommands } from '../commands/factory-commands';
+import { registerHaulCommands } from '../commands/haul-commands';
 import { registerScheduleCommands } from '../commands/schedule-commands';
 import { registerSourceCommands } from '../commands/source-commands';
 import { registerWorkerCommands } from '../commands/worker-commands';
@@ -59,6 +60,7 @@ import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
 import { createFactoryStore, type FactoryStore } from './factory';
 import { createQuestLog, type QuestLog } from './quests';
+import { createRouteStore, type RouteStore } from './route';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
 import { foundTown } from './town';
 import { createWallet, STARTING_COINS, type Wallet } from './wallet';
@@ -157,6 +159,13 @@ export interface World {
    * explain why the mill stopped.
    */
   readonly factories: FactoryStore;
+
+  /**
+   * Standing logistics instructions (ADR-036 section 2). The player's, never
+   * inferred: a system that guessed routes from recipes would move goods
+   * nobody asked to move.
+   */
+  readonly routes: RouteStore;
 
   /**
    * Cumulative crop activity. Maintained by an event SUBSCRIBER, not derived —
@@ -405,6 +414,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
     factories: createFactoryStore(),
+    routes: createRouteStore(),
     cropStats,
     // The opening balance is the declared source `GAME_DESIGN.md` §6.4 names:
     // coins enter at world creation and thereafter only at sale boundaries.
@@ -436,6 +446,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   registerCommerceCommands(world.commands);
   registerContractCommands(world.commands);
   registerFactoryCommands(world.commands);
+  registerHaulCommands(world.commands);
 
   // The village stands before the first tick (ADR-030 §3). Hydration defers
   // it — see `WorldOptions.foundTown` — and re-founds after restoring.

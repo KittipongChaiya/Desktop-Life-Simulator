@@ -1,6 +1,6 @@
 # ADR-036: Logistics and Reservation
 
-**Status:** Accepted — v0.4 Phase 25 (recorded), Phase 26 (implemented).
+**Status:** Accepted — v0.4 Phase 25 (recorded), Phase 26 (implemented, **with the §4/§5 amendment below**).
 **Date:** 2026-08-18
 **Phase:** v0.4 Phase 26 (Logistics & Reservation) — the system that makes a chain run itself.
 **Bound by (not re-litigated):** ADR-035 (a factory's two containers; the jam rules; nothing in the production model knows what a chain is); ADR-011 (§6 the carrier moves and the resource transfers at the endpoints; §7 a full destination blocks and never discards; **§8 reservation is defined and deferred to exactly this consumer**); ADR-010 (commands are the only write path for an actor's intent); ADR-004 (§4 side-tables); ADR-024 (the worker scheduling pipeline: discover → filter → select); ADR-007 (determinism; integers); `VISION.md` §2.2 (reward absence, never punish it).
@@ -171,6 +171,58 @@ when this changes.
 - **The route-building UI.** Presentation, phase 26.
 - **Cross-region logistics.** The wilds arrive in phase 27; whether a route may
   cross regions is that phase's question.
+
+---
+
+## Amendment — reservations are derived, and the sweep is withdrawn
+
+**Made during phase-26 implementation, 2026-08-18.** §4 above specifies a
+reservation _record_ owned by a task, and §5 defence 3 specifies a per-tick
+sweep to release any record whose owner has gone. Implementing it surfaced a
+strictly stronger form of the same intent, and the ADR is amended rather than
+quietly diverged from.
+
+**A reservation is now COMPUTED from the worker's task, not recorded beside
+it.** A worker holding a `Haul` task for route R has, by that fact alone,
+claimed goods at R's source; a worker whose `hauling` field is R has claimed
+space at R's destination. `reservedAtSource` and `inFlightToDestination`
+(`sim/ai/haul.ts`) are those sums.
+
+What changes, and why it is better rather than merely different:
+
+| §5 defence                     | Under the original design     | Under the amendment                          |
+| ------------------------------ | ----------------------------- | -------------------------------------------- |
+| 1 — release on every exit path | discipline at every call site | **structural** — there is nothing to release |
+| 2 — the invariant test         | the store is consistent       | kept, re-aimed at the derivation             |
+| 3 — the per-tick sweep         | required                      | **withdrawn** — see below                    |
+
+**Defence 3 is withdrawn, and must not be re-added.** A sweep over derived
+state can only ever find nothing: there is no record that can survive its
+task, because there is no record. Keeping it would be machinery that cannot
+fire, which is exactly what `AI_RULES.md` §1.6 forbids — and worse, its
+presence would imply a leak class that no longer exists, so a future session
+would maintain a defence against an impossibility.
+
+The argument §5 made _for_ the sweep ("a test that catches the leak plus a
+mechanism that survives it beats either alone") was sound given a stored
+reservation. It does not survive the premise changing.
+
+**A consequence worth having:** reservations now persist across save/load for
+free, because tasks and the `hauling` field already do. The original design
+would have needed the reservation store in the schema, its own migration, and
+its own round-trip test — all of which are now the task's existing coverage.
+
+Two implementation facts the ADR did not anticipate, recorded here because
+they are load-bearing:
+
+- **A haul targets an ADJACENT tile, not the building's own.** A building's
+  tile is `blocked` — that is how buildings enter the walkability model at all
+  (ADR-011) — so pathing to it can never succeed. `approachTile` picks a
+  walkable neighbour in a fixed order.
+- **A hauling worker is exempt from the ordinary deposit path.** A haul of ten
+  or more items is indistinguishable from a full harvest hold, and the deposit
+  path would put it in the nearest shed — silently undoing the haul while the
+  chain appeared to work. `stepIdle` checks `hauling === null` first.
 
 ---
 

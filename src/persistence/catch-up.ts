@@ -209,12 +209,25 @@ function anyWorkerMayWork(
  * is away — logistics does not exist yet — so the smallest of those three is
  * the answer rather than an estimate of it.
  *
- * **Phase 26 ends that.** Once haulers move goods between buildings, inputs
- * grow during the gap and a chain has to be modelled: an upstream mill's output
- * becomes a downstream kitchen's input at a rate that depends on both. The
- * round-down rule will then bind here the way it binds worker production, and
- * `tests/catch-up-factories.test.ts` is written so that transition surfaces as
- * failures rather than as silence.
+ * **Phase 26 arrived, and the position is now this.** Routes exist, so a
+ * factory's inputs DO grow while the player is away — but nothing here models
+ * that, deliberately. Offline, a factory finishes only what was already staged
+ * in its input when the player left; no hauling happens.
+ *
+ * That is CONSERVATIVE rather than wrong, and the distinction is the whole of
+ * `GAME_DESIGN.md` §9.2: the credited result may be less than running the ticks
+ * for real, never more. A chain that would have run all night offline credits
+ * only its staged buffers, which is an under-credit — the one direction this
+ * model is allowed to fail in.
+ *
+ * The cost is stated rather than hidden: **a player who leaves a chain running
+ * for eight hours is credited the buffers, not the chain.** Modelling hauling
+ * offline means deciding how much worker time went to carrying versus
+ * harvesting, and every wrong guess there lands on the side that credits work
+ * the simulation would have refused — the 09c over-credit's exact shape. Until
+ * that model is built and proven never-over, under-crediting is the honest
+ * answer, and `PLAN.md` §5's criterion 4 is reported against it as
+ * PARTIAL rather than PASS.
  *
  * The completion test is `>` rather than `>=` — a craft must finish STRICTLY
  * inside the gap to be credited. That is the same margin the crop model keeps
@@ -239,9 +252,26 @@ function catchUpFactories(world: World, start: number, end: number): number {
 
     // TIME. A craft already running finishes at its own tick; the ones after it
     // follow at the recipe's cadence.
-    const firstAt = (factory.startedTick ?? start) + recipe.craftTicks;
-    if (firstAt > end) continue;
-    const byTime = 1 + Math.floor((end - firstAt) / recipe.craftTicks);
+    //
+    // An IDLE factory starts on the first tick INSIDE the gap (`start + 1`),
+    // not on its boundary. `stepSimulation` increments the counter before
+    // systems run, so the earliest tick a craft can begin is `start + 1` and
+    // the earliest it can finish is `start + 1 + craftTicks`. Using `start`
+    // here credited one craft too many whenever the gap was an exact multiple
+    // of the craft time — found by the never-over property at
+    // (14 wheat, 8,400 ticks), which the live simulation completes 6 of and
+    // this model claimed 7. Precisely the 09c over-credit's shape, in a new
+    // system: an off-by-one in favour of the player, invisible without a
+    // property test comparing against the real thing.
+    const firstAt = (factory.startedTick ?? start + 1) + recipe.craftTicks;
+    if (firstAt >= end) continue;
+    // STRICTLY INSIDE the gap, matching the crop model's margin exactly ("a
+    // cycle counts only if it completes strictly inside the gap"). The
+    // never-over property found a second over-credit at (22 wheat, 13,201
+    // ticks) after the first fix: a completion landing exactly on `end` is a
+    // tick the player was not away for, and claiming it is the one direction
+    // this model may never fail in.
+    const byTime = 1 + Math.floor((end - firstAt - 1) / recipe.craftTicks);
 
     // INPUTS. The running craft's have already been consumed, so it needs none.
     const running = factory.startedTick === null ? 0 : 1;

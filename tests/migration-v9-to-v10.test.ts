@@ -80,6 +80,11 @@ describe('the v9 golden fixtures', () => {
     const after = migrated(name);
 
     for (const [key, value] of Object.entries(before.world)) {
+      // v12 (ADR-036) adds `hauling` to every worker and `route` to the id
+      // counters. Declared here rather than weakening the comparison: this test
+      // asserts a link changes nothing it did not mean to, and a later link
+      // legitimately touching a collection is exactly what the skip list is for.
+      if (key === 'workers' || key === 'ids') continue;
       if (key === 'contracts' || key === 'contractStats') continue;
       expect(
         JSON.stringify((after.world as unknown as Record<string, unknown>)[key]),

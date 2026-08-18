@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -127,6 +127,14 @@ export interface SaveWorker {
   /** Stack ORDER is state — partial-stack top-up order is behavior. */
   readonly carrying: readonly SaveStack[];
   readonly replanTick: number;
+  /**
+   * The route this worker is part-way through, or null (v12, ADR-036).
+   *
+   * Persisted because it IS half the reservation: a worker carrying for route R
+   * has claimed space at R's destination, and restoring without it would land a
+   * loaded worker with goods it no longer knows where to put.
+   */
+  readonly hauling: number | null;
 }
 
 export interface SaveBuilding {
@@ -205,6 +213,16 @@ export interface SaveContentSource {
 export interface SaveIds {
   readonly worker: number;
   readonly building: number;
+  /** Route ids (v12, ADR-036). Monotonic, never reused, like the others. */
+  readonly route: number;
+}
+
+/** A standing logistics instruction (v12, ADR-036 section 2). */
+export interface SaveRoute {
+  readonly id: number;
+  readonly from: number;
+  readonly to: number;
+  readonly item: string;
 }
 
 /**
@@ -283,6 +301,8 @@ export interface SaveWorld {
   readonly buildingStorage: readonly SaveBuildingStorage[];
   /** Factory production state, sorted by building id (v11, ADR-035). */
   readonly factories: readonly SaveFactory[];
+  /** Routes, sorted by id (v12, ADR-036). */
+  readonly routes: readonly SaveRoute[];
   /** The player inventory's stacks, in container order (order is state). */
   readonly inventory: readonly SaveStack[];
   readonly wallet: { readonly coins: number };

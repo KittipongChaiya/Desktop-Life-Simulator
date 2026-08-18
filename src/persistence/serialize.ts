@@ -20,6 +20,7 @@
  */
 
 import type { Container } from '../sim/world/container';
+import { routesInOrder } from '../sim/world/route';
 import type { World } from '../sim/world/world';
 
 import { encodeBytes, encodeUint32 } from './base64';
@@ -30,6 +31,7 @@ import {
   type SaveBuilding,
   type SaveBuildingStorage,
   type SaveFactory,
+  type SaveRoute,
   type SaveCrop,
   type SaveDocument,
   type SaveMeta,
@@ -107,6 +109,7 @@ export function toSaveDocument(
         },
         carrying: stacksOf(worker.carrying),
         replanTick: worker.replanTick,
+        hauling: worker.hauling,
       };
     });
 
@@ -134,6 +137,14 @@ export function toSaveDocument(
       output: stacksOf(factory.output),
       replanTick: factory.replanTick,
     }));
+
+  // Sorted by id — the rule every keyed collection here follows.
+  const routes: SaveRoute[] = routesInOrder(world.routes).map((route) => ({
+    id: route.id,
+    from: route.from,
+    to: route.to,
+    item: route.item,
+  }));
 
   const allocator = world.ids.getState();
 
@@ -182,6 +193,7 @@ export function toSaveDocument(
       buildings,
       buildingStorage,
       factories,
+      routes,
       inventory: stacksOf(world.inventory),
       wallet: { coins: world.wallet.coins },
       economy: {
@@ -198,7 +210,7 @@ export function toSaveDocument(
       lastPlanted: [...world.lastPlanted.entries()]
         .sort(([a], [b]) => a - b)
         .map(([tile, cropId]) => ({ tile, cropId })),
-      ids: { worker: allocator.worker, building: allocator.building },
+      ids: { worker: allocator.worker, building: allocator.building, route: allocator.route },
       // v8 (ADR-032 §2): the promises. Sorted by offer id; terms verbatim.
       contracts: [...world.contracts.values()]
         .sort((a, b) => a.offerId - b.offerId)

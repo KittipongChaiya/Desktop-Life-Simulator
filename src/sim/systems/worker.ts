@@ -13,6 +13,7 @@
  */
 
 import type { TileIndex, WorkerId } from '../../shared/ids';
+import { selectHaul } from '../ai/haul';
 import { selectStorageTarget } from '../ai/storage-target';
 import { commandForTask, selectTask } from '../ai/worker-tasks';
 import { CommandSource } from '../commands/types';
@@ -29,7 +30,9 @@ import {
   REST_HUT_RECOVER_PER_PERIOD,
   TASK_DURATION_TICKS,
   WorkerState,
+  WorkerTaskKind,
   type Worker,
+  type WorkerTask,
 } from '../world/worker';
 import type { World } from '../world/world';
 
@@ -83,10 +86,15 @@ function stepIdle(world: World, worker: Worker): void {
     return;
   }
 
+  // A worker part-way through a route must NOT be intercepted by the ordinary
+  // deposit path (phase-26). Its hold is a delivery, not a harvest: depositing
+  // it into the nearest shed would silently undo the haul, and the chain would
+  // look like it was working while nothing ever arrived.
+  //
   // Deposit a full-enough hold before doing more work (§4.4). The deposit is a
   // command like everything else (ADR-011); if the player inventory is full it
   // simply moves less, and the worker idles rather than jams (crit 14).
-  if (containerTotal(worker.carrying) >= DEPOSIT_THRESHOLD) {
+  if (worker.hauling === null && containerTotal(worker.carrying) >= DEPOSIT_THRESHOLD) {
     // Ask the target-selection service where to deposit — a building id or null
     // for the player inventory. The worker never inspects a building's type
     // (ADR-011); the strategy behind this is replaceable.
@@ -106,12 +114,31 @@ function stepIdle(world: World, worker: Worker): void {
 
   // The worker's OWN schedule — the filter stage's input, now that it is
   // world state rather than a parameter with nowhere to come from (ADR-024 §4).
-  const task = selectTask(
+  // LOGISTICS FIRST for a loaded worker, and only for a loaded one: a worker
+  // carrying route goods has exactly one correct action and `selectHaul`
+  // answers with it. An empty worker falls through to the ordinary bands,
+  // where hauling competes on its declared priority (ADR-036 §3).
+  const haul = selectHaul(world, worker);
+  if (worker.hauling !== null) {
+    // A loaded worker has exactly one correct action.
+    if (haul === null) {
+      worker.replanTick = world.tick + IDLE_REPLAN_TICKS;
+      return;
+    }
+    beginTask(world, worker, haul);
+    return;
+  }
+
+  const ordinary = selectTask(
     world,
     worker.position,
     tilesClaimedByOthers(world, worker.id),
     worker.schedule,
   );
+  // ADR-036 §3's declared ordering: a harvest is time-critical in a way a haul
+  // is not, so it wins; hauling then outranks planting and tilling, which is
+  // what makes a chain run on a farm that always has ground to till.
+  const task = ordinary?.kind === WorkerTaskKind.Harvest ? ordinary : (haul ?? ordinary);
   if (task === null) {
     // No work — stay Idle and schedule the next scan (never jams, bounded
     // staleness of one second).
@@ -119,6 +146,11 @@ function stepIdle(world: World, worker: Worker): void {
     return;
   }
 
+  beginTask(world, worker, task);
+}
+
+/** Claims a task and starts walking to it. Shared by both discovery paths. */
+function beginTask(world: World, worker: Worker, task: WorkerTask): void {
   const path = findPath(world, worker.position, task.tile);
   if (!path.ok) return; // target unreachable right now — stay Idle and retry
 
@@ -153,7 +185,7 @@ function stepWorking(world: World, worker: Worker): void {
     // Same dispatcher and validators as the player (ADR-010 §6); `actor` routes
     // a harvest's yield into THIS worker's hold (ADR-011 §5). A dispatch or
     // execution rejection (a full hold, a vanished crop) is handled by re-plan.
-    world.commands.dispatch(commandForTask(worker.task), {
+    world.commands.dispatch(commandForTask(worker.task, worker.id), {
       source: CommandSource.Worker,
       actor: worker.id,
     });

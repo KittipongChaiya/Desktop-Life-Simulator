@@ -27,6 +27,11 @@ const TASK_LABEL: Readonly<Record<WorkerTaskKind, string>> = {
   [WorkerTaskKind.Harvest]: 'Harvesting',
   [WorkerTaskKind.Plant]: 'Planting',
   [WorkerTaskKind.Till]: 'Tilling',
+  // Phase-26. The two legs read differently on purpose: a player watching a
+  // worker cross the farm should be able to tell "going to fetch" from
+  // "carrying it there" without opening anything.
+  [WorkerTaskKind.Haul]: 'Collecting',
+  [WorkerTaskKind.Deliver]: 'Delivering',
 };
 
 function useSelectedId(): number | null {

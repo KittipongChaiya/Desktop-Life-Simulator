@@ -33,6 +33,7 @@ import type { CropStore } from '../world/crop';
 import type { EconomyState } from '../world/economy';
 import type { FactoryStore } from '../world/factory';
 import type { QuestLog } from '../world/quests';
+import type { RouteStore } from '../world/route';
 import type { TileGrid } from '../world/tile-grid';
 import type { Wallet } from '../world/wallet';
 import type { WorkerStore } from '../world/worker';
@@ -133,6 +134,34 @@ export interface SetFactoryRecipeCommand {
   readonly recipeId: string | null;
 }
 
+/** Declare a standing instruction to move one item between two buildings. */
+export interface AddRouteCommand {
+  readonly type: 'addRoute';
+  readonly from: number;
+  readonly to: number;
+  readonly item: string;
+}
+
+/** Withdraw a route. Workers part-way through it are not interrupted. */
+export interface RemoveRouteCommand {
+  readonly type: 'removeRoute';
+  readonly route: number;
+}
+
+/** A worker collects route goods at the source (ADR-011 section 6's near end). */
+export interface HaulPickupCommand {
+  readonly type: 'haulPickup';
+  readonly worker: number;
+  readonly route: number;
+}
+
+/** A worker delivers route goods at the destination (the far end). */
+export interface HaulDeliverCommand {
+  readonly type: 'haulDeliver';
+  readonly worker: number;
+  readonly route: number;
+}
+
 /**
  * Sell a placed building back for 50% of its cost (§5.2). A storing building
  * sells only once its container is empty — the refund never destroys goods
@@ -224,6 +253,10 @@ export type Command =
   | BuySeedsCommand
   | SellBuildingCommand
   | SetFactoryRecipeCommand
+  | AddRouteCommand
+  | RemoveRouteCommand
+  | HaulPickupCommand
+  | HaulDeliverCommand
   | GrantCoinsCommand
   | ExpandLandCommand
   | SetSourceEnabledCommand
@@ -274,6 +307,8 @@ export interface CommandWorld {
   readonly recipeRegistry: RecipeRegistry;
   /** Production state for factories. Written by placement and by the recipe command. */
   readonly factories: FactoryStore;
+  /** Standing logistics instructions (ADR-036 section 2). Written by route commands. */
+  readonly routes: RouteStore;
   /** Building definitions, for placement validation and storage size. */
   readonly buildingRegistry: BuildingRegistry;
   /** The player's coins. Written by commerce commands only (phase-06). */

@@ -51,6 +51,11 @@ describe('the v8 golden fixtures', () => {
     const after = migrated(name);
 
     for (const [key, value] of Object.entries(before.world)) {
+      // v12 (ADR-036) adds `hauling` to every worker and `route` to the id
+      // counters. Declared here rather than weakening the comparison: this test
+      // asserts a link changes nothing it did not mean to, and a later link
+      // legitimately touching a collection is exactly what the skip list is for.
+      if (key === 'workers' || key === 'ids') continue;
       // contracts: this link's own change. contractStats: v10 adds the empty
       // byRequester map (ADR-034 §4) — asserted below rather than exempted.
       if (key === 'contracts' || key === 'contractStats') continue;

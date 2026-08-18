@@ -74,9 +74,15 @@ describe('a factory produces while the player is away', () => {
   });
 
   it('credits a craft once a full craft fits in the gap', () => {
+    // `craftTicks + 2`, not `+ 1`, and the difference is the model's honesty
+    // margin rather than arithmetic pedantry. An idle factory cannot start
+    // until the first tick INSIDE the gap, and a craft must complete STRICTLY
+    // inside it — the same margin the crop model keeps. Both bounds were found
+    // by the never-over property below comparing against the real simulation,
+    // and both were over-credits before it did.
     const { world, factory } = millWorld(10);
 
-    catchUpWorld(world, craftTicks(world) + 1);
+    catchUpWorld(world, craftTicks(world) + 2);
 
     expect(containerCount(factory.output, CORE_FLOUR)).toBe(1);
     expect(containerCount(factory.input, CORE_WHEAT)).toBe(8);
@@ -85,7 +91,7 @@ describe('a factory produces while the player is away', () => {
   it('credits several crafts over a long gap', () => {
     const { world, factory } = millWorld(10);
 
-    catchUpWorld(world, craftTicks(world) * 5 + 1);
+    catchUpWorld(world, craftTicks(world) * 5 + 2);
 
     expect(containerCount(factory.output, CORE_FLOUR)).toBe(5);
     expect(containerCount(factory.input, CORE_WHEAT)).toBe(0);

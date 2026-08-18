@@ -146,8 +146,13 @@ describe('v10 → v11, and the factory validator it needs', () => {
     // phase-08.0's finding, applied to the newest fields in the document.
     const document = {
       ...JSON.parse(readFileSync(join(FIXTURES, 'v10-mature-farm.json'), 'utf8')),
-      schemaVersion: 11,
+      schemaVersion: 12,
     } as { world: Record<string, unknown> };
+    document.world['routes'] = [];
+    document.world['ids'] = { ...(document.world['ids'] as object), route: 1 };
+    for (const worker of document.world['workers'] as Record<string, unknown>[]) {
+      worker['hauling'] = null;
+    }
     document.world['factories'] = factories;
 
     expect(parseSaveDocument(document).ok).toBe(false);
@@ -156,7 +161,7 @@ describe('v10 → v11, and the factory validator it needs', () => {
   it('accepts a well-formed factory', () => {
     const document = {
       ...JSON.parse(readFileSync(join(FIXTURES, 'v10-mature-farm.json'), 'utf8')),
-      schemaVersion: 11,
+      schemaVersion: 12,
     } as { world: Record<string, unknown> };
     document.world['factories'] = [
       {
@@ -168,6 +173,13 @@ describe('v10 → v11, and the factory validator it needs', () => {
         output: [],
       },
     ];
+    // The validator checks the CURRENT schema, so a hand-built document has to
+    // satisfy v12's additions too (ADR-036).
+    document.world['routes'] = [];
+    document.world['ids'] = { ...(document.world['ids'] as object), route: 1 };
+    for (const worker of document.world['workers'] as Record<string, unknown>[]) {
+      worker['hauling'] = null;
+    }
 
     expect(parseSaveDocument(document).ok).toBe(true);
   });

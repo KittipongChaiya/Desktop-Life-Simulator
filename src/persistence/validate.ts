@@ -277,6 +277,18 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       reqStacks(factory['output'], `${path}.output`);
     });
 
+    // ROUTES (v12, ADR-036). Untrusted boundary, checked here.
+    req(Array.isArray(world['routes']), 'world.routes', 'an array');
+    (world['routes'] as unknown[]).forEach((value2, i) => {
+      const path = `world.routes[${i}]`;
+      req(isRecord(value2), path, 'a route record');
+      const route = value2 as Record<string, unknown>;
+      req(isInt(route['id']), `${path}.id`, 'an integer');
+      req(isInt(route['from']), `${path}.from`, 'an integer');
+      req(isInt(route['to']), `${path}.to`, 'an integer');
+      req(typeof route['item'] === 'string', `${path}.item`, 'a content id');
+    });
+
     reqStacks(world['inventory'], 'world.inventory');
 
     req(isRecord(world['wallet']), 'world.wallet', 'a record');
@@ -321,6 +333,9 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
     const ids = world['ids'] as Record<string, unknown>;
     req(isInt(ids['worker']) && ids['worker'] >= 1, 'world.ids.worker', 'an integer ≥ 1');
     req(isInt(ids['building']) && ids['building'] >= 1, 'world.ids.building', 'an integer ≥ 1');
+    // v12 (ADR-036). Zero is reserved as "no entity" throughout the allocator,
+    // so a counter at 0 would hand out an id that reads as absent.
+    req(isInt(ids['route']) && ids['route'] >= 1, 'world.ids.route', 'an integer ≥ 1');
 
     // v2 (ADR-026 §4, ADR-019 §7). Checked with the same strictness as the
     // live world: the source manifest is what names a missing source to the

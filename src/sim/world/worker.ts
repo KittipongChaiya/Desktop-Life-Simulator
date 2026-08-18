@@ -16,6 +16,7 @@ import type { ContentId, TileIndex, WorkerId } from '../../shared/ids';
 import type { DayPhase } from '../time/game-clock';
 
 import { createContainer, type Container } from './container';
+import type { RouteId } from './route';
 
 /**
  * The five worker states. `GAME_DESIGN.md` §4.2.
@@ -45,6 +46,10 @@ export const WorkerTaskKind = {
   Harvest: 'harvest',
   Plant: 'plant',
   Till: 'till',
+  /** Collect route goods from a source building (phase-26, ADR-036 §3). */
+  Haul: 'haul',
+  /** Carry collected route goods to their destination (phase-26). */
+  Deliver: 'deliver',
 } as const;
 
 export type WorkerTaskKind = (typeof WorkerTaskKind)[keyof typeof WorkerTaskKind];
@@ -59,6 +64,19 @@ export interface WorkerTask {
    * where the worker default applies.
    */
   readonly cropId?: ContentId;
+  /**
+   * The route a Haul or Deliver task serves (phase-26, ADR-036).
+   *
+   * THIS FIELD IS THE RESERVATION. A worker holding a Haul task for route R
+   * has, by that fact alone, claimed goods at R's source — there is no separate
+   * reservation record to keep in step with it and none that can outlive it.
+   * ADR-036 §4 asked for a reservation owned by a task; deriving it from the
+   * task is the strongest available form of that, and it is why §5's leak
+   * sweep is not implemented (see the ADR's amendment).
+   */
+  readonly route?: RouteId;
+  /** How many units this haul claims. Absent on non-haul kinds. */
+  readonly quantity?: number;
 }
 
 /**
@@ -136,6 +154,20 @@ export interface Worker {
    */
   carrying: Container;
   /**
+   * The route this worker is part-way through, or null.
+   *
+   * Set when a pickup lands goods in the hold, cleared when they are delivered.
+   * It is what makes a two-leg journey coherent in a one-target FSM: with it,
+   * discovery has exactly one answer for a loaded worker, and without it a
+   * worker would put route goods down wherever storage selection pointed.
+   *
+   * It is also the DESTINATION half of the reservation — a worker carrying for
+   * route R has claimed space at R's destination — and like the source half it
+   * is derived from worker state rather than recorded separately, so it cannot
+   * outlive the worker holding it (ADR-036 section 4, as amended).
+   */
+  hauling: RouteId | null;
+  /**
    * The earliest tick this worker scans for work again after finding none.
    *
    * "Return to Idle and wait" (§4.2) means WAIT: a null scan schedules the
@@ -192,6 +224,11 @@ export const TASK_DURATION_TICKS: Readonly<Record<WorkerTaskKind, number>> = {
   [WorkerTaskKind.Harvest]: 30,
   [WorkerTaskKind.Plant]: 20,
   [WorkerTaskKind.Till]: 30,
+  // Loading and unloading are quick — the COST of logistics is the walking,
+  // which the movement system already charges. Making the handling expensive
+  // too would tax the same journey twice.
+  [WorkerTaskKind.Haul]: 10,
+  [WorkerTaskKind.Deliver]: 10,
 };
 
 /** Ticks to cross one tile at `moveCost` 1. §4.3 (10 ticks = 0.5 s). */
@@ -248,6 +285,7 @@ export function createWorker(id: WorkerId, position: TileIndex): Worker {
     energy: MAX_ENERGY,
     energyTimer: 0,
     carrying: createContainer(WORKER_CARRY_CAPACITY, WORKER_CARRY_CAPACITY),
+    hauling: null,
     // A new hire may do anything, anywhere, at any hour (ADR-024 §1).
     schedule: UNCONSTRAINED,
     replanTick: 0,
