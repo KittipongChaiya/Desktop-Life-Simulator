@@ -24,11 +24,14 @@ import {
   type TileIndex,
 } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
+import { DEFAULT_FACTORY_SLOTS } from '../content/buildings';
 import { containerTotal, createContainer } from '../world/container';
+import { createFactoryState } from '../world/factory';
 import { getKind, isBlocked, isOwned, setBlocked } from '../world/tile-grid';
 import { addCoins, spendCoins } from '../world/wallet';
 
 import type { CommandDispatcher } from './dispatcher';
+import { isFactoryKind } from './factory-commands';
 import type { CommandWorld, ValidationResult } from './types';
 
 /**
@@ -108,6 +111,16 @@ export function placeBuilding(
   if (definition.value.storageSlots !== undefined) {
     world.buildingStorage.set(id, createContainer(definition.value.storageSlots));
   }
+
+  // A building is a factory because a recipe NAMES it (ADR-035 §1) — there is
+  // no flag to read. Its two containers go in `world.factories`, deliberately
+  // NOT in `buildingStorage`: that map is what `selectStorageTarget` scans, so
+  // a mill listed there would have workers deposit whatever they were carrying
+  // into its input buffer and starve the recipe (ADR-035 §2).
+  if (isFactoryKind(world.recipeRegistry, buildingId)) {
+    const slots = definition.value.factorySlots ?? DEFAULT_FACTORY_SLOTS;
+    world.factories.set(id, createFactoryState(slots.input, slots.output));
+  }
   return ok();
 }
 
@@ -135,6 +148,15 @@ export function validateSellBuilding(world: CommandWorld, building: BuildingId):
     return err(appError(ErrorCode.InvalidIntent, 'building storage is not empty', { building }));
   }
 
+  // A factory's two containers are the same promise as a shed's one: goods
+  // wait, they are never destroyed (ADR-011 §7). A mill mid-craft is the case
+  // a player would actually hit, and selling it out from under a running
+  // craft is exactly the value destruction `GAME_DESIGN.md` §12 rule 4 forbids.
+  const factory = world.factories.get(building);
+  if (factory !== undefined && containerTotal(factory.input) + containerTotal(factory.output) > 0) {
+    return err(appError(ErrorCode.InvalidIntent, 'factory still holds goods', { building }));
+  }
+
   return ok();
 }
 
@@ -159,6 +181,7 @@ export function sellBuilding(world: CommandWorld, building: BuildingId): Result<
 
   world.buildings.delete(building);
   world.buildingStorage.delete(building);
+  world.factories.delete(building);
   setBlocked(world.tiles, placed.tile, false);
   return ok();
 }

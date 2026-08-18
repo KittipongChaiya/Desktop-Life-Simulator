@@ -20,6 +20,7 @@ import type { Result } from '../../shared/result';
 import type { BuildingRegistry } from '../content/buildings';
 import type { CropRegistry } from '../content/crops';
 import type { ItemRegistry } from '../content/items';
+import type { RecipeRegistry } from '../content/recipes';
 import type { RoleRegistry } from '../content/roles';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import type { WeatherKindRegistry } from '../content/weather-kinds';
@@ -30,6 +31,7 @@ import type { Container } from '../world/container';
 import type { ContractStats, ContractStore } from '../world/contracts';
 import type { CropStore } from '../world/crop';
 import type { EconomyState } from '../world/economy';
+import type { FactoryStore } from '../world/factory';
 import type { QuestLog } from '../world/quests';
 import type { TileGrid } from '../world/tile-grid';
 import type { Wallet } from '../world/wallet';
@@ -115,6 +117,20 @@ export interface BuySeedsCommand {
   readonly type: 'buySeeds';
   readonly cropId: string;
   readonly quantity: number;
+}
+
+/**
+ * Choose what a factory makes — or clear the choice with `null`.
+ *
+ * A command rather than inference (ADR-035 §5): a factory that read its input
+ * buffer and decided would silently change product when a stray delivery
+ * arrived. Changing it mid-craft cancels that craft and returns its inputs.
+ */
+export interface SetFactoryRecipeCommand {
+  readonly type: 'setFactoryRecipe';
+  readonly building: number;
+  /** `null` clears the selection. */
+  readonly recipeId: string | null;
 }
 
 /**
@@ -207,6 +223,7 @@ export type Command =
   | SellItemsCommand
   | BuySeedsCommand
   | SellBuildingCommand
+  | SetFactoryRecipeCommand
   | GrantCoinsCommand
   | ExpandLandCommand
   | SetSourceEnabledCommand
@@ -253,6 +270,10 @@ export interface CommandWorld {
   readonly buildings: BuildingStore;
   /** Containers owned by storing buildings (ADR-011). */
   readonly buildingStorage: Map<BuildingId, Container>;
+  /** Recipe definitions — which building kinds are factories (ADR-035 §1). */
+  readonly recipeRegistry: RecipeRegistry;
+  /** Production state for factories. Written by placement and by the recipe command. */
+  readonly factories: FactoryStore;
   /** Building definitions, for placement validation and storage size. */
   readonly buildingRegistry: BuildingRegistry;
   /** The player's coins. Written by commerce commands only (phase-06). */
