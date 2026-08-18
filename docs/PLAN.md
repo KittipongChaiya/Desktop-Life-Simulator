@@ -31,6 +31,17 @@ owner's memory (`AI_RULES.md` §10.4).
 | 29    | Simulation Threading     | CONDITIONAL |
 | 30    | v0.4 Vertical Slice (RC) | PENDING     |
 
+**Phase 27 progress** (resume here):
+
+- DONE — ADR-037 written and accepted.
+- DONE — `content/resource-nodes.ts`: node definitions, `nodeAt` (pure hash,
+  no RNG draw), `isNodeReady`, `isSpawnableNode`. 20 tests.
+- NEXT — widen the grid to 112 (`WORLD_WIDTH`, `WILDS_MIN_X = 80`), schema
+  **v13** with the `remap(i) = floor(i / 80) * 112 + (i % 80)` re-lay and the
+  `harvestedAt` map, a v12 golden fixture carrying a harvested node.
+- THEN — `WorkerTaskKind.Gather` band + command; core node content (timber,
+  stone, ore); node art through `generate-world-art.mjs`; wild terrain paint.
+
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
 - **Code signing** — BLOCKED on the owner's certificate purchase. Holds the
