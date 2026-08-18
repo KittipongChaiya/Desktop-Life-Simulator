@@ -14,6 +14,7 @@ import { contractSystem } from './contract';
 import { economySystem } from './economy';
 import { eventFlushSystem, tickEventSystem } from './event-flush';
 import { movementSystem } from './movement';
+import { productionSystem } from './production';
 import { questSystem } from './quest';
 import type { SystemRegistration } from './scheduler';
 import { snapshotSystem } from './snapshot';
@@ -35,6 +36,12 @@ export const TICK_SYSTEMS: readonly SystemRegistration[] = [
   // the same tick it decides (ADR-007 §4 — order is data).
   { name: 'worker', phase: 'workers', run: workerSystem },
   { name: 'movement', phase: 'workers', run: movementSystem },
+
+  // Production runs FIRST in the economy phase (phase-25, ADR-035): after the
+  // workers who deliver to a factory, so a delivery made this tick is visible
+  // to this tick's craft — and ahead of the market sweep, so a craft that
+  // completes this tick can be sold on it.
+  { name: 'production', phase: 'economy', run: productionSystem },
 
   // Price recovery (and, from 06c, the market stall sweep) settle after
   // workers act, so a deposit made this tick is visible to the same tick's

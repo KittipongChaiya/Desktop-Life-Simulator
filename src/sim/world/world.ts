@@ -56,6 +56,7 @@ import {
 import { createCropStore, type CropStore } from './crop';
 import { attachCropStats, createCropStats, type CropStats } from './crop-stats';
 import { createEconomyState, plotSizeAfter, type EconomyState } from './economy';
+import { createFactoryStore, type FactoryStore } from './factory';
 import { createQuestLog, type QuestLog } from './quests';
 import { claimCenteredPlot, createTileGrid, type TileGrid } from './tile-grid';
 import { foundTown } from './town';
@@ -142,6 +143,19 @@ export interface World {
    * (ADR-004 §4, ADR-011). Only buildings that store have an entry.
    */
   readonly buildingStorage: Map<BuildingId, Container>;
+
+  /**
+   * Production state for buildings a recipe names — a side-table keyed by
+   * building id (ADR-035 §2). Only factories have an entry.
+   *
+   * SEPARATE from `buildingStorage` on purpose, and not an oversight to be
+   * tidied later: that map is general storage, and `selectStorageTarget` picks
+   * the nearest building with space blind to kind. A mill's input buffer
+   * living there would have workers fill it with whatever they were carrying,
+   * leaving no slots for the wheat the recipe needs and no error anywhere to
+   * explain why the mill stopped.
+   */
+  readonly factories: FactoryStore;
 
   /**
    * Cumulative crop activity. Maintained by an event SUBSCRIBER, not derived —
@@ -389,6 +403,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     weatherKindRegistry,
     buildings: createBuildingStore(),
     buildingStorage: new Map(),
+    factories: createFactoryStore(),
     cropStats,
     // The opening balance is the declared source `GAME_DESIGN.md` §6.4 names:
     // coins enter at world creation and thereafter only at sale boundaries.
