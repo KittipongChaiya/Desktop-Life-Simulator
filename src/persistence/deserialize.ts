@@ -233,6 +233,12 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
     });
   }
 
+  // The wilds' one stored fact (v13, ADR-037 §3). What STANDS on each tile is
+  // derived and never saved.
+  for (const entry of saved.harvestedAt) {
+    world.harvestedAt.set(asTileIndex(entry.tile), entry.at);
+  }
+
   restoreStacks(world.inventory, saved.inventory);
   world.wallet.coins = saved.wallet.coins;
 

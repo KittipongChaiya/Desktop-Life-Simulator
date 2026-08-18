@@ -48,7 +48,7 @@ export const RETURN_SUMMARY_MIN_TICKS = TICKS_PER_SECOND * 60;
  * eastern 16×64 band is the TOWN region. Saves from the 64-wide world migrate
  * by pure index arithmetic (v6→v7).
  */
-export const WORLD_WIDTH = 80;
+export const WORLD_WIDTH = 112;
 export const WORLD_HEIGHT = 64;
 export const WORLD_TILE_COUNT = WORLD_WIDTH * WORLD_HEIGHT;
 
@@ -61,8 +61,16 @@ export const WORLD_TILE_COUNT = WORLD_WIDTH * WORLD_HEIGHT;
  */
 export const FARM_SIZE = 64;
 
-/** First column of the town region — everything from here east is town land. */
+/** First column of the town region — town land runs to `WILDS_MIN_X`. */
 export const TOWN_MIN_X = FARM_SIZE;
+
+/**
+ * First column of the wilds (ADR-037 §1). Everything from here east is
+ * gatherable ground: never ownable, never tillable, and never CHECKED for
+ * either — ownership is the whole access model (ADR-030 §1), and a wild tile
+ * is simply never owned.
+ */
+export const WILDS_MIN_X = 80;
 
 /** Tile edge length in logical pixels. ASSETS.md §2. */
 export const TILE_SIZE = 32;

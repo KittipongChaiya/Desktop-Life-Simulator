@@ -146,9 +146,10 @@ describe('v10 → v11, and the factory validator it needs', () => {
     // phase-08.0's finding, applied to the newest fields in the document.
     const document = {
       ...JSON.parse(readFileSync(join(FIXTURES, 'v10-mature-farm.json'), 'utf8')),
-      schemaVersion: 12,
+      schemaVersion: 13,
     } as { world: Record<string, unknown> };
     document.world['routes'] = [];
+    document.world['harvestedAt'] = [];
     document.world['ids'] = { ...(document.world['ids'] as object), route: 1 };
     for (const worker of document.world['workers'] as Record<string, unknown>[]) {
       worker['hauling'] = null;
@@ -161,7 +162,7 @@ describe('v10 → v11, and the factory validator it needs', () => {
   it('accepts a well-formed factory', () => {
     const document = {
       ...JSON.parse(readFileSync(join(FIXTURES, 'v10-mature-farm.json'), 'utf8')),
-      schemaVersion: 12,
+      schemaVersion: 13,
     } as { world: Record<string, unknown> };
     document.world['factories'] = [
       {
@@ -174,8 +175,12 @@ describe('v10 → v11, and the factory validator it needs', () => {
       },
     ];
     // The validator checks the CURRENT schema, so a hand-built document has to
-    // satisfy v12's additions too (ADR-036).
+    // satisfy every later link's additions too — v12's routes (ADR-036) and
+    // v13's `harvestedAt` (ADR-037). This is the cost of hand-building a
+    // document instead of migrating one, and it is paid deliberately: the
+    // point of these cases is to reach the validator with ONE field wrong.
     document.world['routes'] = [];
+    document.world['harvestedAt'] = [];
     document.world['ids'] = { ...(document.world['ids'] as object), route: 1 };
     for (const worker of document.world['workers'] as Record<string, unknown>[]) {
       worker['hauling'] = null;

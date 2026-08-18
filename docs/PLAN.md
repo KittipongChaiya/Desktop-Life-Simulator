@@ -36,10 +36,10 @@ owner's memory (`AI_RULES.md` §10.4).
 - DONE — ADR-037 written and accepted.
 - DONE — `content/resource-nodes.ts`: node definitions, `nodeAt` (pure hash,
   no RNG draw), `isNodeReady`, `isSpawnableNode`. 20 tests.
-- NEXT — widen the grid to 112 (`WORLD_WIDTH`, `WILDS_MIN_X = 80`), schema
-  **v13** with the `remap(i) = floor(i / 80) * 112 + (i % 80)` re-lay and the
-  `harvestedAt` map, a v12 golden fixture carrying a harvested node.
-- THEN — `WorkerTaskKind.Gather` band + command; core node content (timber,
+- DONE — grid widened to 112 (`WILDS_MIN_X = 80`), schema **v13** with the
+  tile re-lay and the `harvestedAt` map, v12 golden fixture, 11 migration
+  tests asserting every crop/building/worker survives at the same (x, y).
+- NEXT — `WorkerTaskKind.Gather` band + command; core node content (timber,
   stone, ore); node art through `generate-world-art.mjs`; wild terrain paint.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):

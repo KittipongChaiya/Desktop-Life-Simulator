@@ -194,6 +194,10 @@ export function toSaveDocument(
       buildingStorage,
       factories,
       routes,
+      // Sorted by tile — stable bytes, the rule every keyed collection follows.
+      harvestedAt: [...world.harvestedAt.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([tile, at]) => ({ tile, at })),
       inventory: stacksOf(world.inventory),
       wallet: { coins: world.wallet.coins },
       economy: {

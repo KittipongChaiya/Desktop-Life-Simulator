@@ -289,6 +289,16 @@ export function parseSaveDocument(value: unknown): Result<SaveDocument> {
       req(typeof route['item'] === 'string', `${path}.item`, 'a content id');
     });
 
+    // v13 (ADR-037). Untrusted boundary, checked here like every collection.
+    req(Array.isArray(world['harvestedAt']), 'world.harvestedAt', 'an array');
+    (world['harvestedAt'] as unknown[]).forEach((value2, i) => {
+      const path = `world.harvestedAt[${i}]`;
+      req(isRecord(value2), path, 'a record');
+      const entry = value2 as Record<string, unknown>;
+      req(isInt(entry['tile']), `${path}.tile`, 'an integer');
+      req(isInt(entry['at']), `${path}.at`, 'an integer');
+    });
+
     reqStacks(world['inventory'], 'world.inventory');
 
     req(isRecord(world['wallet']), 'world.wallet', 'a record');

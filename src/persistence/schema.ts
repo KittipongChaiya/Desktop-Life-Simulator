@@ -33,7 +33,7 @@ export const SAVE_MAGIC = 'desktop-life-simulator/save';
  * shape changes (ADR-015 §2). The only version that ever drives behavior,
  * read in exactly one place: the migration runner.
  */
-export const CURRENT_SCHEMA_VERSION = 12;
+export const CURRENT_SCHEMA_VERSION = 13;
 
 /** Informational header fields. NEVER drive logic (ADR-015 §1). */
 export interface SaveMeta {
@@ -303,6 +303,14 @@ export interface SaveWorld {
   readonly factories: readonly SaveFactory[];
   /** Routes, sorted by id (v12, ADR-036). */
   readonly routes: readonly SaveRoute[];
+  /**
+   * When each wild tile's node was last worked, sorted by tile (v13, ADR-037).
+   *
+   * The only stored part of the wilds: what STANDS on a tile is derived from a
+   * hash of (seed, tile) and never saved. Pruned once regrown, so this cannot
+   * grow without bound.
+   */
+  readonly harvestedAt: readonly { readonly tile: number; readonly at: number }[];
   /** The player inventory's stacks, in container order (order is state). */
   readonly inventory: readonly SaveStack[];
   readonly wallet: { readonly coins: number };

@@ -19,6 +19,10 @@ import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+// Tile math goes through the constants, never a literal width — the v0.4
+// widening broke every test that had 80 written into it (ADR-030 §Consequences).
+import { WORLD_WIDTH } from '../src/shared/constants';
+
 import '../plugins/core';
 import { hydrateWorld } from '../src/persistence/deserialize';
 import { runMigrations } from '../src/persistence/migrate';
@@ -111,7 +115,7 @@ describe('a route and a live haul survive the round trip', () => {
     // there is no separate record to persist, and none that could be lost.
     const world = createWorld(55);
     world.wallet.coins = 1_000_000;
-    const centre = 32 * 80 + 32;
+    const centre = 32 * WORLD_WIDTH + 32;
     expect(placeBuilding(world, centre, CORE_STORAGE_SHED).ok).toBe(true);
     const shed = [...world.buildings.keys()].at(-1)!;
     expect(placeBuilding(world, centre + 3, CORE_MILL).ok).toBe(true);
@@ -141,7 +145,7 @@ describe('a route and a live haul survive the round trip', () => {
   it('serializes byte-identically after a round trip with a route live', () => {
     const world = createWorld(56);
     world.wallet.coins = 1_000_000;
-    const centre = 32 * 80 + 32;
+    const centre = 32 * WORLD_WIDTH + 32;
     placeBuilding(world, centre, CORE_STORAGE_SHED);
     const shed = [...world.buildings.keys()].at(-1)!;
     placeBuilding(world, centre + 3, CORE_MILL);

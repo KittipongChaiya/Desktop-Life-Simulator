@@ -34,7 +34,7 @@
 import { describe, expect, it } from 'vitest';
 
 import '../plugins/core';
-import { OFFLINE_CAP_TICKS } from '../src/shared/constants';
+import { OFFLINE_CAP_TICKS, WORLD_WIDTH } from '../src/shared/constants';
 import type { BuildingId } from '../src/shared/ids';
 import { reservedAtSource } from '../src/sim/ai/haul';
 import { placeBuilding } from '../src/sim/commands/building-commands';
@@ -75,7 +75,7 @@ interface Chain {
 function buildChain(wheat: number): Chain {
   const world = createWorld(2026);
   world.wallet.coins = 1_000_000;
-  const centre = 32 * 80 + 30;
+  const centre = 32 * WORLD_WIDTH + 30;
 
   expect(placeBuilding(world, centre, CORE_STORAGE_SHED).ok).toBe(true);
   const shed = [...world.buildings.keys()].at(-1)!;

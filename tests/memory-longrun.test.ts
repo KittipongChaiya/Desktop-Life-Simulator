@@ -71,8 +71,22 @@ function settledHeapBytes(): number {
  * pathing across a stocked 16×16 plot runs for minutes, not seconds. Stated
  * as an explicit timeout rather than raised globally, so the cost is
  * attributed to the one gate that incurs it.
+ *
+ * RAISED FROM 300s IN PHASE-27, and the reason is worth recording because it
+ * is the second time: this is a RUNNER budget, not a game budget. ADR-037
+ * widened the grid from 80 to 112 columns — 1.4× the tiles for A* to consider
+ * and for worker scans to walk — so the same 576,000 ticks cost more wall
+ * clock. Under a full-suite load the run took 308s against the old 300s
+ * allowance and timed out, while passing comfortably in isolation.
+ *
+ * The MEASUREMENT is untouched: the 25 MB ceiling this gate exists to enforce
+ * is exactly where it was. Only the time the runner is allowed to take has
+ * moved, which is the v0.3 lesson applied on schedule — "budgets that measure
+ * the runner, not the game, should gain headroom in the same commit that adds
+ * a tick system", and a grid widening is that in every respect that matters
+ * here.
  */
-const EIGHT_HOUR_RUN_TIMEOUT_MS = 300_000;
+const EIGHT_HOUR_RUN_TIMEOUT_MS = 600_000;
 
 describe('memory growth over 8 accelerated hours (criterion 26)', () => {
   it(

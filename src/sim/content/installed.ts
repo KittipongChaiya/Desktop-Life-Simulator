@@ -46,6 +46,7 @@ import { createItemRegistry } from './items';
 import { createPhaseTintRegistry } from './lighting';
 import { createPluginApi, type ContentTargets, type PluginApi } from './plugin-api';
 import { createRecipeRegistry } from './recipes';
+import { createResourceNodeRegistry } from './resource-nodes';
 import { createRoleRegistry } from './roles';
 import { createSeasonRegistry } from './seasons';
 import { createSoundRegistry } from './sounds';
@@ -120,6 +121,7 @@ export function createInstalledRegistries(): ContentTargets {
     items: createItemRegistry(),
     buildings: createBuildingRegistry(),
     recipes: createRecipeRegistry(),
+    resourceNodes: createResourceNodeRegistry(),
     tileKinds: createTileKindRegistry(),
     phaseTints: createPhaseTintRegistry(),
     seasons: createSeasonRegistry(),

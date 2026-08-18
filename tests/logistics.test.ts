@@ -13,6 +13,10 @@
 
 import { describe, expect, it } from 'vitest';
 
+// Tile math goes through the constants, never a literal width — the v0.4
+// widening broke every test that had 80 written into it (ADR-030 §Consequences).
+import { WORLD_WIDTH } from '../src/shared/constants';
+
 import '../plugins/core';
 import { addRoute, haulDeliver, haulPickup } from '../src/sim/commands/haul-commands';
 import { placeBuilding } from '../src/sim/commands/building-commands';
@@ -30,7 +34,7 @@ import { WorkerTaskKind, type Worker } from '../src/sim/world/worker';
 import { createWorld, type World } from '../src/sim/world/world';
 import type { BuildingId } from '../src/shared/ids';
 
-const CENTRE = 32 * 80 + 32;
+const CENTRE = 32 * WORLD_WIDTH + 32;
 
 /** A shed holding `wheat`, a mill set to grind, and a route between them. */
 function chainWorld(

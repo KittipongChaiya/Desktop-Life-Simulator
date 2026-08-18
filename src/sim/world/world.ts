@@ -36,6 +36,7 @@ import { createInstalledRegistries, installedSources } from '../content/installe
 import type { ItemRegistry } from '../content/items';
 import type { PhaseTintRegistry } from '../content/lighting';
 import type { RecipeRegistry } from '../content/recipes';
+import type { ResourceNodeRegistry } from '../content/resource-nodes';
 import type { RoleRegistry } from '../content/roles';
 import { seasonOrder, type SeasonRegistry } from '../content/seasons';
 import type { ContentSource } from '../content/sources';
@@ -117,6 +118,9 @@ export interface World {
    * a content pack add a recipe to the first-party mill without editing core.
    */
   readonly recipeRegistry: RecipeRegistry;
+
+  /** Registered resource-node kinds (ADR-037 §5). `nodeAt` reads this. */
+  readonly resourceNodeRegistry: ResourceNodeRegistry;
   /**
    * Phase → tint, for the lighting layer only.
    *
@@ -166,6 +170,17 @@ export interface World {
    * nobody asked to move.
    */
   readonly routes: RouteStore;
+
+  /**
+   * When each wild tile's node was last worked (phase-27, ADR-037 §3).
+   *
+   * The ONLY stored part of the wilds. What stands on a tile is derived from a
+   * hash of (seed, tile) and costs the save nothing; this map records the one
+   * thing a hash cannot know. Sparse, and PRUNED once a node has regrown, so
+   * it holds only recently-worked tiles and cannot grow without bound however
+   * long a world runs.
+   */
+  readonly harvestedAt: Map<TileIndex, number>;
 
   /**
    * Cumulative crop activity. Maintained by an event SUBSCRIBER, not derived —
@@ -367,6 +382,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
   // `plugins/core/` installs itself when imported; the composition root and the
   // test runner do that, and phase-09's loader will do it per discovered source.
   const {
+    resourceNodes: resourceNodeRegistry,
     crops: cropRegistry,
     items: itemRegistry,
     buildings: buildingRegistry,
@@ -407,6 +423,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     inventory: createContainer(BASE_INVENTORY_SLOTS),
     buildingRegistry,
     recipeRegistry,
+    resourceNodeRegistry,
     phaseTintRegistry,
     seasonRegistry,
     roleRegistry,
@@ -415,6 +432,7 @@ export function createWorld(seed: number, options: WorldOptions = {}): World {
     buildingStorage: new Map(),
     factories: createFactoryStore(),
     routes: createRouteStore(),
+    harvestedAt: new Map(),
     cropStats,
     // The opening balance is the declared source `GAME_DESIGN.md` §6.4 names:
     // coins enter at world creation and thereafter only at sale boundaries.

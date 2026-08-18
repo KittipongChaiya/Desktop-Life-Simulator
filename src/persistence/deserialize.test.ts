@@ -20,6 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { WORLD_TILE_COUNT } from '../shared/constants';
 import { asTileIndex } from '../shared/ids';
 import { CORE_STORAGE_SHED } from '../sim/content/buildings';
 import { setOwned } from '../sim/world/tile-grid';
@@ -75,7 +76,15 @@ describe('hydrateWorld rejects a document that skipped validation', () => {
     const doc = tampered((d: { world: { grid: { owned: string; kind: string } } }) => {
       d.world.grid.owned = d.world.grid.kind;
     });
-    expect(() => hydrateWorld(doc)).toThrow(/grid owned: expected 640 bytes, got 5120/);
+    // Derived from the constants rather than pinned: this test broke on the
+    // v0.4 widening for no reason except that it had the old numbers written
+    // into it, and it will break on the next one too unless it asks.
+    const ownedBytes = Math.ceil(WORLD_TILE_COUNT / 8);
+    expect(() => hydrateWorld(doc)).toThrow(
+      new RegExp(
+        `grid owned: expected ${String(ownedBytes)} bytes, got ${String(WORLD_TILE_COUNT)}`,
+      ),
+    );
   });
 
   it('refuses a tilledAt array of the wrong word count', () => {
@@ -84,7 +93,9 @@ describe('hydrateWorld rejects a document that skipped validation', () => {
       // this passes the decoder and fails only the count check under test.
       d.world.grid.tilledAt = 'A'.repeat(16);
     });
-    expect(() => hydrateWorld(doc)).toThrow(/grid tilledAt: expected 5120 words/);
+    expect(() => hydrateWorld(doc)).toThrow(
+      new RegExp(`grid tilledAt: expected ${String(WORLD_TILE_COUNT)} words`),
+    );
   });
 
   it('refuses storage for a building that does not exist — 07b turns this into quarantine', () => {

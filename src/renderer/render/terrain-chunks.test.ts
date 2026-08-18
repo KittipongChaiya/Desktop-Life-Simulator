@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { WORLD_WIDTH } from '../../shared/constants';
+import { WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
 import { asTileIndex } from '../../shared/ids';
 
 import {
@@ -42,10 +42,16 @@ describe('chunk geometry', () => {
     expect(chunkOfTile(asTileIndex(CHUNK_SIZE * WORLD_WIDTH))).toBe(CHUNKS_X);
   });
 
-  it('covers the 80x64 world in 20 chunks', () => {
-    // 20 quads per frame instead of 5,120 sprites (ADR-001). Was 16 until
-    // ADR-030 added the town's chunk column.
-    expect(CHUNK_COUNT).toBe(20);
+  it('covers the whole world in whole 16-tile chunk columns', () => {
+    // A handful of quads per frame instead of one sprite per tile (ADR-001).
+    // DERIVED rather than pinned: this was 16, then 20 when ADR-030 added the
+    // town's column, then 28 when ADR-037 added the wilds — three edits to a
+    // number the constants already know. It asks now.
+    const columns = WORLD_WIDTH / CHUNK_SIZE;
+    const rows = WORLD_HEIGHT / CHUNK_SIZE;
+    expect(Number.isInteger(columns), 'the world must be whole chunk columns').toBe(true);
+    expect(Number.isInteger(rows), 'the world must be whole chunk rows').toBe(true);
+    expect(CHUNK_COUNT).toBe(columns * rows);
   });
 
   it('round-trips chunk origins', () => {

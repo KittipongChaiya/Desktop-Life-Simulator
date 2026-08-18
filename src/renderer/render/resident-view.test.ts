@@ -11,6 +11,7 @@
 import { Container, Texture } from 'pixi.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { toIndexUnchecked } from '../../shared/geometry';
 import type { ResidentView } from '../../sim/snapshot/residents-slice';
 import { Direction } from '../../sim/snapshot/workers-slice';
 
@@ -32,8 +33,13 @@ const view = (overrides: Partial<ResidentView> = {}): ResidentView => ({
   id: 'core:resident_marla',
   name: 'Marla',
   costume: 'villager_a',
-  tile: 100,
-  toTile: 100,
+  // Derived from the grid, not a literal: at width 80 tile 100 sat at (20, 1)
+  // and inside the visible column range below; at width 112 the same number is
+  // (100, 0), outside it, and the villager was silently culled — the test then
+  // asserted a lease that could not exist. Tiles in tests belong to a
+  // coordinate, never to an index.
+  tile: toIndexUnchecked(20, 1),
+  toTile: toIndexUnchecked(20, 1),
   moveFraction: 0,
   facing: Direction.South,
   ...overrides,
@@ -45,9 +51,9 @@ const update = (renderer: ResidentRenderer, residents: readonly ResidentView[]):
 
 describe('animation selection', () => {
   it('walking picks the costume walk cycle; standing the idle frame', () => {
-    expect(residentAnimation(view({ toTile: 101, facing: Direction.East }))).toBe(
-      'villager_a_walk_e',
-    );
+    expect(
+      residentAnimation(view({ toTile: toIndexUnchecked(21, 1), facing: Direction.East })),
+    ).toBe('villager_a_walk_e');
     expect(residentAnimation(view({ costume: 'villager_b' }))).toBe('villager_b_idle_s');
   });
 });
@@ -56,7 +62,9 @@ describe('the lease discipline (ADR-001 §1)', () => {
   it('a walking villager holds exactly one lease, however many frames pass', () => {
     const renderer = build();
     for (let frame = 0; frame < 50; frame += 1) {
-      update(renderer, [view({ toTile: 101, moveFraction: 0.4, facing: Direction.East })]);
+      update(renderer, [
+        view({ toTile: toIndexUnchecked(21, 1), moveFraction: 0.4, facing: Direction.East }),
+      ]);
     }
     expect(gate.animationCount()).toBe(1);
   });

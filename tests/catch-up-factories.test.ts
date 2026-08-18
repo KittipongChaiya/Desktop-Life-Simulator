@@ -30,6 +30,10 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
+// Tile math goes through the constants, never a literal width — the v0.4
+// widening broke every test that had 80 written into it (ADR-030 §Consequences).
+import { WORLD_WIDTH } from '../src/shared/constants';
+
 import '../plugins/core';
 import { catchUpWorld } from '../src/persistence/catch-up';
 import { placeBuilding } from '../src/sim/commands/building-commands';
@@ -53,7 +57,7 @@ function craftTicks(world: World): number {
 function millWorld(wheat: number): { world: World; factory: FactoryState } {
   const world = createWorld(5);
   world.wallet.coins = 100_000;
-  const placed = placeBuilding(world, 32 * 80 + 32, CORE_MILL);
+  const placed = placeBuilding(world, 32 * WORLD_WIDTH + 32, CORE_MILL);
   if (!placed.ok) throw new Error('the mill must place');
   const building = [...world.buildings.keys()].at(-1)!;
   const chosen = setFactoryRecipe(world, building, CORE_GRIND_FLOUR);

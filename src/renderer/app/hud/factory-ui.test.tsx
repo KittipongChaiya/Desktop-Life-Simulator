@@ -16,6 +16,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+// Tile math goes through the constants, never a literal width.
+import { WORLD_WIDTH } from '../../../shared/constants';
 import { ok } from '../../../shared/result';
 import { placeBuilding } from '../../../sim/commands/building-commands';
 import { setFactoryRecipe } from '../../../sim/commands/factory-commands';
@@ -39,7 +41,8 @@ import { FactoryPanel } from './FactoryPanel';
 function millWorld(wheat: number, outputFlour = 0): World {
   const world = createWorld(17);
   world.wallet.coins = 100_000;
-  if (!placeBuilding(world, 32 * 80 + 32, CORE_MILL).ok) throw new Error('mill must place');
+  if (!placeBuilding(world, 32 * WORLD_WIDTH + 32, CORE_MILL).ok)
+    throw new Error('mill must place');
   const id = [...world.buildings.keys()].at(-1)!;
   if (!setFactoryRecipe(world, id, CORE_GRIND_FLOUR).ok) throw new Error('recipe must set');
 

@@ -51,6 +51,11 @@ describe('the v8 golden fixtures', () => {
     const after = migrated(name);
 
     for (const [key, value] of Object.entries(before.world)) {
+      // v13 (ADR-037) re-lays every tile index for the second grid widening,
+      // so the collections holding one legitimately change. Declared, not
+      // exempted: `migration-v12-to-v13.test.ts` asserts each survives at the
+      // same (x, y), which is a stronger claim than byte-identity ever was.
+      if (['grid', 'crops', 'buildings', 'workers', 'lastPlanted'].includes(key)) continue;
       // v12 (ADR-036) adds `hauling` to every worker and `route` to the id
       // counters. Declared here rather than weakening the comparison: this test
       // asserts a link changes nothing it did not mean to, and a later link

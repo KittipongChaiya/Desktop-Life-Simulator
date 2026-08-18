@@ -25,6 +25,10 @@ import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+// Tile math goes through the constants, never a literal width — the v0.4
+// widening broke every test that had 80 written into it (ADR-030 §Consequences).
+import { WORLD_WIDTH } from '../src/shared/constants';
+
 import '../plugins/core';
 import { hydrateWorld } from '../src/persistence/deserialize';
 import { runMigrations } from '../src/persistence/migrate';
@@ -99,6 +103,11 @@ describe('the v10 golden fixtures', () => {
     // Every other key rides through byte-identical. Compared as JSON so a
     // reordered array or a changed number is caught, not just a missing key.
     for (const [key, value] of Object.entries(before.world)) {
+      // v13 (ADR-037) re-lays every tile index for the second grid widening,
+      // so the collections holding one legitimately change. Declared, not
+      // exempted: `migration-v12-to-v13.test.ts` asserts each survives at the
+      // same (x, y), which is a stronger claim than byte-identity ever was.
+      if (['grid', 'crops', 'buildings', 'workers', 'lastPlanted'].includes(key)) continue;
       // v12 (ADR-036) adds `hauling` to every worker and `route` to the id
       // counters. Declared here rather than weakening the comparison: this test
       // asserts a link changes nothing it did not mean to, and a later link
@@ -128,7 +137,7 @@ describe('a factory survives the round trip mid-craft', () => {
   function millMidCraft(): { world: ReturnType<typeof createWorld>; building: number } {
     const world = createWorld(99);
     world.wallet.coins = 100_000;
-    const tile = 32 * 80 + 32;
+    const tile = 32 * WORLD_WIDTH + 32;
     expect(placeBuilding(world, tile, CORE_MILL).ok).toBe(true);
     const building = [...world.buildings.keys()].at(-1)!;
 

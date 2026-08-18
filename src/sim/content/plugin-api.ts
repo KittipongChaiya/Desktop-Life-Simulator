@@ -41,6 +41,11 @@ import type { CropDefinition, CropRegistry } from './crops';
 import type { ItemDefinition, ItemRegistry } from './items';
 import type { PhaseTintDefinition, PhaseTintRegistry } from './lighting';
 import { isRunnableRecipe, type RecipeDefinition, type RecipeRegistry } from './recipes';
+import {
+  isSpawnableNode,
+  type ResourceNodeDefinition,
+  type ResourceNodeRegistry,
+} from './resource-nodes';
 import { isSatisfiableRole, type RoleDefinition, type RoleRegistry } from './roles';
 import type { SeasonDefinition, SeasonRegistry } from './seasons';
 import { isPlayableDefinition, type RegisteredSound, type SoundRegistry } from './sounds';
@@ -62,6 +67,7 @@ export interface ContentTargets {
   readonly items: ItemRegistry;
   readonly buildings: BuildingRegistry;
   readonly recipes: RecipeRegistry;
+  readonly resourceNodes: ResourceNodeRegistry;
   readonly tileKinds: TileKindRegistry;
   readonly phaseTints: PhaseTintRegistry;
   readonly seasons: SeasonRegistry;
@@ -89,6 +95,14 @@ export interface ContentBundle {
    * pack extends `core:mill` without editing core.
    */
   readonly recipes?: readonly RecipeDefinition[];
+  /**
+   * What stands in the wilds (ADR-037 §5).
+   *
+   * Order IS significant, unlike recipes: densities are summed in registration
+   * order against one hash value, so appending is safe and REORDERING re-rolls
+   * every existing world's wilds. Same rule as weather kinds.
+   */
+  readonly resourceNodes?: readonly ResourceNodeDefinition[];
   readonly tileKinds?: readonly TileKindDefinition[];
   /** Phase → tint, for the lighting layer. Presentation only (ADR-020 §4). */
   readonly phaseTints?: readonly PhaseTintDefinition[];
@@ -195,6 +209,7 @@ function entriesOf(bundle: ContentBundle, targets: ContentTargets): BundleEntry[
     ...of('item', bundle.items, targets.items),
     ...of('building', bundle.buildings, targets.buildings),
     ...of('recipe', bundle.recipes, targets.recipes),
+    ...of('resourceNode', bundle.resourceNodes, targets.resourceNodes),
     ...of('phaseTint', bundle.phaseTints, targets.phaseTints),
     ...of('season', bundle.seasons, targets.seasons),
     ...of('role', bundle.roles, targets.roles),
@@ -255,6 +270,20 @@ export function createPluginApi(source: ContentSource, targets: ContentTargets):
           );
         }
         seen.add(key);
+      }
+
+      // A node kind that can never spawn, or never be worked, is the same
+      // failure one content type over — an empty wilderness with no
+      // explanation, or a band of solid rock with no floor (ADR-037 §5).
+      for (const node of bundle.resourceNodes ?? []) {
+        if (!isSpawnableNode(node)) {
+          return err(
+            appError(ErrorCode.InvalidIntent, 'resource node can never spawn or be worked', {
+              source: source.id,
+              id: node.id,
+            }),
+          );
+        }
       }
 
       // An unrunnable recipe is the same failure one content type over: a
