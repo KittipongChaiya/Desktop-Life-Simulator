@@ -599,3 +599,107 @@ than breaking it: opacity changes what the player _sees_; disabling seasons
 changes what the world _does_, and two players with one seed and different
 enablement sets have different worlds. Changing the set carries §14.3's
 guarantee — disabling isolates, re-enabling restores.
+
+---
+
+## 15. The v0.4 systems (automation & exploration)
+
+Five systems arrived in v0.4, and one architectural rule ties them together:
+**what is derivable is derived.** The version added factories, logistics, a
+wilderness and expeditions, and grew the save by four collections and one grid
+re-lay. §14's derive-don't-store discipline is now the version's signature
+rather than a weather-and-residents special case.
+
+### 15.1 Production is content, not a building subclass
+
+A recipe **names its building**, never the reverse (ADR-035 §1). There is no
+`isFactory` flag: a building is a factory because some recipe targets it — the
+same shape ADR-030 §4 settled when it refused to make "town" a subclass.
+
+The consequence a content author cares about: `barleymod:grind_barley` can
+target `core:mill` and the mill gains it with **no core edit**, which is
+exactly the freedom ADR-019 exists to provide and which a recipe list on the
+building would have removed.
+
+A factory holds **two containers** — input and output — and the asymmetry is
+what makes a chain possible: with one container a hauler would take back the
+flour it had just delivered.
+
+### 15.2 A stall is not a jam, and nothing records that a factory stopped
+
+ADR-035's Rule E, and the reason the eight-hour criterion is reachable: a
+**stall** is a chain stopped by a full downstream, which is correct and
+self-clearing; a **jam** is a stall that outlives its cause.
+
+Nothing in the production model records that a factory was ever blocked —
+which is precisely why it cannot stay blocked. Every tick asks the same
+question from scratch.
+
+### 15.3 A reservation is a task, not a record
+
+ADR-036 specified a reservation record and a per-tick sweep to catch leaks.
+Implementation found a stronger form and the ADR carries the amendment: a
+worker holding a `Haul` task for route R has, **by that fact alone**, claimed
+goods at R's source.
+
+Nothing is recorded, so nothing can leak. Release on every exit path becomes
+structural rather than disciplined, reservations survive save/load for free
+because tasks already do, and the sweep was **withdrawn** — a sweep over
+derived state can only ever find nothing.
+
+### 15.4 The wilds are a hash
+
+Node existence is `nodeAt(seed, tile)`, a pure function (ADR-037 §3). Two
+thousand tiles of wilderness cost the save **zero bytes**, need no migration,
+and resolve exactly after any absence, because "is this available at tick T" is
+arithmetic.
+
+The hash consumes **no RNG draw**, for the reason `world.rng` is save state:
+a draw would make what grows in the wilds depend on how many other things had
+happened first.
+
+The one stored fact is `harvestedAt`, pruned on regrowth so it scales with
+world size rather than playtime.
+
+### 15.5 Expeditions apply that model to time instead of space
+
+Only `{ worker, destination, departedTick }` is stored (ADR-038 §3). The return
+tick, the haul, and the time remaining are arithmetic on it — which is what
+lets the longest-running mechanic in the game need no offline catch-up model at
+all.
+
+A worker who is away is in `WorkerState.Away` and is **absent from the workers
+slice**, not present with a flag — ADR-031's shape for the sleeping town, so no
+view can draw a hand who is not there.
+
+That decision has a consequence worth recording next to it, because it cost
+three defects to learn: **anything that was counting workers has to be told.**
+The hire price, the status bar, and offline catch-up all read a count that
+silently stopped including travellers.
+
+### 15.6 The renderer's boundary is named
+
+`world-view.ts` took a `World` — the whole simulation — until phase 29. It now
+takes a **`WorldRenderSource`**: the seed and registries (immutable setup), the
+snapshot (the sanctioned boundary), and the tile grid (the one mutable
+structure read directly).
+
+This is not a severance, and ADR-039 says so: `World` still satisfies the
+interface structurally. It is enumerability — the answer to _what does the
+renderer depend on?_ is now a file rather than a reading of every view — and it
+scopes ADR-003 §2's worker-thread migration to **one field**.
+
+`tests/renderer-world-boundary.test.ts` reads the source so that widening the
+boundary fails a named test rather than passing quietly.
+
+### 15.7 The tick order these added
+
+`TICK_SYSTEMS` gained two entries, both placed for a stated reason:
+
+- **`expedition`, in the `workers` phase and BEFORE `worker`** — a hand who
+  lands this tick is given work on this tick rather than standing in the yard
+  for one.
+- **`production`, first in the `economy` phase** — after the workers who
+  deliver to a factory, so a delivery made this tick is visible to this tick's
+  craft, and ahead of the market sweep, so a craft that completes this tick can
+  be sold on it.

@@ -278,3 +278,103 @@ phase-08.0, and `src/persistence` now clears its 95 / 90 bar — the final
 points closed by exactly what §11 prescribed, adversarial-input tests
 (`tests/migration-defensive.test.ts`, `tests/serialize-ordering.test.ts`,
 phase-23).
+
+---
+
+## 13. v0.4 addendum (phase-30)
+
+Four links land in v0.4 — **v10 → v11 → v12 → v13 → v14** — and the version's
+engineering signature is the same one v0.3 recorded, applied to bigger systems:
+**what is derivable is derived**, so a version that added factories, logistics,
+a wilderness and expeditions grew the save by four collections and one grid
+re-lay, and by nothing else.
+
+### 13.1 The chain, and what each link is for
+
+| Link        | Adds or changes                                                       | Why it is safe                                                                   |
+| ----------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `v10 → v11` | `factories`, empty                                                    | A v10 world had no building any recipe could name                                |
+| `v11 → v12` | `routes`, the route id counter (from **1**, never 0), `hauling: null` | A v11 world could not declare a route, so nobody was part-way along one          |
+| `v12 → v13` | **Relayout** 80×64 → 112×64; adds `harvestedAt`                       | A thing at (x, y) before is at (x, y) after — asserted by position, not by count |
+| `v13 → v14` | `expeditions`, empty                                                  | A v13 world could send nobody anywhere                                           |
+
+**The second relayout is a near-copy of the first, deliberately.** `v12 → v13`
+is `v6 → v7` at a different width, with its dimensions written as literals for
+the reason `v6 → v7` states: importing the live `WORLD_WIDTH` would have
+silently rewritten what the older link does the moment the world widened again.
+A frozen link may never change behaviour, and sharing a helper with a later one
+is how one of them eventually does.
+
+### 13.2 What v0.4 does NOT store
+
+The list is longer than what it does:
+
+| Not stored               | Derived from                                  |
+| ------------------------ | --------------------------------------------- |
+| What stands in the wilds | `hash(seed, tile)` — ~2,000 tiles, zero bytes |
+| A node's readiness       | `tick − harvestedAt >= regrowTicks`           |
+| An expedition's return   | `departedTick + travelTicks`                  |
+| An expedition's haul     | `hash(seed, worker, departedTick)`            |
+| A craft's progress       | `tick − startedTick`                          |
+| A haul's reservation     | The worker's task — nothing to leak (ADR-036) |
+
+Two of these were reservations in the ADRs that specified them and became
+derivations during implementation, with the amendments written down rather than
+diverged from silently.
+
+### 13.3 The one collection that could have grown with playtime
+
+`harvestedAt` — tile → the tick its node was last worked — is the only thing in
+the save that scales with _what the player did_ rather than with world size,
+which §3.4 of `SAVE_FORMAT.md` names as the hazard. It does not grow, because
+an entry is pruned the moment its node regrows: absent and long-past mean the
+same thing to the readiness test.
+
+**Measured**: 132 entries after 120,000 ticks with three foragers, and there is
+a test asserting it stays bounded across a long unattended run.
+
+### 13.4 Offline progress, extended again
+
+§5's table gains three rows for v0.4, and the honest one is listed first:
+
+- **A chain's buffers are credited; the chain is not.** Offline, a factory
+  finishes what was already staged in its input when the player left, and no
+  hauling happens. That **under-credits** — the one direction §9.2 permits —
+  and it makes `PLAN.md` §5's criterion 4 PARTIAL rather than PASS. The cost is
+  stated at the code: a player who leaves a chain running for eight hours is
+  credited the buffers, not the chain.
+- **An expedition needs no model at all.** Its return is a comparison against
+  `departedTick`, so a trip that completes during a gap resolves on the first
+  live tick — and there is a test that runs one world through every tick of a
+  trip and jumps another over the gap and asserts the same goods arrive. A gap
+  ten times the travel time still credits exactly one trip.
+- **The wilds need no model either.** Regrowth is arithmetic on the tick, so an
+  absence of any length resolves exactly.
+
+### 13.5 A worker who is away is not farm labour
+
+Found at phase 30's economy read-through and fixed there: `catchUpWorld` sized
+its statistical worker budget from `world.workers.size`, which includes anyone
+on an expedition — so the model credited a harvest nobody performed. Everyone
+away is now excluded for the whole gap, under-crediting a hand who would have
+come home part-way through it.
+
+Their haul is not lost by that exclusion: a return is a comparison, so the
+expedition system brings them in on the first live tick after the gap.
+
+### 13.6 A third over-credit, and what it says about property tests
+
+`catchUpFactories` advanced crafts at a cadence of `craftTicks`; the simulation
+runs them at `craftTicks + 1`, because a factory that completes on tick T is
+idle on T and cannot restart until T + 1. The model claimed 11 crafts where the
+game completes 10.
+
+It is the third over-credit that one function has had, and it shipped in
+phase 26 because **the never-over property fails on about one run in three, so
+a green run was never evidence.** Both counterexamples are now pinned as
+deterministic examples beside the property, and the cadence has a test that
+measures the interval off a live mill rather than asserting a constant.
+
+**The transferable rule**: a probabilistic gate that has ever been red is not
+discharged by a green re-run. Run it until the failure rate is known, then pin
+the case.
