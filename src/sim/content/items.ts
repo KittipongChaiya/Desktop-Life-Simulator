@@ -40,6 +40,10 @@ export const CORE_WHEAT = asContentId('core:wheat');
 export const CORE_CARROT = asContentId('core:carrot');
 export const CORE_PUMPKIN = asContentId('core:pumpkin');
 
+/** Processed goods — the v0.4 chain's middle and end (phase-25, ADR-035). */
+export const CORE_FLOUR = asContentId('core:flour');
+export const CORE_BREAD = asContentId('core:bread');
+
 export const CORE_TURNIP_SEED = asContentId('core:turnip_seed');
 export const CORE_WHEAT_SEED = asContentId('core:wheat_seed');
 export const CORE_CARROT_SEED = asContentId('core:carrot_seed');

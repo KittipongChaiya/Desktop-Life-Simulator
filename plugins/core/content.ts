@@ -13,7 +13,12 @@
  */
 
 import { asContentId } from '../../src/shared/ids';
-import { CORE_BUILDINGS, type BuildingDefinition } from '../../src/sim/content/buildings';
+import {
+  CORE_BUILDINGS,
+  CORE_KITCHEN,
+  CORE_MILL,
+  type BuildingDefinition,
+} from '../../src/sim/content/buildings';
 import {
   CORE_CARROT,
   CORE_PUMPKIN,
@@ -22,7 +27,9 @@ import {
   type CropDefinition,
 } from '../../src/sim/content/crops';
 import {
+  CORE_BREAD,
   CORE_CARROT_SEED,
+  CORE_FLOUR,
   CORE_PUMPKIN_SEED,
   CORE_TURNIP_SEED,
   CORE_WHEAT_SEED,
@@ -30,6 +37,11 @@ import {
   type ItemDefinition,
 } from '../../src/sim/content/items';
 import { phaseTintId, type PhaseTintDefinition } from '../../src/sim/content/lighting';
+import {
+  CORE_BAKE_BREAD,
+  CORE_GRIND_FLOUR,
+  type RecipeDefinition,
+} from '../../src/sim/content/recipes';
 import {
   CORE_FARMHAND,
   CORE_GROUNDSKEEPER,
@@ -166,6 +178,35 @@ export function coreItems(): readonly ItemDefinition[] {
       id: CORE_PUMPKIN,
       displayName: 'Pumpkin',
       sprite: 'ui-world:item_pumpkin',
+      basePrice: 230,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    // The processed goods (phase-25, ADR-035). Prices are PROVISIONAL and are
+    // the balance decision `GAME_DESIGN.md` §12 reserves for content.
+    //
+    // The chain is deliberately worth more than its inputs — 4 wheat (136) →
+    // 2 flour (170) → 1 bread (230), a 1.7× premium for four minutes of
+    // machine time — because a chain that did not add value would be a
+    // building with no reason to exist.
+    //
+    // WORTH FLAGGING RATHER THAN SLIPPING IN: v0.3 closed with "the premium
+    // band is the only above-base coin in the game" (ADR-032/033). Processing
+    // is a SECOND above-base source, and that is a real change to the economy's
+    // shape rather than an incidental one. It belongs to v0.4 by design — the
+    // version exists to make automation worth building — but the interaction
+    // with contract premiums is unmeasured until the v0.4 RC prices them
+    // together.
+    {
+      id: CORE_FLOUR,
+      displayName: 'Flour',
+      sprite: 'ui-world:item_flour',
+      basePrice: 85,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_BREAD,
+      displayName: 'Bread',
+      sprite: 'ui-world:item_bread',
       basePrice: 230,
       stackSize: DEFAULT_STACK_SIZE,
     },
@@ -393,4 +434,45 @@ export function coreRoles(): readonly RoleDefinition[] {
     },
   ];
   return roles;
+}
+
+/**
+ * The v0.4 production chain. Phase-25 — ADR-035.
+ *
+ * Three steps deep on purpose: raw crop → processed good → something better
+ * again, which is what `PLAN.md` §5 asks a chain to demonstrate. Two steps
+ * would prove a factory works; three proves that one factory's output being
+ * another's input needs no machinery beyond the recipes themselves
+ * (ADR-035 §7 — nothing in the model knows what a chain is).
+ *
+ * Each recipe NAMES its building rather than being listed by it, which is what
+ * lets a content pack add `barleymod:grind_barley` to `core:mill` without
+ * editing anything here (ADR-035 §1).
+ *
+ * Craft times are provisional, and chosen against the crop that feeds them:
+ * wheat matures in 4,800 ticks, so a 1,200-tick grind means one mill keeps
+ * pace with roughly four wheat tiles, and a 2,400-tick bake means one kitchen
+ * consumes two mills. Those ratios are the interesting part of the balance and
+ * are the numbers to move when the v0.4 RC prices the chain properly.
+ */
+export function coreRecipes(): readonly RecipeDefinition[] {
+  const recipes: readonly RecipeDefinition[] = [
+    {
+      id: CORE_GRIND_FLOUR,
+      displayName: 'Grind Flour',
+      building: CORE_MILL,
+      inputs: [{ item: CORE_WHEAT, quantity: 2 }],
+      outputs: [{ item: CORE_FLOUR, quantity: 1 }],
+      craftTicks: secondsToTicks(60),
+    },
+    {
+      id: CORE_BAKE_BREAD,
+      displayName: 'Bake Bread',
+      building: CORE_KITCHEN,
+      inputs: [{ item: CORE_FLOUR, quantity: 2 }],
+      outputs: [{ item: CORE_BREAD, quantity: 1 }],
+      craftTicks: secondsToTicks(120),
+    },
+  ];
+  return recipes;
 }

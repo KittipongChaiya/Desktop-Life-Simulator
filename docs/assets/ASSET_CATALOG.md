@@ -42,6 +42,20 @@ The art the shipping game already references as placeholders, plus the small gap
 | Icons (tools)      | hoe / seed / hand toolbar icons (`GAME_DESIGN.md §8`)                | P0       | v0.1  | S   | needed      | `ICON_GUIDE.md`, `UI_STYLE_GUIDE.md`       |
 | UI (world)         | selection, hover, build ghost (`ui-world` atlas)                     | P0       | v0.1  | S   | partial     | `UI_STYLE_GUIDE.md`                        |
 
+### 2.1 v0.4 — the factories (phase-25)
+
+| Class     | Class detail                                         | Priority | Phase | Est | Status      | Depends on                      |
+| --------- | ---------------------------------------------------- | -------- | ----- | --- | ----------- | ------------------------------- |
+| Buildings | `mill.png` — the flour factory (ADR-035)             | P0       | v0.4  | S   | placeholder | `WORLD_BIBLE.md §2`, style lock |
+| Buildings | `kitchen.png` — the bread factory (ADR-035)          | P0       | v0.4  | S   | placeholder | `WORLD_BIBLE.md §2`, style lock |
+| Items     | `item_flour.png`, `item_bread.png` (`ICON_GUIDE.md`) | P0       | v0.4  | S   | needed      | `ICON_GUIDE.md`                 |
+
+**Both buildings currently render a stand-in from the shipped atlas** — the mill draws `storage_shed`, the kitchen draws `cottage` — and the substitution is marked at the definitions in `src/sim/content/buildings.ts`. It is deliberate rather than sloppy: `textureFor` resolves an unknown sprite key to `Texture.EMPTY`, so naming art that does not exist ships a building that is **silently invisible in the running game**, with nothing anywhere to say why. A wrong-looking building is a bug a player reports; an invisible one is a bug nobody can describe.
+
+The item icons have no stand-in and need none — the HUD's item rows degrade to a blank icon slot, which is legible rather than misleading.
+
+**These are blocking items on the `PLAN.md` §8 "no placeholders" release gate**, and the gate is what must catch them before v0.4 ships. Flip these rows and delete the stand-ins in the same commit as the art (§Rules 3).
+
 ---
 
 ## 3. Phase-06 — the next production wave

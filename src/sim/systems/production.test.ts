@@ -19,12 +19,12 @@ import { createWorld, type World } from '../world/world';
 
 import { productionSystem } from './production';
 
-const MILL = asContentId('core:mill');
+const MILL = asContentId('test:mill');
 const WHEAT = asContentId('core:wheat');
-const FLOUR = asContentId('core:flour');
+const FLOUR = asContentId('test:flour');
 
 const GRIND: RecipeDefinition = {
-  id: asContentId('core:grind_flour'),
+  id: asContentId('test:grind_flour'),
   displayName: 'Grind Flour',
   building: MILL,
   inputs: [{ item: WHEAT, quantity: 2 }],
@@ -35,9 +35,10 @@ const GRIND: RecipeDefinition = {
 /**
  * A world with one mill, its recipe selected, and `wheat` delivered.
  *
- * `core:flour` is registered as an item so stack sizes resolve; the recipe
- * goes straight into the world's registry, which is what a content source
- * would have done through the public API.
+ * A `test:` namespace throughout, so this suite cannot collide with the ids
+ * `plugins/core` ships — the collision that made five of these fail the
+ * moment the real mill and its recipe landed. The recipe goes straight into
+ * the world's registry, which is what a content source does through the API.
  */
 function millWorld(
   wheat: number,

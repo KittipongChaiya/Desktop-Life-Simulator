@@ -28,7 +28,7 @@
  * names it.
  */
 
-import { isContentId, type ContentId } from '../../shared/ids';
+import { asContentId, isContentId, type ContentId } from '../../shared/ids';
 import type { ItemStack } from '../world/container';
 
 import { createContentRegistry, type ContentRegistry } from './registry';
@@ -54,6 +54,10 @@ export interface RecipeDefinition {
   /** Ticks one craft takes. A positive integer (ADR-007 §7). */
   readonly craftTicks: number;
 }
+
+/** The v0.4 core chain: raw crop → processed good → something better again. */
+export const CORE_GRIND_FLOUR = asContentId('core:grind_flour');
+export const CORE_BAKE_BREAD = asContentId('core:bake_bread');
 
 export type RecipeRegistry = ContentRegistry<RecipeDefinition>;
 
