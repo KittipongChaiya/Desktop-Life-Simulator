@@ -74,24 +74,28 @@ describe('routes are total over the places (ADR-031 §3)', () => {
 
 describe('determinism and cost', () => {
   it('the same route comes back forever', () => {
-    const a = townRoute({ x: 64, y: 32 }, { x: 73, y: 34 });
-    const b = townRoute({ x: 64, y: 32 }, { x: 73, y: 34 });
+    // Coordinates follow the phase-45 layout: the road runs along y=33 and the
+    // plaza spans y=31..34.
+    const a = townRoute({ x: 64, y: 33 }, { x: 73, y: 34 });
+    const b = townRoute({ x: 64, y: 33 }, { x: 73, y: 34 });
     expect(a).toEqual(b);
   });
 
   it('prefers the street: the road walk stays on path tiles', () => {
     // From the road's west end to the well's west side, the whole shortest
     // route is street — path tiles cost less, so A* must keep to them.
-    const route = townRoute({ x: 64, y: 32 }, { x: 70, y: 32 }) ?? [];
+    const route = townRoute({ x: 64, y: 33 }, { x: 70, y: 33 }) ?? [];
     expect(route.length).toBeGreaterThan(1);
-    const pathTicks = townEnterTicks({ x: 65, y: 32 });
+    const pathTicks = townEnterTicks({ x: 65, y: 33 });
     for (const step of route.slice(1)) {
       expect(townEnterTicks(step)).toBe(pathTicks);
     }
   });
 
   it('refuses endpoints off town ground', () => {
-    expect(townRoute({ x: 32, y: 32 }, { x: 70, y: 32 })).toBeNull(); // farm
-    expect(townRoute({ x: 70, y: 32 }, { x: 71, y: 32 })).toBeNull(); // the well itself
+    expect(townRoute({ x: 32, y: 33 }, { x: 70, y: 33 })).toBeNull(); // farm
+    // The well stands at (71,33) since phase-45; a building tile is blocked,
+    // so it can never be an endpoint.
+    expect(townRoute({ x: 70, y: 33 }, { x: 71, y: 33 })).toBeNull();
   });
 });

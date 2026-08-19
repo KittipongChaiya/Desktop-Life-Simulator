@@ -81,13 +81,29 @@ export interface TownPlacement {
  * 2026-08-15 — the village's landmark).
  */
 export const TOWN_PLACEMENTS: readonly TownPlacement[] = [
-  { building: CORE_COTTAGE, x: 66, y: 27 },
-  { building: CORE_COTTAGE, x: 76, y: 27 },
-  { building: CORE_COTTAGE, x: 66, y: 37 },
-  { building: CORE_COTTAGE, x: 76, y: 37 },
-  { building: CORE_WELL, x: 71, y: 32 },
-  { building: CORE_NOTICE_BOARD, x: 68, y: 30 },
-  { building: CORE_CASTLE, x: 71, y: 25 },
+  // RE-LAID WIDE IN PHASE-45, and the reason is a measurement rather than a
+  // preference. The world viewport is about 172 px tall — FIVE TILES — and this
+  // town was spread over eleven rows, from the castle at y=25 to the southern
+  // cottages at y=37. A player could never see two cottages at once, so the
+  // town read as an empty plaza with something off-screen: exactly the "large
+  // empty rectangle of tiles" the art direction forbids.
+  //
+  // The window is wide and short, so the town is now wide and short too. The
+  // plaza, the well, the board and all four cottages sit inside rows 31–35 and
+  // fit one screen together; the castle is the one thing above them, a landmark
+  // you pan up to see rather than the reason you cannot see anything else.
+  //
+  // Buildings have FOOTPRINTS since phase-41 (cottage 2x2, castle 4x3) and
+  // these origins are checked not to collide, and — the mistake the first
+  // attempt made — not to sit ON the plaza: the castle takes rows 28–30 just
+  // north of it, and the cottages take cols 65–66 and 76–77 either side.
+  { building: CORE_COTTAGE, x: 65, y: 32 },
+  { building: CORE_COTTAGE, x: 76, y: 32 },
+  { building: CORE_COTTAGE, x: 65, y: 35 },
+  { building: CORE_COTTAGE, x: 76, y: 35 },
+  { building: CORE_WELL, x: 71, y: 33 },
+  { building: CORE_NOTICE_BOARD, x: 69, y: 32 },
+  { building: CORE_CASTLE, x: 70, y: 30 },
 ];
 
 /**
@@ -99,12 +115,14 @@ export const TOWN_PLACEMENTS: readonly TownPlacement[] = [
 export function townPathTiles(): readonly { readonly x: number; readonly y: number }[] {
   const tiles: { x: number; y: number }[] = [];
   // The road: from the region boundary to the plaza's west edge.
-  for (let x = 64; x < 68; x += 1) tiles.push({ x, y: 32 });
-  // The plaza: a 7×7 square around the well.
-  for (let y = 29; y <= 35; y += 1) {
+  for (let x = 64; x < 68; x += 1) tiles.push({ x, y: 33 });
+  // The plaza: 7 wide and 4 deep around the well (phase-45). It was 7x7, which
+  // is more rows than the window has, so most of it was never on screen at
+  // once and the part that was looked like an empty field of paving.
+  for (let y = 31; y <= 34; y += 1) {
     for (let x = 68; x <= 74; x += 1) tiles.push({ x, y });
   }
-  // The castle walk: two tiles north from the plaza to the gate.
-  for (let y = 27; y <= 28; y += 1) tiles.push({ x: 71, y });
+  // No castle walk: the castle's base row now sits directly against the
+  // plaza's northern edge, so the paving already reaches its gate.
   return tiles;
 }

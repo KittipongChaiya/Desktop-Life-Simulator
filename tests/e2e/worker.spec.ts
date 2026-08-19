@@ -16,7 +16,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
-import { plotCentreOnScreen } from './framing';
+import { plotCentreOnScreen, shoot } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -89,7 +89,7 @@ test('hiring a worker through the HUD raises the worker count', async () => {
   // Let the workers spawn on the (now centred) plot and start farming, then
   // capture a visual record of the running overlay.
   await new Promise((resolve) => setTimeout(resolve, 1500));
-  await window.screenshot({ path: 'test-results/worker-hire.png' });
+  await shoot(app, 'test-results/worker-hire.png');
 });
 
 test('clicking a worker selects it and shows its info panel', async () => {
@@ -114,7 +114,7 @@ test('clicking a worker selects it and shows its info panel', async () => {
   await expect(info).toBeVisible();
   await expect(info).toContainText('Worker 1');
 
-  await window.screenshot({ path: 'test-results/worker-selected.png' });
+  await shoot(app, 'test-results/worker-selected.png');
 
   // Esc clears the selection and hides the panel.
   await window.keyboard.press('Escape');

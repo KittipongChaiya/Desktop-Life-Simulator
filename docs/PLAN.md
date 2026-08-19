@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                             |
-| ------------------- | --------------------------- |
-| **Current version** | **v0.5 — The Playable Cut** |
-| **Current phase**   | **45 — Region Composition** |
-| **Status**          | **IN_PROGRESS**             |
+|                     |                                       |
+| ------------------- | ------------------------------------- |
+| **Current version** | **v0.5 — The Playable Cut**           |
+| **Current phase**   | **47 — Audio That Earns Eight Hours** |
+| **Status**          | **IN_PROGRESS**                       |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -37,8 +37,8 @@ owner's memory (`AI_RULES.md` §10.4).
 | 42    | Buildings At Their Real Size | COMPLETE    |
 | 43    | Nature At Their Real Size    | COMPLETE    |
 | 44    | Terrain Transitions & Paths  | COMPLETE    |
-| 45    | Region Composition           | IN_PROGRESS |
-| 46    | World Acceptance & Cost      | PENDING     |
+| 45    | Region Composition           | COMPLETE    |
+| 46    | World Acceptance & Cost      | COMPLETE    |
 | 47    | Audio That Earns Eight Hours | PENDING     |
 | 48    | Zone Painting                | PENDING     |
 | 49    | What Now                     | PENDING     |
@@ -416,9 +416,75 @@ already written down twice: a dithered blob produced the Bayer cross-hatch
 `ART_DIRECTION.md` §9.2 forbids. It is clustered marks now, densest at the
 centre — which is also what thinning turf looks like.
 
-**Still open in the world track:** path autotiling (§15) and region composition
-(§16) — landmarks, clusters and open space that make farm, town and wilds read
-as different places. Phase 46 measures cost and takes the acceptance picture.
+**Phase 45 — Region Composition: COMPLETE.** Three changes, and two of them
+came from looking at the town for the first time.
+
+- **The path plaza had four ruler-straight edges**, which is the most grid-like
+  thing a renderer can draw once the buildings are right. Four transparent
+  FRINGE overlays now let turf encroach over the path wherever its neighbour is
+  not one, and they COMPOSE — a corner draws two. Four sprites instead of the
+  sixteen full autotiling would need, baked into the chunk texture, so the whole
+  effect costs nothing per frame.
+- **The town was eleven rows tall in a five-row window.** The castle sat at
+  y=25 and the southern cottages at y=37, so a player could never see two
+  cottages at once and the town read as an empty plaza with something
+  off-screen. It is laid WIDE now — the window is wide and short, so the town
+  is too — with the plaza, well, board and all four cottages inside rows 31–35,
+  and the castle the one thing above them. The first attempt compressed it
+  vertically and put the castle INSIDE the plaza, which the town's own
+  walkability tests caught.
+- **The castle is a landmark** (§16): 4×3 tiles, two towers with conical roofs,
+  a crenellated curtain wall, a portcullis over a lit passage. It was a 32 px
+  grey box that read as a shed with a hat.
+
+Resident homes, town stops and the plaza geometry all moved with the layout.
+Three town pathfinding tests failed on the way — each encoding the old
+coordinates — and one of them was worth having: it asserts a route cannot end
+on a building tile, and the well had moved out from under it.
+
+**Still open in the world track:** rocks, bushes and ore veins are Tier 3 and
+still at their old scale (DEFERRED, not done). Phase 46 measures the idle cost
+and takes the acceptance picture.
+
+**Phase 46 — World Acceptance & Cost: MEASURED, and the number moved.**
+
+| Measure                   | Before the world track | After    | Budget |
+| ------------------------- | ---------------------- | -------- | ------ |
+| Simulation tick, average  | 0.063 ms               | 0.104 ms | —      |
+| Simulation tick, p99      | 0.2 ms                 | 0.3 ms   | 3 ms   |
+| Unattended farm CPU, mean | 0.595%                 | 1.058%   | —      |
+| Unattended farm CPU, max  | 0.835%                 | 2.013%   | —      |
+| Heap                      | 12.8 MB                | 13.6 MB  | —      |
+
+**Every budget still passes, with roughly 10× headroom on the tick.** But the
+tick average is up about 65% and the idle CPU has roughly doubled, and calling
+that "within budget" without saying so would be the false completion §44 warns
+about.
+
+The first reading was worse (0.133 ms) and was taken while the machine was
+building; re-measured idle it is 0.104. So part of the gap is load and part is
+real. The most likely cause of the real part is that **footprints make
+obstacles bigger**: a 3×3 mill blocks nine tiles where it blocked one, so every
+route around it explores more of the grid. That is an inherent consequence of
+the change rather than a defect, and it is stated as the likely cause rather
+than a proven one — it has not been bisected.
+
+**E2E: 81 passed, 4 skipped, 1 known flake** (`criterion 8`, which passes alone
+and whose own comments record it failing this way on the 44th sequential
+Electron launch). Six specs failed on the first full run: five were load
+failures that pass in isolation, and one was real — `v04-tick` placed six
+buildings in a single row one tile apart, which footprints no longer allow.
+
+**`worker.spec` was hanging for a reason worth keeping.** Its diagnostic
+`page.screenshot()` waits for a frame, and this renderer stops producing frames
+once the world settles — so a passing game produced a thirty-second timeout.
+`shoot()` in `framing.ts` captures through Electron instead.
+
+**THE PERCEPTUAL ACCEPTANCE IS THE OWNER'S CALL.** §39 of the brief states the
+real test as what someone unfamiliar with the code would call the game, and
+ADR-040 already fixed the rule this project follows: human-playtest evidence
+can never be marked PASS from an AI session. Everything measurable is measured;
+whether it now reads as a cozy world is the one thing that has to be looked at.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

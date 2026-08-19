@@ -110,12 +110,18 @@ function v04World(): World {
 
   // The farm's own buildings, then the chain.
   // The starting plot is 8x8 centred at (32, 32), so x and y both run 28..35.
-  const shed = placeBuilding(world, toIndexUnchecked(28, 29), CORE_STORAGE_SHED);
-  placeBuilding(world, toIndexUnchecked(29, 29), CORE_MARKET_STALL);
-  placeBuilding(world, toIndexUnchecked(30, 29), CORE_SEED_BIN);
-  placeBuilding(world, toIndexUnchecked(31, 29), CORE_REST_HUT);
-  const mill = placeBuilding(world, toIndexUnchecked(32, 29), CORE_MILL);
-  const kitchen = placeBuilding(world, toIndexUnchecked(33, 29), CORE_KITCHEN);
+  //
+  // FOOTPRINT-AWARE since phase-41 (ADR-042 §3). These used to sit in a single
+  // row one tile apart, which was correct when every building was one tile;
+  // the shed is 2x2 now, the stall and kitchen 3x2, the hut 2x2 and the mill
+  // 3x3, and a footprint grows UP and RIGHT from its origin. Three rows, with
+  // each origin checked against its neighbours' rectangles.
+  const shed = placeBuilding(world, toIndexUnchecked(28, 30), CORE_STORAGE_SHED);
+  placeBuilding(world, toIndexUnchecked(30, 30), CORE_SEED_BIN);
+  placeBuilding(world, toIndexUnchecked(32, 30), CORE_REST_HUT);
+  const mill = placeBuilding(world, toIndexUnchecked(28, 33), CORE_MILL);
+  const kitchen = placeBuilding(world, toIndexUnchecked(31, 33), CORE_KITCHEN);
+  placeBuilding(world, toIndexUnchecked(31, 35), CORE_MARKET_STALL);
   expect([shed.ok, mill.ok, kitchen.ok]).toEqual([true, true, true]);
 
   const ids = [...world.buildings.entries()];

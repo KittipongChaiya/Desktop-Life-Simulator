@@ -19,6 +19,7 @@
 // Container, RenderTexture, and Sprite are used as CONSTRUCTORS — they must be
 // value imports. `eslint --fix` once collapsed this whole line to `import type`,
 // which typechecks against the declarations and then fails at build time.
+import { Sprites } from '@assets/manifest';
 import { Container, RenderTexture, Sprite, type Renderer, type Texture } from 'pixi.js';
 
 import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
@@ -77,6 +78,14 @@ const UNOWNED_TINT = 0xdcd0bf;
  * five tiles tall, so a three-tile fade would be most of the screen.
  */
 const FRINGE_TINT = 0xeee8df;
+
+/** The four path fringes and the neighbour each one answers for. */
+const PATH_EDGES: readonly (readonly [number, number, string])[] = [
+  [0, -1, Sprites.terrainPathEdgeN],
+  [1, 0, Sprites.terrainPathEdgeE],
+  [0, 1, Sprites.terrainPathEdgeS],
+  [-1, 0, Sprites.terrainPathEdgeW],
+];
 
 /**
  * Whether a tile has an owned neighbour — i.e. sits on the plot's edge.
@@ -179,6 +188,31 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
           sprite.tint = touchesOwned(grid, worldX, worldY) ? FRINGE_TINT : UNOWNED_TINT;
         }
         scratch.addChild(sprite);
+
+        // PATH FRINGES (phase-45). A plaza of path tiles has four perfectly
+        // straight edges, which is the most grid-like thing a renderer can
+        // draw. Turf encroaches over the path wherever its neighbour is not
+        // one; the four overlays COMPOSE, so a corner simply draws two.
+        //
+        // Baked into the chunk texture like everything else here, so the whole
+        // effect costs nothing per frame.
+        if (key === Sprites.terrainPath) {
+          for (const [dx, dy, edge] of PATH_EDGES) {
+            const nx = worldX + dx;
+            const ny = worldY + dy;
+            const outside = nx < 0 || ny < 0 || nx >= grid.width || ny >= grid.height;
+            const neighbour = outside
+              ? ''
+              : tileSpriteKey(grid, tileKinds, asTileIndex(ny * WORLD_WIDTH + nx));
+            if (neighbour === Sprites.terrainPath) continue;
+
+            const fringe = new Sprite(textureFor(edge));
+            fringe.x = tx * TILE_SIZE;
+            fringe.y = ty * TILE_SIZE;
+            fringe.tint = sprite.tint;
+            scratch.addChild(fringe);
+          }
+        }
       }
     }
 

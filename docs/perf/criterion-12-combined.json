@@ -5,17 +5,17 @@
     "tickP50Ms": 0.2,
     "tickP95Ms": 0.3,
     "tickP99Ms": 0.5,
-    "tickAvgMs": 0.175,
-    "tickMaxMs": 6.6,
+    "tickAvgMs": 0.22,
+    "tickMaxMs": 31.8,
     "tickSamples": 1918,
-    "fps": 92.9,
-    "heapMb": 12.8,
-    "heapAtStartMb": 12.8,
+    "fps": 100,
+    "heapMb": 12.1,
+    "heapAtStartMb": 12.1,
     "dirty": "no · 5 anim",
     "ambience": "on 0.600"
   },
   "whenAway": {
-    "fps": 93.9,
+    "fps": 100,
     "ambience": "off",
     "dirty": "no · 3 anim",
     "awayPointerMoves": 0

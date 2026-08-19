@@ -227,3 +227,58 @@ test('a farm somebody has actually built', async ({}, testInfo) => {
   expect(buildings).toBeGreaterThan(0);
   await expect(inventory).toContainText('/90');
 });
+
+/**
+ * Drags the world east by roughly `tiles`, in several strokes.
+ *
+ * The world element takes drag-to-pan (`pointer-actions.ts`), which is the only
+ * way to reach the town and the wilds: the camera starts framed on the farm and
+ * nothing else moves it without a worker to follow.
+ */
+async function panEast(tiles: number): Promise<void> {
+  const window = await app.firstWindow();
+  const size = await window.evaluate(() => ({
+    width: globalThis.innerWidth,
+    height: globalThis.innerHeight,
+  }));
+  const y = Math.floor(size.height / 2) + 40;
+  let remaining = tiles * 32;
+
+  while (remaining > 0) {
+    const stroke = Math.min(remaining, 600);
+    await window.mouse.move(size.width - 200, y);
+    await window.mouse.down();
+    // Several small steps: one jump is treated as a click by most drag
+    // handlers, and this one needs to see movement to pan at all.
+    for (let step = 1; step <= 6; step += 1) {
+      await window.mouse.move(size.width - 200 - (stroke * step) / 6, y);
+    }
+    await window.mouse.up();
+    remaining -= stroke;
+    await window.waitForTimeout(120);
+  }
+
+  // Park the pointer off the world. The hover highlight follows it, and a
+  // review photograph with a selection box sitting in the middle of the town
+  // reads as a missing texture to anyone looking at it later — it did to me.
+  await window.mouse.move(4, 4);
+  await window.waitForTimeout(500);
+}
+
+// eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form
+test('the town and the wilds, which the farm view never shows', async ({}, testInfo) => {
+  // The three regions are supposed to read as different places (§16, §18, §19),
+  // and every other picture in this file is of the farm. The town is founded at
+  // world construction so it is there from the first tick; the wilds begin at
+  // x=80 and grow their own trees and ore.
+  const window = await app.firstWindow();
+  await window.waitForTimeout(1_200);
+
+  // The farm is centred near x=32; the town sits around x=71.
+  await panEast(36);
+  await capture(testInfo.outputPath('region-town.png'));
+
+  // And onward into the wilds, which start at x=80.
+  await panEast(22);
+  await capture(testInfo.outputPath('region-wilds.png'));
+});

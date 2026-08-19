@@ -59,7 +59,6 @@ import {
   WATER_LIGHT,
   WOOD_BASE,
   WOOD_LIGHT,
-  alphaAt,
   contactShadow,
   createCanvas,
   ellipse,
@@ -341,6 +340,54 @@ function pathTile() {
   // the path reading as poured concrete.
   scatter(canvas, rng, 6, (x, y) => set(canvas, x, y, SOIL_RICH));
   scatter(canvas, rng, 3, (x, y) => set(canvas, x, y, STRAW));
+  return canvas;
+}
+
+/**
+ * Path EDGES — the fringe where a path meets whatever is beside it.
+ *
+ * Phase-45. The town plaza is a large rectangle of path tiles, and drawn as
+ * plain tiles it has four perfectly straight edges: the most grid-like thing
+ * left on screen once the buildings were right. Nothing outdoors has an edge
+ * like that.
+ *
+ * These are TRANSPARENT overlays, one per side, drawn on top of a path tile
+ * wherever its neighbour is not a path. The fringe is grass-coloured, so the
+ * turf appears to encroach on the path rather than the path having a border —
+ * which is how a worn track actually meets a field, and means the same four
+ * sprites work against any ground.
+ *
+ * Four sprites rather than sixteen: full autotiling needs a tile per
+ * neighbour-combination, and these COMPOSE — a corner draws two of them. That
+ * is the whole of what a fringe needs, at a quarter of the art.
+ *
+ * @param {'n' | 'e' | 's' | 'w'} side
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
+function pathEdge(side) {
+  const canvas = createCanvas(TILE, TILE);
+  const rng = prng(1601 + side.charCodeAt(0));
+
+  // Depth of the encroaching turf at each step along the edge. Irregular, and
+  // it WRAPS: the first and last columns share a value so two tiles side by
+  // side do not show a seam where their fringes meet.
+  const depth = [];
+  for (let i = 0; i < TILE; i += 1) depth.push(1 + Math.floor(rng() * 4));
+  depth[TILE - 1] = depth[0] ?? 1;
+
+  for (let i = 0; i < TILE; i += 1) {
+    const reach = depth[i] ?? 1;
+    for (let d = 0; d < reach; d += 1) {
+      // Thinning outward: the far edge of the fringe is broken rather than a
+      // second straight line one pixel further in.
+      if (d > 1 && rng() < 0.45) continue;
+      const shade = d === reach - 1 ? GRASS_BASE : GRASS_SHADOW;
+      if (side === 'n') set(canvas, i, d, shade);
+      else if (side === 's') set(canvas, i, TILE - 1 - d, shade);
+      else if (side === 'w') set(canvas, d, i, shade);
+      else set(canvas, TILE - 1 - d, i, shade);
+    }
+  }
   return canvas;
 }
 
@@ -1382,52 +1429,82 @@ function noticeBoard() {
   return canvas;
 }
 
-/** Castle (`core:castle`): the village's landmark keep, asked for by the
- * owner (2026-08-15). Stone where everything else is wood — but rounded and
- * warm per the canon's "nothing threatens home" (WORLD_BIBLE §Philosophy):
- * two round towers, a lit gate, Straw windows glowing, and a little pennant.
- * The tallest stone silhouette in the game; never a fortress of menace. */
+/**
+ * The castle (`core:castle`) — 4x3 tiles, 128x136 px.
+ *
+ * Redrawn at footprint scale in phase-45. It is the village's LANDMARK
+ * (§16): the thing that tells a player at a glance which way the town is, and
+ * the one building that should look older and heavier than everything else.
+ * At 32 px it was a grey box that read as a shed with a hat.
+ *
+ * Warm stone rather than the cold grey ramp — this is a place people live
+ * beside, not ore-bearing rock. Two towers and a gatehouse, because a
+ * silhouette with three peaks reads as a castle at any size, and a crenellated
+ * line reads as one even when every other detail is lost.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function castle() {
-  const canvas = createCanvas(TILE, TILE);
-  const rng = prng(1405);
-  // Central keep body.
-  rect(canvas, 9, 12, 22, 28, STONE_BASE);
-  rect(canvas, 9, 12, 10, 28, STONE_LIGHT); // lit left face
-  // Two round-ish corner towers, slightly taller than the keep.
-  rect(canvas, 4, 10, 8, 28, STONE_BASE);
-  rect(canvas, 4, 10, 4, 28, STONE_LIGHT);
-  rect(canvas, 23, 10, 27, 28, STONE_BASE);
-  rect(canvas, 27, 11, 27, 28, STONE_DARK);
-  // Crenellations: alternating merlons on keep and towers.
-  for (const x of [4, 6, 8]) rect(canvas, x, 8, x, 9, STONE_BASE);
-  for (const x of [23, 25, 27]) rect(canvas, x, 8, x, 9, STONE_BASE);
-  for (const x of [11, 13, 15, 17, 19, 21]) rect(canvas, x, 10, x, 11, STONE_BASE);
-  set(canvas, 4, 8, STONE_LIGHT);
-  set(canvas, 11, 10, STONE_LIGHT);
-  // Stone seams, sparse, with a lit fleck in the upper-left quadrant.
-  for (let i = 0; i < 12; i += 1) {
-    const x = 5 + Math.floor(rng() * 22);
-    const y = 13 + Math.floor(rng() * 14);
-    if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, rng() < 0.35 ? STONE_LIGHT : STONE_DARK);
+  const canvas = createCanvas(128, 136);
+  const rng = prng(1701);
+  const groundY = 135;
+
+  /** A crenellated parapet: the merlons that say "castle" before anything else.
+   * @param {number} x0 @param {number} x1 @param {number} y @returns {void} */
+  const battlements = (x0, x1, y) => {
+    rect(canvas, x0, y, x1, y + 5, STONE_WARM);
+    rect(canvas, x0, y, x1, y + 1, STONE_WARM_LIGHT);
+    for (let x = x0; x <= x1 - 5; x += 10) {
+      rect(canvas, x + 5, y - 6, x + 9, y - 1, STONE_WARM);
+      rect(canvas, x + 5, y - 6, x + 9, y - 5, STONE_WARM_LIGHT);
+      rect(canvas, x + 9, y - 6, x + 9, y - 1, STONE_WARM_DARK);
+    }
+  };
+
+  // ── The curtain wall between the towers ─────────────────────────────────
+  material.masonry(canvas, 30, 62, 98, 128, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 71);
+  battlements(28, 100, 56);
+
+  // ── The gatehouse: an arch, a portcullis, and a lit passage ─────────────
+  rect(canvas, 50, 84, 78, 128, STONE_WARM_DARK);
+  blob(canvas, 64, 88, 15, 14, STONE_WARM_DARK, 73, 0.03);
+  blob(canvas, 64, 92, 12, 11, SOIL_DARK, 75, 0.03);
+  rect(canvas, 52, 92, 76, 128, SOIL_DARK);
+  // Portcullis bars, and warm light from inside the passage.
+  for (let x = 54; x <= 74; x += 5) rect(canvas, x, 92, x + 1, 118, TIMBER_DARK);
+  for (let y = 98; y <= 118; y += 8) rect(canvas, 52, y, 76, y + 1, TIMBER_DARK);
+  rect(canvas, 56, 120, 72, 128, STRAW);
+  rect(canvas, 60, 124, 68, 128, GOLD_HIGHLIGHT);
+  // The arch's keystone course.
+  blob(canvas, 64, 86, 16, 8, STONE_WARM_LIGHT, 77, 0.05);
+  blob(canvas, 64, 90, 13, 6, STONE_WARM_DARK, 79, 0.05);
+
+  // ── Two towers, taller than the wall, with conical slate roofs ──────────
+  for (const cx of [16, 112]) {
+    material.masonry(canvas, cx - 15, 40, cx + 15, 128, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 81 + cx);
+    battlements(cx - 17, cx + 17, 34);
+    pitchedRoof(canvas, 2, 30, cx, 20, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
+    // Arrow slits: two pixels wide, which is all a slit ever is.
+    for (const y of [58, 82, 104]) {
+      rect(canvas, cx - 1, y, cx, y + 7, SOIL_DARK);
+      set(canvas, cx - 1, y + 3, STRAW);
+    }
+    // A pennant on the roof, the one bright accent.
+    rect(canvas, cx, 0, cx, 8, TIMBER_DARK);
+    polygon(canvas, [[cx + 1, 1], [cx + 12, 4], [cx + 1, 7]], BLOOM_ROSE);
   }
-  // Round-topped gate, warm inside — the door is open, and that is the point.
-  rect(canvas, 13, 21, 18, 28, SOIL_DARK);
-  rect(canvas, 14, 22, 17, 28, STRAW);
-  set(canvas, 14, 21, SOIL_DARK);
-  set(canvas, 17, 21, SOIL_DARK);
-  // Two lit tower windows.
-  rect(canvas, 5, 14, 6, 16, SOIL_DARK);
-  set(canvas, 6, 15, STRAW);
-  rect(canvas, 24, 14, 25, 16, SOIL_DARK);
-  set(canvas, 24, 15, STRAW);
-  // A pennant on the keep: one pole pixel-wide, a small Parchment flag.
-  rect(canvas, 15, 4, 15, 9, WOOD_BASE);
-  rect(canvas, 16, 4, 19, 5, PARCHMENT);
-  set(canvas, 19, 4, STRAW);
-  outlineSilhouette(canvas);
-  contactShadow(canvas, 16, 29, 13, 1.8);
+
+  // ── Weathering: moss where the stone meets the ground ──────────────────
+  for (let i = 0; i < 30; i += 1) {
+    const x = 2 + Math.floor(rng() * 124);
+    const y = 118 + Math.floor(rng() * 10);
+    if (rng() < 0.5) set(canvas, x, y, ROOF_MOSS);
+  }
+
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 64, groundY, 56, 4);
   return canvas;
 }
+
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
@@ -1464,6 +1541,11 @@ function main() {
     [terrainDir, 'water.png', waterTile],
     [terrainDir, 'stone.png', stoneTile],
     [terrainDir, 'path.png', pathTile],
+    // Path fringes (phase-45), composed by the chunk baker.
+    [terrainDir, 'path_edge_n.png', () => pathEdge('n')],
+    [terrainDir, 'path_edge_e.png', () => pathEdge('e')],
+    [terrainDir, 'path_edge_s.png', () => pathEdge('s')],
+    [terrainDir, 'path_edge_w.png', () => pathEdge('w')],
     [terrainDir, 'wild.png', () => wildTile(1206, { stones: 9 })],
     [terrainDir, 'wild_b.png', () => wildTile(1216, { stones: 16 })],
     [buildingsDir, 'tree.png', tree],
