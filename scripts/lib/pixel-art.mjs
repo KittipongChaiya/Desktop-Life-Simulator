@@ -58,6 +58,7 @@ export const ROOF_TERRACOTTA = rgba('#C4623F');
 export const ROOF_CLAY = rgba('#9B4A32');
 export const ROOF_SLATE = rgba('#5E6E7A');
 export const ROOF_SLATE_LIGHT = rgba('#7C8D99');
+export const ROOF_SLATE_DEEP = rgba('#46545E');
 export const ROOF_MOSS = rgba('#6E8A55');
 
 export const STONE_WARM_DARK = rgba('#6E5F52');

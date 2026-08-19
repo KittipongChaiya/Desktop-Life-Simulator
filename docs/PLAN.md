@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                             |
 | ------------------- | --------------------------- |
 | **Current version** | **v0.5 — The Playable Cut** |
-| **Current phase**   | **33 — The Ground**         |
+| **Current phase**   | **34 — Buildings**          |
 | **Status**          | **IN_PROGRESS**             |
 
 | Phase | Name                         | Status      |
@@ -106,17 +106,47 @@ contact sheet:
   of what a multiply tint can do; the structural limit is recorded in
   `ART_DIRECTION.md` §9.3 along with what it would cost to lift it.
 
-**WEATHER, which the phase also owed and which was missing entirely.** Rain
-had been audible since phase-13 and invisible ever since — the ambience bed
-played while the world looked like a clear day. Weather now declares a ground
-tint the way a season does, and the two multiply together
-(`src/renderer/render/tint.ts`). A tint and not particles because it costs
-nothing that survives idle; falling rain is motion, and motion is phase 39.
+**Phase 33 — COMPLETE**, weather included. Rain had been audible since
+phase-13 and invisible ever since; weather now declares a ground tint the way a
+season does, and the two multiply (`src/renderer/render/tint.ts`). A tint and
+not particles because it costs nothing that survives idle — falling rain is
+motion, and motion is phase 39. `ART_DIRECTION.md` §9.3 records what a multiply
+CANNOT do: autumn reaches olive but not brown, and winter cannot have snow.
 
-REMAINING in 33: nothing — the phase's open item is whether seasonal foliage
-VARIANTS are worth amending ADR-021 §6 for, which is a decision rather than a
-task. Buildings being small and hard to tell apart is phase 34, and the
-reviewed scene is the evidence it starts from.
+**Phase 34 — Buildings: IN_PROGRESS.** ADR-041's audit said five buildings were
+the same building ±10 px, and the contact sheet confirmed it: cottage, storage
+shed, rest hut and kitchen were all a brown box under a straw trapezoid, the
+mill was a grey tower whose entire mill-ness was a 5 px gear, and the kitchen's
+was an orange circle. Six are rebuilt, each on a silhouette argument rather than
+a decoration:
+
+- **cottage** — the only half-timbered building: steep terracotta gable, cream
+  plaster, chimney with smoke, lit windows, window boxes. It should be the
+  warmest thing on screen.
+- **storage shed** — the flattest roof in the set and the only building with no
+  windows, because it is a place things go rather than a place anyone is.
+- **rest hut** — the smallest and the only DOMED roof, in moss, with a bench.
+- **seed bin** — deliberately not a building at all: a slatted box with its lid
+  propped open at an angle and grain spilling out.
+- **mill** — the TALLEST silhouette and the only one with a wheel. A waterwheel
+  reads as a mill at any size to anyone; a gear does not.
+- **kitchen** — a lopsided mass built round a masonry oven stack with a lit
+  mouth and smoke. The one place the game shows fire.
+
+`Roof Slate Deep #46545E` was added by R-08's process: terracotta shipped with
+two steps and slate with one, so every slate roof borrowed a timber brown for
+its shadow and read muddy. A material with one value cannot be lit.
+
+**Found and fixed while here:** the mill and kitchen had NO row in
+`GENERATION.md` — phase-25 shipped them without recording provenance at all.
+
+REMAINING in 34: the market stall, well and notice board already carry their own
+silhouettes and are kept (ADR-041 does not license replacing what fits). The
+open item is a SCALE one the reviewed scene exposes and phase 34 cannot fix:
+**trees are 64×96 and buildings are 32×32**, so a Tier 3 prop is three times the
+Tier 2 structure beside it. Buildings cannot grow — they are top-left anchored
+to one tile, and bottom-anchoring them would move every placement, the build
+ghost and the click targets — so the tree has to come down, which is phase 37.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

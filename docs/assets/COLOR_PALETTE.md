@@ -85,7 +85,14 @@ spent on making them identical.
 | Roof Clay        | `#9B4A32` | The shadow step of terracotta; ridge lines     |
 | Roof Slate       | `#5E6E7A` | Civic and production buildings — mill, kitchen |
 | Roof Slate Light | `#7C8D99` | The lit face of slate                          |
+| Roof Slate Deep  | `#46545E` | The shaded face and course lines of slate      |
 | Roof Moss        | `#6E8A55` | Old, settled roofs — the well, outbuildings    |
+
+**`Roof Slate Deep` added in phase-34.** Terracotta shipped with two steps
+(`#C4623F` and `#9B4A32`) and slate with one, so every slate roof had to borrow
+a timber brown for its shadow — which is why the mill and the shed read as
+muddy rather than as stone. A material with one value is a material that cannot
+be lit.
 
 ### 3.2c Warm stone and cream — replacing the grey
 
