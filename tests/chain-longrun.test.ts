@@ -48,6 +48,7 @@ import { stepSimulationBy } from '../src/sim/tick';
 import { addItems, containerCount } from '../src/sim/world/container';
 import { routesInOrder } from '../src/sim/world/route';
 import { createWorld, type World } from '../src/sim/world/world';
+import { longRunBudget } from './long-run-budget';
 
 /** Eight hours at 20 Hz. */
 const EIGHT_HOURS = OFFLINE_CAP_TICKS;
@@ -61,8 +62,18 @@ const SAMPLE_TICKS = 12_000;
  * cost is attributed to the one test that incurs it (the v0.3 lesson: a runner
  * budget is not a game budget, and it gets headroom in the commit that needs
  * it).
+ *
+ * **Raised at the v0.5 RC, which is the commit that needed it.** Measured at
+ * 687 s uninstrumented against the previous 900 s — 76% of the budget, which
+ * is not headroom, it is a coin toss on a slower machine. v0.5 gave every
+ * building a real footprint, so the obstacle map the crew paths around grew,
+ * and the tick went 0.063 → 0.104 ms (`PERFORMANCE.md`).
+ *
+ * `longRunBudget` multiplies this under coverage, where the same run measured
+ * 1,980 s. THIS NUMBER IS NOT A PERFORMANCE BUDGET — it detects a hang, and
+ * the performance claim is measured separately in `PERFORMANCE.md`.
  */
-const RUN_TIMEOUT_MS = 900_000;
+const RUN_TIMEOUT_MS = longRunBudget(1_400_000);
 
 interface Chain {
   readonly world: World;

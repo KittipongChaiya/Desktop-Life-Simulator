@@ -247,8 +247,7 @@ function paintGeometry(c, view, pose, costume) {
   if (side) {
     // One near arm, swinging opposite the front leg; reaches on harvest.
     const swing = -pose.stride * 2;
-    const handY =
-      pose.hands === 'ground' ? 38 : pose.hands === 'reach' ? 32 + pose.stoop : 27 + dy;
+    const handY = pose.hands === 'ground' ? 38 : pose.hands === 'reach' ? 32 + pose.stoop : 27 + dy;
     rect(c, 14 + swing, armTop, 16 + swing, handY, costume.tunic.base);
     rect(c, 14 + swing, handY, 16 + swing, handY + 1, costume.skin.base); // mitten
   } else {
@@ -428,7 +427,10 @@ function writeCharacter(entity, costume, withHarvest = true, keyPrefix = `${enti
     const walk = [];
     for (let f = 0; f < WALK_POSES.length; f += 1) {
       const pose = WALK_POSES[f] ?? STAND;
-      writePng(join(dir, `${entity}_walk_${view}_${String(f)}.png`), paintView(view, pose, costume));
+      writePng(
+        join(dir, `${entity}_walk_${view}_${String(f)}.png`),
+        paintView(view, pose, costume),
+      );
       walk.push(`${entity}_walk_${view}_${String(f)}`);
     }
     animations[`${keyPrefix}walk_${view}`] = { frames: walk, frameTicks: 4, loop: true };
@@ -451,8 +453,11 @@ function writeCharacter(entity, costume, withHarvest = true, keyPrefix = `${enti
   // silently drew nothing, because the `.anim.json` files were written by hand
   // and nobody remembers a file that is not in front of them. Art and the
   // manifest that indexes it now cannot drift.
-  writeFileSync(join(dir, `${entity}.anim.json`), `${JSON.stringify(animations, null, 2)}
-`);
+  writeFileSync(
+    join(dir, `${entity}.anim.json`),
+    `${JSON.stringify(animations, null, 2)}
+`,
+  );
 }
 
 function main() {

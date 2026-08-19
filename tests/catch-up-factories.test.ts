@@ -45,6 +45,7 @@ import { stepSimulationBy } from '../src/sim/tick';
 import { addItems, containerCount } from '../src/sim/world/container';
 import type { FactoryState } from '../src/sim/world/factory';
 import { createWorld, type World } from '../src/sim/world/world';
+import { longRunBudget } from './long-run-budget';
 
 /** Ticks one grind takes — read from content, never pinned here. */
 function craftTicks(world: World): number {
@@ -159,39 +160,49 @@ describe('a factory produces while the player is away', () => {
 });
 
 describe('the round-down rule (GAME_DESIGN.md §9.2)', () => {
-  it('never credits more than running the ticks for real', () => {
-    // THE test. Everything above is an example; this is the promise. The
-    // comparison is against the real simulation rather than a second model,
-    // so a model that drifts from the game fails here rather than agreeing
-    // with itself.
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 30 }), // wheat present
-        fc.integer({ min: 0, max: 380 }), // flour already in the output
-        fc.integer({ min: 1, max: 20_000 }), // gap
-        (wheat, flour, gap) => {
-          const offline = millWorld(wheat);
-          // The same farm, stepped for real rather than modelled. Comparing
-          // against the SIMULATION rather than a second model is the point: a
-          // model that drifts from the game fails here instead of agreeing
-          // with itself. Pre-filling the output reaches the full-output case,
-          // which is where a careless model over-credits.
-          const live = millWorld(wheat);
-          for (const target of [offline, live]) {
-            addItems(target.factory.output, CORE_FLOUR, flour, DEFAULT_STACK_SIZE);
-          }
+  it(
+    'never credits more than running the ticks for real',
+    () => {
+      // THE test. Everything above is an example; this is the promise. The
+      // comparison is against the real simulation rather than a second model,
+      // so a model that drifts from the game fails here rather than agreeing
+      // with itself.
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 0, max: 30 }), // wheat present
+          fc.integer({ min: 0, max: 380 }), // flour already in the output
+          fc.integer({ min: 1, max: 20_000 }), // gap
+          (wheat, flour, gap) => {
+            const offline = millWorld(wheat);
+            // The same farm, stepped for real rather than modelled. Comparing
+            // against the SIMULATION rather than a second model is the point: a
+            // model that drifts from the game fails here instead of agreeing
+            // with itself. Pre-filling the output reaches the full-output case,
+            // which is where a careless model over-credits.
+            const live = millWorld(wheat);
+            for (const target of [offline, live]) {
+              addItems(target.factory.output, CORE_FLOUR, flour, DEFAULT_STACK_SIZE);
+            }
 
-          catchUpWorld(offline.world, gap);
-          stepSimulationBy(live.world, gap);
+            catchUpWorld(offline.world, gap);
+            stepSimulationBy(live.world, gap);
 
-          const credited = containerCount(offline.factory.output, CORE_FLOUR);
-          const real = containerCount(live.factory.output, CORE_FLOUR);
-          expect(credited).toBeLessThanOrEqual(real);
-        },
-      ),
-      { numRuns: 300 },
-    );
-  });
+            const credited = containerCount(offline.factory.output, CORE_FLOUR);
+            const real = containerCount(live.factory.output, CORE_FLOUR);
+            expect(credited).toBeLessThanOrEqual(real);
+          },
+        ),
+        { numRuns: 300 },
+      );
+      // 300 property runs, each stepping the real simulation across a gap of up
+      // to 20,000 ticks. Measured at 93 s uninstrumented against the runner's
+      // global 120 s — 78% of the budget, which is close enough to fail on a
+      // slower machine for no reason anybody could act on. Stated here rather
+      // than raised globally so the cost stays attributed to the test incurring
+      // it, which is this file's existing convention and `chain-longrun`'s.
+    },
+    longRunBudget(300_000),
+  );
 
   it('conserves quantity across the gap, counting a craft as an exchange', () => {
     // 2 wheat → 1 flour, so wheat + 2×flour is invariant however many crafts

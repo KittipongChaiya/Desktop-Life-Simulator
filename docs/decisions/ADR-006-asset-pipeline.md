@@ -1,12 +1,12 @@
 # ADR-006: Build-Time Asset Pipeline with Generated Atlases
 
-| | |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-07-21 |
-| **Deciders** | Project owner, lead architect |
-| **Supersedes** | — |
-| **Superseded by** | — |
+|                   |                               |
+| ----------------- | ----------------------------- |
+| **Status**        | Accepted                      |
+| **Date**          | 2026-07-21                    |
+| **Deciders**      | Project owner, lead architect |
+| **Supersedes**    | —                             |
+| **Superseded by** | —                             |
 
 ---
 
@@ -43,10 +43,10 @@ Runs as a build step (`npm run assets`) and as a watcher in development.
 
 ### 2. Source assets are committed; generated assets are not
 
-| Path | Committed | Contents |
-|---|---|---|
-| `assets/src/` | **Yes** | Authored PNGs, `.aseprite` sources, audio sources, `.json` metadata |
-| `assets/dist/` | **No** — gitignored | Generated atlases, manifests, compressed audio |
+| Path           | Committed           | Contents                                                            |
+| -------------- | ------------------- | ------------------------------------------------------------------- |
+| `assets/src/`  | **Yes**             | Authored PNGs, `.aseprite` sources, audio sources, `.json` metadata |
+| `assets/dist/` | **No** — gitignored | Generated atlases, manifests, compressed audio                      |
 
 Committing generated atlases would produce enormous, unmergeable binary diffs on every art change and would let `dist` silently drift from `src`. The pipeline is deterministic, so `dist` is always reproducible from `src`. CI rebuilds it; a stale-artifact check fails the build if a committed `dist` ever appears.
 
@@ -54,14 +54,14 @@ Committing generated atlases would produce enormous, unmergeable binary diffs on
 
 Atlas membership follows what is drawn together, so a scene's textures live in as few atlases as possible:
 
-| Atlas | Contents | Loaded |
-|---|---|---|
-| `terrain` | Tile bases, soil states, path decals | Always |
-| `crops` | All crop growth-stage frames | Always (v0.1) |
-| `entities` | Worker sprites, animation frames | Always |
-| `buildings` | Structures, props | Always |
-| `ui-world` | Selection, ghosts, in-world icons | Always |
-| `effects` | Particles, weather | v0.2+, lazy |
+| Atlas       | Contents                             | Loaded        |
+| ----------- | ------------------------------------ | ------------- |
+| `terrain`   | Tile bases, soil states, path decals | Always        |
+| `crops`     | All crop growth-stage frames         | Always (v0.1) |
+| `entities`  | Worker sprites, animation frames     | Always        |
+| `buildings` | Structures, props                    | Always        |
+| `ui-world`  | Selection, ghosts, in-world icons    | Always        |
+| `effects`   | Particles, weather                   | v0.2+, lazy   |
 
 Grouping by type instead (`all-animations`, `all-static`) would scatter simultaneously-drawn sprites across atlases and break batching — the mistake this structure exists to avoid.
 
@@ -102,7 +102,7 @@ Content definitions reference sprite keys, closing the loop with ADR-004 §5:
 registerCrop({
   id: 'core:wheat',
   growthTicks: 2400,
-  stageSprites: [Sprites.cropWheatStage0, Sprites.cropWheatStage1, /* … */],
+  stageSprites: [Sprites.cropWheatStage0, Sprites.cropWheatStage1 /* … */],
 });
 ```
 
@@ -146,19 +146,19 @@ Every asset directory carries an `ATTRIBUTION.md` recording source, author, and 
 ### E. Vite's asset imports (`import wheat from './wheat.png'`)
 
 - **For:** built into the bundler, gives compile-time reference safety.
-- **Rejected because:** it handles *bundling* but not *atlasing* — each import stays a separate texture, so batching still breaks. Solves the smaller half of the problem.
+- **Rejected because:** it handles _bundling_ but not _atlasing_ — each import stays a separate texture, so batching still breaks. Solves the smaller half of the problem.
 
 ---
 
 ## Tradeoffs Accepted
 
-| We accept | To gain | Mitigation |
-|---|---|---|
-| A build step before art appears | Batching, type safety, no runtime cost | Watch mode in dev; regeneration in seconds |
-| Generated code in the repo tree | Compile-time asset safety | Clearly marked generated, gitignored, reproducible |
-| Atlas grouping needs occasional thought | Minimal draw calls | Groups documented in `ASSETS.md`; draw calls tracked in `PERFORMANCE.md` |
-| Whole atlas loads for one sprite | Fewer, larger requests | Grouped by co-usage, so this is nearly always the right trade |
-| A pipeline dependency | Maintained alongside Pixi | Deterministic output; replaceable without touching call sites |
+| We accept                               | To gain                                | Mitigation                                                               |
+| --------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| A build step before art appears         | Batching, type safety, no runtime cost | Watch mode in dev; regeneration in seconds                               |
+| Generated code in the repo tree         | Compile-time asset safety              | Clearly marked generated, gitignored, reproducible                       |
+| Atlas grouping needs occasional thought | Minimal draw calls                     | Groups documented in `ASSETS.md`; draw calls tracked in `PERFORMANCE.md` |
+| Whole atlas loads for one sprite        | Fewer, larger requests                 | Grouped by co-usage, so this is nearly always the right trade            |
+| A pipeline dependency                   | Maintained alongside Pixi              | Deterministic output; replaceable without touching call sites            |
 
 ---
 

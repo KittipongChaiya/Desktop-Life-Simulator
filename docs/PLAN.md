@@ -15,36 +15,36 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                 |
-| ------------------- | ------------------------------- |
-| **Current version** | **v0.5 — The Playable Cut**     |
-| **Current phase**   | **52 — v0.5 Release Candidate** |
-| **Status**          | **IN_PROGRESS**                 |
+|                     |                                  |
+| ------------------- | -------------------------------- |
+| **Current version** | **v0.5 — The Playable Cut**      |
+| **Current phase**   | **52 — v0.5 Release Candidate**  |
+| **Status**          | **COMPLETE — release candidate** |
 
-| Phase | Name                         | Status      |
-| ----- | ---------------------------- | ----------- |
-| 31    | v0.5 Baseline & evidence     | COMPLETE    |
-| 32    | Art Direction & The Palette  | COMPLETE    |
-| 33    | The Ground                   | COMPLETE    |
-| 34    | Buildings                    | COMPLETE    |
-| 35    | The Farm                     | COMPLETE    |
-| 36    | Characters & Small Life      | COMPLETE    |
-| 37    | Density & The Three Regions  | COMPLETE    |
-| 38    | The UI Joins The World       | COMPLETE    |
-| 39    | Motion & Overlay-Scale       | COMPLETE    |
-| 40    | Depth & Anchors              | COMPLETE    |
-| 41    | Footprints                   | COMPLETE    |
-| 42    | Buildings At Their Real Size | COMPLETE    |
-| 43    | Nature At Their Real Size    | COMPLETE    |
-| 44    | Terrain Transitions & Paths  | COMPLETE    |
-| 45    | Region Composition           | COMPLETE    |
-| 46    | World Acceptance & Cost      | COMPLETE    |
-| 47    | Audio That Earns Eight Hours | COMPLETE    |
-| 48    | Zone Painting                | COMPLETE    |
-| 49    | What Now                     | COMPLETE    |
-| 50    | First Run                    | COMPLETE    |
-| 51    | Balance & The Idle Cost      | COMPLETE    |
-| 52    | v0.5 Release Candidate       | IN_PROGRESS |
+| Phase | Name                         | Status   |
+| ----- | ---------------------------- | -------- |
+| 31    | v0.5 Baseline & evidence     | COMPLETE |
+| 32    | Art Direction & The Palette  | COMPLETE |
+| 33    | The Ground                   | COMPLETE |
+| 34    | Buildings                    | COMPLETE |
+| 35    | The Farm                     | COMPLETE |
+| 36    | Characters & Small Life      | COMPLETE |
+| 37    | Density & The Three Regions  | COMPLETE |
+| 38    | The UI Joins The World       | COMPLETE |
+| 39    | Motion & Overlay-Scale       | COMPLETE |
+| 40    | Depth & Anchors              | COMPLETE |
+| 41    | Footprints                   | COMPLETE |
+| 42    | Buildings At Their Real Size | COMPLETE |
+| 43    | Nature At Their Real Size    | COMPLETE |
+| 44    | Terrain Transitions & Paths  | COMPLETE |
+| 45    | Region Composition           | COMPLETE |
+| 46    | World Acceptance & Cost      | COMPLETE |
+| 47    | Audio That Earns Eight Hours | COMPLETE |
+| 48    | Zone Painting                | COMPLETE |
+| 49    | What Now                     | COMPLETE |
+| 50    | First Run                    | COMPLETE |
+| 51    | Balance & The Idle Cost      | COMPLETE |
+| 52    | v0.5 Release Candidate       | COMPLETE |
 
 **v0.4 shipped as a release candidate** on 2026-08-18 — phases 24–30, all six
 milestones, `RELEASE-v0.4-RC.md`. Its gate results live in that document and are
@@ -469,6 +469,22 @@ route around it explores more of the grid. That is an inherent consequence of
 the change rather than a defect, and it is stated as the likely cause rather
 than a proven one — it has not been bisected.
 
+> **CORRECTED AT PHASE 52 — the regression above does not reproduce.** Measured
+> fresh for the RC on an idle machine, the criterion-5 tick average is
+> **0.060 ms** (not 0.104, against a 0.063 baseline) and unattended CPU mean is
+> **0.533%** (not 1.058%, against 0.595%). The v0.4 full-load scenario is
+> **faster** than it was at v0.4: 0.145 ms average against 0.187 ms.
+>
+> The paragraph above is left standing rather than rewritten, because what it
+> got wrong is worth keeping visible: it identified machine load as a partial
+> cause, re-measured once, and still reported a regression from a reading taken
+> minutes after a build. Load was not a partial cause, it was the cause. The
+> footprint hypothesis is **withdrawn** — nothing measured supports it.
+>
+> One real increase survives: heap 12.8 → 14.5 MB, consistent across readings,
+> most plausibly the art set growing from 166 sprites to 237.
+> `PERFORMANCE.md` §18 carries all of it.
+
 **E2E: 81 passed, 4 skipped, 1 known flake** (`criterion 8`, which passes alone
 and whose own comments record it failing this way on the 44th sequential
 Electron launch). Six specs failed on the first full run: five were load
@@ -620,6 +636,59 @@ an arc that got slower; nothing caught one that fell over.
 
 `GAME_DESIGN.md` §1.1 now carries the measurement, the reason neither number is
 an answer, and the open question stated so it is not rediscovered.
+
+**Phase 52 — v0.5 Release Candidate: COMPLETE.** `RELEASE-v0.5-RC.md` is the
+deliverable and carries the full gate table; this is the short version.
+
+**Every gate re-run fresh rather than cited**, which is the v0.3 lesson v0.4
+adopted and this version keeps. Unit **3,307 passed / 0 failed** across 259
+files; E2E **84 passed, 4 skipped, 0 failed** in 10.1 minutes with **no
+flakes**; a **production** build launched and stayed up; typecheck ×3, lint,
+boundaries, cycles, the `v1 → v14` migration chain and `npm audit` all clean.
+Coverage **94.98% lines / 86.58% branches** with all nine per-area thresholds
+met.
+
+**Three findings, none of which any amount of reading would have produced:**
+
+1. **The coverage gate went red with five timeouts, and the obvious fix was
+   wrong.** Instrumentation costs ~3.3×; excluding the long-runs (as
+   `memory-longrun` already is) drops `src/persistence` branches to 88.47%
+   against a 90% threshold, because `catch-up-factories` reaches
+   `catch-up.ts` gaps nothing else does. `tests/long-run-budget.ts` gives a
+   test one budget per run instead. Two long-runs were also at 76–78% of their
+   timeout UNINSTRUMENTED — a coin toss on a slower machine.
+
+2. **Asset regeneration could not have been byte-identical**, and had not been
+   for the whole art track. `lint-staged` ran Prettier over the generated
+   `.anim.json` sidecars, which collapses arrays that `JSON.stringify` expands,
+   so every commit and every regeneration flipped six files. ADR-006 §2's
+   entire guarantee is that a re-run produces identical bytes.
+   `.prettierignore` now keeps the formatter out of generated output (the perf
+   artefacts had the same problem), and a test fails if anything gets back in.
+   The `lint-staged` glob also never covered `.mjs`, which is how four art
+   generators drifted unnoticed.
+
+3. **Phase 46's performance regression does not reproduce.** Re-measured on an
+   idle machine: tick average **0.060 ms** (reported 0.104, baseline 0.063),
+   unattended CPU **0.533%** (reported 1.058%, baseline 0.595%), and v0.4's own
+   full-load scenario now **faster than at v0.4** — 0.145 ms against 0.187 ms.
+   Phase 46 noticed its first reading was taken mid-build, re-measured once,
+   and reported the regression anyway; load was the cause, not a contributor.
+   The footprint hypothesis is **withdrawn in the place it was made**. Heap
+   12.8 → 14.5 MB is the one real increase, most plausibly 166 → 237 sprites.
+
+**And one ADR amended**: ADR-042 §4 described legacy overlap resolving by "the
+first placed keeps it", which `deserialize.ts` does not do — it marks every
+tile of every rectangle blocked, because the grid records whether a tile is
+blocked, not who blocked it. Same guarantee, simpler mechanism, and the ADR was
+the thing that was wrong. `tests/legacy-overlap-load.test.ts` now pins the
+behaviour on the load path, which is where an old save actually arrives.
+
+**TWO SUCCESS CRITERIA ARE OPEN, NOT MET AND NOT SUBSTITUTED.** The "oh, I
+see" moment at the first hire, and a tester returning on a second day, are
+human-playtest evidence; ADR-040 fixed at phase 31 that such evidence is never
+marked PASS from a session with no human in it. **Perceptual acceptance of the
+whole visual overhaul is in the same class and is the owner's call.**
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

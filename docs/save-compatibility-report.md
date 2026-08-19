@@ -378,3 +378,58 @@ measures the interval off a live mill rather than asserting a constant.
 **The transferable rule**: a probabilistic gate that has ever been red is not
 discharged by a green re-run. Run it until the failure rate is known, then pin
 the case.
+
+---
+
+## 14. v0.5 addendum (phase-52)
+
+**v0.5 added no link.** The chain is still `v1 → v14` and
+`CURRENT_SCHEMA_VERSION` is still 14, after a version that changed how every
+object in the world is drawn, gave seven buildings real multi-tile footprints,
+rebuilt the entire art set, added pitch variation to audio, added zone painting
+and added a "what now?" line to the HUD.
+
+**That is the headline, and it is the point.** A version this visible adding
+nothing to the file is not an accident; it is ADR-009 §1 applied to every
+temptation the version offered.
+
+### 14.1 What v0.5 was tempted to store, and did not
+
+| Tempting to store      | Where it actually comes from                                      |
+| ---------------------- | ----------------------------------------------------------------- |
+| A building's footprint | Its definition, looked up by the id the save already held         |
+| The tiles it blocks    | Recomputed from origin + footprint on load and on founding        |
+| Which grass variant    | A hash of the tile index                                          |
+| Which worker rig       | A hash of the worker id                                           |
+| Decor placement        | A hash of the tile index, filtered by region                      |
+| Sprite depth / z-order | The base's position in world pixels, computed each frame          |
+| A sound's pitch offset | A per-sound play counter through the same hash                    |
+| "What to do next"      | A question asked of the snapshot the HUD already holds            |
+| Painted worker zones   | Already persisted since v0.3 — v0.5 only made them reachable      |
+| Onboarding progress    | Nothing. There is no tutorial state, because there is no tutorial |
+
+Each row is a save field that was never written, a migration that was never
+needed, and a way for an old file to disagree with a new build that does not
+exist.
+
+### 14.2 The one compatibility question v0.5 did raise
+
+Footprints changed what counts as a legal placement, and **worlds saved before
+v0.5 contain buildings placed under the old rule** — a 3×3 mill one tile from
+a shed was legal when both were one tile.
+
+ADR-042 §4 fixed the answer: **loading never fails and never moves a
+building.** Occupancy is rebuilt across footprints on load, so overlapping
+legacy buildings simply both mark the tiles they cover; the grid is a set of
+blocked tiles, not a claim of ownership, and marking one twice is not a
+conflict. Only NEW placements are validated against the new rule.
+
+The alternative — rejecting or relocating a legacy building — would have made
+a rendering change destroy a player's farm, which is the one outcome this
+document exists to prevent.
+
+### 14.3 Status
+
+`v1 → v14` against every golden fixture, zero repairs, unchanged from v0.4
+because nothing in the chain was touched. The guarantees stated in §13 stand
+as written.

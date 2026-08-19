@@ -179,8 +179,12 @@ function grassTile(seed = 1201, character = {}) {
       const angle = rng() * Math.PI * 2;
       const x = Math.round(cx + Math.cos(angle) * radius);
       const y = Math.round(cy + Math.sin(angle) * radius * 0.7);
-      set(canvas, ((x % TILE) + TILE) % TILE, ((y % TILE) + TILE) % TILE,
-        rng() < 0.3 ? SOIL_RICH : TILLED_SOIL);
+      set(
+        canvas,
+        ((x % TILE) + TILE) % TILE,
+        ((y % TILE) + TILE) % TILE,
+        rng() < 0.3 ? SOIL_RICH : TILLED_SOIL,
+      );
     }
   }
 
@@ -544,8 +548,26 @@ function lamp() {
   rect(canvas, 7, 10, 7, 30, TIMBER_WARM);
   material.masonry(canvas, 5, 29, 10, 32, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 143);
   // The lantern: a slate cap over a glowing box.
-  polygon(canvas, [[3, 6], [12, 6], [10, 2], [5, 2]], ROOF_SLATE);
-  polygon(canvas, [[3, 6], [7, 6], [6, 2], [5, 2]], ROOF_SLATE_LIGHT);
+  polygon(
+    canvas,
+    [
+      [3, 6],
+      [12, 6],
+      [10, 2],
+      [5, 2],
+    ],
+    ROOF_SLATE,
+  );
+  polygon(
+    canvas,
+    [
+      [3, 6],
+      [7, 6],
+      [6, 2],
+      [5, 2],
+    ],
+    ROOF_SLATE_LIGHT,
+  );
   rect(canvas, 4, 7, 11, 12, TIMBER_DARK);
   rect(canvas, 5, 8, 10, 11, STRAW);
   rect(canvas, 6, 9, 9, 10, GOLD_HIGHLIGHT);
@@ -561,8 +583,28 @@ function signpost() {
   rect(canvas, 10, 6, 11, 27, TIMBER_DARK);
   rect(canvas, 10, 6, 10, 27, TIMBER_WARM);
   // Upper board points left, lower points right.
-  polygon(canvas, [[1, 8], [14, 8], [14, 13], [1, 13], [-2, 10]], BIRCH_PALE);
-  polygon(canvas, [[8, 16], [20, 16], [23, 18], [20, 21], [8, 21]], BIRCH_PALE);
+  polygon(
+    canvas,
+    [
+      [1, 8],
+      [14, 8],
+      [14, 13],
+      [1, 13],
+      [-2, 10],
+    ],
+    BIRCH_PALE,
+  );
+  polygon(
+    canvas,
+    [
+      [8, 16],
+      [20, 16],
+      [23, 18],
+      [20, 21],
+      [8, 21],
+    ],
+    BIRCH_PALE,
+  );
   rect(canvas, 2, 10, 12, 10, TIMBER_DARK);
   rect(canvas, 9, 18, 19, 18, TIMBER_DARK);
   outlineSelective(canvas, { bottom: false });
@@ -587,7 +629,16 @@ function signpost() {
 function cat() {
   const canvas = createCanvas(16, 20);
   // Body: a rounded wedge, wider at the base.
-  polygon(canvas, [[5, 9], [10, 9], [13, 18], [2, 18]], TIMBER_WARM);
+  polygon(
+    canvas,
+    [
+      [5, 9],
+      [10, 9],
+      [13, 18],
+      [2, 18],
+    ],
+    TIMBER_WARM,
+  );
   blob(canvas, 7, 15, 5, 4, TIMBER_WARM, 151, 0.12);
   // Chest catching the light, upper-left as always.
   blob(canvas, 6, 14, 2, 3, BIRCH_PALE, 153, 0.2);
@@ -595,8 +646,24 @@ function cat() {
   blob(canvas, 7, 6, 4, 4, TIMBER_WARM, 155, 0.08);
   blob(canvas, 6, 5, 2, 2, BIRCH_PALE, 157, 0.2);
   // EARS — the whole silhouette argument. Two triangles, clear of the head.
-  polygon(canvas, [[3, 4], [5, 1], [6, 4]], TIMBER_WARM);
-  polygon(canvas, [[8, 4], [10, 1], [11, 4]], TIMBER_WARM);
+  polygon(
+    canvas,
+    [
+      [3, 4],
+      [5, 1],
+      [6, 4],
+    ],
+    TIMBER_WARM,
+  );
+  polygon(
+    canvas,
+    [
+      [8, 4],
+      [10, 1],
+      [11, 4],
+    ],
+    TIMBER_WARM,
+  );
   set(canvas, 4, 3, TIMBER_DARK);
   set(canvas, 10, 3, TIMBER_DARK);
   // Face: two closed eyes and nothing else. One pixel each is the whole face.
@@ -609,8 +676,6 @@ function cat() {
   contactShadow(canvas, 8, 19, 7, 1.2);
   return canvas;
 }
-
-
 
 /**
  * A tree (`buildings:tree`, and the timber node's sprite) — 64x96 px.
@@ -634,11 +699,41 @@ function tree() {
   const rng = prng(1301);
 
   // ── Trunk: tapered, with a root flare and a lit left edge ───────────────
-  polygon(canvas, [[26, 46], [38, 46], [42, 92], [22, 92]], WOOD_BASE);
-  polygon(canvas, [[26, 46], [30, 46], [28, 92], [22, 92]], WOOD_LIGHT);
-  polygon(canvas, [[35, 46], [38, 46], [42, 92], [37, 92]], SOIL_DARK);
+  polygon(
+    canvas,
+    [
+      [26, 46],
+      [38, 46],
+      [42, 92],
+      [22, 92],
+    ],
+    WOOD_BASE,
+  );
+  polygon(
+    canvas,
+    [
+      [26, 46],
+      [30, 46],
+      [28, 92],
+      [22, 92],
+    ],
+    WOOD_LIGHT,
+  );
+  polygon(
+    canvas,
+    [
+      [35, 46],
+      [38, 46],
+      [42, 92],
+      [37, 92],
+    ],
+    SOIL_DARK,
+  );
   // Roots spreading into the ground.
-  for (const [x0, x1] of [[16, 24], [40, 48]]) {
+  for (const [x0, x1] of [
+    [16, 24],
+    [40, 48],
+  ]) {
     blob(canvas, (x0 + x1) / 2, 90, 5, 3, WOOD_BASE, 201 + x0, 0.2);
   }
   // Bark: a few short vertical marks, never a full-height line.
@@ -685,8 +780,6 @@ function tree() {
   contactShadow(canvas, 32, 93, 16, 3);
   return canvas;
 }
-
-
 
 /** Boulder, 32×32 ground prop. */
 function rock() {
@@ -736,7 +829,6 @@ function bush() {
   return canvas;
 }
 
-
 /**
  * Flowers (`buildings:flower`) — the MOST-placed prop in the world.
  *
@@ -779,9 +871,7 @@ function flower() {
   return canvas;
 }
 
-
 // ── Buildings (32×32, 1×1 footprint, top-left grid-aligned) ──────────────────
-
 
 /**
  * A pitched roof, drawn as courses rather than as a filled triangle.
@@ -874,8 +964,6 @@ function storageShed() {
   return canvas;
 }
 
-
-
 /**
  * Rest hut (`core:rest_hut`) — 2x2 tiles, 64x72 px.
  *
@@ -930,8 +1018,6 @@ function restHut() {
   return canvas;
 }
 
-
-
 /** Seed bin (`core:seed_bin`): NOT A BUILDING, and it should not read as one.
  * A low slatted box with its lid propped open and grain spilling — no roof, no
  * door, no walls, which is the clearest possible separation from its
@@ -944,8 +1030,26 @@ function seedBin() {
   rect(canvas, 5, 17, 26, 17, TIMBER_DARK);
   rect(canvas, 5, 22, 26, 22, TIMBER_DARK); // an iron band
   // The lid, PROPPED OPEN toward the light — the angle is the silhouette.
-  polygon(canvas, [[5, 16], [24, 8], [27, 10], [8, 18]], BIRCH_PALE);
-  polygon(canvas, [[5, 16], [24, 8], [25, 9], [6, 17]], CREAM);
+  polygon(
+    canvas,
+    [
+      [5, 16],
+      [24, 8],
+      [27, 10],
+      [8, 18],
+    ],
+    BIRCH_PALE,
+  );
+  polygon(
+    canvas,
+    [
+      [5, 16],
+      [24, 8],
+      [25, 9],
+      [6, 17],
+    ],
+    CREAM,
+  );
   line(canvas, 26, 11, 26, 17, TIMBER_DARK); // the prop
   // Grain, heaped and spilling over the front edge.
   for (let i = 0; i < 26; i += 1) {
@@ -959,7 +1063,6 @@ function seedBin() {
   contactShadow(canvas, 16, 29, 12, 1.8);
   return canvas;
 }
-
 
 /**
  * Market stall (`core:market_stall`) — 3x2 tiles, 96x80 px.
@@ -982,7 +1085,16 @@ function marketStall() {
   }
 
   // ── The canopy: cream and rose stripes, scalloped along the front ───────
-  polygon(canvas, [[0, 18], [95, 18], [95, 30], [0, 30]], CREAM);
+  polygon(
+    canvas,
+    [
+      [0, 18],
+      [95, 18],
+      [95, 30],
+      [0, 30],
+    ],
+    CREAM,
+  );
   for (let x = 0; x < 96; x += 12) {
     rect(canvas, x, 18, x + 5, 30, BLOOM_ROSE);
   }
@@ -1013,7 +1125,11 @@ function marketStall() {
   rect(canvas, 76, 36, 86, 37, TIMBER_DARK);
 
   // ── Crates stacked under the counter ───────────────────────────────────
-  for (const [x, y] of [[14, 62], [30, 62], [62, 62]]) {
+  for (const [x, y] of [
+    [14, 62],
+    [30, 62],
+    [62, 62],
+  ]) {
     rect(canvas, x, y, x + 12, y + 12, TIMBER_WARM);
     rect(canvas, x, y, x + 12, y + 1, BIRCH_PALE);
     rect(canvas, x + 6, y, x + 6, y + 12, TIMBER_DARK);
@@ -1032,7 +1148,6 @@ function marketStall() {
   contactShadow(canvas, 48, groundY, 40, 2.5);
   return canvas;
 }
-
 
 // ── v0.4 factories (phase-26; ADR-035) ───────────────────────────────────────
 //
@@ -1092,8 +1207,25 @@ function mill() {
   rect(canvas, 26, 34, 95, 35, ROOF_SLATE_LIGHT);
 
   // ── The hoist gable: where sacks go up. A mill's working face ────────────
-  polygon(canvas, [[46, 40], [78, 40], [78, 22], [62, 12]], TIMBER_WARM);
-  polygon(canvas, [[46, 40], [62, 40], [62, 12]], BIRCH_PALE);
+  polygon(
+    canvas,
+    [
+      [46, 40],
+      [78, 40],
+      [78, 22],
+      [62, 12],
+    ],
+    TIMBER_WARM,
+  );
+  polygon(
+    canvas,
+    [
+      [46, 40],
+      [62, 40],
+      [62, 12],
+    ],
+    BIRCH_PALE,
+  );
   rect(canvas, 52, 26, 72, 44, TIMBER_DARK);
   rect(canvas, 55, 29, 69, 42, SOIL_DARK);
   // The hoist beam and its rope, sticking out over the yard.
@@ -1144,8 +1276,6 @@ function mill() {
   contactShadow(canvas, 60, groundY, 34, 3);
   return canvas;
 }
-
-
 
 /**
  * The kitchen (`core:kitchen`) — 3x2 tiles, 96x88 px.
@@ -1226,8 +1356,6 @@ function kitchen() {
   contactShadow(canvas, 48, groundY, 40, 3);
   return canvas;
 }
-
-
 
 /** Ore vein (`buildings:ore_vein`, ADR-037): angular crystal shards breaking
  * upward out of a low base, banded with metal.
@@ -1363,8 +1491,6 @@ function cottage() {
   return canvas;
 }
 
-
-
 /** Town well (`core:well`): the plaza's centre. A LOW round stone ring — the
  * only circular building silhouette — under a little A-frame with a rope. */
 function well() {
@@ -1480,7 +1606,17 @@ function castle() {
 
   // ── Two towers, taller than the wall, with conical slate roofs ──────────
   for (const cx of [16, 112]) {
-    material.masonry(canvas, cx - 15, 40, cx + 15, 128, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 81 + cx);
+    material.masonry(
+      canvas,
+      cx - 15,
+      40,
+      cx + 15,
+      128,
+      STONE_WARM,
+      STONE_WARM_DARK,
+      STONE_WARM_LIGHT,
+      81 + cx,
+    );
     battlements(cx - 17, cx + 17, 34);
     pitchedRoof(canvas, 2, 30, cx, 20, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
     // Arrow slits: two pixels wide, which is all a slit ever is.
@@ -1490,7 +1626,15 @@ function castle() {
     }
     // A pennant on the roof, the one bright accent.
     rect(canvas, cx, 0, cx, 8, TIMBER_DARK);
-    polygon(canvas, [[cx + 1, 1], [cx + 12, 4], [cx + 1, 7]], BLOOM_ROSE);
+    polygon(
+      canvas,
+      [
+        [cx + 1, 1],
+        [cx + 12, 4],
+        [cx + 1, 7],
+      ],
+      BLOOM_ROSE,
+    );
   }
 
   // ── Weathering: moss where the stone meets the ground ──────────────────
@@ -1504,7 +1648,6 @@ function castle() {
   contactShadow(canvas, 64, groundY, 56, 4);
   return canvas;
 }
-
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 

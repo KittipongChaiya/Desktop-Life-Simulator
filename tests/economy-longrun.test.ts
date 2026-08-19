@@ -39,6 +39,7 @@ import { isOwned } from '../src/sim/world/tile-grid';
 import { isTilled } from '../src/sim/world/tile-state';
 import { MAX_ENERGY } from '../src/sim/world/worker';
 import { createWorld, type World } from '../src/sim/world/world';
+import { longRunBudget } from './long-run-budget';
 
 /** 8 hours at 20 Hz. */
 const EIGHT_HOURS_TICKS = 20 * 60 * 60 * 8;
@@ -95,47 +96,51 @@ function idleFarm(seed: number): World {
 }
 
 describe('full idle: 8 hours unattended (crit 19 — the product thesis)', () => {
-  it('earns coins through the stall, keeps working, and never jams', () => {
-    const world = idleFarm(20260723);
-    const coinsAfterSetup = world.wallet.coins;
-    let automaticSales = 0;
-    world.events.subscribe('itemSold', (event) => {
-      if (event.automatic) automaticSales += 1;
-    });
+  it(
+    'earns coins through the stall, keeps working, and never jams',
+    () => {
+      const world = idleFarm(20260723);
+      const coinsAfterSetup = world.wallet.coins;
+      let automaticSales = 0;
+      world.events.subscribe('itemSold', (event) => {
+        if (event.automatic) automaticSales += 1;
+      });
 
-    expect(() => stepSimulationBy(world, EIGHT_HOURS_TICKS)).not.toThrow();
+      expect(() => stepSimulationBy(world, EIGHT_HOURS_TICKS)).not.toThrow();
 
-    // The farm FARMED: full cycles, all the way through the stall.
-    expect(world.cropStats.planted).toBeGreaterThan(100);
-    expect(world.cropStats.harvested).toBeGreaterThan(100);
-    expect(automaticSales).toBeGreaterThan(50);
+      // The farm FARMED: full cycles, all the way through the stall.
+      expect(world.cropStats.planted).toBeGreaterThan(100);
+      expect(world.cropStats.harvested).toBeGreaterThan(100);
+      expect(automaticSales).toBeGreaterThan(50);
 
-    // And it EARNED — unattended income is the whole point. (Turnips sell at
-    // 90% through the stall; seeds were pre-bought, so income is gross.)
-    expect(world.wallet.coins).toBeGreaterThan(coinsAfterSetup + 1_000);
+      // And it EARNED — unattended income is the whole point. (Turnips sell at
+      // 90% through the stall; seeds were pre-bought, so income is gross.)
+      expect(world.wallet.coins).toBeGreaterThan(coinsAfterSetup + 1_000);
 
-    // No jam: every worker alive, in bounds, with sane energy.
-    expect(world.workers.size).toBe(5);
-    for (const worker of world.workers.values()) {
-      expect(worker.energy).toBeGreaterThanOrEqual(0);
-      expect(worker.energy).toBeLessThanOrEqual(MAX_ENERGY);
-    }
+      // No jam: every worker alive, in bounds, with sane energy.
+      expect(world.workers.size).toBe(5);
+      for (const worker of world.workers.values()) {
+        expect(worker.energy).toBeGreaterThanOrEqual(0);
+        expect(worker.energy).toBeLessThanOrEqual(MAX_ENERGY);
+      }
 
-    // The market stayed inside its declared bands throughout.
-    const multiplier = multiplierOf(world.economy, 'core:turnip' as never);
-    expect(multiplier).toBeGreaterThanOrEqual(MULTIPLIER_FLOOR);
-    expect(multiplier).toBeLessThanOrEqual(MULTIPLIER_CAP);
-    // 240 s covers the uninstrumented run with room to spare, but V8 coverage
-    // instrumentation costs roughly 3.5× on 576,000 ticks — which is how this
-    // gate failed only under `--coverage`, silently, until phase-07e ran the
-    // full v0.1 release-gate checklist. The budget is the runner's, not the
-    // game's: `PERFORMANCE.md` §10.1 measures the simulation uninstrumented.
-    //
-    // Raised 900 s → 1,800 s at the v0.3 RC: the same 576,000 ticks now step
-    // contracts, quests, demand, and the town, and the instrumented run
-    // crossed 911 s on the reference machine — a runner allowance again,
-    // not a simulation budget (the uninstrumented run passes in minutes).
-  }, 1_800_000);
+      // The market stayed inside its declared bands throughout.
+      const multiplier = multiplierOf(world.economy, 'core:turnip' as never);
+      expect(multiplier).toBeGreaterThanOrEqual(MULTIPLIER_FLOOR);
+      expect(multiplier).toBeLessThanOrEqual(MULTIPLIER_CAP);
+      // 240 s covers the uninstrumented run with room to spare, but V8 coverage
+      // instrumentation costs roughly 3.5× on 576,000 ticks — which is how this
+      // gate failed only under `--coverage`, silently, until phase-07e ran the
+      // full v0.1 release-gate checklist. The budget is the runner's, not the
+      // game's: `PERFORMANCE.md` §10.1 measures the simulation uninstrumented.
+      //
+      // Raised 900 s → 1,800 s at the v0.3 RC: the same 576,000 ticks now step
+      // contracts, quests, demand, and the town, and the instrumented run
+      // crossed 911 s on the reference machine — a runner allowance again,
+      // not a simulation budget (the uninstrumented run passes in minutes).
+    },
+    longRunBudget(1_200_000),
+  );
 });
 
 describe('balance: longer crops are strictly better coins/sec (crit 21)', () => {
@@ -170,77 +175,85 @@ describe('balance: longer crops are strictly better coins/sec (crit 21)', () => 
 });
 
 describe('determinism over 100k ticks with the full economy (crit 23)', () => {
-  it('produces byte-identical economic state from identical runs', () => {
-    const run = (): World => {
-      const world = idleFarm(31337);
-      stepSimulationBy(world, 100_000);
-      return world;
-    };
+  it(
+    'produces byte-identical economic state from identical runs',
+    () => {
+      const run = (): World => {
+        const world = idleFarm(31337);
+        stepSimulationBy(world, 100_000);
+        return world;
+      };
 
-    const a = run();
-    const b = run();
+      const a = run();
+      const b = run();
 
-    expect(a.wallet.coins).toBe(b.wallet.coins);
-    expect([...a.economy.multipliers.entries()]).toEqual([...b.economy.multipliers.entries()]);
-    expect(a.economy.expansionsPurchased).toBe(b.economy.expansionsPurchased);
-    expect([...a.lastPlanted.entries()]).toEqual([...b.lastPlanted.entries()]);
-    expect(a.cropStats).toEqual(b.cropStats);
-    expect(a.rng.getState()).toEqual(b.rng.getState());
-    expect(JSON.stringify([...a.crops.entries()])).toBe(JSON.stringify([...b.crops.entries()]));
-  }, 240_000);
+      expect(a.wallet.coins).toBe(b.wallet.coins);
+      expect([...a.economy.multipliers.entries()]).toEqual([...b.economy.multipliers.entries()]);
+      expect(a.economy.expansionsPurchased).toBe(b.economy.expansionsPurchased);
+      expect([...a.lastPlanted.entries()]).toEqual([...b.lastPlanted.entries()]);
+      expect(a.cropStats).toEqual(b.cropStats);
+      expect(a.rng.getState()).toEqual(b.rng.getState());
+      expect(JSON.stringify([...a.crops.entries()])).toBe(JSON.stringify([...b.crops.entries()]));
+    },
+    longRunBudget(240_000),
+  );
 });
 
 describe('pacing floor: the stage-4 purse inside the budget (crit 20)', () => {
-  it('a crude greedy player affords the market stall well under 4 hours', () => {
-    // The REAL criterion is a human playthrough (phase doc, manual checklist).
-    // This bot is the arithmetic floor under it: sell everything, keep seeds
-    // stocked, keep the plot planted — turnips only, no optimisation.
-    const world = createWorld(7);
-    const FOUR_HOURS_TICKS = 20 * 60 * 60 * 4;
-    const STAGE_FOUR_PURSE = 1_700; // stall 1,200 + seed bin 500 (§1.1, §5)
+  it(
+    'a crude greedy player affords the market stall well under 4 hours',
+    () => {
+      // The REAL criterion is a human playthrough (phase doc, manual checklist).
+      // This bot is the arithmetic floor under it: sell everything, keep seeds
+      // stocked, keep the plot planted — turnips only, no optimisation.
+      const world = createWorld(7);
+      const FOUR_HOURS_TICKS = 20 * 60 * 60 * 4;
+      const STAGE_FOUR_PURSE = 1_700; // stall 1,200 + seed bin 500 (§1.1, §5)
 
-    const plot: number[] = [];
-    for (let y = 28; y <= 35; y += 1) {
-      for (let x = 28; x <= 35; x += 1) plot.push(toIndexUnchecked(x, y));
-    }
+      const plot: number[] = [];
+      for (let y = 28; y <= 35; y += 1) {
+        for (let x = 28; x <= 35; x += 1) plot.push(toIndexUnchecked(x, y));
+      }
 
-    let reachedAt: number | null = null;
-    for (let elapsed = 0; elapsed < FOUR_HOURS_TICKS && reachedAt === null; elapsed += 20) {
-      // One attentive pass a second — far lazier than a human with sound cues.
-      for (const tile of plot) {
-        // `tile` IS the flat index — decomposing it with a hardcoded width was
-        // a no-op at 64 and a shear at any other (ADR-030 widened the grid).
-        const index = asTileIndex(tile);
-        if (!isOwned(world.tiles, index)) continue;
-        const crop = world.crops.get(index);
-        if (crop !== undefined) {
-          const definition = world.cropRegistry.get(crop.cropId);
-          if (definition.ok && isMature(definition.value, elapsedTicks(crop, world.tick))) {
-            submit(world, { type: 'harvestCrop', tile });
+      let reachedAt: number | null = null;
+      for (let elapsed = 0; elapsed < FOUR_HOURS_TICKS && reachedAt === null; elapsed += 20) {
+        // One attentive pass a second — far lazier than a human with sound cues.
+        for (const tile of plot) {
+          // `tile` IS the flat index — decomposing it with a hardcoded width was
+          // a no-op at 64 and a shear at any other (ADR-030 widened the grid).
+          const index = asTileIndex(tile);
+          if (!isOwned(world.tiles, index)) continue;
+          const crop = world.crops.get(index);
+          if (crop !== undefined) {
+            const definition = world.cropRegistry.get(crop.cropId);
+            if (definition.ok && isMature(definition.value, elapsedTicks(crop, world.tick))) {
+              submit(world, { type: 'harvestCrop', tile });
+            }
+            continue;
           }
-          continue;
+          if (!isTilled(world.tiles, index)) submit(world, { type: 'tillTile', tile });
+          else if (containerCount(world.inventory, CORE_TURNIP_SEED) > 0) {
+            submit(world, { type: 'plantCrop', tile, cropId: 'core:turnip' });
+          }
         }
-        if (!isTilled(world.tiles, index)) submit(world, { type: 'tillTile', tile });
-        else if (containerCount(world.inventory, CORE_TURNIP_SEED) > 0) {
-          submit(world, { type: 'plantCrop', tile, cropId: 'core:turnip' });
+        const produce = containerCount(world.inventory, 'core:turnip' as never);
+        if (produce > 0)
+          submit(world, { type: 'sellItems', itemId: 'core:turnip', quantity: produce });
+        const seedsHeld = containerCount(world.inventory, CORE_TURNIP_SEED);
+        const wanted = Math.min(64 - seedsHeld, Math.floor(world.wallet.coins / 5));
+        if (seedsHeld < 32 && wanted > 0) {
+          submit(world, { type: 'buySeeds', cropId: 'core:turnip', quantity: wanted });
         }
-      }
-      const produce = containerCount(world.inventory, 'core:turnip' as never);
-      if (produce > 0)
-        submit(world, { type: 'sellItems', itemId: 'core:turnip', quantity: produce });
-      const seedsHeld = containerCount(world.inventory, CORE_TURNIP_SEED);
-      const wanted = Math.min(64 - seedsHeld, Math.floor(world.wallet.coins / 5));
-      if (seedsHeld < 32 && wanted > 0) {
-        submit(world, { type: 'buySeeds', cropId: 'core:turnip', quantity: wanted });
+
+        stepSimulationBy(world, 20);
+        if (world.wallet.coins >= STAGE_FOUR_PURSE) reachedAt = world.tick;
       }
 
-      stepSimulationBy(world, 20);
-      if (world.wallet.coins >= STAGE_FOUR_PURSE) reachedAt = world.tick;
-    }
-
-    expect(reachedAt).not.toBeNull();
-    // Well under the wire: if even this bot needs more than an hour of the
-    // four, the §3.1 numbers have drifted and the design gate needs a human.
-    expect(reachedAt ?? Infinity).toBeLessThan(FOUR_HOURS_TICKS / 4);
-  }, 240_000);
+      expect(reachedAt).not.toBeNull();
+      // Well under the wire: if even this bot needs more than an hour of the
+      // four, the §3.1 numbers have drifted and the design gate needs a human.
+      expect(reachedAt ?? Infinity).toBeLessThan(FOUR_HOURS_TICKS / 4);
+    },
+    longRunBudget(240_000),
+  );
 });

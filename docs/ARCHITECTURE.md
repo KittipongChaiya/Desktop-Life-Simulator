@@ -703,3 +703,106 @@ boundary fails a named test rather than passing quietly.
   deliver to a factory, so a delivery made this tick is visible to this tick's
   craft, and ahead of the market sweep, so a craft that completes this tick can
   be sold on it.
+
+---
+
+## 16. The v0.5 world model (ADR-042)
+
+v0.5 added no system. It changed what a _thing in the world_ is allowed to be.
+
+Through v0.4 the renderer held an assumption nothing had ever written down:
+**one tile, one object, one sprite, centred.** Every building was a 32-px icon
+in a 32-px cell, so the player was looking at a spreadsheet with pictures in
+it. ADR-042 separates the grid the simulation needs from the world the player
+sees, without taking the grid away.
+
+### 16.1 The grid stayed; the renderer stopped exposing it
+
+Pathfinding, occupancy, collision, farming, logistics, worker AI and the save
+format are all unchanged. `TileIndex` is still the world's address. What
+changed is that a building's tile is now its **origin**, not its extent.
+
+### 16.2 A footprint is content, and it is derived
+
+`src/sim/content/footprint.ts` defines `Footprint { width, height }`, and a
+building definition may declare one:
+
+| Building     | Footprint | Note                           |
+| ------------ | --------- | ------------------------------ |
+| Storage shed | 2×2       |                                |
+| Rest hut     | 2×2       |                                |
+| Seed bin     | 1×1       | declares nothing — the default |
+| Market stall | 3×2       |                                |
+| Mill         | 3×3       |                                |
+| Kitchen      | 3×2       |                                |
+| Cottage      | 2×2       | town content                   |
+| Castle       | 4×3       | town content                   |
+
+`footprintOf(definition)` returns `SINGLE_TILE` when none is declared, so a
+content pack written against v0.4 keeps working with no change and no
+migration.
+
+**Nothing about this is in the save.** A saved building records the definition
+id and the origin tile it always recorded; the rectangle is looked up from
+content on load. That is ADR-009 §1's rule applied again — the same argument
+that keeps tilled soil, tile variants and worker rigs out of the file — and it
+is why v0.5 changed the world's appearance without adding a schema version.
+
+### 16.3 The origin is the bottom-left, and rectangles grow up and right
+
+`footprintTiles(origin, footprint)` grows from the origin row **upward** (to
+smaller indices) and rightward. The origin is where the building STANDS, which
+is the row the player clicked and the row the art sits on.
+
+It returns `null` rather than clamping at the map edge. A building that
+silently shrank to fit would block fewer tiles than its art covers, and a
+worker would walk through its wall.
+
+Every write path loops the whole rectangle: placement validates each covered
+tile with its own typed rejection, selling clears the rectangle and then
+re-blocks any tile another building still covers, and load and town-founding
+rebuild occupancy across footprints rather than origins.
+
+### 16.4 One sorted layer, one sort key, one anchor
+
+`layers.ts` names six layers — `terrain`, `terrainOverlay`, `world`,
+`effects`, `lighting`, `worldUi` — and exactly one of them sorts:
+
+```
+sortableChildren = ySorted.has(name)   // ySorted = { 'world' }
+```
+
+Buildings, characters, trees, props and resource nodes all live in `world` and
+are ordered against each other by depth. Ground is below them by layer;
+weather and UI are above by layer. **A sort that only has to be right within
+one container is a sort that can be reasoned about.**
+
+`depth.ts` is the only place a sort key is computed:
+
+- `tileDepth(tile)` — for anything whose base is a tile
+- `positionDepth(worldY)` — for anything moving between tiles
+- `biasDepth(depth, bias)` — for the deliberate exception, stated at its call site
+
+Both return **the base's position in world pixels**, so a walking worker and a
+standing building are measured on the same scale and neither needs to know the
+other exists.
+
+The anchor convention is one line: `sprite.anchor.set(0.5, 1)` — bottom-centre.
+A multi-tile building centres on its rectangle (`col + width / 2`) and sits on
+its origin row, so art may be as tall as it likes and grows upward out of the
+footprint rather than out of the world.
+
+### 16.5 Visual size is not collision size
+
+The buildings slice publishes `footprintWidth` and deliberately **not**
+`footprintHeight`. Width is needed to centre the sprite; height is not, because
+the sprite is bottom-anchored — it hangs from the origin row and its pixel
+height is the art's business. A tree's canopy overlapping the tiles above it
+costs the simulation nothing, because the simulation was never told about the
+canopy.
+
+### 16.6 What this does not license
+
+ADR-042 §5 is explicit: no free placement, no pixel collision, no
+per-object z-index, no second sort key, and no visual state in the save. The
+grid remains the authority. The renderer simply stopped drawing it.

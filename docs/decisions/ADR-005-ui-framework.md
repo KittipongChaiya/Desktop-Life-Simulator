@@ -1,12 +1,12 @@
 # ADR-005: React for UI, with a Throttled Snapshot Bridge
 
-| | |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-07-21 |
-| **Deciders** | Project owner, lead architect |
-| **Supersedes** | — |
-| **Superseded by** | — |
+|                   |                               |
+| ----------------- | ----------------------------- |
+| **Status**        | Accepted                      |
+| **Date**          | 2026-07-21                    |
+| **Deciders**      | Project owner, lead architect |
+| **Supersedes**    | —                             |
+| **Superseded by** | —                             |
 
 ---
 
@@ -37,7 +37,7 @@ BrowserWindow
 
 React does not render game entities. Pixi does not render buttons. There is no react-pixi reconciler, no React components representing sprites. The two trees are siblings that share nothing but the snapshot bridge.
 
-Elements that appear *over* the world but are conceptually UI — tooltips, context menus, the build ghost's label — are React, positioned using world-to-screen coordinates published in the snapshot. In-world visual affordances — the selection highlight, hover outline — are Pixi's `worldUi` layer (ADR-001 §Layers). The rule: **if it needs text layout or input focus, it is React.**
+Elements that appear _over_ the world but are conceptually UI — tooltips, context menus, the build ghost's label — are React, positioned using world-to-screen coordinates published in the snapshot. In-world visual affordances — the selection highlight, hover outline — are Pixi's `worldUi` layer (ADR-001 §Layers). The rule: **if it needs text layout or input focus, it is React.**
 
 ### 2. The snapshot bridge
 
@@ -71,7 +71,7 @@ React dispatches intents; it never calls a system or writes to the world (ADR-00
 ```tsx
 // The entire surface a component has over the simulation.
 const dispatch = useIntentDispatch();
-<button onClick={() => dispatch({ type: 'buySeed', seed: 'core:wheat', qty: 10 })} />
+<button onClick={() => dispatch({ type: 'buySeed', seed: 'core:wheat', qty: 10 })} />;
 ```
 
 A component importing from `src/sim/systems/` is a boundary violation and fails `npm run check:boundaries` (`CODE_STYLE.md` §8).
@@ -120,13 +120,13 @@ The "obvious" implementation, named here so it is explicitly forbidden rather th
 
 ## Tradeoffs Accepted
 
-| We accept | To gain | Mitigation |
-|---|---|---|
-| ~45 KB gzipped React runtime | Productive, well-understood UI development | Small against an Electron install |
-| Bridge complexity (~150 lines) | Decoupling from the tick | Written once in phase-01, covered by tests |
-| Up to 100 ms UI latency | Halved UI work | Imperceptible for HUD data; interactions are optimistic |
-| Two rendering technologies in one window | Each does what it is good at | Strict split (§1); no shared state but the snapshot |
-| No time-travel debugging from a store | No duplicated state | The sim is deterministic and replayable, which is better |
+| We accept                                | To gain                                    | Mitigation                                               |
+| ---------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
+| ~45 KB gzipped React runtime             | Productive, well-understood UI development | Small against an Electron install                        |
+| Bridge complexity (~150 lines)           | Decoupling from the tick                   | Written once in phase-01, covered by tests               |
+| Up to 100 ms UI latency                  | Halved UI work                             | Imperceptible for HUD data; interactions are optimistic  |
+| Two rendering technologies in one window | Each does what it is good at               | Strict split (§1); no shared state but the snapshot      |
+| No time-travel debugging from a store    | No duplicated state                        | The sim is deterministic and replayable, which is better |
 
 ---
 

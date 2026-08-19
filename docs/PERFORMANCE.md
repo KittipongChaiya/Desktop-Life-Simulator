@@ -719,3 +719,79 @@ showing up in a metric rather than a discrepancy: a hand on an expedition is
 absent from the workers slice (ADR-038 §2), and the overlay reads the slice.
 The crop count is 3 because the crew harvested the other 33 during the 60-second
 settle, which is the farm working.
+
+---
+
+## 18. Phase-52 measurement — the v0.5 cost, and a correction
+
+Every number below was taken fresh for the v0.5 release candidate, in the
+running app, on an otherwise idle machine. The artefacts are the ones the E2E
+criteria write: `docs/perf/criterion-5-tick.json`,
+`criterion-13-unattended-farm-cost.json`, `criterion-12-combined.json` and
+`phase-29-v04-tick.json`.
+
+### 18.1 The headline: phase 46's regression does not reproduce
+
+Phase 46 measured the world track's cost and reported a real regression — the
+tick average up 65% and unattended CPU roughly doubled. **Re-measured at the
+RC, it is not there.**
+
+| Measure                     | Before the world track | Phase 46 | **RC (fresh)** |
+| --------------------------- | ---------------------- | -------- | -------------- |
+| Tick average (criterion 5)  | 0.063 ms               | 0.104 ms | **0.060 ms**   |
+| Tick p99 (criterion 5)      | 0.2 ms                 | 0.3 ms   | **0.2 ms**     |
+| Unattended CPU, mean        | 0.595%                 | 1.058%   | **0.533%**     |
+| Unattended CPU, max         | 0.835%                 | 2.013%   | **0.818%**     |
+| Tick average (criterion 12) | 0.175 ms               | —        | **0.172 ms**   |
+| Heap, unattended farm       | 12.8 MB                | 13.6 MB  | **14.5 MB**    |
+
+The same load measured against v0.4's own scenario says the same thing:
+`phase-29-v04-tick` — six workers, 36 crops, 13 buildings, a routed chain, a
+forager, an expedition out — was **0.187 ms average / 0.400 p99** at v0.4 and
+is **0.145 ms average / 0.400 p99** now, with 547 visible sprites where v0.4
+had fewer.
+
+### 18.2 What phase 46 actually measured
+
+Its own record says the first reading was worse still (0.133 ms) and was taken
+**while the machine was building**, and that re-measuring idle gave 0.104. The
+RC reading says the load was not partly responsible — it was responsible.
+
+The hypothesis phase 46 offered for a real component — that a 3×3 mill blocks
+nine tiles where it blocked one, so routes explore more grid — was plausible,
+was explicitly **stated as unproven rather than bisected**, and is not
+supported by any measurement now available. It is withdrawn rather than
+quietly dropped: a hypothesis that shaped a written conclusion should be
+withdrawn in the same place.
+
+**The lesson is about method, not about footprints.** A performance number
+taken on a busy machine is not a performance number. Phase 46 knew that,
+re-measured once, and still reported a regression built on a reading taken
+minutes after a build. Every number in this section was taken with nothing
+else running, which is why they disagree.
+
+### 18.3 The one thing that did go up
+
+**Heap, 12.8 → 14.5 MB on the unattended farm** — about 13%, consistent across
+readings, and by far the most likely candidate for a genuine v0.5 cost: the
+art set went from 166 sprites to 237 across the same five atlases, and the
+renderer holds them.
+
+Against `memory-longrun`'s 25 MB ceiling that is comfortable, and the
+576,000-tick heap-growth soak still passes. It is stated here so that the next
+version's measurement has something to compare against rather than
+rediscovering it.
+
+### 18.4 Every budget, at the RC
+
+| Budget                              | Limit | Measured                     | Verdict |
+| ----------------------------------- | ----- | ---------------------------- | ------- |
+| Simulation tick p99                 | 3 ms  | 0.2 ms                       | PASS    |
+| Simulation tick p99, full v0.4 load | 3 ms  | 0.4 ms                       | PASS    |
+| Unattended CPU                      | —     | 0.533%                       | PASS    |
+| Heap, unattended farm               | 25 MB | 14.5 MB                      | PASS    |
+| Idle frame loop                     | quiet | no dirty frames, leases only | PASS    |
+
+**ADR-003 §2's trigger for moving the simulation off the main thread (p99 > 3
+ms) remains unmet, by roughly an order of magnitude**, which is why phase 29
+stayed CONDITIONAL and stays so.

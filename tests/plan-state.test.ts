@@ -142,15 +142,39 @@ describe('PLAN.md §0 — the resume block', () => {
       return;
     }
 
-    // Nothing in progress: the pointer must name the next thing to do, which
-    // is the first phase not yet complete. This is the honest state between
-    // finishing one phase and starting the next.
     const next = rows.find((row) => row.status !== 'COMPLETE');
+
+    // EVERY PHASE COMPLETE — the version is done. Added at phase 52, which is
+    // the first time this guard ever saw the end of a version: it was written
+    // during the art track and had no state for "there is no next phase". The
+    // two halves contradicted each other (the pointer must be DEFINED above,
+    // and would have had to be UNDEFINED below), so a finished version could
+    // not have been recorded without the suite going red.
+    //
+    // The pointer stays useful rather than being blanked — "we finished at 52"
+    // is what the next session needs — so it must name the LAST phase, and §0's
+    // status must say so in words. A table that is all COMPLETE above a status
+    // still reading IN_PROGRESS is exactly the self-disagreement this file
+    // exists to catch.
+    if (next === undefined) {
+      expect(
+        pointer,
+        '§0 points at a phase that is not the last one, with the version complete',
+      ).toBe(rows.at(-1)?.phase);
+      expect(
+        /\*\*Status\*\*\s*\|\s*\*\*COMPLETE/.test(PLAN),
+        '§0 status must say COMPLETE when every phase is',
+      ).toBe(true);
+      return;
+    }
+
+    // Nothing in progress, work remaining: the pointer must name the next
+    // thing to do, which is the first phase not yet complete. This is the
+    // honest state between finishing one phase and starting the next.
     expect(
       pointer,
-      `§0 points at phase ${String(pointer)}, but the first unfinished phase is ` +
-        `${next?.phase ?? 'none'}`,
-    ).toBe(next?.phase);
+      `§0 points at phase ${String(pointer)}, but the first unfinished phase is ` + `${next.phase}`,
+    ).toBe(next.phase);
   });
 
   it('records blockers and deferred work rather than leaving them to memory', () => {

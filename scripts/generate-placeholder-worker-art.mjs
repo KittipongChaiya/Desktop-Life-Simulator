@@ -167,7 +167,9 @@ function main() {
   }
 
   writeFileSync(join(OUT_DIR, 'worker.anim.json'), `${JSON.stringify(anim, null, 2)}\n`);
-  globalThis.console.log(`generated ${DIRECTIONS.length * 5} placeholder frames + worker.anim.json`);
+  globalThis.console.log(
+    `generated ${DIRECTIONS.length * 5} placeholder frames + worker.anim.json`,
+  );
 }
 
 main();

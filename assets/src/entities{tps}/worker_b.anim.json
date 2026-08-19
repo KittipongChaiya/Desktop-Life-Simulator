@@ -1,41 +1,69 @@
 {
   "worker_b_idle_n": {
-    "frames": ["worker_b_idle_n"],
+    "frames": [
+      "worker_b_idle_n"
+    ],
     "frameTicks": 0,
     "loop": false
   },
   "worker_b_walk_n": {
-    "frames": ["worker_b_walk_n_0", "worker_b_walk_n_1", "worker_b_walk_n_2", "worker_b_walk_n_3"],
+    "frames": [
+      "worker_b_walk_n_0",
+      "worker_b_walk_n_1",
+      "worker_b_walk_n_2",
+      "worker_b_walk_n_3"
+    ],
     "frameTicks": 4,
     "loop": true
   },
   "worker_b_idle_s": {
-    "frames": ["worker_b_idle_s"],
+    "frames": [
+      "worker_b_idle_s"
+    ],
     "frameTicks": 0,
     "loop": false
   },
   "worker_b_walk_s": {
-    "frames": ["worker_b_walk_s_0", "worker_b_walk_s_1", "worker_b_walk_s_2", "worker_b_walk_s_3"],
+    "frames": [
+      "worker_b_walk_s_0",
+      "worker_b_walk_s_1",
+      "worker_b_walk_s_2",
+      "worker_b_walk_s_3"
+    ],
     "frameTicks": 4,
     "loop": true
   },
   "worker_b_idle_e": {
-    "frames": ["worker_b_idle_e"],
+    "frames": [
+      "worker_b_idle_e"
+    ],
     "frameTicks": 0,
     "loop": false
   },
   "worker_b_walk_e": {
-    "frames": ["worker_b_walk_e_0", "worker_b_walk_e_1", "worker_b_walk_e_2", "worker_b_walk_e_3"],
+    "frames": [
+      "worker_b_walk_e_0",
+      "worker_b_walk_e_1",
+      "worker_b_walk_e_2",
+      "worker_b_walk_e_3"
+    ],
     "frameTicks": 4,
     "loop": true
   },
   "worker_b_idle_w": {
-    "frames": ["worker_b_idle_w"],
+    "frames": [
+      "worker_b_idle_w"
+    ],
     "frameTicks": 0,
     "loop": false
   },
   "worker_b_walk_w": {
-    "frames": ["worker_b_walk_w_0", "worker_b_walk_w_1", "worker_b_walk_w_2", "worker_b_walk_w_3"],
+    "frames": [
+      "worker_b_walk_w_0",
+      "worker_b_walk_w_1",
+      "worker_b_walk_w_2",
+      "worker_b_walk_w_3"
+    ],
     "frameTicks": 4,
     "loop": true
   },

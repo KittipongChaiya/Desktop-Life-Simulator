@@ -1,18 +1,18 @@
 # ADR-002: Versioned JSON Saves with a Linear Migration Chain
 
-| | |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-07-21 |
-| **Deciders** | Project owner, lead architect |
-| **Supersedes** | — |
-| **Superseded by** | — |
+|                   |                               |
+| ----------------- | ----------------------------- |
+| **Status**        | Accepted                      |
+| **Date**          | 2026-07-21                    |
+| **Deciders**      | Project owner, lead architect |
+| **Supersedes**    | —                             |
+| **Superseded by** | —                             |
 
 ---
 
 ## Context
 
-This is an idle game the player is expected to return to for months. The save file *is* the product from the player's perspective — losing it destroys everything the game is for. Two properties dominate every other consideration:
+This is an idle game the player is expected to return to for months. The save file _is_ the product from the player's perspective — losing it destroys everything the game is for. Two properties dominate every other consideration:
 
 1. **A save must never be lost or corrupted**, including on power loss, crash-during-write, or disk-full.
 2. **A save written by v0.1 must still load in v1.0**, across every intervening schema change.
@@ -42,10 +42,10 @@ One JSON file per save slot. `schemaVersion` is a monotonically increasing integ
     "gameVersion": "0.1.0",
     "savedAtUnixMs": 1753084800000,
     "playtimeTicks": 1440000,
-    "lastTick": 1440000
+    "lastTick": 1440000,
   },
-  "world": { "seed": 1234567890, "tick": 1440000, /* ... */ },
-  "plugins": {}
+  "world": { "seed": 1234567890, "tick": 1440000 /* ... */ },
+  "plugins": {},
 }
 ```
 
@@ -77,7 +77,7 @@ A migration is a **pure function from version N to version N+1**:
 ```ts
 export interface Migration {
   readonly from: number;
-  readonly to: number;                       // always from + 1
+  readonly to: number; // always from + 1
   readonly describe: string;
   migrate(doc: UnknownSave): UnknownSave;
 }
@@ -93,7 +93,7 @@ Rules, binding on every future session:
 
 ### 4. Validation on load
 
-The renderer and disk are both untrusted boundaries (`AI_RULES.md` §2.4). After migration, the document is validated against the current schema *before* being handed to the simulation. A structurally valid but semantically impossible save (negative coins, a crop on a nonexistent tile) is repaired where repair is unambiguous and rejected where it is not — each repair is logged.
+The renderer and disk are both untrusted boundaries (`AI_RULES.md` §2.4). After migration, the document is validated against the current schema _before_ being handed to the simulation. A structurally valid but semantically impossible save (negative coins, a crop on a nonexistent tile) is repaired where repair is unambiguous and rejected where it is not — each repair is logged.
 
 ### 5. Plugin data is namespaced and preserved
 
@@ -118,7 +118,7 @@ A save records `lastTick` and wall-clock `savedAtUnixMs`. On load, elapsed real 
 ### A. SQLite (better-sqlite3)
 
 - **For:** transactional durability for free, partial reads/writes, queryable, scales far past JSON.
-- **Against:** a **native module**, which `TECH_STACK.md` §7.2 bans — rebuilt per Electron version, breaks CI on upgrades, complicates packaging. Migrations become schema DDL, which is *more* ceremony than a pure function, not less. And it optimizes for a scale problem this game does not have: the entire world fits in memory by design.
+- **Against:** a **native module**, which `TECH_STACK.md` §7.2 bans — rebuilt per Electron version, breaks CI on upgrades, complicates packaging. Migrations become schema DDL, which is _more_ ceremony than a pure function, not less. And it optimizes for a scale problem this game does not have: the entire world fits in memory by design.
 - **Rejected because:** it trades a real, immediate cost (native dependency) for a benefit that only materializes at a scale the design does not reach.
 
 ### B. Binary format (MessagePack / Protobuf / custom)
@@ -130,7 +130,7 @@ A save records `lastTick` and wall-clock `savedAtUnixMs`. On load, elapsed real 
 ### C. Event sourcing / command log
 
 - **For:** perfect history, replay, and time travel — and genuinely attractive given the simulation is already deterministic.
-- **Against:** load time grows without bound with playtime, which is fatal for a game measured in months. Requires snapshotting anyway, so you build both systems. Every migration must handle historical *commands*, which is strictly harder than migrating state.
+- **Against:** load time grows without bound with playtime, which is fatal for a game measured in months. Requires snapshotting anyway, so you build both systems. Every migration must handle historical _commands_, which is strictly harder than migrating state.
 - **Rejected because:** the load-time growth is disqualifying for this genre. Determinism is still exploited for testing and reproduction — just not as the storage mechanism.
 
 ### D. Automatic structural migration (infer changes from schema diffs)
@@ -145,14 +145,14 @@ A save records `lastTick` and wall-clock `savedAtUnixMs`. On load, elapsed real 
 
 ## Tradeoffs Accepted
 
-| We accept | To gain | Mitigation |
-|---|---|---|
-| Whole-file rewrite on every save | Atomicity and simplicity | File is small; autosave is throttled and off the render path |
-| JSON's size overhead | Inspectability and debuggability | Optional gzip at a documented size threshold |
-| Migration chain grows forever | Guaranteed backward compatibility | Each link is small, pure, and covered by a golden fixture |
-| Discipline required to never break the schema | Player trust | Golden-fixture tests fail loudly if compatibility breaks |
-| Full state in memory | Simplicity everywhere | Explicitly bounded by the design; tracked in `PERFORMANCE.md` |
-| Offline progress is approximate | Instant load | Each system documents its accuracy contract; deviations are bounded and tested |
+| We accept                                     | To gain                           | Mitigation                                                                     |
+| --------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------ |
+| Whole-file rewrite on every save              | Atomicity and simplicity          | File is small; autosave is throttled and off the render path                   |
+| JSON's size overhead                          | Inspectability and debuggability  | Optional gzip at a documented size threshold                                   |
+| Migration chain grows forever                 | Guaranteed backward compatibility | Each link is small, pure, and covered by a golden fixture                      |
+| Discipline required to never break the schema | Player trust                      | Golden-fixture tests fail loudly if compatibility breaks                       |
+| Full state in memory                          | Simplicity everywhere             | Explicitly bounded by the design; tracked in `PERFORMANCE.md`                  |
+| Offline progress is approximate               | Instant load                      | Each system documents its accuracy contract; deviations are bounded and tested |
 
 ---
 

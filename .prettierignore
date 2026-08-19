@@ -1,0 +1,25 @@
+# Generated files are owned by their generator, not by the formatter.
+#
+# ADR-006 §2 requires re-running the art scripts to be BYTE-IDENTICAL, so that
+# any change to the art is an intentional git diff. A formatter that rewrites
+# generated output breaks that guarantee outright: the generator writes one
+# shape, `lint-staged` rewrites it on commit, and the next regeneration shows
+# a diff that nobody made.
+#
+# This was found at the v0.5 RC — six `.anim.json` sidecars came back modified
+# from a clean regeneration, and had been flip-flopping since the character
+# generator started emitting them.
+
+assets/src/**/*.anim.json
+
+# Measurement artefacts, written by the E2E performance criteria. Same reason:
+# the run that produces them owns their shape, and a formatter rewriting them
+# means every measurement shows up as a diff against the last commit's
+# formatting rather than against the last measurement.
+docs/perf/*.json
+
+# Build output and coverage reports.
+assets/dist/
+dist/
+out/
+coverage/

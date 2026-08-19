@@ -11,6 +11,124 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **v0.5 phases 40–46 — the world stops being a grid** (no schema change;
+  ADR-042 governs): the cozy pass made the assets better and did not make the
+  game look like a world, and the owner's correction identified why. The
+  problem was never asset quality — it was that **one tile meant one object**,
+  so a mill and a seed bin were the same size and the player was looking at a
+  spreadsheet with pictures in it. No amount of prettier sprites fixes a
+  content model.
+
+  ADR-042 separates the grid the simulation needs from the world the player
+  sees, and **takes nothing away from the grid**: pathfinding, occupancy,
+  collision, farming, logistics, worker AI and the save format are untouched. A
+  building's tile became its ORIGIN rather than its extent. Buildings now
+  declare a `footprint` — shed and hut 2×2, stall and kitchen 3×2, mill 3×3,
+  cottage 2×2, castle 4×3 — and a definition that declares nothing is still one
+  tile, so a v0.4 content pack keeps working untouched.
+
+  **The footprint is content, and it is derived.** A saved building records the
+  same definition id and origin tile it always did; the rectangle is looked up
+  on load. That is why a version that changed how the whole world looks **added
+  no schema version** — the same rule (ADR-009 §1) that keeps tilled soil, tile
+  variants and worker rigs out of the file.
+
+  Rendering gained **one sorted layer, one sort key, one anchor**: everything
+  that stands in the world lives in `world` and sorts against everything else
+  by its base position in world pixels, so a walking worker and a standing
+  building are measured on the same scale; `depth.ts` is the only place that
+  key is computed; and `anchor.set(0.5, 1)` means art can be as tall as it
+  likes and grows upward out of the footprint rather than out of the world. The
+  buildings slice publishes `footprintWidth` and deliberately not
+  `footprintHeight` — width centres the sprite, height is the art's business,
+  and a canopy overlapping the tiles above it costs the simulation nothing
+  because the simulation was never told about the canopy.
+
+  **The cost was measured twice, and the second reading is the one that
+  counts.** Phase 46 reported a real regression — tick average 0.063 → 0.104
+  ms, unattended CPU 0.595% → 1.058% — and flagged that its first reading had
+  been taken while the machine was building. Re-measured at the RC on an idle
+  machine, **it does not reproduce**: tick average **0.060 ms**, unattended CPU
+  mean **0.533%**, and the v0.4 full-load scenario now runs at **0.145 ms**
+  against v0.4's own 0.187 ms, with 547 visible sprites. The footprint
+  hypothesis (a 3×3 mill blocking nine tiles where it blocked one) was stated
+  as unproven and is withdrawn. One increase is real and consistent: **heap
+  12.8 → 14.5 MB**, most plausibly the art set growing 166 → 237 sprites,
+  against a 25 MB ceiling. `PERFORMANCE.md` §18 carries the whole comparison,
+  including what the method got wrong.
+
+  Running the real game found what no unit test could: a cool grey
+  `UNOWNED_TINT` washing most of the screen, decor that stopped nine rows short
+  of the map's bottom, worker rigs that drew nothing because their `.anim.json`
+  sidecars had been written by hand and never existed for the new keys, and six
+  buildings placed one tile apart in a fixture that footprints no longer allow.
+  **Perceptual acceptance of the visual work is the owner's call** — ADR-040
+  forbids marking human-playtest evidence PASS from a session with no human in
+  it, and everything measurable was measured.
+
+- **v0.5 phases 47–51 — the playable cut** (no schema change; ADR-043 and
+  ADR-044): the version's remaining half, which is about the person playing
+  rather than the thing they look at.
+
+  **Audio that survives a workday** (ADR-043): eleven sounds each played from
+  one buffer meant every harvest was bit-identical to every other harvest —
+  survivable in twenty minutes and the whole problem in eight hours, because
+  identical repetition is what turns a sound somebody liked into a sound they
+  mute. Repeated world sounds now vary ±6% in pitch, derived from a per-sound
+  play counter through the same hash the world already uses for decor and tile
+  variants, never `Math.random` — so the same farm sounds the same on every
+  launch and the rule is testable. Signals (ui, error, notification) and the
+  ambient bed deliberately do not vary: a statement that moves reads as a
+  fault, and a bed whose rate changed would shift pitch mid-weather. The rule
+  is by CATEGORY, so a sound added later inherits it. **The replacement path is
+  now verified rather than promised** — dropping a real `.wav` into
+  `assets/src/audio/` copies it through instead of synthesising, both
+  directions exercised; that promise is the entire justification for shipping
+  placeholder sound and nothing had ever checked it. **Timbre is not improved
+  and is not claimed to be**: I cannot hear it, and ADR-040 says evidence
+  needing a human is never PASS from here.
+
+  **Zone painting**: `setWorkerZone` shipped in v0.3 and no player could ever
+  call it — choosing tiles is a map interaction, and the panel shipped roles
+  alone. Arm from the panel, drag a rectangle on the farm, Shift erases, Escape
+  finishes. The drag's start is state; the moving corner is not, which is what
+  stops every React subscriber re-rendering on every mouse move. One real bug
+  found by building it: the camera takes `setPointerCapture` on any world drag,
+  and capture fires `pointercancel` on every other listener, so the rectangle
+  was abandoned before it had a second corner. One real documentation defect
+  too — `workers-slice.ts` claimed a zoned worker reports a `null` role; the
+  matcher had always ignored zones, and a test built on that sentence cost an
+  hour concluding the feature was broken when the comment was.
+
+  **"What now?"** (amends ADR-034 §7): the game never told a player what to do
+  next, which is fine for the person who built it and hostile to everyone else
+  — a farm with money in the bank, an empty field and no workers looks exactly
+  like a farm that is finished. One line in the status bar, derived from the
+  snapshot the HUD already holds: no objective state, no progress record, no
+  save change, nothing to migrate. §7 forbade a quest journal WINDOW and that
+  judgement stands; this is deliberately smaller — one sentence, no log,
+  nothing to dismiss, and **it renders nothing most of the time**, which is
+  what lets it live in the bar at all. Ordering it turned it into onboarding
+  for free: buy seed → plant → wait → sell → hire, where each step is the
+  state the previous one leaves behind, so there is no tutorial mode, nothing
+  to skip and nothing to resume. Running it caught the version of this feature
+  that would have poisoned it: the first draft counted every posted board offer
+  and told a brand-new farm with an empty inventory that the board wanted
+  something it could deliver.
+
+  **The arc, timed** (ADR-044): a perfect player reaches stage 4 in about
+  **twelve minutes** against a design document claiming "3 hr+" — a number four
+  versions were built on and nobody had ever checked. Both are wrong for the
+  same reason: neither describes a person. Twelve minutes is a LOWER BOUND for
+  a model that never mis-clicks and harvests on the exact tick of maturity, and
+  what a real player takes has never been measured at all. **The balance was
+  therefore not changed** — tuning an economy against a perfect-player bound is
+  guessing with arithmetic, and the stall's price reaches contracts, factory
+  payback and expedition funding, which makes it the owner's call. The
+  measurement bought a guard instead: the arc test now asserts a floor as well
+  as its four-hour ceiling, because the ceiling catches an arc that got slower
+  and nothing caught one that fell over.
+
 - **v0.5 phases 32–39 — the cozy pass** (no schema change; ADR-041 governs): a
   visual revision of the whole game at the owner's direction, and the finding
   that shaped it is that **the direction was never wrong — the assets never

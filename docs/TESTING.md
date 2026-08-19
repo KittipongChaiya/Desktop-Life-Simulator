@@ -21,16 +21,22 @@ This is the payoff for the boundary enforcement in `CODE_STYLE.md` §8, and it i
 ```
                     ▲  fewer, slower, higher confidence
         ┌───────────────────────┐
-        │   E2E (Playwright)    │   ~15 tests — overlay, idle cost, save integrity
+        │   E2E (Playwright)    │   88 tests, 28 specs — overlay, idle cost, save integrity
         ├───────────────────────┤
-        │     Integration       │   ~40 tests — save round-trip, migrations, tick
+        │     Integration       │   save round-trip, migrations, tick, long-runs
         ├───────────────────────┤
-        │  Property (fast-check)│   ~15 properties — determinism, round-trip, catch-up
+        │  Property (fast-check)│   19 properties — determinism, round-trip, catch-up
         ├───────────────────────┤
-        │        Unit           │   ~300 tests — systems, content, pure logic
+        │        Unit           │   systems, content, pure logic
         └───────────────────────┘
                     ▼  many, fast, focused
 ```
+
+3,302 unit + integration + property tests across 257 files, measured at the
+v0.5 RC. **The counts move every phase; the SHAPE is the claim.** These row
+totals read "~15 / ~40 / ~15 / ~300" from v0.1 until that RC, by which point
+the suite was ten times the last of them — a stale number sitting in the
+document about not stating things you have not checked.
 
 Property tests sit above integration deliberately. **The three most important guarantees in this project are properties, not examples:**
 
@@ -116,6 +122,35 @@ The numbers live in `coverage-policy.config.ts`, `vitest.config.ts` derives its 
 **Every row above went up at phase-08.0, or stayed.** That is not a rewrite of the standard; it is what happened once §4.2 stopped counting host bindings as untested logic. `src/renderer/render` was declared at 50/40 and measured 34% — because the row averaged extracted, well-tested logic against Pixi files that a unit test cannot reach at all. Measuring only the first gives 98.94%, and the row that could honestly be asked for rose to 95/85. `src/main` moved the same way, from a declared 60% measuring 31% to 90/80.
 
 **Coverage is a floor, not a goal.** 90% coverage with tests that assert nothing is worse than 70% with tests that would catch a regression. Do not add assertion-free tests to hit a number.
+
+### 4.1a The coverage run is not the ordinary run
+
+`npm run test:coverage` runs the same suite under V8 instrumentation, and
+**measured at the v0.5 RC that costs about 3.3×** on the tests that dominate
+the wall clock — `chain-longrun`'s eight-hour production run goes 687 s →
+1,980 s.
+
+That broke a convention this project had held since v0.3: state a long test's
+timeout at the test, so the cost is attributed to whoever incurs it. One number
+cannot serve both runs. Sized for coverage, the timeout stops detecting a hang
+in the ordinary run; sized for the ordinary run, the coverage gate goes red for
+a reason nobody can act on — which is what happened at this RC, five tests at
+once, none of them a defect.
+
+`tests/long-run-budget.ts` resolves it: a test states its UNINSTRUMENTED
+measurement, and the budget multiplies under coverage, which
+`vitest.coverage.config.ts` signals with an env var.
+
+**Dropping the long-runs from the coverage run was tried first, and is wrong.**
+`memory-longrun` is excluded for a good reason — it measures heap, which
+instrumentation genuinely distorts — and the same argument looked like it
+covered the rest. It does not: with them excluded, `src/persistence/**`
+branches fall to 88.47% against a 90% threshold, because `catch-up-factories`
+drives `catch-up.ts` across gaps nothing else reaches. Excluding them would
+have traded a visible timeout for an invisible hole.
+
+**A timeout is not a performance budget.** It detects a hang. What the
+simulation costs is measured deliberately, and lives in `PERFORMANCE.md`.
 
 ### 4.2 What is not measured, and what covers it instead
 

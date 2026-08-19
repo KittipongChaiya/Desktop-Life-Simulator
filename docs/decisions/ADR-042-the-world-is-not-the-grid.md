@@ -113,11 +113,33 @@ apart in an old save overlap. This is the one place where a visual change can
 corrupt a simulation, so it is decided here rather than discovered later:
 
 **Loading never fails and never moves a building.** Occupancy is recomputed from
-the registry on load; where two buildings would claim a tile, the first placed
-keeps it and the later one simply occupies less. The building still exists,
-still works, still stores what it stored. Overlapping art is a cosmetic wart on
-one old save; a load that throws, or that silently deletes a player's mill, is
-not acceptable at any visual benefit.
+the registry on load. The building still exists, still works, still stores what
+it stored. Overlapping art is a cosmetic wart on one old save; a load that
+throws, or that silently deletes a player's mill, is not acceptable at any
+visual benefit.
+
+**Amended at phase-52, to describe what was built.** This section originally
+said "the first placed keeps it and the later one simply occupies less", which
+implies an ownership contest that `deserialize.ts` does not hold. What it
+actually does is mark every tile of every building's rectangle blocked:
+
+```ts
+for (const tile of covered) setBlocked(world.tiles, tile, true);
+```
+
+The grid stores **whether a tile is blocked**, not who blocked it, so two
+buildings covering one tile is not a conflict there is anything to resolve —
+they both block it, and selling one re-blocks whatever the other still covers.
+The player-visible guarantee this section exists to make is unchanged; the
+mechanism is simpler than the one described, and the description was wrong
+rather than the code.
+
+One consequence worth stating: if a legacy building sits close enough to the
+map edge that its new rectangle would fall outside the world, `footprintTiles`
+returns `null` and the load blocks **only its origin tile**. It never clamps
+the rectangle, because a building that silently shrank would block fewer tiles
+than its art covers and a worker would walk through its wall — and it never
+refuses the load, for the reason above.
 
 ### 5. What this does NOT license
 

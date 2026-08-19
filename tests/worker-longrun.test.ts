@@ -18,6 +18,7 @@ import { addItems, containerTotal } from '../src/sim/world/container';
 import { addCoins } from '../src/sim/world/wallet';
 import { createWorld, type World } from '../src/sim/world/world';
 import { MAX_ENERGY } from '../src/sim/world/worker';
+import { longRunBudget } from './long-run-budget';
 
 function withWorkers(seed: number, count: number): World {
   const world = createWorld(seed);
@@ -54,44 +55,62 @@ function snapshotCrops(world: World): unknown {
   return [...world.crops.entries()].sort((a, b) => a[0] - b[0]);
 }
 
+/**
+ * Eight simulated hours of five workers, measured at 75 s uninstrumented — and
+ * the run's cost has been climbing with the world: v0.5 gave every building a
+ * real footprint, which is more obstacle for the crew to path around.
+ *
+ * Raised from the global 120 s at the v0.5 RC. It is a hang detector, not a
+ * speed budget; what the simulation costs is measured in `PERFORMANCE.md`.
+ */
+const WORKER_RUN_TIMEOUT_MS = longRunBudget(300_000);
+
 describe('5 workers run unattended for 8 simulated hours (crit 23)', () => {
-  it('runs unattended without jamming; the bounded farm fills and workers idle', () => {
-    const world = withWorkers(20260722, 5);
+  it(
+    'runs unattended without jamming; the bounded farm fills and workers idle',
+    () => {
+      const world = withWorkers(20260722, 5);
 
-    // The whole 8 hours must not throw. With no selling wired into this run,
-    // the farm winds down when the seed stock exhausts or the bounded
-    // inventory fills and blocks harvest — either is the correct end state
-    // (§7, 06b): workers wait rather than deadlock, jam, or crash.
-    expect(() => stepSimulationBy(world, OFFLINE_CAP_TICKS)).not.toThrow();
+      // The whole 8 hours must not throw. With no selling wired into this run,
+      // the farm winds down when the seed stock exhausts or the bounded
+      // inventory fills and blocks harvest — either is the correct end state
+      // (§7, 06b): workers wait rather than deadlock, jam, or crash.
+      expect(() => stepSimulationBy(world, OFFLINE_CAP_TICKS)).not.toThrow();
 
-    // Work happened, and it flowed all the way to the inventory: harvest ->
-    // worker hold -> deposit -> player inventory (ADR-011).
-    expect(world.cropStats.planted).toBeGreaterThan(0);
-    expect(world.cropStats.harvested).toBeGreaterThan(0);
-    expect(containerTotal(world.inventory)).toBeGreaterThan(0);
+      // Work happened, and it flowed all the way to the inventory: harvest ->
+      // worker hold -> deposit -> player inventory (ADR-011).
+      expect(world.cropStats.planted).toBeGreaterThan(0);
+      expect(world.cropStats.harvested).toBeGreaterThan(0);
+      expect(containerTotal(world.inventory)).toBeGreaterThan(0);
 
-    // No jam: five workers, each in a valid state with bounded energy.
-    expect(world.workers.size).toBe(5);
-    for (const worker of world.workers.values()) {
-      expect(worker.energy).toBeGreaterThanOrEqual(0);
-      expect(worker.energy).toBeLessThanOrEqual(MAX_ENERGY);
-    }
-  }, 120_000);
+      // No jam: five workers, each in a valid state with bounded energy.
+      expect(world.workers.size).toBe(5);
+      for (const worker of world.workers.values()) {
+        expect(worker.energy).toBeGreaterThanOrEqual(0);
+        expect(worker.energy).toBeLessThanOrEqual(MAX_ENERGY);
+      }
+    },
+    WORKER_RUN_TIMEOUT_MS,
+  );
 });
 
 describe('determinism over 100k ticks with 5 workers (crit 24)', () => {
-  it('produces byte-identical worker and crop state from an identical run', () => {
-    const a = withWorkers(31337, 5);
-    const b = withWorkers(31337, 5);
+  it(
+    'produces byte-identical worker and crop state from an identical run',
+    () => {
+      const a = withWorkers(31337, 5);
+      const b = withWorkers(31337, 5);
 
-    stepSimulationBy(a, 100_000);
-    stepSimulationBy(b, 100_000);
+      stepSimulationBy(a, 100_000);
+      stepSimulationBy(b, 100_000);
 
-    expect(a.tick).toBe(b.tick);
-    expect(snapshotWorkers(a)).toEqual(snapshotWorkers(b));
-    expect(snapshotCrops(a)).toEqual(snapshotCrops(b));
-    expect([...a.tiles.tilledAt]).toEqual([...b.tiles.tilledAt]);
-    expect(a.cropStats).toEqual(b.cropStats);
-    expect(a.rng.getState()).toEqual(b.rng.getState());
-  }, 120_000);
+      expect(a.tick).toBe(b.tick);
+      expect(snapshotWorkers(a)).toEqual(snapshotWorkers(b));
+      expect(snapshotCrops(a)).toEqual(snapshotCrops(b));
+      expect([...a.tiles.tilledAt]).toEqual([...b.tiles.tilledAt]);
+      expect(a.cropStats).toEqual(b.cropStats);
+      expect(a.rng.getState()).toEqual(b.rng.getState());
+    },
+    WORKER_RUN_TIMEOUT_MS,
+  );
 });
