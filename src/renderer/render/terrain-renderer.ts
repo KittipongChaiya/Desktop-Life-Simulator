@@ -50,10 +50,15 @@ const CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
  * sheet never has an owned plot in it.
  *
  * The value keeps the job — unowned land still reads as not-yours — and pays
- * far less for it: warm rather than blue, and about 78% brightness rather than
- * 42%.
+ * far less for it: warm rather than blue, and lifted twice. 42% was the
+ * original blue-grey; 78% was the first warm try, and a second screenshot
+ * (this time with the real grass tile in the atlas rather than a stale one)
+ * showed it still reading as dark forest rather than as countryside. 86% is
+ * where the boundary is still legible — and it has other cues besides, since
+ * the plot is where the tilled soil and the buildings are — while the world
+ * stays the warm green the art direction asks for.
  */
-const UNOWNED_TINT = 0xc6b49e;
+const UNOWNED_TINT = 0xdcd0bf;
 
 export interface TerrainRenderer {
   /**
