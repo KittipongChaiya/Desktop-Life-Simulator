@@ -80,8 +80,16 @@ export interface WorkerView {
    *
    * A role ID rather than the schedule itself: the panel needs to name what a
    * worker is set to, and projecting the constraint sets would put simulation
-   * shapes into a view nothing reads (ADR-005 §2). A player who edits a zone
-   * onto a role gets `null` here, which is honest — they are no longer on it.
+   * shapes into a view nothing reads (ADR-005 §2).
+   *
+   * A ZONE DOES NOT CHANGE THIS. `roleMatching` compares only the three fields
+   * a role can express and ignores the zone deliberately, so a farmhand given
+   * a zone is still reported as a farmhand.
+   *
+   * This comment used to claim the opposite — that a zone made the role read
+   * `null` — which was never true of the code beneath it. Phase-48 built a
+   * test on that sentence, watched it fail, and spent an hour concluding the
+   * zone feature was broken when the documentation was.
    */
   readonly role: string | null;
 }

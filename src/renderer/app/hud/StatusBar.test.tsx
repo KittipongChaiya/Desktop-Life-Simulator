@@ -21,6 +21,7 @@ import { createActionFeedback } from '../action-feedback';
 import type { OverlayController } from '../overlay-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { StatusBar } from './StatusBar';
 
@@ -46,6 +47,7 @@ function mount(store: SnapshotStore, onRender: () => void, overlay = stubOverlay
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={store}

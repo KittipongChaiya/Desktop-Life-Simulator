@@ -63,6 +63,12 @@ function fakeHost(overrides: { failContext?: boolean; failStart?: boolean } = {}
         const source = {
           buffer: null,
           loop: false,
+          // Phase-47 sets this to vary the pitch of repeated sounds. The
+          // double has to carry it: without the property the assignment throws
+          // inside the device's try/catch and every sound goes silent, which
+          // is what this stub reported the first time — a failure that looked
+          // like a decoding bug and was a missing test double.
+          playbackRate: { value: 1 },
           connect: () => undefined,
           disconnect: () => undefined,
           start: () => {

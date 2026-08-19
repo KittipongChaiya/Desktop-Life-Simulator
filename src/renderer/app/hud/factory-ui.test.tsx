@@ -34,6 +34,7 @@ import { createPlacementController } from '../placement';
 import { createSeedSelection } from '../seed-selection';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { FactoryPanel } from './FactoryPanel';
 
@@ -81,6 +82,7 @@ function mount(world: World): Command[] {
         }}
         selection={undefined as never}
         placement={createPlacementController()}
+        zonePainting={createZonePaintingController()}
         seeds={createSeedSelection()}
       >
         <FactoryPanel />

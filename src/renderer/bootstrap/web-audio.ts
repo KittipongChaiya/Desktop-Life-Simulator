@@ -172,7 +172,7 @@ export function createWebAudioPorts(
   };
 
   return {
-    play(sound, gain) {
+    play(sound, gain, rate) {
       const built = graph();
       if (built === null) return;
 
@@ -191,6 +191,11 @@ export function createWebAudioPorts(
         const source = built.context.createBufferSource();
         const voice = built.context.createGain();
         source.buffer = buffer;
+        // Phase-47: one property on a node that is being allocated anyway, and
+        // it is the whole of what stops the five-hundredth harvest sounding
+        // identical to the first. Clamped defensively — a rate of zero stalls
+        // the source forever and a negative one is undefined behaviour.
+        source.playbackRate.value = Math.max(0.5, Math.min(2, rate ?? 1));
         voice.gain.value = Math.max(0, Math.min(1, gain));
         source.connect(voice);
         voice.connect(built.master);

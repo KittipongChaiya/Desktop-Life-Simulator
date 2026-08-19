@@ -314,3 +314,91 @@ describe('attachPointerActions — teardown', () => {
     expect([input.clicks, input.hovers, input.tools]).toEqual([[], [], []]);
   });
 });
+
+describe('zone painting takes the pointer while armed (phase-48)', () => {
+  /** Records what the zone port is asked to do. */
+  function recordingZone(active = true) {
+    const calls: string[] = [];
+    return {
+      calls,
+      port: {
+        active: () => active,
+        begin: (tile: TileIndex, erasing: boolean) => {
+          calls.push(`begin:${String(tile)}:${String(erasing)}`);
+        },
+        hover: (tile: TileIndex | null) => {
+          calls.push(`hover:${tile === null ? 'null' : String(tile)}`);
+        },
+        end: (tile: TileIndex) => {
+          calls.push(`end:${String(tile)}`);
+        },
+        cancel: () => calls.push('cancel'),
+        exit: () => calls.push('exit'),
+      },
+    };
+  }
+
+  it('begins on the press and ends on the release', () => {
+    // THE WHOLE POINT: a zone is a rectangle, so both ends of the gesture
+    // matter. Every other pointer action in this game happens on release
+    // alone, which is why this needed its own branch rather than reusing one.
+    const zone = recordingZone();
+    const { target } = attach({ zone: zone.port });
+
+    target.dispatchEvent(pointer('pointerdown', { x: 10, y: 10 }));
+    target.dispatchEvent(pointer('pointermove', { x: 60, y: 40 }));
+    target.dispatchEvent(pointer('pointerup', { x: 60, y: 40 }));
+
+    expect(zone.calls[0]).toBe(`begin:${String(TILE)}:false`);
+    expect(zone.calls.at(-1)).toBe(`end:${String(TILE)}`);
+  });
+
+  it('ends a one-tile drag that never moved', () => {
+    // A single square is a legitimate zone, and it arrives as a plain click.
+    const zone = recordingZone();
+    const { target } = attach({ zone: zone.port });
+
+    target.dispatchEvent(pointer('pointerdown', { x: 10, y: 10 }));
+    target.dispatchEvent(pointer('pointerup', { x: 10, y: 10 }));
+
+    expect(zone.calls).toContain(`end:${String(TILE)}`);
+  });
+
+  it('takes the pointer entirely — no tool action and no tile click', () => {
+    // A player painting a field and a player tilling one are making
+    // incompatible requests, and the armed mode wins.
+    const zone = recordingZone();
+    const { target, input } = attach({ zone: zone.port });
+
+    target.dispatchEvent(pointer('pointerdown', { x: 10, y: 10 }));
+    target.dispatchEvent(pointer('pointermove', { x: 20, y: 20 }));
+    target.dispatchEvent(pointer('pointerup', { x: 20, y: 20 }));
+
+    expect(input.clicks).toEqual([]);
+    expect(input.hovers.filter((tile) => tile !== null)).toEqual([]);
+  });
+
+  it('leaves the whole mode on Escape, not merely the drag', () => {
+    // These were one call at first, and Escape left the mode armed with the
+    // button still reading "Painting…". A pointer wandering off abandons a
+    // drag; a player pressing Escape is finished.
+    const zone = recordingZone();
+    const { target } = attach({ zone: zone.port });
+
+    target.dispatchEvent(pointer('pointerdown', { x: 10, y: 10 }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(zone.calls).toContain('exit');
+  });
+
+  it('does nothing at all when the mode is not armed', () => {
+    const zone = recordingZone(false);
+    const { target, input } = attach({ zone: zone.port });
+
+    target.dispatchEvent(pointer('pointerdown', { x: 10, y: 10 }));
+    target.dispatchEvent(pointer('pointerup', { x: 10, y: 10 }));
+
+    expect(zone.calls).toEqual([]);
+    expect(input.clicks).toEqual([TILE]);
+  });
+});

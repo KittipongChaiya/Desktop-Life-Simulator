@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                       |
-| ------------------- | ------------------------------------- |
-| **Current version** | **v0.5 — The Playable Cut**           |
-| **Current phase**   | **47 — Audio That Earns Eight Hours** |
-| **Status**          | **IN_PROGRESS**                       |
+|                     |                             |
+| ------------------- | --------------------------- |
+| **Current version** | **v0.5 — The Playable Cut** |
+| **Current phase**   | **49 — What Now**           |
+| **Status**          | **IN_PROGRESS**             |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -39,9 +39,9 @@ owner's memory (`AI_RULES.md` §10.4).
 | 44    | Terrain Transitions & Paths  | COMPLETE    |
 | 45    | Region Composition           | COMPLETE    |
 | 46    | World Acceptance & Cost      | COMPLETE    |
-| 47    | Audio That Earns Eight Hours | PENDING     |
-| 48    | Zone Painting                | PENDING     |
-| 49    | What Now                     | PENDING     |
+| 47    | Audio That Earns Eight Hours | COMPLETE    |
+| 48    | Zone Painting                | COMPLETE    |
+| 49    | What Now                     | IN_PROGRESS |
 | 50    | First Run                    | PENDING     |
 | 51    | Balance & The Idle Cost      | CONDITIONAL |
 | 52    | v0.5 Release Candidate       | PENDING     |
@@ -480,11 +480,83 @@ buildings in a single row one tile apart, which footprints no longer allow.
 once the world settles — so a passing game produced a thirty-second timeout.
 `shoot()` in `framing.ts` captures through Electron instead.
 
-**THE PERCEPTUAL ACCEPTANCE IS THE OWNER'S CALL.** §39 of the brief states the
-real test as what someone unfamiliar with the code would call the game, and
-ADR-040 already fixed the rule this project follows: human-playtest evidence
-can never be marked PASS from an AI session. Everything measurable is measured;
-whether it now reads as a cozy world is the one thing that has to be looked at.
+**THE PERCEPTUAL ACCEPTANCE OF THE VISUAL WORK IS THE OWNER'S CALL.** §39 of
+the brief states the real test as what someone unfamiliar with the code would
+call the game, and ADR-040 fixed the rule: human-playtest evidence can never be
+marked PASS from an AI session. Everything measurable is measured.
+
+**Phase 47 — Audio That Earns Eight Hours: COMPLETE, with one deliberate gap.**
+
+Every harvest was BIT-IDENTICAL to every other harvest — eleven sounds, one
+decoded buffer each. Survivable in a game played for twenty minutes; the whole
+problem in one left open beside somebody's work, because identical repetition
+is what turns a sound a player liked into a sound they mute, and a muted
+companion has lost a channel of feedback for good.
+
+Repeated sounds now vary in pitch by ±6% — about a semitone — derived from a
+per-sound play counter through the same hash family the world uses for decor
+and tile variants. Never `Math.random`: the same farm must sound the same on
+every launch, and a random rule cannot be tested. The counter is per SOUND, so
+two effects on one frame do not take correlated rates and sound like a single
+event pitched twice.
+
+Signals do not vary. A click, an error and a notification are statements the
+player learns as one shape, and a shape that moves reads as a fault. The rule
+is by CATEGORY, so a sound added later inherits it without anyone remembering
+the module exists.
+
+**The replacement path is verified rather than promised.** `generate-audio.mjs`
+has always claimed that dropping a real `.wav` in replaces a placeholder with
+no code changes — the entire justification for shipping placeholder sound —
+and nothing had ever checked it, in a repository whose history is a catalogue
+of documented mechanisms that did not run. It is exercised both ways now.
+
+**DELIBERATELY NOT DONE: the sounds do not sound better.** The obvious next
+move is richer synthesis, and **I cannot hear them.** Every other claim here is
+checkable by running something; "this sounds nicer" is not, and changing
+synthesis blind would be guessing with a straight face. ADR-040's rule applies
+unchanged. A second ambient bed is also declined: ADR-023 §5 permits ambience,
+singular, and making beds switchable is an amendment to that decision rather
+than an implementation detail.
+
+**Phase 48 — Zone Painting: COMPLETE.** `setWorkerZone` has existed and been
+tested since phase-14c and **nothing has ever been able to call it**.
+`WorkerRoles.tsx` recorded why in its own header: a zone is a set of tiles, so
+choosing one is a map interaction, and the panel shipped roles alone rather
+than a text box of tile indices that would look like the feature and be
+unusable. This is the missing half — arm from the panel, drag a rectangle on
+the farm, Shift to erase, Escape to finish.
+
+Built as the same shape as building placement, because it is the same kind of
+thing: a small observable shared between an arming button and a drawer. The
+drag's START is state; the moving corner is not, and keeping it out of the
+store is what stops every React subscriber re-rendering on every mouse move.
+
+**Painting REPLACES rather than appends, and the button says "Set zone".**
+Seeding from a worker's existing zone needs that zone on the sim→view boundary,
+which means comparing a tile SET per worker per tick to decide whether to
+republish — the cost ADR-005 §2 exists to prevent. The controller already
+accepts a seed, so the day the boundary carries one cheaply this becomes
+additive with no other change.
+
+**One real bug, found by building it:** the camera takes `setPointerCapture` on
+any drag over the world, and capture fires `pointercancel` on every other
+listener — so the painter's rectangle was abandoned before it had a second
+corner. `attachInput` now accepts a suppression predicate; while painting is
+armed the drag belongs to the painter.
+
+**And one real documentation defect.** `workers-slice.ts` claimed a worker
+given a zone reports a `null` role. The matcher deliberately ignores zones and
+always did. A test was built on that sentence, failed, and cost an hour
+concluding the feature was broken when the comment was. Corrected, with the
+history recorded beside it.
+
+Evidence: 14 controller tests, 5 pointer-wiring tests, and an e2e that arms the
+mode, drags, and then proves BOTH halves — the command monitor shows
+`setWorkerZone` accepted, and the new `render.zone` metric shows the zone is
+not empty. That second check matters: an empty tile list is read as "clear the
+zone", so a drag that painted nothing produces an accepted command that does
+nothing, and the two are indistinguishable without a count.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

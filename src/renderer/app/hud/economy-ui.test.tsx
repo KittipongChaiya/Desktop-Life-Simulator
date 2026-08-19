@@ -27,6 +27,7 @@ import { createPlacementController } from '../placement';
 import { createSeedSelection, type SeedSelection } from '../seed-selection';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { InventoryPanel } from './InventoryPanel';
 import { ShopPanel } from './ShopPanel';
@@ -68,6 +69,7 @@ function mount(world: World, element: React.ReactNode): Harness {
         }}
         selection={undefined as never}
         placement={createPlacementController()}
+        zonePainting={createZonePaintingController()}
         seeds={seeds}
       >
         {element}

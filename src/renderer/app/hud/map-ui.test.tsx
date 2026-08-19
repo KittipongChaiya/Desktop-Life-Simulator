@@ -32,6 +32,7 @@ import { createPlacementController } from '../placement';
 import { createSeedSelection } from '../seed-selection';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { MapPanel } from './MapPanel';
 import { WorkerPanel } from './WorkerPanel';
@@ -75,6 +76,7 @@ function mount(world: World): Command[] {
         }}
         selection={undefined as never}
         placement={createPlacementController()}
+        zonePainting={createZonePaintingController()}
         seeds={createSeedSelection()}
       >
         <MapPanel />
@@ -107,6 +109,7 @@ function mountWorkerPanel(world: World): void {
         player={{ submit: () => ok({ id: 1, source: CommandSource.Player, dispatchedTick: 0 }) }}
         selection={undefined as never}
         placement={createPlacementController()}
+        zonePainting={createZonePaintingController()}
         seeds={createSeedSelection()}
       >
         <WorkerPanel />

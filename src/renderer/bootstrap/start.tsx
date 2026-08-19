@@ -35,6 +35,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { OVERLAY_HEIGHT_COLLAPSED } from '../../shared/constants';
+import { toIndex, toPosition } from '../../shared/geometry';
 import { asContentId } from '../../shared/ids';
 import { asTileIndex, type ContentId, type TileIndex } from '../../shared/ids';
 import { intensityScale } from '../../shared/motion';
@@ -60,6 +61,7 @@ import { createToolSelection } from '../app/tool-selection';
 import { watchMajorTransactions } from '../app/transaction-watch';
 import { createUpdateController } from '../app/update-controller';
 import { createWorkerSelection } from '../app/worker-selection';
+import { createZonePaintingController } from '../app/zone-painting';
 import { createAmbientPresence } from '../render/ambient-presence';
 import {
   DEFAULT_SHAKE,
@@ -431,6 +433,7 @@ function composeApplication(world: World, session: SaveSession): void {
   // lives here in the wiring, not in the store, so React does not re-render on
   // pointer movement.
   const placement = createPlacementController();
+  const zonePainting = createZonePaintingController();
   let hoveredTile: TileIndex | null = null;
 
   const canvas = document.getElementById('world');
@@ -449,6 +452,7 @@ function composeApplication(world: World, session: SaveSession): void {
     // The canvas is pointer-transparent so clicks fall through to the desktop
     // (App.module.css); pan/zoom therefore listen on the window and the UI
     // layer stops events over real controls.
+    suppressDrag: () => zonePainting.active() !== null,
     inputTarget: document.body,
     selectedWorkerId: () => selection.selected(),
     // The accessibility settings, finally reaching the thing they govern
@@ -601,6 +605,82 @@ function composeApplication(world: World, session: SaveSession): void {
         placement.deactivate();
       },
     },
+    zone: {
+      active: () => zonePainting.active() !== null,
+      begin: (tile, erasing) => {
+        const at = toPosition(tile);
+        if (!at.ok) return;
+        zonePainting.beginDrag({ x: at.value.x, y: at.value.y, erasing });
+        syncZone(null);
+      },
+      hover: (tile) => {
+        syncZone(tile);
+      },
+      end: (tile) => {
+        const at = toPosition(tile);
+        if (!at.ok) return;
+        zonePainting.endDrag(at.value.x, at.value.y, (x: number, y: number) => {
+          const index = toIndex(x, y);
+          return index.ok ? index.value : null;
+        });
+        syncZone(null);
+
+        // The zone is applied on every drag rather than behind a Save button.
+        // A painted rectangle the worker is not yet obeying is a lie about
+        // state, and `setWorkerZone` replaces the zone wholesale, so sending
+        // the whole accumulated set each time is exactly its contract.
+        const worker = zonePainting.active();
+        if (worker !== null) {
+          playerSource.submit({
+            type: 'setWorkerZone',
+            worker,
+            tiles: [...zonePainting.tiles()].map((tile) => asTileIndex(tile)),
+          });
+        }
+      },
+      cancel: () => {
+        zonePainting.cancelDrag();
+        syncZone(null);
+      },
+      exit: () => {
+        zonePainting.deactivate();
+        syncZone(null);
+      },
+    },
+  });
+
+  /**
+   * Pushes the painted zone and the live rectangle into the world view.
+   *
+   * `hovered` is the tile under the pointer, or null when there is nothing to
+   * preview. Kept out of the store deliberately (`zone-painting.ts`): it
+   * changes at pointer rate, and putting it there would re-render every React
+   * subscriber on every mouse move.
+   */
+  function syncZone(hovered: TileIndex | null): void {
+    const view = worldMount.current();
+    if (view === undefined || view === null) return;
+
+    const anchor = zonePainting.anchor();
+    const at = hovered === null ? null : toPosition(hovered);
+    const preview =
+      anchor === null || at === null || !at.ok
+        ? null
+        : {
+            fromX: anchor.x,
+            fromY: anchor.y,
+            toX: at.value.x,
+            toY: at.value.y,
+            erasing: anchor.erasing,
+          };
+
+    view.setZone({ tiles: zonePainting.tiles(), preview });
+  }
+
+  // Painting is presentation state, so the overlay is redrawn whenever it
+  // changes — including when the mode is armed or left, which must clear it.
+  zonePainting.subscribe(() => {
+    syncZone(null);
   });
 
   // A selection change is a scene change even when the worker is standing still,
@@ -900,6 +980,7 @@ function composeApplication(world: World, session: SaveSession): void {
         seeds={seeds}
         selection={selection}
         placement={placement}
+        zonePainting={zonePainting}
         companion={companion}
         save={save}
         returnSummary={returnSummary}
@@ -918,6 +999,7 @@ function composeApplication(world: World, session: SaveSession): void {
     ...(commandLog === null ? {} : { commandLog }),
     ...(FEATURE_DEBUG && renderDebug !== null ? { renderDebug } : {}),
     world: () => worldMount.current(),
+    zonePainting,
     worldError: () => lastWorldError,
     commandRejection: () => lastCommandRejection,
     saveNote: () => lastLoadNote,

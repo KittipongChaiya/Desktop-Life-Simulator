@@ -38,6 +38,15 @@ export interface DevToolsMountOptions {
   /** Last mount failure, if any. Surfaced so a GPU failure is diagnosable. */
   readonly worldError?: () => string | null;
   /**
+   * The zone painter, for the `render.zone` metric (phase-48). Optional so
+   * every existing caller — including this module's own tests — keeps working.
+   */
+  readonly zonePainting?: {
+    /** The worker being painted, as a branded id or null. */
+    active(): number | null;
+    tiles(): ReadonlySet<number>;
+  };
+  /**
    * Last command rejected at EXECUTION, if any. Phase-03.6.
    *
    * These are rejections the player never sees: the command passed validation
@@ -360,6 +369,28 @@ export async function mountDevTools(options: DevToolsMountOptions): Promise<void
           return camera === undefined
             ? 'Unavailable'
             : `x ${camera.x.toFixed(0)} z ${String(camera.zoom)}`;
+        },
+      },
+      {
+        id: 'render.zone',
+        label: 'Zone',
+        group: MetricGroup.Render,
+        order: 2,
+        /**
+         * How many tiles the zone painter is holding (phase-48).
+         *
+         * Diagnostics, and the only way to SEE a zone from outside the world:
+         * `workers-slice.ts` deliberately does not project one, because
+         * comparing a tile set per worker per tick to decide whether to
+         * republish is the cost ADR-005 §2 exists to prevent. Without this
+         * number, "the zone landed" and "the command cleared the zone" look
+         * identical from a test — which is exactly how phase-48 spent an hour
+         * chasing a feature that was already working.
+         */
+        read: () => {
+          const worker = options.zonePainting?.active();
+          if (worker === undefined || worker === null) return 'not painting';
+          return `worker ${String(worker)} · ${String(options.zonePainting?.tiles().size ?? 0)} tiles`;
         },
       },
       {

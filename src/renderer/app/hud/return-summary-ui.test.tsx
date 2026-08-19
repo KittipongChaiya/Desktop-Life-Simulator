@@ -21,6 +21,7 @@ import { createReturnSummary, type ReturnSummaryReport } from '../return-summary
 import { createSaveController, type SaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { ReturnSummary } from './ReturnSummary';
 import { SaveNotice } from './SaveNotice';
@@ -78,6 +79,7 @@ function mount(options: {
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={undefined as never}

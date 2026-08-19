@@ -27,6 +27,7 @@ import { createSeedSelection } from './seed-selection';
 import { AppProviders } from './store-context';
 import { createToolSelection } from './tool-selection';
 import { createUpdateController } from './update-controller';
+import { createZonePaintingController } from './zone-painting';
 
 interface BridgeState {
   readonly opacityPercent: number;
@@ -89,6 +90,7 @@ function mount(initial: BridgeState): { emit(next: BridgeState): void } {
           } as never
         }
         placement={createPlacementController()}
+        zonePainting={createZonePaintingController()}
         seeds={createSeedSelection()}
         companion={createCompanionController(bridge)}
         update={createUpdateController({

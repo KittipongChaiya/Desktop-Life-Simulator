@@ -20,6 +20,7 @@ import { createActionFeedback } from '../action-feedback';
 import { AppProviders } from '../store-context';
 import { createToolSelection, type ToolSelection } from '../tool-selection';
 import { Tool, TOOLS } from '../tools';
+import { createZonePaintingController } from '../zone-painting';
 
 import { ToolBar } from './ToolBar';
 
@@ -28,6 +29,7 @@ function mount(): ToolSelection {
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         store={undefined as never}
         overlay={undefined as never}

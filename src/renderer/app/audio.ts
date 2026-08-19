@@ -15,6 +15,7 @@
  * neither knows nor could know that sound exists (ADR-007 §1).
  */
 
+import { variationRate } from './sound-variation';
 import {
   AUDIO_DUCKING,
   DUCK_HOLD_MS,
@@ -36,8 +37,15 @@ import {
 export const SOUND_COALESCE_MS = 250;
 
 export interface AudioPorts {
-  /** Makes the noise. `gain` is 0–1 and already mixed. May throw; the bus copes. */
-  play(sound: Sound, gain: number): void;
+  /**
+   * Makes the noise. `gain` is 0–1 and already mixed. May throw; the bus copes.
+   *
+   * `rate` is the playback rate (phase-47): 1 is the buffer as recorded, and
+   * small departures make repeated plays stop sounding like one recording
+   * fired twice. OPTIONAL, so a port that predates variation — including the
+   * bus's own Node tests — keeps working and simply plays everything at 1.
+   */
+  play(sound: Sound, gain: number, rate?: number): void;
   /** Monotonic milliseconds, for the coalescing window. */
   now(): number;
 }
@@ -89,6 +97,16 @@ export interface SoundBus {
 
 export function createSoundBus(ports: AudioPorts, state: AudioState): SoundBus {
   const lastPlayedAt = new Map<Sound, number>();
+  /**
+   * How many times each sound has been HEARD, which is what drives its pitch
+   * variation (`sound-variation.ts`).
+   *
+   * Per sound rather than one global counter: two different effects fired on
+   * the same frame would otherwise take neighbouring sequence numbers and
+   * receive correlated rates, so they would sound like one event pitched twice
+   * instead of two events.
+   */
+  const playCount = new Map<Sound, number>();
   /** When each category last actually sounded — the ducking input. */
   const lastHeardAt = new Map<AudioCategory, number>();
 
@@ -144,8 +162,18 @@ export function createSoundBus(ports: AudioPorts, state: AudioState): SoundBus {
       // a MIX decision, and the mix is this layer's whole job (ADR-016 §1).
       const duck = duckingFor(category, now);
 
+      // Variation is counted on sounds that are actually HEARD, for the same
+      // reason the coalescing window is: a muted farm must not silently
+      // advance the sequence and land the player back mid-pattern.
+      const sequence = (playCount.get(sound) ?? 0) + 1;
+      playCount.set(sound, sequence);
+
       try {
-        ports.play(sound, volume * categoryLevel * duck * (registered?.gain ?? SOUND_GAIN[sound]));
+        ports.play(
+          sound,
+          volume * categoryLevel * duck * (registered?.gain ?? SOUND_GAIN[sound]),
+          variationRate(category, sequence),
+        );
         lastHeardAt.set(category, now);
       } catch {
         // A missing or busy audio device is not the player's problem, and it

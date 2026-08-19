@@ -21,6 +21,7 @@ import type { SeedSelection } from './seed-selection';
 import type { ToolSelection } from './tool-selection';
 import type { UpdateController } from './update-controller';
 import type { WorkerSelection } from './worker-selection';
+import type { ZonePaintingController } from './zone-painting';
 
 interface AppServices {
   readonly store: SnapshotStore;
@@ -31,6 +32,8 @@ interface AppServices {
   readonly selection: WorkerSelection;
   /** The armed building — shared with the renderer's build ghost. */
   readonly placement: PlacementController;
+  /** The worker whose zone is being painted — shared with the zone overlay. */
+  readonly zonePainting: ZonePaintingController;
   /** The crop the seed tool plants — shared with the click mapping (06e). */
   readonly seeds: SeedSelection;
   /** Desktop-companion state — opacity dial, work mode (01.8a, ADR-014). */
@@ -63,6 +66,7 @@ export interface AppProvidersProps {
   readonly player: PlayerInputSource;
   readonly selection: WorkerSelection;
   readonly placement: PlacementController;
+  readonly zonePainting: ZonePaintingController;
   readonly seeds: SeedSelection;
   readonly companion: CompanionController;
   readonly save: SaveController;
@@ -80,6 +84,7 @@ export function AppProviders({
   player,
   selection,
   placement,
+  zonePainting,
   seeds,
   companion,
   save,
@@ -98,6 +103,7 @@ export function AppProviders({
         player,
         selection,
         placement,
+        zonePainting,
         seeds,
         companion,
         save,
@@ -139,6 +145,15 @@ export function useWorkerSelection(): WorkerSelection {
 
 export function usePlacement(): PlacementController {
   return useServices().placement;
+}
+
+/**
+ * Zone painting mode (phase-48). The same shape as `usePlacement`, because it
+ * is the same kind of thing: a small observable shared between an arming
+ * button in the HUD and a drawer in the renderer.
+ */
+export function useZonePainting(): ZonePaintingController {
+  return useServices().zonePainting;
 }
 
 export function useSeeds(): SeedSelection {

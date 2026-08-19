@@ -33,6 +33,7 @@ import { createSaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
 import { createUpdateController, type UpdateBridge } from '../update-controller';
+import { createZonePaintingController } from '../zone-painting';
 
 import { SettingsPanel } from './SettingsPanel';
 
@@ -112,6 +113,7 @@ function mount(
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={undefined as never}

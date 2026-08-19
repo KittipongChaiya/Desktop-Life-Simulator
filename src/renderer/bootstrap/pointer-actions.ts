@@ -76,6 +76,31 @@ export interface PointerActionsOptions {
     place(tile: TileIndex): void;
     cancel(): void;
   };
+  /**
+   * Zone painting, when a worker's zone is being set (phase-48 — ADR-024 §2).
+   *
+   * A DRAG rather than a click, which is what makes it different from every
+   * other pointer action here: a zone is a rectangle of tiles, so the press
+   * and the release are both meaningful and the movement between them drives a
+   * preview. While armed it takes the pointer entirely — no tool action, no
+   * worker selection, and no drag-to-pan, because a player painting a field
+   * and a player scrolling the world are making incompatible requests.
+   */
+  readonly zone?: {
+    active(): boolean;
+    begin(tile: TileIndex, erasing: boolean): void;
+    hover(tile: TileIndex | null): void;
+    end(tile: TileIndex): void;
+    /** Abandons the drag in progress, leaving the mode armed. */
+    cancel(): void;
+    /**
+     * Leaves the mode entirely. Bound to `Esc`, and DISTINCT from `cancel`:
+     * a pointer that wanders off the window abandons a drag, and a player who
+     * presses Escape is finished painting. Collapsing the two left the mode
+     * armed after Escape, with the button still reading "Painting…".
+     */
+    exit(): void;
+  };
 }
 
 /** Attaches click, hover, and tool-key handling. Returns teardown. */
@@ -105,6 +130,14 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
     dragged = false;
     downX = event.clientX;
     downY = event.clientY;
+
+    // Painting begins on the PRESS, because the rectangle needs its first
+    // corner before the pointer moves. Shift erases: a player who painted one
+    // tile too many should not have to start the zone again.
+    if (options.zone?.active() === true) {
+      const tile = tileUnder(event.clientX, event.clientY);
+      if (tile !== null) options.zone.begin(tile, event.shiftKey);
+    }
   };
 
   const onPointerMove = (event: PointerEvent): void => {
@@ -116,6 +149,14 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
     }
 
     const tile = tileUnder(event.clientX, event.clientY);
+    if (options.zone?.active() === true) {
+      // The moving corner of the rectangle. Neither the ghost nor the tool
+      // highlight may draw over it.
+      options.zone.hover(tile);
+      options.input.hover(null);
+      return;
+    }
+
     if (options.placement?.active() === true) {
       // While placing, the pointer drives the ghost; the tool highlight is
       // cleared so the two do not stack on one tile.
@@ -131,6 +172,16 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
 
     const wasClick = pressed && !dragged;
     pressed = false;
+
+    // A zone drag ends on RELEASE whether or not the pointer travelled: a
+    // one-tile zone is a legitimate thing to paint, and it arrives as a click.
+    if (options.zone?.active() === true) {
+      const dropped = tileUnder(event.clientX, event.clientY);
+      if (dropped !== null) options.zone.end(dropped);
+      else options.zone.cancel();
+      return;
+    }
+
     if (!wasClick) return;
 
     const tile = tileUnder(event.clientX, event.clientY);
@@ -152,17 +203,20 @@ export function attachPointerActions(options: PointerActionsOptions): () => void
 
   const onPointerCancel = (): void => {
     pressed = false;
+    options.zone?.cancel();
   };
 
   const onPointerLeave = (): void => {
     options.input.hover(null);
     // Hide the ghost when the pointer leaves the world entirely.
     options.placement?.hover(null);
+    options.zone?.hover(null);
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       options.placement?.cancel();
+      options.zone?.exit();
       options.input.selectTool(null);
       options.clearSelection?.();
       return;

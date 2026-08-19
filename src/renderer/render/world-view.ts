@@ -77,6 +77,7 @@ import { planWildNodes } from './wild-nodes';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
 import type { WorldDebug } from './world-debug';
 import type { WorldRenderSource } from './world-source';
+import { createZoneOverlay, type ZoneOverlay, type ZoneOverlayState } from './zone-overlay';
 
 export interface WorldView {
   readonly gate: DirtyGate;
@@ -102,6 +103,8 @@ export interface WorldView {
    * presentation state and never reaches `World` (ADR-007 §1).
    */
   setHighlight(state: HighlightState): void;
+  /** Draws the zone being painted, and the rectangle under the pointer (48). */
+  setZone(state: ZoneOverlayState): void;
   /**
    * Draws the build ghost in the `worldUi` layer, or hides it when passed null.
    *
@@ -157,7 +160,7 @@ export interface WorldView {
    * Input lives here rather than in the UI layer because it manipulates the
    * camera, which is render state. React never touches the camera.
    */
-  attachInput(target: HTMLElement): () => void;
+  attachInput(target: HTMLElement, suppressDrag?: () => boolean): () => void;
   /** Chunks redrawn on the most recent frame. Zero on a cached frame. */
   lastChunkRedraws(): number;
   visibleTileCount(): number;
@@ -393,6 +396,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
     : null;
 
   const highlight: Highlight = createHighlight(app.layers.worldUi);
+  const zoneOverlay: ZoneOverlay = createZoneOverlay(app.layers.worldUi);
 
   // The village's people share the entities layer, so residents, workers,
   // and buildings y-sort against each other correctly (phase-19, ADR-031 §4).
@@ -547,6 +551,11 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
     setHighlight(state) {
       highlight.update(state);
+      gate.markDirty();
+    },
+
+    setZone(state) {
+      zoneOverlay.update(state);
       gate.markDirty();
     },
 
@@ -776,7 +785,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       gate.markDirty();
     },
 
-    attachInput(target) {
+    attachInput(target, suppressDrag) {
       let dragging = false;
       let lastX = 0;
       let lastY = 0;
@@ -793,6 +802,18 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
           return;
         }
         presence.touch(performance.now());
+
+        // A DRAG THE WORLD DOES NOT OWN (phase-48). While zone painting is
+        // armed the drag belongs to the painter, and capturing the pointer
+        // here would steal it: capture fires `pointercancel` on every other
+        // listener, which abandoned the painter's rectangle before it had a
+        // second corner. The zone landed empty, `setWorkerZone` read that as
+        // "clear the zone", and the whole feature silently did nothing.
+        //
+        // Presence is still touched above, because a player dragging is
+        // present whoever ends up handling it.
+        if (suppressDrag?.() === true) return;
+
         dragging = true;
         lastX = event.clientX;
         lastY = event.clientY;

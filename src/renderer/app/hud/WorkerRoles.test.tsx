@@ -19,6 +19,7 @@ import { createActionFeedback } from '../action-feedback';
 import type { OverlayController } from '../overlay-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { WorkerRoles } from './WorkerRoles';
 
@@ -45,6 +46,7 @@ function mount(workers: readonly WorkerView[], submit: (command: Command) => voi
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={store as never}

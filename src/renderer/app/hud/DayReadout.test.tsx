@@ -28,6 +28,7 @@ import { createActionFeedback } from '../action-feedback';
 import type { OverlayController } from '../overlay-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
+import { createZonePaintingController } from '../zone-painting';
 
 import { DayReadout } from './DayReadout';
 
@@ -48,6 +49,7 @@ function mount(store: SnapshotStore, onRender: () => void): void {
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={store}

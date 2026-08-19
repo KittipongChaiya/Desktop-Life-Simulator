@@ -37,6 +37,12 @@ export interface WorldMountOptions {
     /** Logical pixels of viewport hidden behind the status bar (07.9). */
     topInset: number;
   };
+  /**
+   * Whether a drag currently belongs to something other than the camera
+   * (phase-48). Zone painting answers true while armed: the camera captures
+   * the pointer, and capture cancels every other listener's gesture.
+   */
+  readonly suppressDrag?: () => boolean;
   /** Element that receives drag-to-pan and wheel-to-zoom. */
   readonly inputTarget: HTMLElement;
   /** The selected worker id, forwarded to the view's selection box. */
@@ -96,7 +102,7 @@ export function createWorldMount(options: WorldMountOptions): WorldMount {
       }
 
       view = built;
-      detachInput = view.attachInput(options.inputTarget);
+      detachInput = view.attachInput(options.inputTarget, options.suppressDrag);
 
       // The window is a different size now than when this build started —
       // routinely, on every expand. Collapse state is applied optimistically

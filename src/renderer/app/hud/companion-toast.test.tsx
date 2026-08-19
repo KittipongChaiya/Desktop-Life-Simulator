@@ -23,6 +23,7 @@ import { createCompanionController, type CompanionBridge } from '../companion-co
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
 import { createUpdateController, type UpdateBridge } from '../update-controller';
+import { createZonePaintingController } from '../zone-painting';
 
 import { CompanionToast } from './CompanionToast';
 
@@ -79,6 +80,7 @@ function mount(): Harness {
   render(
     <StrictMode>
       <AppProviders
+        zonePainting={createZonePaintingController()}
         actionFeedback={createActionFeedback()}
         tools={createToolSelection()}
         store={undefined as never}
