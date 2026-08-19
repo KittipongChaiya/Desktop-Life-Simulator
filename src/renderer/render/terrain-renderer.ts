@@ -60,6 +60,46 @@ const CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
  */
 const UNOWNED_TINT = 0xdcd0bf;
 
+/**
+ * The tint for unowned land that TOUCHES the plot. Phase-44 — ADR-042.
+ *
+ * Ownership used to change in one step, which drew a perfectly straight line
+ * down the middle of the world — and a straight line of brightness is the most
+ * grid-like thing a renderer can do, because nothing in a field has an edge
+ * like that. The first photograph of a built-up farm made it the most obvious
+ * artefact left on screen.
+ *
+ * Halfway between white and `UNOWNED_TINT`, so the boundary becomes a two-step
+ * ramp instead of a cliff. It still reads as a boundary — which the player
+ * needs, since it is where they may build — and it stops reading as a wall.
+ *
+ * A one-tile ramp rather than a wide gradient on purpose: the world viewport is
+ * five tiles tall, so a three-tile fade would be most of the screen.
+ */
+const FRINGE_TINT = 0xeee8df;
+
+/**
+ * Whether a tile has an owned neighbour — i.e. sits on the plot's edge.
+ *
+ * Four-neighbour rather than eight: a diagonal-only touch reads as a corner
+ * artefact rather than as an edge, and lighting it makes the boundary look
+ * chewed.
+ */
+function touchesOwned(grid: TileGrid, worldX: number, worldY: number): boolean {
+  for (const [dx, dy] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    const nx = worldX + dx;
+    const ny = worldY + dy;
+    if (nx < 0 || ny < 0 || nx >= grid.width || ny >= grid.height) continue;
+    if (isOwned(grid, asTileIndex(ny * WORLD_WIDTH + nx))) return true;
+  }
+  return false;
+}
+
 export interface TerrainRenderer {
   /**
    * Re-renders stale chunks within the visible column range and returns how
@@ -135,7 +175,9 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
         const sprite = new Sprite(textureFor(key));
         sprite.x = tx * TILE_SIZE;
         sprite.y = ty * TILE_SIZE;
-        if (!isOwned(grid, tile)) sprite.tint = UNOWNED_TINT;
+        if (!isOwned(grid, tile)) {
+          sprite.tint = touchesOwned(grid, worldX, worldY) ? FRINGE_TINT : UNOWNED_TINT;
+        }
         scratch.addChild(sprite);
       }
     }

@@ -34,7 +34,13 @@ describe('ground tile variants', () => {
       seen.add(variantSprite('terrain:grass', asTileIndex(tile)));
     }
 
-    expect([...seen].sort()).toEqual(['terrain:grass', 'terrain:grass_b', 'terrain:grass_c']);
+    expect([...seen].sort()).toEqual([
+      'terrain:grass',
+      'terrain:grass_b',
+      'terrain:grass_c',
+      'terrain:grass_d',
+      'terrain:grass_e',
+    ]);
   });
 
   it('is stable — the same tile always draws the same variant', () => {
@@ -82,6 +88,9 @@ describe('ground tile variants', () => {
     const plain = sprites.filter((sprite) => sprite === 'terrain:grass').length;
     const bloomed = sprites.filter((sprite) => sprite === 'terrain:grass_c').length;
 
+    // Half the list is the plain tile (phase-44 went from three faces to five,
+    // keeping the same weighting): most of a field IS plain, and a field where
+    // every square is interesting is a field with no ground in it.
     expect(plain / sprites.length).toBeGreaterThan(0.4);
     expect(bloomed / sprites.length).toBeLessThan(0.35);
   });

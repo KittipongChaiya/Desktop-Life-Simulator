@@ -142,7 +142,7 @@ function blades(canvas, rng, count, colour, length, lean = 0) {
  * @returns {import('./lib/pixel-art.mjs').Canvas}
  */
 function grassTile(seed = 1201, character = {}) {
-  const { blooms = 0, tufts = 6 } = character;
+  const { blooms = 0, tufts = 6, bare = 0 } = character;
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => GRASS_BASE);
   const rng = prng(seed);
@@ -155,6 +155,35 @@ function grassTile(seed = 1201, character = {}) {
   // The rim highlight stays RARE. It is the brightest green in the palette and
   // at any density it starts competing with crops, which are Tier 1.
   blades(canvas, rng, 3, LEAF_HIGHLIGHT, 1);
+
+  // WORN EARTH: a patch where the turf has thinned (phase-44). The single
+  // largest reason the world still read as a grid after the buildings grew is
+  // that most of the screen is grass and every square of it was the same green.
+  // Another face on the same tile is the cheapest possible variation — no extra
+  // sprite, no extra draw call.
+  //
+  // CLUSTERED MARKS, NOT A DITHERED BLOB, and this is the third time the same
+  // lesson has been learned in this repository: `ART_DIRECTION.md` §9.2 says a
+  // 32 px tile cannot carry an ordered dither because a 4x4 Bayer matrix
+  // repeats eight times across it and resolves into a visible cross-hatch. The
+  // first attempt here dithered soil over grass and produced exactly that — a
+  // woven diamond — in a rule this file's own header points at.
+  //
+  // Soil marks scattered around a centre, densest in the middle, thinning at
+  // the edge. Which is also what a worn patch actually looks like.
+  for (let i = 0; i < bare; i += 1) {
+    const cx = rng() * TILE;
+    const cy = rng() * TILE;
+    for (let n = 0; n < 26; n += 1) {
+      // Square root of a uniform draw clusters points toward the centre.
+      const radius = Math.sqrt(rng()) * 8;
+      const angle = rng() * Math.PI * 2;
+      const x = Math.round(cx + Math.cos(angle) * radius);
+      const y = Math.round(cy + Math.sin(angle) * radius * 0.7);
+      set(canvas, ((x % TILE) + TILE) % TILE, ((y % TILE) + TILE) % TILE,
+        rng() < 0.3 ? SOIL_RICH : TILLED_SOIL);
+    }
+  }
 
   // Blooms: two pixels, and only on the variants that carry them. A flower on
   // every tile is a meadow, and the farm is not supposed to read as a meadow.
@@ -1421,6 +1450,11 @@ function main() {
     [terrainDir, 'grass.png', () => grassTile(1201, { tufts: 6 })],
     [terrainDir, 'grass_b.png', () => grassTile(1211, { tufts: 11 })],
     [terrainDir, 'grass_c.png', () => grassTile(1221, { tufts: 8, blooms: 3 })],
+    // Phase-44: two more faces, so a field stops being one square repeated.
+    [terrainDir, 'grass_d.png', () => grassTile(1231, { tufts: 5, bare: 1 })],
+    // Long grass rather than stones: pebbles at 2 px read as confetti, which is
+    // the same failure the wilds' dry tufts had in phase-33.
+    [terrainDir, 'grass_e.png', () => grassTile(1241, { tufts: 18 })],
     // Tilled variants dress the FIELD without touching the furrows — see
     // `tilledTile`. Two plain to one dressed, so a field reads as worked
     // ground with things in it rather than as a scatter of debris.

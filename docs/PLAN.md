@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                       |
-| ------------------- | ------------------------------------- |
-| **Current version** | **v0.5 — The Playable Cut**           |
-| **Current phase**   | **42 — Buildings At Their Real Size** |
-| **Status**          | **IN_PROGRESS**                       |
+|                     |                             |
+| ------------------- | --------------------------- |
+| **Current version** | **v0.5 — The Playable Cut** |
+| **Current phase**   | **45 — Region Composition** |
+| **Status**          | **IN_PROGRESS**             |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -34,10 +34,10 @@ owner's memory (`AI_RULES.md` §10.4).
 | 39    | Motion & Overlay-Scale       | COMPLETE    |
 | 40    | Depth & Anchors              | COMPLETE    |
 | 41    | Footprints                   | COMPLETE    |
-| 42    | Buildings At Their Real Size | IN_PROGRESS |
-| 43    | Nature At Their Real Size    | PENDING     |
-| 44    | Terrain Transitions & Paths  | PENDING     |
-| 45    | Region Composition           | PENDING     |
+| 42    | Buildings At Their Real Size | COMPLETE    |
+| 43    | Nature At Their Real Size    | COMPLETE    |
+| 44    | Terrain Transitions & Paths  | COMPLETE    |
+| 45    | Region Composition           | IN_PROGRESS |
 | 46    | World Acceptance & Cost      | PENDING     |
 | 47    | Audio That Earns Eight Hours | PENDING     |
 | 48    | Zone Painting                | PENDING     |
@@ -374,10 +374,51 @@ economic result. The save round-trip caught a genuine one: a fixture that built
 its world by hand blocked only the origin tile, so the live world was
 under-blocked and hydration correctly disagreed with it.
 
-**Phase 42 — Buildings At Their Real Size: IN_PROGRESS.** Mill (3×3, 96×120 px),
-storage shed (2×2), kitchen (3×2), market stall (3×2), rest hut (2×2), cottage
-(2×2) and castle (4×3) redrawn at footprint scale. Verified through the real
-player path: Shop → arm → click places a shed that reads as a barn.
+**Phase 42 — Buildings At Their Real Size: COMPLETE.** Mill (3×3, 96×120 px),
+storage shed, kitchen, market stall, rest hut, cottage and castle redrawn at
+footprint scale. Canvases are taller than their footprints on purpose — roofs
+and chimneys overhang tiles nobody owns (ADR-042 §10). Verified through the
+real player path: Shop → arm → click.
+
+**The acceptance instrument, and what it taught.** `visual-review.spec.ts` now
+BUILDS a farm and photographs it, because the empty starting farm cannot answer
+the question this track exists for. Two things had to be understood first:
+click offsets are bounded by the plot (±128 px) AND by the world viewport's
+~172 px height, so ±140 silently refused every building; and **a still world
+cannot be photographed by Playwright** — `page.screenshot()` waits for a frame,
+this renderer stops producing them once the world settles (ADR-001 §1), so the
+call times out proving the idle budget works. `BrowserWindow.capturePage()`
+returns the last composited image and takes 5 seconds instead of 30.
+
+**Phase 43 — Nature: COMPLETE for trees.** The tree grew back to 64×96 with
+canopy, branches, roots and gaps you can see sky through. Phase-37 shrank it to
+48×72 because it dwarfed 32 px buildings, which was right then and wrong now:
+the constraint that justified it is gone, and a tree shorter than a shed reads
+as a shrub. Rocks, bushes and ore veins are still at their old scale — they are
+Tier 3 and read acceptably beside the new buildings, so they are DEFERRED
+rather than done.
+
+**Phase 44 — Terrain: COMPLETE.** Two changes, both aimed at the ground, which
+is what the first built-farm photograph showed was still grid-like once the
+buildings were right.
+
+- **The plot boundary was a straight line of brightness**, which is the most
+  grid-like thing a renderer can do because nothing in a field has an edge like
+  that. Unowned land that TOUCHES the plot now takes a fringe tint halfway to
+  the full one, so the boundary is a two-step ramp. One tile wide, not three:
+  the viewport is five tiles tall.
+- **Five grass faces instead of three**, adding worn earth and long grass. The
+  weighting keeps the plain tile winning half the squares, because a field where
+  every square is interesting is a field with no ground in it.
+
+The worn patch took two attempts and re-learned a rule this repository has
+already written down twice: a dithered blob produced the Bayer cross-hatch
+`ART_DIRECTION.md` §9.2 forbids. It is clustered marks now, densest at the
+centre — which is also what thinning turf looks like.
+
+**Still open in the world track:** path autotiling (§15) and region composition
+(§16) — landmarks, clusters and open space that make farm, town and wilds read
+as different places. Phase 46 measures cost and takes the acceptance picture.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

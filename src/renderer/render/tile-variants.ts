@@ -40,7 +40,19 @@ import type { TileIndex } from '../../shared/ids';
 const VARIANTS: ReadonlyMap<string, readonly string[]> = new Map([
   [
     Sprites.terrainGrass,
-    [Sprites.terrainGrass, Sprites.terrainGrassB, Sprites.terrainGrass, Sprites.terrainGrassC],
+    [
+      // Five faces from phase-44, weighted by repetition. The plain tile still
+      // wins most squares: most of a field IS plain, and a field where every
+      // square is interesting is a field with no ground in it.
+      Sprites.terrainGrass,
+      Sprites.terrainGrassB,
+      Sprites.terrainGrass,
+      Sprites.terrainGrassC,
+      Sprites.terrainGrass,
+      Sprites.terrainGrassE,
+      Sprites.terrainGrass,
+      Sprites.terrainGrassD,
+    ],
   ],
   [Sprites.terrainWild, [Sprites.terrainWild, Sprites.terrainWildB]],
   // Tilled soil joined in phase-35, and it is the one entry with a caveat.
