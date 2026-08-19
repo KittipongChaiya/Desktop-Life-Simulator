@@ -12,6 +12,7 @@ import { Sprite, type Container, type Texture } from 'pixi.js';
 import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
 import type { BuildingView } from '../../sim/snapshot/buildings-slice';
 
+import { tileDepth } from './depth';
 import type { DirtyGate } from './dirty-gate';
 
 export interface BuildingRenderer {
@@ -43,9 +44,20 @@ export function createBuildingRenderer(options: BuildingRendererOptions): Buildi
         if (sprite === undefined) {
           sprite = new Sprite(textureFor(view.sprite));
           const y = Math.floor(view.tile / WORLD_WIDTH);
-          sprite.x = (view.tile - y * WORLD_WIDTH) * TILE_SIZE;
-          sprite.y = y * TILE_SIZE;
-          sprite.zIndex = y; // y-sorted in the objects layer
+          // BOTTOM-CENTRE of the FOOTPRINT (ADR-042 §2, §3).
+          //
+          // Bottom, so a building taller than one tile grows UPWARD instead of
+          // down into its neighbour. Centre of the footprint rather than of the
+          // origin tile, because the origin is the footprint's bottom-LEFT: a
+          // 3-wide mill centred on its origin would stand one tile to the left
+          // of the ground it actually occupies, and every click would miss it.
+          //
+          // For a 1x1 building the two are the same, which is what makes this
+          // safe for every asset that has not been redrawn yet.
+          sprite.anchor.set(0.5, 1);
+          sprite.x = (view.tile - y * WORLD_WIDTH + view.footprintWidth / 2) * TILE_SIZE;
+          sprite.y = (y + 1) * TILE_SIZE;
+          sprite.zIndex = tileDepth(view.tile);
           layer.addChild(sprite);
           sprites.set(view.id, sprite);
         }

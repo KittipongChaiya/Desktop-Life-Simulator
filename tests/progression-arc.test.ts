@@ -104,8 +104,34 @@ function playTheArc(seed: number, cropId: Parameters<typeof plantCrop>[2]): ArcR
   let stallAtTick: number | null = null;
   let peakCoins = world.wallet.coins;
 
-  // A spot for each building, off the crop rows so nothing competes for tiles.
-  const spots = [toIndexUnchecked(28, 28), toIndexUnchecked(29, 28), toIndexUnchecked(30, 28)];
+  // A spot for each building, and the tiles those buildings will stand on.
+  //
+  // BUILDINGS HAVE FOOTPRINTS SINCE PHASE-41 (ADR-042 §3), so a spot is a
+  // rectangle rather than a tile, and the three spots have to be far enough
+  // apart not to overlap. The starting plot is 8×8 at (28,28)–(35,35) and a
+  // footprint grows UP and RIGHT from its origin, so origins sit on the lower
+  // rows with room above them.
+  //
+  // The model also has to STOP PLANTING ON THEM. It used to till and sow every
+  // owned tile, which was harmless when a building was one tile it could drop
+  // anywhere; now a 2×2 shed refused because a crop is standing on one of its
+  // four tiles is a model that reports a farm which can never build. A player
+  // who intends to build leaves the space.
+  // shed 2x2, seed bin 1x1, market stall 3x2 — the sizes the definitions
+  // actually declare. Reserving a uniform 2x2 for all three was the first
+  // attempt, and it put the stall's third column outside the plot: the model
+  // reported a farm holding 58,000 coins that could never reach stage 4.
+  const spots = [toIndexUnchecked(28, 31), toIndexUnchecked(31, 31), toIndexUnchecked(33, 31)];
+  const reserved = new Set<number>();
+  for (const [x0, y0, w, h] of [
+    [28, 31, 2, 2],
+    [31, 31, 1, 1],
+    [33, 31, 3, 2],
+  ] as const) {
+    for (let y = y0 - (h - 1); y <= y0; y += 1) {
+      for (let x = x0; x < x0 + w; x += 1) reserved.add(toIndexUnchecked(x, y));
+    }
+  }
 
   for (let elapsed = 0; elapsed < FOUR_HOURS_TICKS && stallAtTick === null; elapsed += ACT_EVERY) {
     stepSimulationBy(world, ACT_EVERY);
@@ -143,7 +169,7 @@ function playTheArc(seed: number, cropId: Parameters<typeof plantCrop>[2]): ArcR
     }
 
     // 4. KEEP THE PLOT WORKING: buy seed, till bare ground, plant tilled ground.
-    const tiles = ownedTiles(world);
+    const tiles = ownedTiles(world).filter((tile) => !reserved.has(tile));
     const bare = tiles.filter((tile) => world.tiles.tilledAt[tile] === 0);
     const empty = tiles.filter(
       (tile) => world.tiles.tilledAt[tile] !== 0 && !world.crops.has(tile),

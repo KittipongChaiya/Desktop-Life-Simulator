@@ -59,9 +59,15 @@ function idleFarm(seed: number): World {
   stepSimulation(world);
 
   // Corners of the plot (28..35): buildings out of the farming middle.
+  //
+  // Origins are FOOTPRINT-AWARE since phase-41 (ADR-042 §3). A footprint grows
+  // up and right from its origin, so the top and right corners no longer work:
+  // the 3x2 stall at (28,28) reached into row 27 and the 2x2 hut at (35,35)
+  // into column 36, and both were silently refused — which showed up as an
+  // eight-hour idle run that earned nothing, not as a placement error.
   submit(world, {
     type: 'placeBuilding',
-    tile: toIndexUnchecked(28, 28),
+    tile: toIndexUnchecked(28, 30),
     buildingId: CORE_MARKET_STALL,
   });
   submit(world, {
@@ -76,7 +82,7 @@ function idleFarm(seed: number): World {
   });
   submit(world, {
     type: 'placeBuilding',
-    tile: toIndexUnchecked(35, 35),
+    tile: toIndexUnchecked(34, 35),
     buildingId: CORE_REST_HUT,
   });
   for (let i = 0; i < 5; i += 1) submit(world, { type: 'hireWorker' });

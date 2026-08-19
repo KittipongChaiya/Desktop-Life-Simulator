@@ -7,7 +7,7 @@
  * so the slice republishes only then.
  */
 
-import type { BuildingRegistry } from '../content/buildings';
+import { footprintOf, type BuildingRegistry } from '../content/buildings';
 import type { BuildingStore } from '../world/building';
 
 /** One placed building, projected for rendering. */
@@ -24,6 +24,21 @@ export interface BuildingView {
   readonly tile: number;
   /** Sprite key from the manifest, resolved from the definition. */
   readonly sprite: string;
+  /**
+   * How many tiles wide the building stands, resolved from the definition
+   * (phase-41 — ADR-042 §3).
+   *
+   * The renderer needs it to CENTRE a multi-tile sprite over its footprint
+   * rather than over the origin tile; without it a 3-wide mill would sit one
+   * tile to the left of the ground it occupies. Projected here rather than
+   * looked up in the renderer, because the footprint is content and the
+   * renderer boundary (ADR-039) does not carry the building registry.
+   *
+   * Height is deliberately absent: sprites are bottom-anchored, so the base row
+   * is the origin row and nothing about drawing depends on how tall the
+   * footprint is.
+   */
+  readonly footprintWidth: number;
 }
 
 /** The world state the projection reads. `World` satisfies this structurally. */
@@ -43,6 +58,7 @@ export function projectBuildings(source: BuildingProjectionSource): readonly Bui
         buildingId: building.buildingId,
         tile: building.tile,
         sprite: definition.ok ? definition.value.sprite : '',
+        footprintWidth: definition.ok ? footprintOf(definition.value).width : 1,
       };
     });
 }

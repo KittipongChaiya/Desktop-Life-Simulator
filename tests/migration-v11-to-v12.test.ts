@@ -116,9 +116,10 @@ describe('a route and a live haul survive the round trip', () => {
     const world = createWorld(55);
     world.wallet.coins = 1_000_000;
     const centre = 32 * WORLD_WIDTH + 32;
-    expect(placeBuilding(world, centre, CORE_STORAGE_SHED).ok).toBe(true);
+    // Footprint-aware origins (phase-41 — ADR-042 §3).
+    expect(placeBuilding(world, 31 * WORLD_WIDTH + 28, CORE_STORAGE_SHED).ok).toBe(true);
     const shed = [...world.buildings.keys()].at(-1)!;
-    expect(placeBuilding(world, centre + 3, CORE_MILL).ok).toBe(true);
+    expect(placeBuilding(world, 31 * WORLD_WIDTH + 31, CORE_MILL).ok).toBe(true);
     const mill = [...world.buildings.keys()].at(-1)!;
     expect(addRoute(world, shed, mill, CORE_WHEAT).ok).toBe(true);
     addItems(world.buildingStorage.get(shed)!, CORE_WHEAT, 40, DEFAULT_STACK_SIZE);
@@ -146,9 +147,9 @@ describe('a route and a live haul survive the round trip', () => {
     const world = createWorld(56);
     world.wallet.coins = 1_000_000;
     const centre = 32 * WORLD_WIDTH + 32;
-    placeBuilding(world, centre, CORE_STORAGE_SHED);
+    placeBuilding(world, 31 * WORLD_WIDTH + 28, CORE_STORAGE_SHED);
     const shed = [...world.buildings.keys()].at(-1)!;
-    placeBuilding(world, centre + 3, CORE_MILL);
+    placeBuilding(world, 31 * WORLD_WIDTH + 31, CORE_MILL);
     const mill = [...world.buildings.keys()].at(-1)!;
     addRoute(world, shed, mill, CORE_WHEAT);
     addItems(world.buildingStorage.get(shed)!, CORE_WHEAT, 20, DEFAULT_STACK_SIZE);

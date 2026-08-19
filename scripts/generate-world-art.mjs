@@ -535,72 +535,81 @@ function cat() {
 }
 
 
-/** Stepped foliage: shadow mass, then the lit body offset toward the light,
- * then a smaller highlight — hard ramp steps, never a gradient (R-02).
- * @param {import('./lib/pixel-art.mjs').Canvas} canvas
- * @param {Array<[number, number, number, number]>} lobes cx, cy, rx, ry
- */
-function foliage(canvas, lobes) {
-  for (const [cx, cy, rx, ry] of lobes) ellipse(canvas, cx, cy, rx, ry, GRASS_SHADOW, 0.15);
-  for (const [cx, cy, rx, ry] of lobes) {
-    ellipse(canvas, cx - 2, cy - 2, rx - 1, ry - 1, GRASS_BASE, 0.15);
-  }
-  for (const [cx, cy, rx, ry] of lobes) {
-    ellipse(
-      canvas,
-      cx - 4,
-      cy - 5,
-      Math.max(2, rx * 0.55),
-      Math.max(2, ry * 0.55),
-      GRASS_LIGHT,
-      0.15,
-    );
-  }
-}
 
 /**
- * A tree (`buildings:tree`, and the timber node's sprite).
+ * A tree (`buildings:tree`, and the timber node's sprite) — 64x96 px.
  *
- * SHRUNK IN PHASE-37, from 64×96 to 48×72. The reviewed scene showed the
- * problem plainly: a tree stood three times the height of a cottage, so a
- * Tier 3 prop dominated the Tier 2 structure beside it and the village read as
- * a clearing in a forest rather than as a farm with trees on it. Buildings
- * cannot grow — they are anchored to one 32 px tile — so the tree came down.
+ * GREW AGAIN IN PHASE-43, and the round trip is the point. Phase-37 shrank it
+ * from 64x96 to 48x72 because a tree stood three times the height of a cottage
+ * and a Tier 3 prop was dominating Tier 2 structure. That was the right call
+ * against 32 px buildings. Phase-41 gave buildings footprints and phase-42 drew
+ * them at 64–96 px, so the constraint that justified the shrink is gone: a
+ * tree shorter than a shed reads as a shrub.
  *
- * At 72 px it is still comfortably the tallest thing that is not a mill, which
- * is what a tree should be.
+ * Now it has what §7 asks for — canopy, trunk, branches, volume and an
+ * irregular silhouette — and it OVERLAPS. Since phase-40 every world object
+ * shares one y-sorted layer, so a canopy may cover a worker walking behind it
+ * and be covered by one walking in front. That is what turns a scatter of tree
+ * icons into woodland.
  * @returns {import('./lib/pixel-art.mjs').Canvas}
  */
 function tree() {
-  const canvas = createCanvas(48, 72);
-  // Trunk with a root flare; left edge lit, right edge shaded.
-  rect(canvas, 21, 39, 27, 68, WOOD_BASE);
-  rect(canvas, 19, 66, 29, 70, WOOD_BASE);
-  rect(canvas, 21, 39, 22, 68, WOOD_LIGHT);
-  rect(canvas, 26, 39, 27, 68, SOIL_DARK);
-  rect(canvas, 19, 66, 20, 70, WOOD_LIGHT);
-  rect(canvas, 28, 66, 29, 70, SOIL_DARK);
-  // A rounded three-lobe canopy — the safe, present silhouette (VISUAL_REFERENCE §4).
-  foliage(canvas, [
-    [24, 23, 17, 14],
-    [13, 30, 9, 8],
-    [35, 29, 9, 8],
-  ]);
-  // Sparse leaf texture; rim highlights only in the lit upper-left quadrant.
+  const canvas = createCanvas(64, 96);
   const rng = prng(1301);
-  for (let i = 0; i < 22; i += 1) {
-    const x = 7 + Math.floor(rng() * 34);
-    const y = 10 + Math.floor(rng() * 28);
-    const dx = (x - 24) / 17;
-    const dy = (y - 23) / 14;
+
+  // ── Trunk: tapered, with a root flare and a lit left edge ───────────────
+  polygon(canvas, [[26, 46], [38, 46], [42, 92], [22, 92]], WOOD_BASE);
+  polygon(canvas, [[26, 46], [30, 46], [28, 92], [22, 92]], WOOD_LIGHT);
+  polygon(canvas, [[35, 46], [38, 46], [42, 92], [37, 92]], SOIL_DARK);
+  // Roots spreading into the ground.
+  for (const [x0, x1] of [[16, 24], [40, 48]]) {
+    blob(canvas, (x0 + x1) / 2, 90, 5, 3, WOOD_BASE, 201 + x0, 0.2);
+  }
+  // Bark: a few short vertical marks, never a full-height line.
+  for (let i = 0; i < 7; i += 1) {
+    const x = 26 + Math.floor(rng() * 12);
+    const y = 52 + Math.floor(rng() * 32);
+    rect(canvas, x, y, x, y + 3, SOIL_DARK);
+  }
+
+  // ── Branches reaching into the canopy, so it is not a lollipop ──────────
+  line(canvas, 30, 52, 16, 40, WOOD_BASE);
+  line(canvas, 31, 52, 17, 40, SOIL_DARK);
+  line(canvas, 34, 50, 48, 38, WOOD_BASE);
+  line(canvas, 34, 51, 48, 39, SOIL_DARK);
+
+  // ── Canopy: three masses, three values, deliberately lopsided ───────────
+  blob(canvas, 32, 30, 30, 24, GRASS_SHADOW, 211, 0.16);
+  blob(canvas, 28, 26, 25, 20, GRASS_BASE, 213, 0.15);
+  blob(canvas, 46, 32, 15, 12, GRASS_BASE, 215, 0.18);
+  blob(canvas, 22, 18, 15, 11, GRASS_LIGHT, 217, 0.2);
+  blob(canvas, 40, 20, 9, 7, GRASS_LIGHT, 219, 0.22);
+  blob(canvas, 18, 13, 7, 5, LEAF_HIGHLIGHT, 221, 0.25);
+  // A notch of shadow under the right lobe: depth, not a filled silhouette.
+  blob(canvas, 48, 42, 10, 5, GRASS_SHADOW, 223, 0.25);
+  // Gaps you can see sky through, which is what stops a canopy reading as a
+  // solid blob of green.
+  for (let i = 0; i < 5; i += 1) {
+    const x = 14 + Math.floor(rng() * 36);
+    const y = 16 + Math.floor(rng() * 26);
+    blob(canvas, x, y, 2, 1, GRASS_SHADOW, 231 + i, 0.3);
+  }
+  // Leaf texture, densest where the light falls.
+  for (let i = 0; i < 40; i += 1) {
+    const x = 6 + Math.floor(rng() * 52);
+    const y = 6 + Math.floor(rng() * 44);
+    const dx = (x - 32) / 30;
+    const dy = (y - 30) / 24;
     if (dx * dx + dy * dy > 1) continue;
-    if (x < 24 && y < 24 && rng() < 0.45) set(canvas, x, y, LEAF_HIGHLIGHT);
+    if (x < 32 && y < 30 && rng() < 0.4) set(canvas, x, y, LEAF_HIGHLIGHT);
     else set(canvas, x, y, rng() < 0.5 ? GRASS_SHADOW : GRASS_LIGHT);
   }
-  outlineSilhouette(canvas);
-  contactShadow(canvas, 24, 69, 11, 2);
+
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 32, 93, 16, 3);
   return canvas;
 }
+
 
 
 /** Boulder, 32×32 ground prop. */
@@ -734,67 +743,117 @@ function pitchedRoof(canvas, apexY, baseY, cx, spread, base, dark, light) {
   rect(canvas, cx - 1, apexY, cx + 1, apexY, light); // ridge cap
 }
 
-/** Storage shed (`core:storage_shed`): LOW AND WIDE, and the only building
- * with no windows at all. It is a place things go, not a place anyone is —
- * so it gets barn doors, board walls and a shallow slate roof, and its
- * silhouette is the flattest in the set. */
+/**
+ * Storage shed (`core:storage_shed`) — 2x2 tiles, 64x72 px.
+ *
+ * Redrawn at its footprint in phase-42. Still the FLATTEST roof in the set and
+ * still the only building with no windows: it is a place things go, not a place
+ * anyone is, and at four times the pixels that argument only gets easier to
+ * make. The barn doors are the read at a glance.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function storageShed() {
-  const canvas = createCanvas(TILE, TILE);
-  // Walls: vertical boarding, wall to wall. Wider than anything else here.
-  material.boards(canvas, 2, 14, 29, 28, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 21);
-  // A SHALLOW roof — pitch is the silhouette's whole argument against the
-  // cottage's steep gable.
-  pitchedRoof(canvas, 8, 15, 16, 15, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
-  rect(canvas, 1, 15, 30, 15, TIMBER_DARK); // deep eave, wall to wall
-  // Double barn doors with the X-brace that says "storage" at any size.
-  rect(canvas, 10, 18, 21, 28, TIMBER_DARK);
-  rect(canvas, 11, 19, 15, 28, TIMBER_WARM);
-  rect(canvas, 17, 19, 21, 28, TIMBER_WARM);
-  line(canvas, 11, 19, 15, 27, BIRCH_PALE);
-  line(canvas, 15, 19, 11, 27, BIRCH_PALE);
-  line(canvas, 17, 19, 21, 27, BIRCH_PALE);
-  line(canvas, 21, 19, 17, 27, BIRCH_PALE);
-  rect(canvas, 16, 18, 16, 28, TIMBER_DARK); // the meeting line
-  // A crate left outside, because a store is a place with too much in it.
-  rect(canvas, 24, 24, 28, 28, TIMBER_WARM);
-  rect(canvas, 24, 24, 28, 24, BIRCH_PALE);
-  rect(canvas, 26, 24, 26, 28, TIMBER_DARK);
+  const canvas = createCanvas(64, 72);
+  const groundY = 71;
+
+  // Board walls, wall to wall — wider than they are tall, which is the shape.
+  material.boards(canvas, 3, 30, 60, 68, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 61);
+  // A stone footing, so it does not look like it is floating on the grass.
+  material.masonry(canvas, 3, 64, 60, 68, STONE_WARM_DARK, STONE_WARM_DARK, STONE_WARM, 63);
+
+  // SHALLOW slate roof with a deep eave — pitch is the whole argument against
+  // the cottage's steep gable.
+  pitchedRoof(canvas, 8, 30, 32, 30, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
+  rect(canvas, 0, 30, 63, 32, ROOF_SLATE_DEEP);
+  rect(canvas, 0, 28, 63, 29, ROOF_SLATE_LIGHT);
+
+  // Double barn doors with the X-brace that says storage at any size.
+  rect(canvas, 18, 38, 46, 68, TIMBER_DARK);
+  material.boards(canvas, 20, 40, 31, 67, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 65);
+  material.boards(canvas, 33, 40, 44, 67, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 67);
+  line(canvas, 20, 40, 31, 66, BIRCH_PALE);
+  line(canvas, 31, 40, 20, 66, BIRCH_PALE);
+  line(canvas, 33, 40, 44, 66, BIRCH_PALE);
+  line(canvas, 44, 40, 33, 66, BIRCH_PALE);
+  rect(canvas, 32, 38, 32, 68, TIMBER_DARK);
+  // Iron hinges and a ring handle.
+  for (const y of [44, 60]) {
+    rect(canvas, 20, y, 26, y + 1, SOIL_DARK);
+    rect(canvas, 38, y, 44, y + 1, SOIL_DARK);
+  }
+  set(canvas, 30, 53, GOLD_HIGHLIGHT);
+  set(canvas, 34, 53, GOLD_HIGHLIGHT);
+
+  // A crate and a barrel outside, because a store overflows.
+  rect(canvas, 49, 55, 60, 66, TIMBER_WARM);
+  rect(canvas, 49, 55, 60, 56, BIRCH_PALE);
+  rect(canvas, 54, 55, 55, 66, TIMBER_DARK);
+  rect(canvas, 49, 60, 60, 61, TIMBER_DARK);
+  blob(canvas, 9, 61, 6, 7, TIMBER_WARM, 71, 0.1);
+  rect(canvas, 4, 58, 14, 59, TIMBER_DARK);
+  rect(canvas, 4, 64, 14, 65, TIMBER_DARK);
+
   outlineSelective(canvas, { bottom: false });
-  contactShadow(canvas, 16, 29, 14, 2);
+  contactShadow(canvas, 32, groundY, 26, 2.5);
   return canvas;
 }
 
 
-/** Rest hut (`core:rest_hut`): the SMALLEST and the roundest. Where a worker
- * goes to stop, so it is soft everywhere the shed is square — a mossy dome, a
- * round door, and a bench outside. */
+
+/**
+ * Rest hut (`core:rest_hut`) — 2x2 tiles, 64x72 px.
+ *
+ * Redrawn at footprint scale in phase-42. Still the roundest thing in the
+ * village and the only DOMED roof: where a worker goes to stop, so it is soft
+ * everywhere the shed is square. At 64 px the bench, the lantern and the open
+ * doorway all fit, and it stops being a hut-shaped icon.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function restHut() {
-  const canvas = createCanvas(TILE, TILE);
-  // Cream walls, small and low.
-  rect(canvas, 8, 17, 23, 28, CREAM);
-  rect(canvas, 8, 17, 10, 28, CREAM_SHADE);
-  rect(canvas, 21, 17, 23, 28, CREAM_SHADE);
-  // A DOMED roof of old moss — the only curved roof in the set.
-  blob(canvas, 16, 15, 11, 7, ROOF_MOSS, 41, 0.12);
-  blob(canvas, 13, 12, 7, 4, GRASS_LIGHT, 43, 0.2);
-  for (let x = 5; x <= 27; x += 4) set(canvas, x, 16, TIMBER_DARK);
-  rect(canvas, 5, 17, 26, 17, TIMBER_DARK); // eave
-  // Round-topped door, and a step.
-  blob(canvas, 16, 22, 4, 4, TIMBER_DARK, 47, 0.05);
-  rect(canvas, 12, 22, 19, 28, TIMBER_DARK);
-  rect(canvas, 13, 23, 18, 28, TIMBER_WARM);
-  line(canvas, 16, 23, 16, 27, TIMBER_DARK);
-  rect(canvas, 12, 28, 19, 28, STONE_WARM_LIGHT);
-  // A bench, which is the whole point of the building. Two rows and real
-  // legs — at one row it was a stray stick beside the door.
-  rect(canvas, 23, 24, 30, 24, TIMBER_DARK);
-  rect(canvas, 23, 25, 30, 26, TIMBER_WARM);
-  rect(canvas, 23, 27, 24, 28, TIMBER_DARK);
-  rect(canvas, 29, 27, 30, 28, TIMBER_DARK);
+  const canvas = createCanvas(64, 72);
+  const groundY = 71;
+
+  // Cream walls on a stone footing, low and wide.
+  rect(canvas, 12, 34, 52, 68, CREAM);
+  rect(canvas, 12, 34, 18, 68, CREAM_SHADE);
+  rect(canvas, 46, 34, 52, 68, CREAM_SHADE);
+  material.masonry(canvas, 10, 62, 54, 68, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 141);
+
+  // A DOMED roof of old moss — the only curved roof in the game.
+  blob(canvas, 32, 26, 28, 18, ROOF_MOSS, 143, 0.1);
+  blob(canvas, 24, 18, 16, 9, GRASS_LIGHT, 145, 0.18);
+  blob(canvas, 40, 22, 9, 5, GRASS_BASE, 147, 0.2);
+  // Rafter ends poking out under the eave.
+  for (let x = 8; x <= 56; x += 8) rect(canvas, x, 33, x + 2, 35, TIMBER_DARK);
+  rect(canvas, 6, 35, 58, 37, TIMBER_DARK);
+
+  // A round-topped doorway, open, with warm light inside.
+  blob(canvas, 32, 48, 11, 11, TIMBER_DARK, 149, 0.03);
+  rect(canvas, 21, 48, 43, 68, TIMBER_DARK);
+  blob(canvas, 32, 50, 8, 8, SOIL_DARK, 151, 0.04);
+  rect(canvas, 24, 50, 40, 68, SOIL_DARK);
+  blob(canvas, 32, 60, 6, 5, STRAW, 153, 0.2);
+  rect(canvas, 20, 68, 44, 70, STONE_WARM_LIGHT); // the step
+
+  // The bench, which is the entire point of the building.
+  rect(canvas, 2, 54, 20, 56, TIMBER_DARK);
+  rect(canvas, 2, 56, 20, 60, TIMBER_WARM);
+  rect(canvas, 3, 60, 5, 68, TIMBER_DARK);
+  rect(canvas, 17, 60, 19, 68, TIMBER_DARK);
+  rect(canvas, 2, 46, 4, 56, TIMBER_DARK); // the back rail
+  rect(canvas, 18, 46, 20, 56, TIMBER_DARK);
+  rect(canvas, 2, 46, 20, 48, TIMBER_WARM);
+
+  // A lantern by the door, unlit but present.
+  rect(canvas, 48, 40, 50, 46, TIMBER_DARK);
+  rect(canvas, 46, 46, 52, 52, TIMBER_DARK);
+  rect(canvas, 47, 47, 51, 51, STRAW);
+
   outlineSelective(canvas, { bottom: false });
-  contactShadow(canvas, 16, 29, 12, 1.8);
+  contactShadow(canvas, 32, groundY, 26, 2.5);
   return canvas;
 }
+
 
 
 /** Seed bin (`core:seed_bin`): NOT A BUILDING, and it should not read as one.
@@ -826,48 +885,78 @@ function seedBin() {
 }
 
 
-/** Market stall (`core:market_stall`, GAME_DESIGN §5, 06c): the tallest
- * silhouette — a striped cloth canopy on posts over a goods counter. Cloth
- * and produce say "market" with no sign needed; the stripes are Parchment
- * and Straw, both already load-bearing canvas colours. */
+/**
+ * Market stall (`core:market_stall`) — 3x2 tiles, 96x80 px.
+ *
+ * Redrawn at footprint scale in phase-42. The awning is the silhouette and it
+ * always was; what it lacked was room. At 96 px the stall gets what a market
+ * stall actually has: a striped canopy on posts, a counter with goods ON it,
+ * crates stacked underneath, and a hanging sign.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function marketStall() {
-  const canvas = createCanvas(TILE, TILE);
-  // Posts, lit on their left edge.
-  rect(canvas, 5, 10, 6, 28, WOOD_BASE);
-  rect(canvas, 5, 10, 5, 28, WOOD_LIGHT);
-  rect(canvas, 25, 10, 26, 28, WOOD_BASE);
-  set(canvas, 25, 10, WOOD_LIGHT);
-  // Counter with a lit top and a plank seam.
-  rect(canvas, 4, 21, 27, 27, WOOD_BASE);
-  rect(canvas, 4, 21, 27, 21, WOOD_LIGHT);
-  rect(canvas, 4, 24, 27, 24, SOIL_DARK);
-  // Goods on the counter: produce hints in the warm accents.
-  rect(canvas, 8, 19, 10, 20, CARROT_ORANGE);
-  set(canvas, 9, 18, GRASS_BASE); // frond tuft
-  rect(canvas, 14, 18, 17, 20, PUMPKIN);
-  set(canvas, 15, 17, WOOD_BASE); // stem
-  rect(canvas, 21, 19, 23, 20, PARCHMENT);
-  // Striped canopy: gentle slope, scalloped hem, alternating cloth stripes.
-  for (let y = 3; y <= 9; y += 1) {
-    const inset = y <= 4 ? 2 : 0; // rounded crown rows
-    rect(canvas, 3 + inset, y, 28 - inset, y, PARCHMENT);
+  const canvas = createCanvas(96, 80);
+  const rng = prng(1503);
+  const groundY = 79;
+
+  // ── Posts, front and back, so the canopy has something to stand on ──────
+  for (const x of [6, 88]) {
+    rect(canvas, x, 18, x + 3, 76, TIMBER_DARK);
+    rect(canvas, x, 18, x, 76, TIMBER_WARM);
   }
-  for (let x = 3; x <= 28; x += 1) {
-    if (Math.floor((x - 3) / 4) % 2 === 1) {
-      for (let y = 3; y <= 9; y += 1) {
-        if (alphaAt(canvas, x, y) === 255) set(canvas, x, y, STRAW);
-      }
-    }
-    // Scalloped hem: every other pair of columns drops one pixel.
-    if (Math.floor((x - 3) / 2) % 2 === 0 && alphaAt(canvas, x, 9) === 255) {
-      set(canvas, x, 10, Math.floor((x - 3) / 4) % 2 === 1 ? STRAW : PARCHMENT);
-    }
+
+  // ── The canopy: cream and rose stripes, scalloped along the front ───────
+  polygon(canvas, [[0, 18], [95, 18], [95, 30], [0, 30]], CREAM);
+  for (let x = 0; x < 96; x += 12) {
+    rect(canvas, x, 18, x + 5, 30, BLOOM_ROSE);
   }
-  rect(canvas, 5, 3, 26, 3, WOOD_LIGHT); // ridge pole peeking over the crown
-  outlineSilhouette(canvas);
-  contactShadow(canvas, 16, 29, 13, 1.8);
+  rect(canvas, 0, 14, 95, 18, TIMBER_DARK); // the rail it hangs from
+  rect(canvas, 0, 14, 95, 15, TIMBER_WARM);
+  // Scallops: a half-round on the hem of each stripe.
+  for (let x = 6; x < 96; x += 12) {
+    blob(canvas, x, 31, 5, 3, CREAM, 111 + x, 0.05);
+    blob(canvas, x + 12, 31, 5, 3, BLOOM_ROSE, 113 + x, 0.05);
+  }
+
+  // ── The counter: a plank top on a boarded front ─────────────────────────
+  material.boards(canvas, 10, 50, 86, 74, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 115);
+  rect(canvas, 6, 44, 90, 50, BIRCH_PALE);
+  rect(canvas, 6, 44, 90, 45, CREAM);
+  rect(canvas, 6, 49, 90, 50, TIMBER_DARK);
+
+  // ── Goods ON the counter, which is what makes it a market ──────────────
+  const produce = [PUMPKIN, CARROT_ORANGE, GRASS_BASE, STRAW, BLOOM_ROSE];
+  for (let i = 0; i < 9; i += 1) {
+    const x = 12 + i * 9;
+    const colour = produce[Math.floor(rng() * produce.length)] ?? PUMPKIN;
+    blob(canvas, x, 40, 4, 4, colour, 121 + i, 0.18);
+    set(canvas, x - 1, 38, LEAF_HIGHLIGHT);
+  }
+  // A basket at one end and a scale at the other.
+  blob(canvas, 80, 40, 6, 4, TIMBER_WARM, 131, 0.15);
+  rect(canvas, 76, 36, 86, 37, TIMBER_DARK);
+
+  // ── Crates stacked under the counter ───────────────────────────────────
+  for (const [x, y] of [[14, 62], [30, 62], [62, 62]]) {
+    rect(canvas, x, y, x + 12, y + 12, TIMBER_WARM);
+    rect(canvas, x, y, x + 12, y + 1, BIRCH_PALE);
+    rect(canvas, x + 6, y, x + 6, y + 12, TIMBER_DARK);
+    rect(canvas, x, y + 6, x + 12, y + 7, TIMBER_DARK);
+  }
+
+  // ── A hanging sign, because a stall is somebody's ──────────────────────
+  rect(canvas, 36, 4, 60, 16, TIMBER_WARM);
+  rect(canvas, 36, 4, 60, 5, BIRCH_PALE);
+  rect(canvas, 40, 8, 56, 12, CREAM);
+  set(canvas, 44, 10, TIMBER_DARK);
+  set(canvas, 48, 10, TIMBER_DARK);
+  set(canvas, 52, 10, TIMBER_DARK);
+
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 48, groundY, 40, 2.5);
   return canvas;
 }
+
 
 // ── v0.4 factories (phase-26; ADR-035) ───────────────────────────────────────
 //
@@ -879,84 +968,189 @@ function marketStall() {
 // a mill is tall and narrow with a wheel breaking its outline; a kitchen is
 // low and wide with a chimney and a lit window.
 
-/** The mill (`core:mill`): the TALLEST silhouette in the game, and the only
- * one with a wheel. The brief names the mill and the kitchen specifically, and
- * the old one was a grey tower whose entire mill-ness was a 5 px gear. A
- * waterwheel reads as a mill at any size, from any angle, to anyone. */
+/**
+ * The mill (`core:mill`) — 3x3 tiles, 96x120 px.
+ *
+ * PHASE-42 REDREW THIS AT ITS REAL SIZE. It was a 32 px sprite, which is why
+ * the brief called the game "a grid with sprites": a working watermill drawn
+ * the same size as a flowerpot. The footprint is content (ADR-042 §3); this is
+ * the art that fills it.
+ *
+ * The canvas is TALLER than the footprint — 120 px over 96 — because the roof
+ * and the hoist gable overhang the tiles the building stands on. Sprites are
+ * bottom-anchored, so the extra height grows up into open sky and blocks
+ * nothing (ADR-042 §10: visual footprint is not collision footprint).
+ *
+ * It is the tallest thing in the game that is not a tree, and the only one with
+ * a wheel — the brief §6 asks the mill to communicate grain and mechanical
+ * processing, and a waterwheel does that at any size, to anyone.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function mill() {
-  const canvas = createCanvas(TILE, TILE);
-  // Warm stone base, timber upper — a tall, narrow body set to the right so
-  // the wheel has room.
-  material.masonry(canvas, 11, 18, 26, 28, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 51);
-  material.planks(canvas, 11, 11, 26, 17, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 53);
-  // A steep slate cap, high enough to be the tallest thing standing.
-  pitchedRoof(canvas, 2, 11, 18, 10, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
-  rect(canvas, 8, 11, 28, 11, TIMBER_DARK);
-  // A hoist door under the ridge, where sacks go up.
-  rect(canvas, 16, 13, 20, 16, TIMBER_DARK);
-  rect(canvas, 17, 14, 19, 16, SOIL_DARK);
-  // Window on the stone.
-  rect(canvas, 20, 21, 23, 24, TIMBER_DARK);
-  rect(canvas, 21, 22, 22, 23, STRAW);
-  // THE WATERWHEEL. Rim, hub, spokes, paddles.
-  blob(canvas, 7, 21, 7, 7, TIMBER_DARK, 57, 0.04);
-  blob(canvas, 7, 21, 5, 5, TIMBER_WARM, 59, 0.04);
-  blob(canvas, 7, 21, 2, 2, TIMBER_DARK, 61, 0.05);
-  for (const [dx, dy] of [[0, -6], [0, 6], [-6, 0], [6, 0], [-4, -4], [4, 4], [-4, 4], [4, -4]]) {
-    line(canvas, 7, 21, 7 + dx, 21 + dy, BIRCH_PALE);
+  const canvas = createCanvas(96, 120);
+  const rng = prng(1501);
+  const groundY = 119;
+
+  // ── The mill race, first, so the wheel sits in it ────────────────────────
+  rect(canvas, 0, 96, 30, groundY, WATER_BASE);
+  ditherBand(canvas, 0, 96, 30, 103, WATER_LIGHT, WATER_BASE);
+  for (let i = 0; i < 10; i += 1) {
+    const x = Math.floor(rng() * 28);
+    const y = 100 + Math.floor(rng() * 16);
+    rect(canvas, x, y, x + 2, y, WATER_LIGHT);
   }
-  for (const [px, py] of [[7, 14], [7, 28], [0, 21], [14, 21]]) {
-    set(canvas, px, py, TIMBER_DARK);
+  // The stone channel edge that carries the water under the wheel.
+  material.masonry(canvas, 0, 92, 32, 96, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 21);
+
+  // ── The building: warm stone base, timber upper, slate roof ──────────────
+  material.masonry(canvas, 30, 62, 92, 112, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 23);
+  material.planks(canvas, 34, 34, 90, 62, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 27);
+  // A stone quoin up each corner, which is what makes masonry read as built.
+  for (const x of [30, 31, 90, 91]) {
+    for (let y = 62; y <= 112; y += 6) rect(canvas, x, y, x, y + 2, STONE_WARM_LIGHT);
   }
-  // The millrace it turns in.
-  rect(canvas, 1, 26, 13, 28, WATER_BASE);
-  rect(canvas, 1, 26, 13, 26, WATER_LIGHT);
+
+  // Main roof, broad and slate, overhanging both walls.
+  pitchedRoof(canvas, 6, 36, 62, 34, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
+  rect(canvas, 26, 36, 95, 38, ROOF_SLATE_DEEP);
+  rect(canvas, 26, 34, 95, 35, ROOF_SLATE_LIGHT);
+
+  // ── The hoist gable: where sacks go up. A mill's working face ────────────
+  polygon(canvas, [[46, 40], [78, 40], [78, 22], [62, 12]], TIMBER_WARM);
+  polygon(canvas, [[46, 40], [62, 40], [62, 12]], BIRCH_PALE);
+  rect(canvas, 52, 26, 72, 44, TIMBER_DARK);
+  rect(canvas, 55, 29, 69, 42, SOIL_DARK);
+  // The hoist beam and its rope, sticking out over the yard.
+  rect(canvas, 40, 24, 62, 26, TIMBER_DARK);
+  rect(canvas, 44, 26, 45, 40, SOIL_DARK);
+  rect(canvas, 42, 40, 47, 45, TIMBER_WARM); // the sack on the rope
+  rect(canvas, 42, 40, 47, 41, BIRCH_PALE);
+
+  // ── Windows and door ─────────────────────────────────────────────────────
+  for (const wx of [40, 76]) {
+    rect(canvas, wx, 74, wx + 10, 88, TIMBER_DARK);
+    rect(canvas, wx + 2, 76, wx + 8, 86, STRAW);
+    rect(canvas, wx + 5, 76, wx + 5, 86, TIMBER_DARK);
+    rect(canvas, wx - 1, 88, wx + 11, 89, BIRCH_PALE);
+  }
+  rect(canvas, 56, 88, 72, 112, TIMBER_DARK);
+  material.boards(canvas, 58, 90, 70, 112, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 31);
+  set(canvas, 68, 100, GOLD_HIGHLIGHT);
+  rect(canvas, 54, 112, 74, 113, STONE_WARM_LIGHT); // the step
+
+  // ── THE WATERWHEEL. The whole silhouette argument ────────────────────────
+  const cx = 22;
+  const cy = 84;
+  blob(canvas, cx, cy, 22, 22, TIMBER_DARK, 41, 0.02);
+  blob(canvas, cx, cy, 19, 19, TIMBER_WARM, 43, 0.02);
+  blob(canvas, cx, cy, 13, 13, TIMBER_DARK, 45, 0.02);
+  blob(canvas, cx, cy, 11, 11, STONE_WARM_DARK, 47, 0.03);
+  blob(canvas, cx, cy, 4, 4, TIMBER_DARK, 49, 0.05);
+  // Spokes and paddles, eight of each.
+  for (let i = 0; i < 8; i += 1) {
+    const angle = (i / 8) * Math.PI * 2;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    line(canvas, cx, cy, Math.round(cx + dx * 18), Math.round(cy + dy * 18), BIRCH_PALE);
+    const px = Math.round(cx + dx * 20);
+    const py = Math.round(cy + dy * 20);
+    rect(canvas, px - 2, py - 2, px + 2, py + 2, TIMBER_DARK);
+  }
+  // The axle reaching into the wall.
+  rect(canvas, cx, cy - 2, 34, cy + 1, TIMBER_DARK);
+
+  // ── Sacks of grain in the yard: a mill is a place goods pile up ──────────
+  blob(canvas, 82, 108, 8, 6, CREAM_SHADE, 51, 0.16);
+  blob(canvas, 80, 104, 6, 4, CREAM, 53, 0.2);
+  rect(canvas, 79, 100, 83, 102, TIMBER_DARK);
+
   outlineSelective(canvas, { bottom: false });
-  contactShadow(canvas, 18, 29, 11, 1.8);
+  contactShadow(canvas, 60, groundY, 34, 3);
   return canvas;
 }
 
 
-/** The kitchen (`core:kitchen`): the other building the brief names. Its
- * identity is a MASSIVE OVEN STACK on the shaded side — a lopsided silhouette
- * nothing else in the set has — with a lit oven mouth and smoke. The old one
- * was the same box as the cottage with an orange circle on it. */
+
+/**
+ * The kitchen (`core:kitchen`) — 3x2 tiles, 96x88 px.
+ *
+ * Redrawn at footprint scale in phase-42. Its identity is a MASSIVE OVEN STACK
+ * on the shaded side: a lopsided silhouette nothing else in the game has, with
+ * a lit arched mouth and smoke. The brief §6 asks the kitchen to communicate
+ * cooking, warmth and domestic production, and fire is the shortest way to say
+ * all three.
+ *
+ * The canvas is taller than the footprint so the stack and its smoke overhang
+ * the tiles the building stands on (ADR-042 §10).
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function kitchen() {
-  const canvas = createCanvas(TILE, TILE);
-  const rng = prng(1406);
-  // The building proper: low, wide, cream, set to the RIGHT.
-  rect(canvas, 12, 16, 29, 28, CREAM);
-  rect(canvas, 12, 16, 14, 28, CREAM_SHADE);
-  material.planks(canvas, 12, 25, 29, 28, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 67);
-  pitchedRoof(canvas, 9, 16, 21, 11, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
-  rect(canvas, 10, 16, 31, 16, TIMBER_DARK);
-  // Window with a sill, warm from inside.
-  rect(canvas, 23, 19, 27, 23, TIMBER_DARK);
-  rect(canvas, 24, 20, 26, 22, STRAW);
-  line(canvas, 25, 20, 25, 22, TIMBER_DARK);
-  rect(canvas, 22, 23, 28, 23, BIRCH_PALE);
-  // THE OVEN STACK: masonry, floor to above the roofline, on the left.
-  material.masonry(canvas, 2, 9, 12, 28, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 71);
-  rect(canvas, 1, 8, 13, 9, STONE_WARM_LIGHT); // the crown
-  // The oven mouth, arched and LIT — the one place the game shows fire.
-  blob(canvas, 7, 22, 4, 4, SOIL_DARK, 73, 0.05);
-  rect(canvas, 3, 22, 11, 27, SOIL_DARK);
-  blob(canvas, 7, 24, 3, 2, PUMPKIN, 77, 0.15);
-  set(canvas, 7, 24, GOLD_HIGHLIGHT);
-  set(canvas, 6, 25, REWARD_GOLD);
-  // Smoke: three PUFFS that grow and drift, not a one-pixel line. The first
-  // attempt drew a diagonal stroke and it read as an aerial.
-  blob(canvas, 6, 6, 2, 2, STONE_WARM_LIGHT, 79, 0.3);
-  blob(canvas, 4, 3, 2, 1, CREAM_SHADE, 81, 0.3);
-  blob(canvas, 3, 1, 1, 1, CREAM, 85, 0.3);
-  // Firewood stacked against the stack.
-  for (let y = 26; y <= 28; y += 1) {
-    for (let x = 1; x <= 2; x += 1) set(canvas, x, y, rng() < 0.5 ? TIMBER_WARM : TIMBER_DARK);
+  const canvas = createCanvas(96, 88);
+  const rng = prng(1502);
+  const groundY = 87;
+
+  // ── The building proper: cream plaster over a timber sill, set RIGHT ─────
+  rect(canvas, 34, 40, 92, 84, CREAM);
+  rect(canvas, 34, 40, 40, 84, CREAM_SHADE);
+  material.planks(canvas, 34, 74, 92, 84, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 81);
+  // Half-timbering, so it belongs to the same village as the cottage.
+  rect(canvas, 34, 40, 36, 84, TIMBER_DARK);
+  rect(canvas, 90, 40, 92, 84, TIMBER_DARK);
+  rect(canvas, 34, 58, 92, 60, TIMBER_DARK);
+
+  pitchedRoof(canvas, 12, 42, 64, 34, ROOF_SLATE, ROOF_SLATE_DEEP, ROOF_SLATE_LIGHT);
+  rect(canvas, 28, 42, 95, 44, ROOF_SLATE_DEEP);
+  rect(canvas, 28, 40, 95, 41, ROOF_SLATE_LIGHT);
+
+  // ── Windows: wide, warm, and one of them a serving hatch ────────────────
+  rect(canvas, 62, 62, 84, 74, TIMBER_DARK);
+  rect(canvas, 64, 64, 82, 72, STRAW);
+  rect(canvas, 72, 64, 73, 72, TIMBER_DARK);
+  rect(canvas, 60, 74, 86, 76, BIRCH_PALE); // the sill, wide enough to rest a pie on
+  blob(canvas, 68, 72, 4, 2, PUMPKIN, 83, 0.2); // something cooling on it
+  blob(canvas, 78, 72, 3, 2, CARROT_ORANGE, 85, 0.2);
+
+  rect(canvas, 42, 62, 56, 84, TIMBER_DARK);
+  material.boards(canvas, 44, 64, 54, 84, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 87);
+  set(canvas, 53, 74, GOLD_HIGHLIGHT);
+
+  // ── THE OVEN STACK: floor to above the roofline, on the left ─────────────
+  material.masonry(canvas, 2, 14, 34, 84, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 89);
+  rect(canvas, 0, 10, 36, 14, STONE_WARM_LIGHT); // the crown
+  rect(canvas, 0, 10, 36, 11, CREAM_SHADE);
+  // Banding, so it reads as courses rather than as a slab.
+  for (const y of [26, 44, 62]) rect(canvas, 2, y, 34, y + 1, STONE_WARM_DARK);
+
+  // The oven mouth: arched, deep, and LIT. The one place the game shows fire.
+  blob(canvas, 18, 56, 12, 11, SOIL_DARK, 91, 0.04);
+  rect(canvas, 7, 56, 29, 80, SOIL_DARK);
+  blob(canvas, 18, 66, 9, 7, ROOF_CLAY, 93, 0.12);
+  blob(canvas, 18, 70, 7, 5, PUMPKIN, 95, 0.15);
+  blob(canvas, 17, 73, 4, 3, REWARD_GOLD, 97, 0.2);
+  set(canvas, 17, 74, GOLD_HIGHLIGHT);
+  // Embers spilling onto the hearth stone.
+  for (let i = 0; i < 6; i += 1) {
+    set(canvas, 10 + Math.floor(rng() * 18), 78 + Math.floor(rng() * 3), PUMPKIN);
   }
+  rect(canvas, 4, 80, 32, 84, STONE_WARM_DARK);
+
+  // Smoke: three puffs that grow and drift toward the light.
+  blob(canvas, 16, 7, 5, 4, STONE_WARM_LIGHT, 99, 0.3);
+  blob(canvas, 11, 3, 4, 3, CREAM_SHADE, 101, 0.3);
+  blob(canvas, 7, 0, 3, 2, CREAM, 103, 0.3);
+
+  // Firewood stacked against the stack, and a water butt.
+  for (let y = 74; y <= 84; y += 3) {
+    for (let x = 34; x <= 40; x += 3) {
+      blob(canvas, x, y, 2, 1, rng() < 0.5 ? TIMBER_WARM : TIMBER_DARK, 105 + x, 0.2);
+    }
+  }
+
   outlineSelective(canvas, { bottom: false });
-  contactShadow(canvas, 16, 29, 15, 2);
+  contactShadow(canvas, 48, groundY, 40, 3);
   return canvas;
 }
+
 
 
 /** Ore vein (`buildings:ore_vein`, ADR-037): angular crystal shards breaking
@@ -1029,46 +1223,70 @@ function oreVein() {
 
 // ── Town buildings (phase-18, ADR-030 §4; village canon WORLD_BIBLE §Village) ─
 
-/** The cottage (`core:cottage`): a HOME, and it should be the warmest thing on
- * screen. Terracotta over cream plaster with a timber frame — the only
- * half-timbered building — a steep gable, and a chimney with smoke. */
+/**
+ * The cottage (`core:cottage`) — 2x2 tiles, 64x80 px.
+ *
+ * Redrawn at footprint scale in phase-42. A HOME, and it should be the warmest
+ * thing on screen: the only half-timbered building, a steep terracotta gable,
+ * a chimney with smoke, lit windows and a window box. Four of these make the
+ * town, so this one asset carries most of §18's "somewhere people live".
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function cottage() {
-  const canvas = createCanvas(TILE, TILE);
-  // Plaster walls with a timber frame. The frame is the cottage's signature.
-  rect(canvas, 6, 15, 25, 28, CREAM);
-  rect(canvas, 6, 15, 8, 28, CREAM_SHADE);
-  rect(canvas, 6, 15, 6, 28, TIMBER_DARK);
-  rect(canvas, 25, 15, 25, 28, TIMBER_DARK);
-  rect(canvas, 6, 21, 25, 21, TIMBER_DARK);
-  line(canvas, 7, 21, 12, 15, TIMBER_DARK);
-  line(canvas, 24, 21, 19, 15, TIMBER_DARK);
-  // A STEEP terracotta gable — the tallest pitch of any home-sized building.
-  pitchedRoof(canvas, 2, 15, 16, 13, ROOF_TERRACOTTA, ROOF_CLAY, ROOF_TERRACOTTA);
-  rect(canvas, 3, 15, 29, 15, ROOF_CLAY); // eave, overhanging both walls
+  const canvas = createCanvas(64, 80);
+  const groundY = 79;
+
+  // Plaster walls with a timber frame — the cottage's signature.
+  rect(canvas, 8, 34, 56, 76, CREAM);
+  rect(canvas, 8, 34, 14, 76, CREAM_SHADE);
+  material.masonry(canvas, 6, 70, 58, 76, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 161);
+  rect(canvas, 8, 34, 11, 72, TIMBER_DARK);
+  rect(canvas, 53, 34, 56, 72, TIMBER_DARK);
+  rect(canvas, 8, 50, 56, 53, TIMBER_DARK);
+  line(canvas, 12, 50, 24, 35, TIMBER_DARK);
+  line(canvas, 52, 50, 40, 35, TIMBER_DARK);
+  line(canvas, 13, 50, 25, 35, TIMBER_DARK);
+  line(canvas, 51, 50, 39, 35, TIMBER_DARK);
+
+  // A STEEP terracotta gable, overhanging both walls.
+  pitchedRoof(canvas, 2, 34, 32, 30, ROOF_TERRACOTTA, ROOF_CLAY, ROOF_TERRACOTTA);
+  rect(canvas, 1, 34, 62, 36, ROOF_CLAY);
+  rect(canvas, 1, 32, 62, 33, ROOF_TERRACOTTA);
+
   // Chimney on the shaded side, breaking the roof line, with smoke.
-  material.masonry(canvas, 20, 3, 23, 12, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 83);
-  rect(canvas, 19, 2, 24, 3, STONE_WARM_LIGHT);
-  for (let i = 0; i < 5; i += 1) set(canvas, 21 - Math.floor(i / 2), 1 - i, CREAM);
+  material.masonry(canvas, 42, 4, 52, 26, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 163);
+  rect(canvas, 40, 1, 54, 5, STONE_WARM_LIGHT);
+  blob(canvas, 44, 0, 4, 2, CREAM_SHADE, 165, 0.3);
+
   // Door with a step, and a lit window either side.
-  rect(canvas, 13, 22, 18, 28, TIMBER_DARK);
-  material.boards(canvas, 14, 23, 17, 28, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 89);
-  set(canvas, 17, 25, GOLD_HIGHLIGHT); // the handle
-  rect(canvas, 12, 28, 19, 28, STONE_WARM_LIGHT);
-  for (const wx of [8, 20]) {
-    rect(canvas, wx, 23, wx + 3, 26, TIMBER_DARK);
-    rect(canvas, wx + 1, 24, wx + 2, 25, STRAW);
-    line(canvas, wx + 1, 24, wx + 2, 24, TIMBER_DARK);
-    rect(canvas, wx - 1, 26, wx + 4, 26, BIRCH_PALE); // sill
+  rect(canvas, 26, 54, 40, 76, TIMBER_DARK);
+  material.boards(canvas, 28, 56, 38, 76, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 167);
+  set(canvas, 37, 66, GOLD_HIGHLIGHT);
+  rect(canvas, 24, 76, 42, 78, STONE_WARM_LIGHT);
+  for (const wx of [14, 44]) {
+    rect(canvas, wx, 56, wx + 10, 68, TIMBER_DARK);
+    rect(canvas, wx + 2, 58, wx + 8, 66, STRAW);
+    rect(canvas, wx + 5, 58, wx + 5, 66, TIMBER_DARK);
+    rect(canvas, wx - 1, 68, wx + 11, 70, BIRCH_PALE);
   }
-  // A window box, because this is where somebody lives.
-  set(canvas, 9, 27, BLOOM_ROSE);
-  set(canvas, 10, 27, GRASS_BASE);
-  set(canvas, 21, 27, BLOOM_BLUE);
-  set(canvas, 22, 27, GRASS_BASE);
+  // A window box under each, because this is where somebody lives.
+  /** @type {Array<[number, number[]]>} */
+  const boxes = [
+    [14, BLOOM_ROSE],
+    [44, BLOOM_BLUE],
+  ];
+  for (const [wx, bloom] of boxes) {
+    rect(canvas, wx, 70, wx + 10, 73, TIMBER_WARM);
+    set(canvas, wx + 2, 69, bloom);
+    set(canvas, wx + 5, 69, GRASS_BASE);
+    set(canvas, wx + 8, 69, bloom);
+  }
+
   outlineSelective(canvas, { bottom: false });
-  contactShadow(canvas, 16, 29, 13, 1.8);
+  contactShadow(canvas, 32, groundY, 26, 2.5);
   return canvas;
 }
+
 
 
 /** Town well (`core:well`): the plaza's centre. A LOW round stone ring — the

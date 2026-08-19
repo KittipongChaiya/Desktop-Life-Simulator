@@ -14,7 +14,13 @@
 
 import { asContentId, type ContentId } from '../../shared/ids';
 
+import { SINGLE_TILE, type Footprint } from './footprint';
 import { createContentRegistry, type ContentRegistry } from './registry';
+
+/** A building's footprint, defaulting to the single tile most of them use. */
+export function footprintOf(definition: BuildingDefinition): Footprint {
+  return definition.footprint ?? SINGLE_TILE;
+}
 
 export interface BuildingDefinition {
   readonly id: ContentId;
@@ -43,6 +49,18 @@ export interface BuildingDefinition {
    * definition is unchanged.
    */
   readonly playerPlaceable?: boolean;
+  /**
+   * How many tiles the building stands on, in tiles, growing UP and RIGHT from
+   * the placed tile (phase-41 — ADR-042 §3, `footprint.ts`).
+   *
+   * Absent means one tile, so every definition written before v0.5 and every
+   * save ever written keep working unchanged.
+   *
+   * LOGICAL, not visual. These are the tiles the simulation blocks and refuses
+   * to another building; the sprite is allowed to be larger, and for anything
+   * with a roof or a canopy it should be.
+   */
+  readonly footprint?: Footprint;
 }
 
 export const CORE_STORAGE_SHED = asContentId('core:storage_shed');
@@ -91,6 +109,7 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
     id: CORE_STORAGE_SHED,
     displayName: 'Storage Shed',
     sprite: 'buildings:storage_shed',
+    footprint: { width: 2, height: 2 },
     cost: 200,
     storageSlots: STORAGE_SHED_SLOTS,
   },
@@ -98,6 +117,7 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
     id: CORE_REST_HUT,
     displayName: 'Rest Hut',
     sprite: 'buildings:rest_hut',
+    footprint: { width: 2, height: 2 },
     cost: 300,
   },
   {
@@ -110,6 +130,7 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
     id: CORE_MARKET_STALL,
     displayName: 'Market Stall',
     sprite: 'buildings:market_stall',
+    footprint: { width: 3, height: 2 },
     cost: 1200,
     storageSlots: MARKET_STALL_SLOTS,
   },
@@ -129,12 +150,14 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
     id: CORE_MILL,
     displayName: 'Mill',
     sprite: 'buildings:mill',
+    footprint: { width: 3, height: 3 },
     cost: 900,
   },
   {
     id: CORE_KITCHEN,
     displayName: 'Kitchen',
     sprite: 'buildings:kitchen',
+    footprint: { width: 3, height: 2 },
     cost: 1600,
   },
 ];

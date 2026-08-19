@@ -24,7 +24,8 @@ import {
   type TileIndex,
 } from '../../shared/ids';
 import { err, ok, type Result } from '../../shared/result';
-import { DEFAULT_FACTORY_SLOTS } from '../content/buildings';
+import { DEFAULT_FACTORY_SLOTS, footprintOf } from '../content/buildings';
+import { footprintTiles } from '../content/footprint';
 import { containerTotal, createContainer } from '../world/container';
 import { createFactoryState } from '../world/factory';
 import { getKind, isBlocked, isOwned, setBlocked } from '../world/tile-grid';
@@ -54,21 +55,41 @@ export function validatePlacement(
     return err(appError(ErrorCode.InvalidIntent, 'this building cannot be placed', { buildingId }));
   }
 
-  if (!isOwned(world.tiles, tile)) {
-    return err(appError(ErrorCode.TileNotOwned, 'tile is outside the owned plot', { tile }));
+  // EVERY tile the building would stand on, not just the one clicked
+  // (phase-41 — ADR-042 §3). A 3x2 house refused on its origin tile and
+  // accepted over a pond is the bug this loop exists to prevent.
+  const tiles = footprintTiles(tile, footprintOf(definition.value));
+  if (tiles === null) {
+    return err(
+      appError(ErrorCode.TileWrongKind, 'building does not fit inside the world', { tile }),
+    );
   }
 
-  const kind = world.tileKinds.byIndex(getKind(world.tiles, tile));
-  if (kind === undefined || !kind.walkable) {
-    return err(appError(ErrorCode.TileWrongKind, 'building needs walkable land', { tile }));
-  }
+  for (const covered of tiles) {
+    if (!isOwned(world.tiles, covered)) {
+      return err(
+        appError(ErrorCode.TileNotOwned, 'building would reach outside the owned plot', {
+          tile: covered,
+        }),
+      );
+    }
 
-  if (isBlocked(world.tiles, tile)) {
-    return err(appError(ErrorCode.TileWrongKind, 'tile already has a building', { tile }));
-  }
+    const kind = world.tileKinds.byIndex(getKind(world.tiles, covered));
+    if (kind === undefined || !kind.walkable) {
+      return err(
+        appError(ErrorCode.TileWrongKind, 'building needs walkable land', { tile: covered }),
+      );
+    }
 
-  if (world.crops.has(tile)) {
-    return err(appError(ErrorCode.TileWrongKind, 'tile has a crop', { tile }));
+    if (isBlocked(world.tiles, covered)) {
+      return err(
+        appError(ErrorCode.TileWrongKind, 'tile already has a building', { tile: covered }),
+      );
+    }
+
+    if (world.crops.has(covered)) {
+      return err(appError(ErrorCode.TileWrongKind, 'tile has a crop', { tile: covered }));
+    }
   }
 
   if (world.wallet.coins < definition.value.cost) {
@@ -105,8 +126,12 @@ export function placeBuilding(
 
   const id = world.ids.allocateBuilding();
   world.buildings.set(id, { id, tile, buildingId });
-  // Buildings contribute to walkability in the tile model (ADR-011).
-  setBlocked(world.tiles, tile, true);
+  // Buildings contribute to walkability in the tile model (ADR-011), across
+  // their whole footprint (phase-41). Re-derived rather than reusing the
+  // validated list, so occupancy can never disagree with the definition.
+  for (const covered of footprintTiles(tile, footprintOf(definition.value)) ?? [tile]) {
+    setBlocked(world.tiles, covered, true);
+  }
 
   if (definition.value.storageSlots !== undefined) {
     world.buildingStorage.set(id, createContainer(definition.value.storageSlots));
@@ -182,7 +207,26 @@ export function sellBuilding(world: CommandWorld, building: BuildingId): Result<
   world.buildings.delete(building);
   world.buildingStorage.delete(building);
   world.factories.delete(building);
-  setBlocked(world.tiles, placed.tile, false);
+
+  // Clear this building's whole footprint, then put back any tile another
+  // building still stands on (phase-41). Footprints can overlap in a save
+  // written before v0.5 gave buildings a size — ADR-042 §4 keeps such a save
+  // loadable rather than repairing it — and selling one of the pair must not
+  // punch a walkable hole through the other.
+  const cleared = footprintTiles(placed.tile, footprintOf(definition.value)) ?? [placed.tile];
+  for (const covered of cleared) setBlocked(world.tiles, covered, false);
+
+  const stillCovered = new Set<number>();
+  for (const other of world.buildings.values()) {
+    const otherDefinition = world.buildingRegistry.get(other.buildingId);
+    if (!otherDefinition.ok) continue;
+    for (const covered of footprintTiles(other.tile, footprintOf(otherDefinition.value)) ?? []) {
+      stillCovered.add(covered);
+    }
+  }
+  for (const covered of cleared) {
+    if (stillCovered.has(covered)) setBlocked(world.tiles, covered, true);
+  }
   return ok();
 }
 

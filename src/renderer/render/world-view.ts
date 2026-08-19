@@ -397,13 +397,13 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // The village's people share the entities layer, so residents, workers,
   // and buildings y-sort against each other correctly (phase-19, ADR-031 §4).
   const residents: ResidentRenderer = createResidentRenderer({
-    layer: app.layers.entities,
+    layer: app.layers.world,
     textureFor,
     gate,
   });
 
   const workers: WorkerRenderer = createWorkerRenderer({
-    layer: app.layers.entities,
+    layer: app.layers.world,
     worldUi: app.layers.worldUi,
     textureFor,
     gate,
@@ -413,7 +413,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   });
 
   const buildings: BuildingRenderer = createBuildingRenderer({
-    layer: app.layers.objects,
+    layer: app.layers.world,
     textureFor,
     gate,
   });
@@ -429,7 +429,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   };
 
   const crops: CropRenderer = createCropRenderer({
-    layer: app.layers.objects,
+    layer: app.layers.world,
     textureFor,
     gate,
     intensity: options.motionIntensity,
@@ -488,7 +488,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   // Ground decoration (07.5e). Shares the y-sorted `objects` layer with
   // buildings so props, buildings, and workers interleave correctly by depth.
-  const decor: DecorRenderer = createDecorRenderer({ layer: app.layers.objects, textureFor });
+  const decor: DecorRenderer = createDecorRenderer({ layer: app.layers.world, textureFor });
 
   // The wilds' nodes (phase-27). The same layer again, because a worker
   // chopping a tree has to sort against it — but NOT the same thing as decor:
@@ -498,7 +498,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
   // Positions are a hash of the seed (ADR-037 §3), so this is planned once and
   // never rebuilt; only the worked/standing look changes, from the slice.
   const wildNodes: WildNodeRenderer = createWildNodeRenderer({
-    layer: app.layers.objects,
+    layer: app.layers.world,
     textureFor,
     gate,
   });
@@ -855,8 +855,7 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
     visibleSpriteCount: () =>
       app.layers.terrain.children.length +
-      app.layers.objects.children.length +
-      app.layers.entities.children.length +
+      app.layers.world.children.length +
       app.layers.effects.children.length,
 
     visibleTileCount() {

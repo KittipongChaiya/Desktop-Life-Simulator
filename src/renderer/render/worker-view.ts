@@ -24,6 +24,7 @@ import { TILE_SIZE } from '../../shared/constants';
 import { Direction, type WorkerView } from '../../sim/snapshot/workers-slice';
 import { WorkerState } from '../../sim/world/worker';
 
+import { positionDepth } from './depth';
 import type { DirtyGate } from './dirty-gate';
 import { derivedIndex } from './presentation-rng';
 import {
@@ -188,7 +189,9 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
         : 0;
 
     entry.sprite.y = position.y + TILE_SIZE - fidgetLift - hop + bob;
-    entry.sprite.zIndex = position.y; // lower on screen draws in front
+    // The LOGICAL base, not the drawn one: bob, hop and fidget move the
+    // sprite and must not move it in the sort order (`depth.ts`).
+    entry.sprite.zIndex = positionDepth(position.y);
 
     // A glance turns the head without moving the feet, using the idle poses
     // that already exist — the only way to build one without new art.

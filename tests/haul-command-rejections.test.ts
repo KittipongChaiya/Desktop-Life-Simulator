@@ -51,9 +51,14 @@ function chain(): {
 } {
   const world = createWorld(4242);
   world.wallet.coins = 1_000_000;
-  expect(placeBuilding(world, toIndexUnchecked(29, 30), CORE_STORAGE_SHED).ok).toBe(true);
+  // Buildings have FOOTPRINTS since phase-41 (ADR-042 §3): the shed is 2x2,
+  // the mill 3x3, the kitchen 3x2. The old layout put them two or three tiles
+  // apart on one row, which was fine when each was a single tile and now either
+  // overlaps or runs off the 8x8 starting plot (cols 28-35, rows 28-35). These
+  // origins are the bottom-left of each footprint and do not collide.
+  expect(placeBuilding(world, toIndexUnchecked(28, 31), CORE_STORAGE_SHED).ok).toBe(true);
   const shed = [...world.buildings.keys()].at(-1)!;
-  expect(placeBuilding(world, toIndexUnchecked(31, 30), CORE_MILL).ok).toBe(true);
+  expect(placeBuilding(world, toIndexUnchecked(31, 31), CORE_MILL).ok).toBe(true);
   const mill = [...world.buildings.keys()].at(-1)!;
   expect(hireWorker(world, toIndexUnchecked(33, 30)).ok).toBe(true);
   return { world, shed, mill };
@@ -94,7 +99,7 @@ describe('declaring a route refuses what could never run', () => {
     // instruction that silently never runs — which to a player is a route that
     // does nothing, with no explanation (ADR-036 §2).
     const { world, mill } = chain();
-    expect(placeBuilding(world, toIndexUnchecked(28, 30), CORE_REST_HUT).ok).toBe(true);
+    expect(placeBuilding(world, toIndexUnchecked(34, 31), CORE_REST_HUT).ok).toBe(true);
     const hut = [...world.buildings.keys()].at(-1)!;
 
     expect(validateAddRoute(world, hut, mill, CORE_WHEAT_ITEM).ok).toBe(false);
@@ -102,7 +107,7 @@ describe('declaring a route refuses what could never run', () => {
 
   it('refuses an endpoint nothing can be given to', () => {
     const { world, shed } = chain();
-    expect(placeBuilding(world, toIndexUnchecked(28, 30), CORE_REST_HUT).ok).toBe(true);
+    expect(placeBuilding(world, toIndexUnchecked(34, 31), CORE_REST_HUT).ok).toBe(true);
     const hut = [...world.buildings.keys()].at(-1)!;
 
     expect(validateAddRoute(world, shed, hut, CORE_WHEAT_ITEM).ok).toBe(false);

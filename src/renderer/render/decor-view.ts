@@ -23,6 +23,7 @@ import { Sprite, type Container, type Texture } from 'pixi.js';
 import { TILE_SIZE, WORLD_WIDTH } from '../../shared/constants';
 
 import type { DecorItem } from './decor';
+import { tileDepth } from './depth';
 // The sway rule moved to `sway.ts` in phase-27, unchanged, when the wilds got
 // a second layer of trees that has to lean by exactly the same numbers.
 import { SWAYS, swayPhase, swayRotation } from './sway';
@@ -70,20 +71,20 @@ export function createDecorRenderer(options: DecorRendererOptions): DecorRendere
       for (const item of items) {
         const sprite = new Sprite(options.textureFor(item.sprite));
         const y = Math.floor(item.tile / WORLD_WIDTH);
-        sprite.x = (item.tile - y * WORLD_WIDTH) * TILE_SIZE;
-        sprite.y = y * TILE_SIZE;
-        // The same y-sort key buildings use, so props, buildings, and workers
-        // share one consistent depth order.
-        sprite.zIndex = y;
+        // BOTTOM-CENTRE for every prop, not just the swaying ones (ADR-042 §2).
+        // Only `SWAYS` members were re-anchored before, so a rock and a bush on
+        // the same row sat at different heights and a tall prop grew downward.
+        sprite.anchor.set(0.5, 1);
+        sprite.x = (item.tile - y * WORLD_WIDTH + 0.5) * TILE_SIZE;
+        sprite.y = (y + 1) * TILE_SIZE;
+        // The same key everything in the world layer uses, in world pixels.
+        sprite.zIndex = tileDepth(item.tile);
         options.layer.addChild(sprite);
         sprites.push(sprite);
 
         if (SWAYS.has(item.sprite)) {
-          // Anchored at the bottom centre so a lean pivots at the roots
-          // rather than sliding the whole plant sideways.
-          sprite.anchor.set(0.5, 1);
-          sprite.x += TILE_SIZE / 2;
-          sprite.y += TILE_SIZE;
+          // Anchor is already bottom-centre for every prop, so a lean
+          // pivots at the roots rather than sliding the plant sideways.
           // Phase DERIVED from the tile (ADR-017 §5), so a hedgerow ripples
           // instead of pulsing as one block, identically on every launch.
           swaying.push({ sprite, phase: swayPhase(item.tile) });

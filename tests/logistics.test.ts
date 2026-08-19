@@ -34,7 +34,11 @@ import { WorkerTaskKind, type Worker } from '../src/sim/world/worker';
 import { createWorld, type World } from '../src/sim/world/world';
 import type { BuildingId } from '../src/shared/ids';
 
-const CENTRE = 32 * WORLD_WIDTH + 32;
+/** Footprint-aware origins inside the starting plot (phase-41). */
+const SHED_AT = 31 * WORLD_WIDTH + 28;
+const MILL_AT = 31 * WORLD_WIDTH + 31;
+/** A free tile for hiring, clear of both footprints. */
+const HIRE_AT = 35 * WORLD_WIDTH + 35;
 
 /** A shed holding `wheat`, a mill set to grind, and a route between them. */
 function chainWorld(
@@ -48,16 +52,21 @@ function chainWorld(
   const world = createWorld(77);
   world.wallet.coins = 1_000_000;
 
-  expect(placeBuilding(world, CENTRE, CORE_STORAGE_SHED).ok).toBe(true);
+  // Buildings have FOOTPRINTS since phase-41 (ADR-042 §3): the shed is 2x2,
+  // the mill 3x3, the kitchen 3x2. The old layout put them two or three tiles
+  // apart on one row, which was fine when each was a single tile and now either
+  // overlaps or runs off the 8x8 starting plot (cols 28-35, rows 28-35). These
+  // origins are the bottom-left of each footprint and do not collide.
+  expect(placeBuilding(world, SHED_AT, CORE_STORAGE_SHED).ok).toBe(true);
   const shed = [...world.buildings.keys()].at(-1)!;
-  expect(placeBuilding(world, CENTRE + 3, CORE_MILL).ok).toBe(true);
+  expect(placeBuilding(world, MILL_AT, CORE_MILL).ok).toBe(true);
   const mill = [...world.buildings.keys()].at(-1)!;
 
   expect(setFactoryRecipe(world, mill, CORE_GRIND_FLOUR).ok).toBe(true);
   addItems(world.buildingStorage.get(shed)!, CORE_WHEAT, wheat, DEFAULT_STACK_SIZE);
   expect(addRoute(world, shed, mill, CORE_WHEAT).ok).toBe(true);
 
-  for (let i = 0; i < workers; i += 1) expect(hireWorker(world, CENTRE + 1 + i).ok).toBe(true);
+  for (let i = 0; i < workers; i += 1) expect(hireWorker(world, HIRE_AT - i).ok).toBe(true);
   return { world, shed, mill };
 }
 

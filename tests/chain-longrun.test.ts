@@ -77,11 +77,16 @@ function buildChain(wheat: number): Chain {
   world.wallet.coins = 1_000_000;
   const centre = 32 * WORLD_WIDTH + 30;
 
-  expect(placeBuilding(world, centre, CORE_STORAGE_SHED).ok).toBe(true);
+  // Buildings have FOOTPRINTS since phase-41 (ADR-042 §3): the shed is 2x2,
+  // the mill 3x3, the kitchen 3x2. The old layout put them two or three tiles
+  // apart on one row, which was fine when each was a single tile and now either
+  // overlaps or runs off the 8x8 starting plot (cols 28-35, rows 28-35). These
+  // origins are the bottom-left of each footprint and do not collide.
+  expect(placeBuilding(world, 31 * WORLD_WIDTH + 28, CORE_STORAGE_SHED).ok).toBe(true);
   const shed = [...world.buildings.keys()].at(-1)!;
-  expect(placeBuilding(world, centre + 2, CORE_MILL).ok).toBe(true);
+  expect(placeBuilding(world, 31 * WORLD_WIDTH + 31, CORE_MILL).ok).toBe(true);
   const mill = [...world.buildings.keys()].at(-1)!;
-  expect(placeBuilding(world, centre + 4, CORE_KITCHEN).ok).toBe(true);
+  expect(placeBuilding(world, 35 * WORLD_WIDTH + 28, CORE_KITCHEN).ok).toBe(true);
   const kitchen = [...world.buildings.keys()].at(-1)!;
 
   expect(setFactoryRecipe(world, mill, CORE_GRIND_FLOUR).ok).toBe(true);

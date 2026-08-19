@@ -21,6 +21,8 @@
 import { toIndexUnchecked } from '../../shared/geometry';
 import type { BuildingId } from '../../shared/ids';
 import type { BuildingRegistry } from '../content/buildings';
+import { footprintOf } from '../content/buildings';
+import { footprintTiles } from '../content/footprint';
 import type { TileKindRegistry } from '../content/tile-kinds';
 import { CORE_PATH } from '../content/tile-kinds';
 import { TOWN_BUILDING_IDS, TOWN_PLACEMENTS, townPathTiles } from '../content/town';
@@ -81,7 +83,13 @@ export function foundTown(world: TownSite): void {
     const tile = toIndexUnchecked(placement.x, placement.y);
     const id = world.ids.allocateBuilding();
     world.buildings.set(id, { id, tile, buildingId: placement.building });
-    setBlocked(world.tiles, tile, true);
+    // The whole footprint (phase-41). The town is founded from a fixed layout
+    // written when every building was one tile, so a building that grew may now
+    // overlap its neighbour — same rule as a legacy save (ADR-042 §4): the
+    // tiles are blocked, both buildings work, and nothing is moved or dropped.
+    for (const covered of footprintTiles(tile, footprintOf(definition.value)) ?? [tile]) {
+      setBlocked(world.tiles, covered, true);
+    }
 
     if (definition.value.storageSlots !== undefined) {
       world.buildingStorage.set(id, createContainer(definition.value.storageSlots));

@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                                       |
 | ------------------- | ------------------------------------- |
 | **Current version** | **v0.5 — The Playable Cut**           |
-| **Current phase**   | **40 — Audio That Earns Eight Hours** |
+| **Current phase**   | **42 — Buildings At Their Real Size** |
 | **Status**          | **IN_PROGRESS**                       |
 
 | Phase | Name                         | Status      |
@@ -32,12 +32,19 @@ owner's memory (`AI_RULES.md` §10.4).
 | 37    | Density & The Three Regions  | COMPLETE    |
 | 38    | The UI Joins The World       | COMPLETE    |
 | 39    | Motion & Overlay-Scale       | COMPLETE    |
-| 40    | Audio That Earns Eight Hours | PENDING     |
-| 41    | Zone Painting                | PENDING     |
-| 42    | What Now                     | PENDING     |
-| 43    | First Run                    | PENDING     |
-| 44    | Balance & The Idle Cost      | CONDITIONAL |
-| 45    | v0.5 Release Candidate       | PENDING     |
+| 40    | Depth & Anchors              | COMPLETE    |
+| 41    | Footprints                   | COMPLETE    |
+| 42    | Buildings At Their Real Size | IN_PROGRESS |
+| 43    | Nature At Their Real Size    | PENDING     |
+| 44    | Terrain Transitions & Paths  | PENDING     |
+| 45    | Region Composition           | PENDING     |
+| 46    | World Acceptance & Cost      | PENDING     |
+| 47    | Audio That Earns Eight Hours | PENDING     |
+| 48    | Zone Painting                | PENDING     |
+| 49    | What Now                     | PENDING     |
+| 50    | First Run                    | PENDING     |
+| 51    | Balance & The Idle Cost      | CONDITIONAL |
+| 52    | v0.5 Release Candidate       | PENDING     |
 
 **v0.4 shipped as a release candidate** on 2026-08-18 — phases 24–30, all six
 milestones, `RELEASE-v0.4-RC.md`. Its gate results live in that document and are
@@ -327,6 +334,51 @@ and passed on a full re-run. That spec's own comments record it failing this
 way before, on the 44th sequential Electron launch, and the cause it names
 (the GPU process torn down under a long run) is unrelated to anything here.
 
+**THE WORLD-RENDERING TRACK (40–46) was added mid-version** at the owner's
+direction, after looking at the running game. The diagnosis is sharper than the
+one the art track acted on: the game reads as _a simulation grid with sprites
+placed inside cells_ rather than _a cozy world that happens to use a grid_.
+ADR-042 governs it. ADR-041's work is RETAINED in full — palette, outlines,
+pipeline, decor determinism, UI tokens, the live-look gate — because none of it
+was wrong; it raised the craft of sprites that were all one tile big.
+
+**The measurement that shaped the whole plan.** The overlay is 1920×220 and the
+status bar takes ~48 px, so the world viewport is about **172 px — 5.4 tiles at
+zoom 1**. Raising camera zoom to 2 leaves 2.7 tiles of height, so a three-tile
+building could not fit on screen at all. **Scale therefore comes from FOOTPRINT,
+not from zoom**: a 3×3 house at zoom 1 is 96 px, 56% of the viewport against
+19% for the sprite it replaces. Zoom stays 1 and stays the player's control.
+
+**Phase 40 — Depth & Anchors: COMPLETE.** `objects` and `entities` were two
+y-sorted layers, and a container draws entirely above the one before it — so
+EVERY entity drew above EVERY object and a worker could never pass behind a
+tree. One `world` layer now, one sort key in world pixels (`depth.ts`), one
+anchor rule: everything stands on its base. Buildings were top-left anchored,
+crops centred, and decor bottom-centre only when it swayed. Buildings and crops
+also sorted in TILE ROWS while workers sorted in PIXELS, which was survivable
+only while they could never meet.
+
+**Phase 41 — Footprints: COMPLETE.** `BuildingDefinition` gained an optional
+footprint, DERIVED from the registry and never stored, so **no save format
+change**: a save records which building sits on which tile and occupancy is
+recomputed on load, exactly as the sprite is. Placement, sale, load and town
+founding all work in rectangles now. Legacy overlap is handled rather than
+hoped about (ADR-042 §4): loading never fails and never moves a building.
+
+**What footprints found, and it is the interesting part.** Twenty-three tests
+failed — every one a fixture that placed buildings two or three tiles apart on
+one row, which was correct when a building was a single tile. The one worth
+naming: `economy-longrun` reported **"earned 0 coins in eight hours"** rather
+than "placement refused", because a silently-rejected building surfaces as an
+economic result. The save round-trip caught a genuine one: a fixture that built
+its world by hand blocked only the origin tile, so the live world was
+under-blocked and hydration correctly disagreed with it.
+
+**Phase 42 — Buildings At Their Real Size: IN_PROGRESS.** Mill (3×3, 96×120 px),
+storage shed (2×2), kitchen (3×2), market stall (3×2), rest hut (2×2), cottage
+(2×2) and castle (4×3) redrawn at footprint scale. Verified through the real
+player path: Shop → arm → click places a shed that reads as a barn.
+
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
 - **Code signing** — BLOCKED on the owner's certificate purchase. Holds the
@@ -591,9 +643,15 @@ That is what this version is for. **No new simulation system ships in v0.5.**
 
 ### 5A.1 Phases
 
-Two tracks, one goal. The **art track** (32–39) was added mid-version at the
-owner's direction and is governed by ADR-041; the **playability track** (40–44)
-is the version's original scope and is unchanged.
+Three tracks, one goal. The **art track** (32–39) and the **world-rendering
+track** (40–46) were both added mid-version at the owner's direction; the
+**playability track** (47–51) is the version's original scope and is unchanged
+except in numbering.
+
+The two visual tracks are not competing systems, and ADR-042 opens by saying so:
+ADR-041 raised the CRAFT of individual sprites and was right to. What it could
+not fix is that every object in the world was one tile, because that is a
+rendering and content-model fact rather than an art one.
 
 | #   | Phase                        | Track       | Delivers                                             | Decided by |
 | --- | ---------------------------- | ----------- | ---------------------------------------------------- | ---------- |
@@ -606,12 +664,19 @@ is the version's original scope and is unchanged.
 | 37  | Density & The Three Regions  | Art         | Props and decor; farm / town / wilds identity        | ADR-041    |
 | 38  | The UI Joins The World       | Art         | Panels and icons that belong to the same place       | ADR-041    |
 | 39  | Motion & Overlay-Scale       | Art         | Ambient motion; the consistency and cost pass        | ADR-041    |
-| 40  | Audio That Earns Eight Hours | Playability | Layered synthesis, derived variation, triggered beds | ADR-042    |
-| 41  | Zone Painting                | Playability | The map interaction the command has waited for       | ADR-043    |
-| 42  | What Now                     | Playability | The objectives surface; ADR-034 §7 amended           | ADR-044    |
-| 43  | First Run                    | Playability | Onboarding that teaches by playing                   | ADR-044    |
-| 44  | Balance & The Idle Cost      | Playability | **TRIGGERED** by phase 31's arc measurement          | ADR-045    |
-| 45  | v0.5 Release Candidate       | —           | Every gate, and the four product criteria            | —          |
+| 40  | Depth & Anchors              | World       | One y-sorted layer, one sort key, one anchor rule    | ADR-042    |
+| 41  | Footprints                   | World       | Buildings that stand on more than one tile           | ADR-042    |
+| 42  | Buildings At Their Real Size | World       | The art that fills those footprints                  | ADR-042    |
+| 43  | Nature At Their Real Size    | World       | Trees with volume; nature that overlaps              | ADR-042    |
+| 44  | Terrain Transitions & Paths  | World       | Ground that connects instead of tiling               | ADR-042    |
+| 45  | Region Composition           | World       | Landmarks and clusters; farm / town / wilds read     | ADR-042    |
+| 46  | World Acceptance & Cost      | World       | The real game, looked at; the idle budget, measured  | ADR-042    |
+| 47  | Audio That Earns Eight Hours | Playability | Layered synthesis, derived variation, triggered beds | ADR-043    |
+| 48  | Zone Painting                | Playability | The map interaction the command has waited for       | ADR-044    |
+| 49  | What Now                     | Playability | The objectives surface; ADR-034 §7 amended           | ADR-045    |
+| 50  | First Run                    | Playability | Onboarding that teaches by playing                   | ADR-045    |
+| 51  | Balance & The Idle Cost      | Playability | **TRIGGERED** by phase 31's arc measurement          | ADR-046    |
+| 52  | v0.5 Release Candidate       | —           | Every gate, and the four product criteria            | —          |
 
 Three orderings are dictated rather than preferred:
 

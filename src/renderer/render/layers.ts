@@ -15,6 +15,17 @@
  * that needed it, with no re-layering migration. Weather (phase 12) draws here
  * too. Nothing else belongs in it — a layer above the world that is not LIGHT
  * is a layer that will fight the one that is.
+ *
+ * ## `objects` and `entities` became one `world` layer (phase-40, ADR-042 §1)
+ *
+ * They were two y-sorted containers, and because a container draws entirely
+ * above the one before it, EVERY entity drew above EVERY object — so a worker
+ * could never pass behind a tree, a fence or a house, whatever their positions.
+ * That single fact is most of why the game read as sprites arranged in cells
+ * rather than as a place with depth in it.
+ *
+ * One layer, one sort key (`depth.ts`), and the sort still runs only on a dirty
+ * frame — it is the same sprites being ordered, in one list instead of two.
  */
 
 import { Container } from 'pixi.js';
@@ -22,8 +33,7 @@ import { Container } from 'pixi.js';
 export const LAYER_NAMES = [
   'terrain',
   'terrainOverlay',
-  'objects',
-  'entities',
+  'world',
   'effects',
   'lighting',
   'worldUi',
@@ -40,7 +50,7 @@ export type Layers = Readonly<Record<LayerName, Container>>;
  * a sort per frame, and terrain never overlaps itself.
  */
 export function createLayers(stage: Container): Layers {
-  const ySorted = new Set<LayerName>(['objects', 'entities']);
+  const ySorted = new Set<LayerName>(['world']);
   const layers = {} as Record<LayerName, Container>;
 
   for (const name of LAYER_NAMES) {

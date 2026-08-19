@@ -20,7 +20,8 @@
  */
 
 import { asBuildingId, asContentId, asTileIndex, asWorkerId } from '../shared/ids';
-import { DEFAULT_FACTORY_SLOTS } from '../sim/content/buildings';
+import { DEFAULT_FACTORY_SLOTS, footprintOf } from '../sim/content/buildings';
+import { footprintTiles } from '../sim/content/footprint';
 import type { DayPhase } from '../sim/time/game-clock';
 import { createContainer, type Container } from '../sim/world/container';
 import { createFactoryState } from '../sim/world/factory';
@@ -222,7 +223,18 @@ export function hydrateWorld(document: SaveDocument, options: WorldOptions = {})
       buildingId: asContentId(building.buildingId),
     };
     world.buildings.set(record.id, record);
-    setBlocked(world.tiles, record.tile, true); // derived bits, rebuilt here
+    // Derived bits, rebuilt here — across the whole footprint since phase-41.
+    //
+    // ADR-042 §4: a save written before buildings had a size may hold two that
+    // now overlap. Loading NEVER fails and never moves a building; the tiles
+    // are simply blocked by whichever claims them, and both buildings keep
+    // working. Overlapping art on one old farm is a cosmetic wart; a load that
+    // throws, or that quietly deletes somebody's mill, is not.
+    const placedDefinition = world.buildingRegistry.get(record.buildingId);
+    const covered = placedDefinition.ok
+      ? (footprintTiles(record.tile, footprintOf(placedDefinition.value)) ?? [record.tile])
+      : [record.tile];
+    for (const tile of covered) setBlocked(world.tiles, tile, true);
   }
 
   for (const storage of saved.buildingStorage) {

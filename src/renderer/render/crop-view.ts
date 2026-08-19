@@ -33,6 +33,7 @@ import type { CropView } from '../../sim/snapshot/crops-slice';
 
 import { bindAnimationLease, type AnimationLease } from './animation-lease';
 import { animAlpha, animLift, animScale, CropAnim, isFinished, progressOf } from './crop-anim';
+import { tileDepth } from './depth';
 import type { DirtyGate } from './dirty-gate';
 
 export interface CropRenderer {
@@ -141,12 +142,15 @@ export function createCropRenderer(options: CropRendererOptions): CropRenderer {
 
         const row = Math.floor(view.tile / WORLD_WIDTH);
         const sprite = new Sprite(texture);
-        // Anchored at the centre so scaling grows from the middle rather than
-        // sliding the sprite off its tile.
-        sprite.anchor.set(0.5);
+        // BOTTOM-CENTRE, like everything else that stands on the ground
+        // (ADR-042 §2). It was centred, which made a growing crop expand
+        // downward into the row in front as well as upward — a plant that sinks
+        // into the soil as it ripens. Anchored at the base it grows out of the
+        // ground, which is also what the scale animation below now reads as.
+        sprite.anchor.set(0.5, 1);
         sprite.x = (view.tile - row * WORLD_WIDTH + 0.5) * TILE_SIZE;
-        sprite.y = (row + 0.5) * TILE_SIZE;
-        sprite.zIndex = row; // y-sorted in the objects layer
+        sprite.y = (row + 1) * TILE_SIZE;
+        sprite.zIndex = tileDepth(view.tile);
         layer.addChild(sprite);
 
         const entry: Entry = {

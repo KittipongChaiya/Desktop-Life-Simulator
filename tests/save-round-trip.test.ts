@@ -42,6 +42,8 @@ import { stepSimulationBy } from '../src/sim/tick';
 import { addItems } from '../src/sim/world/container';
 import { setBlocked, setOwned } from '../src/sim/world/tile-grid';
 import { WorkerState, WorkerTaskKind, createWorker } from '../src/sim/world/worker';
+import { footprintOf } from '../src/sim/content/buildings';
+import { footprintTiles } from '../src/sim/content/footprint';
 import { createWorld, type World } from '../src/sim/world/world';
 
 const META: SaveMeta = {
@@ -145,8 +147,17 @@ function buildWorld(plan: WorldPlan): World {
     const buildingId = BUILDINGS[i % BUILDINGS.length] ?? CORE_STORAGE_SHED;
     const id = world.ids.allocateBuilding();
     world.buildings.set(id, { id, tile, buildingId });
-    setBlocked(world.tiles, tile, true);
     const definition = world.buildingRegistry.get(buildingId);
+    // BLOCK THE WHOLE FOOTPRINT, as `placeBuilding` does (phase-41 — ADR-042
+    // §3). This fixture builds a world by hand rather than through commands, so
+    // it has to model what a real one looks like: blocking only the origin made
+    // the live world under-blocked, and hydration — which rebuilds the bits from
+    // the definitions — correctly disagreed with it.
+    for (const covered of definition.ok
+      ? (footprintTiles(tile, footprintOf(definition.value)) ?? [tile])
+      : [tile]) {
+      setBlocked(world.tiles, covered, true);
+    }
     const slots = definition.ok ? (definition.value.storageSlots ?? 0) : 0;
     if (slots > 0) {
       const container = { stacks: [], capacity: slots } as {
