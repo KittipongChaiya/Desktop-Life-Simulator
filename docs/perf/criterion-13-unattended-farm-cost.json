@@ -3,12 +3,12 @@
   "measureMs": 90000,
   "sampleMs": 1500,
   "samples": 60,
-  "cpuPercentMean": 0.633,
-  "cpuPercentMax": 1.066,
-  "fpsMean": 77.4,
-  "animLeasesMean": 3.98,
+  "cpuPercentMean": 0.595,
+  "cpuPercentMax": 0.835,
+  "fpsMean": 78.8,
+  "animLeasesMean": 4.17,
   "animLeasesMax": 10,
   "cropsFirst": 194,
   "cropsLast": 147,
-  "heapMb": 15.4
+  "heapMb": 12.8
 }

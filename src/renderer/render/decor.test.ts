@@ -13,6 +13,7 @@ import {
   FARM_SIZE,
   TOWN_MIN_X,
   WILDS_MIN_X,
+  WORLD_HEIGHT,
   WORLD_TILE_COUNT,
   WORLD_WIDTH,
 } from '../../shared/constants';
@@ -155,6 +156,33 @@ describe('the farm gets its own set (phase-37)', () => {
 });
 
 describe('bounds and shape', () => {
+  it('covers the whole map, not just the top of it', () => {
+    // THE BALD STRIP. The world wants about 300 props against a ceiling of
+    // 220, and placement used to fill from tile 0 and `break` — so the last
+    // nine rows of the map had no decoration at all, and every prop set added
+    // made the strip taller. The ceiling is a uniform thinning now, so the
+    // cap still holds and the south of the world still has bushes in it.
+    const grid = grassGrid();
+    const rows = planDecor(grid, 7, GRASS).map((item) => Math.floor(item.tile / WORLD_WIDTH));
+
+    expect(Math.min(...rows)).toBeLessThan(4);
+    // Within a couple of rows of the bottom edge, allowing for the hash.
+    expect(Math.max(...rows)).toBeGreaterThan(WORLD_HEIGHT - 5);
+  });
+
+  it('leaves a small world untouched by the thinning', () => {
+    // `keepPerMille` is 1000 when the world fits under the cap, so a map that
+    // never approached the ceiling must not lose a single prop to this.
+    const grid = grassGrid();
+    grid.kind.fill(NOT_GRASS);
+    for (let index = 0; index < 300; index += 1) grid.kind[index] = GRASS;
+
+    const items = planDecor(grid, 7, GRASS);
+
+    expect(items.length).toBeLessThan(MAX_DECOR);
+    expect(items.length).toBeGreaterThan(0);
+  });
+
   it('never exceeds the hard ceiling', () => {
     // No cosmetic system may put an unbounded number of sprites in the scene.
     const grid = grassGrid();

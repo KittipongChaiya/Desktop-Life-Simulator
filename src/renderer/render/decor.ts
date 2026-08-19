@@ -183,6 +183,43 @@ function farmDensity(ownedTiles: number): number {
 export const MAX_DECOR = 220;
 
 /**
+ * Which prop set and density a tile draws from, or `null` if it is ineligible.
+ *
+ * Split out so the placement pass can be run TWICE over the same rule — once
+ * to count what the world wants, once to place what the budget allows — with
+ * no chance of the two disagreeing about eligibility.
+ */
+function regionFor(
+  grid: TileGrid,
+  index: number,
+  grassKindIndex: number,
+  farmPerMille: number,
+):
+  | readonly [readonly { readonly sprite: string; readonly weight: number }[], number, number]
+  | null {
+  const tile = asTileIndex(index);
+  // Rule 4: the wilds grow their own trees, and those ones mean something.
+  if (index % WORLD_WIDTH >= WILDS_MIN_X) return null;
+  // Nowhere a building stands, and only on plain grass, for every set.
+  if (isBlocked(grid, tile)) return null;
+  if (getKind(grid, tile) !== grassKindIndex) return null;
+
+  const owned = isOwned(grid, tile);
+  // NEVER on worked ground. A crate standing in a furrow hides the crop the
+  // player is there to read, and a crop is Tier 1.
+  if (owned && isTilled(grid, tile)) return null;
+
+  // THE THREE REGIONS, in the order that decides them: the plot the player
+  // works, then the band people live in, then everything else. Read from the
+  // world's own geography (`TOWN_MIN_X`) rather than from a second map.
+  if (owned) return [FARM_PROPS, FARM_TOTAL_WEIGHT, farmPerMille];
+  if (index % WORLD_WIDTH >= TOWN_MIN_X) {
+    return [TOWN_PROPS, TOWN_TOTAL_WEIGHT, TOWN_DENSITY_PER_MILLE];
+  }
+  return [PROPS, TOTAL_WEIGHT, DENSITY_PER_MILLE];
+}
+
+/**
  * A stable 32-bit hash of (seed, tile).
  *
  * Deliberately not the world RNG — see rule 2 in the module header. Moved to
@@ -201,50 +238,55 @@ const hash = mix32;
  */
 export function planDecor(grid: TileGrid, seed: number, grassKindIndex: number): DecorItem[] {
   const items: DecorItem[] = [];
+  const total = WORLD_WIDTH * WORLD_HEIGHT;
 
   // How big the plot is, which sets how thickly the farm is dressed. Counted
   // rather than stored: the grid already knows, and a second copy could drift.
   let ownedTiles = 0;
-  for (let index = 0; index < WORLD_WIDTH * WORLD_HEIGHT; index += 1) {
+  for (let index = 0; index < total; index += 1) {
     if (isOwned(grid, asTileIndex(index))) ownedTiles += 1;
   }
   const farmPerMille = farmDensity(ownedTiles);
 
-  for (let index = 0; index < WORLD_WIDTH * WORLD_HEIGHT; index += 1) {
+  // PASS ONE: how many props does the world want?
+  //
+  // THE CAP USED TO BE A CLIFF. Placement filled from tile 0 and `break`ed at
+  // `MAX_DECOR`, and the world wants about 300 props against a ceiling of 220
+  // — so the last NINE ROWS of the map had no decoration at all, a bald strip
+  // along the southern edge that no test looked for and that got worse every
+  // time a prop set was added. Counting first turns the ceiling into a uniform
+  // thinning instead of a crop.
+  let wanted = 0;
+  for (let index = 0; index < total; index += 1) {
+    const region = regionFor(grid, index, grassKindIndex, farmPerMille);
+    if (region !== null && hash(seed, index) % 1_000 < region[2]) wanted += 1;
+  }
+
+  // PASS TWO: place, scaled to fit. `keepPerMille` is 1000 when the world fits
+  // under the cap, so a small map is untouched by any of this.
+  const keepPerMille = wanted > MAX_DECOR ? Math.floor((MAX_DECOR * 1_000) / wanted) : 1_000;
+
+  for (let index = 0; index < total; index += 1) {
     if (items.length >= MAX_DECOR) break;
 
-    const tile = asTileIndex(index);
-    // Rule 4: the wilds grow their own trees, and those ones mean something.
-    if (index % WORLD_WIDTH >= WILDS_MIN_X) continue;
-    // Nowhere a building stands, and only on plain grass, for either set.
-    if (isBlocked(grid, tile)) continue;
-    if (getKind(grid, tile) !== grassKindIndex) continue;
-
-    const owned = isOwned(grid, tile);
-    // NEVER on worked ground. A crate standing in a furrow hides the crop the
-    // player is there to read, and a crop is Tier 1.
-    if (owned && isTilled(grid, tile)) continue;
+    const region = regionFor(grid, index, grassKindIndex, farmPerMille);
+    if (region === null) continue;
+    const [set, weight, perMille] = region;
 
     const roll = hash(seed, index);
-    // THE THREE REGIONS, in the order that decides them: the plot the player
-    // works, then the band people live in, then everything else. Read from the
-    // world's own geography (`TOWN_MIN_X`) rather than from a second map.
-    const [set, total, perMille] = owned
-      ? [FARM_PROPS, FARM_TOTAL_WEIGHT, farmPerMille]
-      : index % WORLD_WIDTH >= TOWN_MIN_X
-        ? [TOWN_PROPS, TOWN_TOTAL_WEIGHT, TOWN_DENSITY_PER_MILLE]
-        : [PROPS, TOTAL_WEIGHT, DENSITY_PER_MILLE];
-
     if (roll % 1_000 >= perMille) continue;
+    // A THIRD independent slice decides survival, so thinning does not
+    // correlate with which region or which species a tile would have had.
+    if ((roll >>> 20) % 1_000 >= keepPerMille) continue;
 
     // A second, independent slice of the same hash picks the prop, so density
     // and species are not correlated.
-    const pick = (roll >>> 10) % total;
+    const pick = (roll >>> 10) % weight;
     let running = 0;
     for (const prop of set) {
       running += prop.weight;
       if (pick < running) {
-        items.push({ tile, sprite: prop.sprite });
+        items.push({ tile: asTileIndex(index), sprite: prop.sprite });
         break;
       }
     }

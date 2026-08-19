@@ -39,8 +39,21 @@ const CHUNK_PIXELS = CHUNK_SIZE * TILE_SIZE;
  * player's land at full-brightness reference colour, and costs nothing: the
  * tint is baked into the cached chunk texture, so it adds no draw calls and no
  * per-frame work (criterion 2 without violating criterion 8).
+ *
+ * WARMED AND LIFTED IN PHASE-39, and found by looking rather than by reasoning.
+ * It was `0x6b7280` — a cool blue-grey at 42% brightness — and the first
+ * screenshot of the running game showed what that means in practice: the
+ * player's plot is a small part of the view, so this multiplied almost
+ * everything on screen into dark desaturated green. A grey wash over most of
+ * the world is exactly the "sterile grey environment" the art direction
+ * forbids, and no contact sheet could ever have shown it, because a contact
+ * sheet never has an owned plot in it.
+ *
+ * The value keeps the job — unowned land still reads as not-yours — and pays
+ * far less for it: warm rather than blue, and about 78% brightness rather than
+ * 42%.
  */
-const UNOWNED_TINT = 0x6b7280;
+const UNOWNED_TINT = 0xc6b49e;
 
 export interface TerrainRenderer {
   /**

@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                 |
-| ------------------- | ------------------------------- |
-| **Current version** | **v0.5 — The Playable Cut**     |
-| **Current phase**   | **39 — Motion & Overlay-Scale** |
-| **Status**          | **IN_PROGRESS**                 |
+|                     |                                       |
+| ------------------- | ------------------------------------- |
+| **Current version** | **v0.5 — The Playable Cut**           |
+| **Current phase**   | **40 — Audio That Earns Eight Hours** |
+| **Status**          | **IN_PROGRESS**                       |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -274,10 +274,58 @@ drift this phase exists to end.
 **Kept, not replaced:** the HUD already draws its coins, items and tools from
 the pixel `ui-world` icon set. That half of §13 was right all along.
 
-**OWED, and honestly outstanding: a live look at the HUD.** Every check here is
-machine-verifiable — contrast, tokens, build output — and none of them is a
-person seeing the panels. That belongs to phase 39, which is the overlay-scale
-pass and runs the app.
+**Phase 39 — Motion & Overlay-Scale: COMPLETE.** The phase that was supposed to
+add ambient motion mostly found things instead, because it is the first one
+that ran the game.
+
+**THE LIVE LOOK IS A TEST NOW** — `tests/e2e/visual-review.spec.ts`. Every other
+check in this version is machine-verifiable, and the contact sheet and scene
+sheet are both COMPOSITES: art arranged by a script that shares none of the
+renderer's code. They cannot show a z-order mistake, a tint on the wrong layer,
+or a sprite the atlas failed to pack. This drives the packaged app and
+photographs it, asserting only what a picture cannot — that the canvas is
+painted, and that the overlay is the size the art was judged at.
+
+**What the first photograph showed, in one glance:** the world was DARK
+DESATURATED GREEN. `UNOWNED_TINT` was `0x6b7280` — a cool blue-grey at 42%
+brightness — multiplied over every tile outside the plot, and since the plot is
+a small part of the view that meant almost the whole screen. A grey wash over
+the world is exactly the sterile grey the brief forbids, and **no contact sheet
+could ever have caught it, because a contact sheet has no owned plot in it.**
+Warmed and lifted to `0xc6b49e`: unowned land still reads as not-yours, and
+pays far less for saying so.
+
+**A bald strip nobody had looked for.** `MAX_DECOR` is 220 and the world wants
+about 300 props — and placement filled from tile 0 and `break`ed, so the last
+NINE ROWS of the map had no decoration at all. Every prop set added made the
+strip taller, so phase 37 had quietly made it worse. The ceiling is a uniform
+thinning now: same cap, whole map, and a small world is untouched by it.
+
+**Ambient motion needed nothing.** Sway already covers the things that bend
+(`SWAYS` — flower, bush, tree), and the props phase 37 added are crates, bales,
+lamps and benches, which do not. The cat sits still by design. Adding motion
+for its own sake would have spent the idle budget on nothing.
+
+**THE IDLE BUDGET DID NOT REGRESS — measured, not assumed** (ADR-041 §5). The
+whole art pass, over the full e2e run:
+
+| Measure                   | Before   | After    |
+| ------------------------- | -------- | -------- |
+| Unattended farm CPU, mean | 0.633%   | 0.595%   |
+| Unattended farm CPU, max  | 1.066%   | 0.835%   |
+| Heap                      | 15.4 MB  | 12.8 MB  |
+| Tick average              | 0.184 ms | 0.175 ms |
+
+Better on every axis, which is not a claim that the art made it faster — the
+tree shrinking from 64×96 to 48×72 plausibly helped fill rate, and the rest is
+within noise. What it establishes is the thing that mattered: nothing here
+bought density with the budget `VISION.md` §2.1 protects.
+
+**E2E: 80 passed, 4 skipped.** One flake seen once and not reproduced —
+`criterion 8: ambient motion returns to a zero-frame idle`, which passed alone
+and passed on a full re-run. That spec's own comments record it failing this
+way before, on the 44th sequential Electron launch, and the cause it names
+(the GPU process torn down under a long run) is unrelated to anything here.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
