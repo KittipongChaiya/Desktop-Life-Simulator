@@ -139,6 +139,8 @@ function buildScene(seed) {
   }
 
   // ── Tier 3: atmosphere ────────────────────────────────────────────────────
+  // The WILDS set: trees, rocks, bushes, flowers. Never on the farm — a tree
+  // there would be a lie about what can be worked (`decor.ts` rule 4).
   /** @type {Array<[string, number]>} */
   const props = [
     ['tree', 5],
@@ -150,11 +152,26 @@ function buildScene(seed) {
     if (!existsSync(building(name))) continue;
     const sprite = decodePng(building(name));
     for (let i = 0; i < count; i += 1) {
-      // Kept out of the farm block, so the props decorate rather than obscure.
       const col = 9 + Math.floor(rng() * (COLS - 9));
       const row = Math.floor(rng() * ROWS);
       stand(canvas, sprite, col, row);
     }
+  }
+
+  // The FARM set (phase-37): what a worked plot has lying about on it. Placed
+  // on the owned side only, and off the tilled block, exactly as `decor.ts`
+  // decides it — the sheet has to show what the game shows.
+  /** @type {Array<[string, number, number]>} */
+  const farmProps = [
+    ['crate', 1, 8],
+    ['hay_bale', 3, 1],
+    ['sacks', 5, 8],
+    ['farm_tools', 0, 1],
+    ['flower', 4, 0],
+    ['crate', 7, 4],
+  ];
+  for (const [name, col, row] of farmProps) {
+    if (existsSync(building(name))) stand(canvas, decodePng(building(name)), col, row);
   }
 
   // ── Tier 1: the things that must never be lost ────────────────────────────

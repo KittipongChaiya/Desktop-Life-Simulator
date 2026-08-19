@@ -525,6 +525,15 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
 
   /** Expansion count the decor was last planned against — see `renderFrame`. */
   let decorOwnedRevision = -1;
+  /**
+   * The buildings slice decor was last planned against.
+   *
+   * Phase-37 put props on OWNED land, where buildings can be placed — so a
+   * crate could sit under a shed until the next land purchase, which might be
+   * never. Slices only republish when they change (ADR-005 §2), so this is a
+   * reference comparison on all but a handful of frames.
+   */
+  let decorBuildingsRevision: unknown = null;
 
   const replanDecor = (): void => {
     if (grassKindIndex < 0) return;
@@ -683,8 +692,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // carried this since phase-06d and the renderer was reading the live
       // value for no reason at all.
       const expansions = options.world.snapshots.economy.value.expansionsPurchased;
-      if (expansions !== decorOwnedRevision) {
+      const buildingsRevision = options.world.snapshots.buildings.value;
+      if (expansions !== decorOwnedRevision || buildingsRevision !== decorBuildingsRevision) {
         decorOwnedRevision = expansions;
+        decorBuildingsRevision = buildingsRevision;
         replanDecor();
       }
       // The wilds republish twice per node per regrow cycle (ADR-005 §2), so

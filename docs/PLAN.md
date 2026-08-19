@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                      |
-| ------------------- | ------------------------------------ |
-| **Current version** | **v0.5 — The Playable Cut**          |
-| **Current phase**   | **37 — Density & The Three Regions** |
-| **Status**          | **IN_PROGRESS**                      |
+|                     |                                 |
+| ------------------- | ------------------------------- |
+| **Current version** | **v0.5 — The Playable Cut**     |
+| **Current phase**   | **38 — The UI Joins The World** |
+| **Status**          | **IN_PROGRESS**                 |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -200,10 +200,43 @@ and at a ~10 px head drawn at 1× on a small overlay it is right — R-16 forbid
 detail that dies at gameplay zoom. Expression has to come from silhouette,
 costume and motion instead, and motion is phase 39.
 
-DEFERRED from 36 to 37: **ambient creatures** (§10). Authoring butterflies and
-birds here would create art nothing places, which is the dead-state problem
-`AI_RULES.md` §1.5 names — the vocabulary grows when something consumes it.
-Phase 37 places decor; phase 39 moves it.
+**Phase 37 — Density & The Three Regions: COMPLETE.** The phase name was
+accurate about what was missing: decor knew about ONE boundary — it stopped at
+the wilds — so of three fixed regions only one had an identity.
+
+- **The farm had nothing on it.** Rule 3 kept every prop off owned land, which
+  is right for trees and rocks (rule 4 makes them workable) and wrong as a
+  blanket ban: the plot was bare grass around the very buildings the player
+  chose to place. It draws from its own set now — crates, bales, sacks, tools,
+  flowers — never on tilled ground, never under a building, and never anything
+  that could be mistaken for a resource.
+- **Density rises with the plot**, which is how the brief's PROGRESSION gets
+  said with no new state at all: the grid already knows how big the farm is. A
+  first-day farm is dressed below the countryside's density and a full one
+  above it.
+- **The town existed only as a coordinate.** It has benches, lamps, signposts
+  and a cat now, at a LOWER density than the countryside — its props are
+  taller and the band is already busy with buildings and residents, so density
+  that reads as cosy in a meadow reads as clutter in a street.
+- **The tree came down**, 64×96 to 48×72. It stood three times the height of a
+  cottage, so a Tier 3 prop dominated the Tier 2 structure beside it and the
+  village read as a clearing in a forest.
+- **The bush and the flower were rebuilt.** They are the two most-placed props
+  in the world and both were below the new bar — the flower was a single tall
+  daisy that read as a mast with a dish on it, and the bush was two flat
+  ellipses. The bush's first rebuild merged into a pad, because adjacent greens
+  in the ramp cannot separate over a few pixels; it skips a rung now.
+- **One ambient creature, sitting.** Decor is planned once and never moves, so
+  a butterfly placed this way would be frozen mid-flight — worse than none. A
+  cat sitting still is something that genuinely does that. Curled was the first
+  attempt and read as a loaf of bread: at 20 px a cat IS its two pointed ears.
+
+**Two guards were strengthened rather than satisfied.** `decor.test.ts` checked
+prop sprites against a hand-kept allowlist two entries long, which went stale
+the moment a set was added — it reads the generated manifest now, which is
+what its name always claimed. And decor is re-planned when the BUILDINGS slice
+changes, not only on land purchase; without that a crate could sit under a new
+shed until the next expansion, which might be never.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

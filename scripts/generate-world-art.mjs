@@ -352,6 +352,189 @@ function wildTile(seed = 1206, character = {}) {
 
 // ── Props (outlined, lit upper-left, contact shadow) ─────────────────────────
 
+/**
+ * Farm props (phase-37). The things that say somebody works here.
+ *
+ * These exist because `decor.ts` rule 3 keeps every prop OFF owned land, so a
+ * farm was the one place in the world with nothing on it — bare grass around
+ * the very buildings the player had chosen to put there. The fix is not to
+ * relax the rule: trees and rocks stay off the plot, because rule 4 makes them
+ * mean something (a tree is timber you can work). It is a SEPARATE SET that
+ * only ever lands on the farm.
+ *
+ * TIER 3 (`ART_DIRECTION.md` §9.1), and small. Each is under 20 px and sits
+ * low, so it dresses the ground a worker walks over without competing with the
+ * worker.
+ */
+function crate() {
+  const canvas = createCanvas(18, 18);
+  material.boards(canvas, 1, 5, 16, 16, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 91);
+  // Lid and banding, so it reads as a box rather than as a brown square.
+  rect(canvas, 1, 5, 16, 6, BIRCH_PALE);
+  rect(canvas, 1, 10, 16, 10, TIMBER_DARK);
+  rect(canvas, 1, 5, 1, 16, TIMBER_DARK);
+  rect(canvas, 16, 5, 16, 16, TIMBER_DARK);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 9, 17, 8, 1.4);
+  return canvas;
+}
+
+/** A stack of sacks by the shed — grain going somewhere. */
+function sacks() {
+  const canvas = createCanvas(20, 18);
+  blob(canvas, 6, 12, 5, 5, CREAM_SHADE, 93, 0.18);
+  blob(canvas, 5, 10, 4, 3, CREAM, 95, 0.2);
+  blob(canvas, 13, 13, 5, 4, CREAM_SHADE, 97, 0.18);
+  blob(canvas, 12, 11, 3, 2, CREAM, 99, 0.2);
+  // Tied necks, and a spill of grain at the foot.
+  rect(canvas, 5, 7, 7, 8, TIMBER_DARK);
+  rect(canvas, 12, 9, 14, 10, TIMBER_DARK);
+  set(canvas, 16, 16, STRAW);
+  set(canvas, 17, 17, STRAW);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 10, 17, 9, 1.4);
+  return canvas;
+}
+
+/** A bale of hay. The roundest thing on the farm, and the warmest. */
+function hayBale() {
+  const canvas = createCanvas(22, 16);
+  blob(canvas, 11, 9, 10, 6, STRAW, 101, 0.1);
+  blob(canvas, 9, 7, 7, 4, GOLD_HIGHLIGHT, 103, 0.15);
+  // Binding twine across the middle, which is what makes it a BALE.
+  rect(canvas, 5, 5, 5, 14, TIMBER_DARK);
+  rect(canvas, 15, 5, 15, 14, TIMBER_DARK);
+  // Loose ends, so the silhouette is not a clean oval.
+  set(canvas, 1, 11, STRAW);
+  set(canvas, 20, 10, STRAW);
+  set(canvas, 19, 13, GOLD_HIGHLIGHT);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 11, 15, 10, 1.4);
+  return canvas;
+}
+
+/** A watering can and a leaning tool — the two-object still life that says a
+ * person put these down and will be back for them. */
+function farmTools() {
+  const canvas = createCanvas(20, 22);
+  // The can: body, spout, handle.
+  rect(canvas, 3, 12, 11, 20, ROOF_SLATE);
+  rect(canvas, 3, 12, 4, 20, ROOF_SLATE_LIGHT);
+  rect(canvas, 11, 13, 15, 14, ROOF_SLATE);
+  rect(canvas, 14, 12, 16, 13, ROOF_SLATE_LIGHT);
+  line(canvas, 5, 11, 9, 11, ROOF_SLATE_DEEP);
+  // The tool, leaning: a handle with a head.
+  line(canvas, 17, 3, 14, 20, TIMBER_WARM);
+  line(canvas, 18, 3, 15, 20, TIMBER_DARK);
+  rect(canvas, 15, 2, 19, 4, STONE_WARM_DARK);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 9, 21, 8, 1.4);
+  return canvas;
+}
+
+/**
+ * Town props (phase-37). The third region's identity.
+ *
+ * The world is three fixed bands — farm, town, wilds — and until now decor
+ * knew about exactly one boundary: it stopped at the wilds. The town got the
+ * same meadow scatter as open countryside, so the one part of the map where
+ * people supposedly live looked like a field with buildings in it.
+ *
+ * These are the objects a settlement has and a field does not: something to
+ * sit on, something to read, something that lights the way home.
+ */
+function bench() {
+  const canvas = createCanvas(24, 18);
+  // Seat and back, in planking.
+  material.planks(canvas, 2, 8, 21, 11, TIMBER_WARM, TIMBER_DARK, BIRCH_PALE, 141);
+  rect(canvas, 2, 4, 21, 5, TIMBER_WARM);
+  rect(canvas, 2, 4, 21, 4, BIRCH_PALE);
+  // Uprights and legs.
+  for (const x of [4, 19]) {
+    rect(canvas, x, 4, x, 16, TIMBER_DARK);
+  }
+  rect(canvas, 2, 12, 3, 16, TIMBER_DARK);
+  rect(canvas, 20, 12, 21, 16, TIMBER_DARK);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 12, 17, 11, 1.4);
+  return canvas;
+}
+
+/** A street lamp. The tallest town prop, and the only warm light outdoors. */
+function lamp() {
+  const canvas = createCanvas(16, 34);
+  // Post on a stone foot.
+  rect(canvas, 7, 10, 8, 30, TIMBER_DARK);
+  rect(canvas, 7, 10, 7, 30, TIMBER_WARM);
+  material.masonry(canvas, 5, 29, 10, 32, STONE_WARM, STONE_WARM_DARK, STONE_WARM_LIGHT, 143);
+  // The lantern: a slate cap over a glowing box.
+  polygon(canvas, [[3, 6], [12, 6], [10, 2], [5, 2]], ROOF_SLATE);
+  polygon(canvas, [[3, 6], [7, 6], [6, 2], [5, 2]], ROOF_SLATE_LIGHT);
+  rect(canvas, 4, 7, 11, 12, TIMBER_DARK);
+  rect(canvas, 5, 8, 10, 11, STRAW);
+  rect(canvas, 6, 9, 9, 10, GOLD_HIGHLIGHT);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 8, 33, 6, 1.3);
+  return canvas;
+}
+
+/** A signpost. Two boards pointing opposite ways — the shape that says a road
+ * goes somewhere, without needing letters nobody could read at this size. */
+function signpost() {
+  const canvas = createCanvas(22, 30);
+  rect(canvas, 10, 6, 11, 27, TIMBER_DARK);
+  rect(canvas, 10, 6, 10, 27, TIMBER_WARM);
+  // Upper board points left, lower points right.
+  polygon(canvas, [[1, 8], [14, 8], [14, 13], [1, 13], [-2, 10]], BIRCH_PALE);
+  polygon(canvas, [[8, 16], [20, 16], [23, 18], [20, 21], [8, 21]], BIRCH_PALE);
+  rect(canvas, 2, 10, 12, 10, TIMBER_DARK);
+  rect(canvas, 9, 18, 19, 18, TIMBER_DARK);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 11, 29, 6, 1.3);
+  return canvas;
+}
+
+/**
+ * A cat, SITTING (phase-37 — the brief §10, "small creatures, used sparingly").
+ *
+ * THE ONE AMBIENT CREATURE, and it is sitting rather than flying for a reason.
+ * Decor is planned once and never moves, so a butterfly or a bird placed this
+ * way would be frozen mid-flight — worse than no butterfly at all. A cat
+ * sitting still is something that genuinely does that. Creatures that need to
+ * move belong to the motion phase, with a lease.
+ *
+ * SITTING, not curled. Curled was the first attempt and it read as a loaf of
+ * bread: at 20 px a cat is two pointed ears over a round head, and a sleeping
+ * cat has neither in silhouette. Upright gives the ears somewhere to be.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
+function cat() {
+  const canvas = createCanvas(16, 20);
+  // Body: a rounded wedge, wider at the base.
+  polygon(canvas, [[5, 9], [10, 9], [13, 18], [2, 18]], TIMBER_WARM);
+  blob(canvas, 7, 15, 5, 4, TIMBER_WARM, 151, 0.12);
+  // Chest catching the light, upper-left as always.
+  blob(canvas, 6, 14, 2, 3, BIRCH_PALE, 153, 0.2);
+  // Head: a circle sitting ON the body, not merged into it.
+  blob(canvas, 7, 6, 4, 4, TIMBER_WARM, 155, 0.08);
+  blob(canvas, 6, 5, 2, 2, BIRCH_PALE, 157, 0.2);
+  // EARS — the whole silhouette argument. Two triangles, clear of the head.
+  polygon(canvas, [[3, 4], [5, 1], [6, 4]], TIMBER_WARM);
+  polygon(canvas, [[8, 4], [10, 1], [11, 4]], TIMBER_WARM);
+  set(canvas, 4, 3, TIMBER_DARK);
+  set(canvas, 10, 3, TIMBER_DARK);
+  // Face: two closed eyes and nothing else. One pixel each is the whole face.
+  set(canvas, 5, 6, TIMBER_DARK);
+  set(canvas, 9, 6, TIMBER_DARK);
+  // Tail, curled round the feet to the right.
+  line(canvas, 12, 14, 14, 17, TIMBER_DARK);
+  line(canvas, 10, 18, 14, 18, TIMBER_DARK);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 8, 19, 7, 1.2);
+  return canvas;
+}
+
+
 /** Stepped foliage: shadow mass, then the lit body offset toward the light,
  * then a smaller highlight — hard ramp steps, never a gradient (R-02).
  * @param {import('./lib/pixel-art.mjs').Canvas} canvas
@@ -375,37 +558,50 @@ function foliage(canvas, lobes) {
   }
 }
 
-/** Tree, 64×96: 1-tile footprint, canopy overhangs (PIXEL_GUIDE §2). */
+/**
+ * A tree (`buildings:tree`, and the timber node's sprite).
+ *
+ * SHRUNK IN PHASE-37, from 64×96 to 48×72. The reviewed scene showed the
+ * problem plainly: a tree stood three times the height of a cottage, so a
+ * Tier 3 prop dominated the Tier 2 structure beside it and the village read as
+ * a clearing in a forest rather than as a farm with trees on it. Buildings
+ * cannot grow — they are anchored to one 32 px tile — so the tree came down.
+ *
+ * At 72 px it is still comfortably the tallest thing that is not a mill, which
+ * is what a tree should be.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function tree() {
-  const canvas = createCanvas(64, 96);
+  const canvas = createCanvas(48, 72);
   // Trunk with a root flare; left edge lit, right edge shaded.
-  rect(canvas, 28, 52, 35, 91, WOOD_BASE);
-  rect(canvas, 26, 88, 37, 93, WOOD_BASE);
-  rect(canvas, 28, 52, 29, 91, WOOD_LIGHT);
-  rect(canvas, 34, 52, 35, 91, SOIL_DARK);
-  rect(canvas, 26, 88, 27, 93, WOOD_LIGHT);
-  rect(canvas, 36, 88, 37, 93, SOIL_DARK);
+  rect(canvas, 21, 39, 27, 68, WOOD_BASE);
+  rect(canvas, 19, 66, 29, 70, WOOD_BASE);
+  rect(canvas, 21, 39, 22, 68, WOOD_LIGHT);
+  rect(canvas, 26, 39, 27, 68, SOIL_DARK);
+  rect(canvas, 19, 66, 20, 70, WOOD_LIGHT);
+  rect(canvas, 28, 66, 29, 70, SOIL_DARK);
   // A rounded three-lobe canopy — the safe, present silhouette (VISUAL_REFERENCE §4).
   foliage(canvas, [
-    [32, 30, 22, 18],
-    [17, 40, 12, 10],
-    [47, 38, 12, 10],
+    [24, 23, 17, 14],
+    [13, 30, 9, 8],
+    [35, 29, 9, 8],
   ]);
   // Sparse leaf texture; rim highlights only in the lit upper-left quadrant.
   const rng = prng(1301);
-  for (let i = 0; i < 26; i += 1) {
-    const x = 10 + Math.floor(rng() * 44);
-    const y = 14 + Math.floor(rng() * 36);
-    const dx = (x - 32) / 22;
-    const dy = (y - 30) / 18;
+  for (let i = 0; i < 22; i += 1) {
+    const x = 7 + Math.floor(rng() * 34);
+    const y = 10 + Math.floor(rng() * 28);
+    const dx = (x - 24) / 17;
+    const dy = (y - 23) / 14;
     if (dx * dx + dy * dy > 1) continue;
-    if (x < 32 && y < 32 && rng() < 0.45) set(canvas, x, y, LEAF_HIGHLIGHT);
+    if (x < 24 && y < 24 && rng() < 0.45) set(canvas, x, y, LEAF_HIGHLIGHT);
     else set(canvas, x, y, rng() < 0.5 ? GRASS_SHADOW : GRASS_LIGHT);
   }
   outlineSilhouette(canvas);
-  contactShadow(canvas, 32, 92, 15, 2.5);
+  contactShadow(canvas, 24, 69, 11, 2);
   return canvas;
 }
+
 
 /** Boulder, 32×32 ground prop. */
 function rock() {
@@ -422,47 +618,82 @@ function rock() {
   return canvas;
 }
 
-/** Low shrub, 32×32 ground prop. */
+/**
+ * A bush (`buildings:bush`) — the second most-placed prop in the world, and
+ * until phase-37 two flat ellipses with eight random pixels on them.
+ *
+ * Rebuilt as an ASYMMETRIC three-mass clump with real value steps and a few
+ * berries. It is scenery, never a resource (decor rule 4), so it must not read
+ * as something worth walking to — which is why the berries are two pixels and
+ * the whole thing stays low.
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function bush() {
   const canvas = createCanvas(TILE, TILE);
-  foliage(canvas, [
-    [12, 21, 9, 7],
-    [20, 19, 9, 7],
-  ]);
-  const rng = prng(1302);
-  for (let i = 0; i < 8; i += 1) {
-    const x = 6 + Math.floor(rng() * 20);
-    const y = 13 + Math.floor(rng() * 12);
-    set(canvas, x, y, rng() < 0.5 ? GRASS_SHADOW : GRASS_LIGHT);
-  }
-  outlineSilhouette(canvas);
-  contactShadow(canvas, 16, 27, 11, 2);
+  // Shadow mass first, then the lit body offset toward the light, then a
+  // highlight — three steps, the same modelling the tree canopy uses.
+  // Three steps that SKIP a rung: shadow, base, highlight. The first attempt
+  // stepped shadow-base-light-highlight and the four merged into one flat pad
+  // at 32 px, because adjacent greens in the ramp are too close to separate
+  // over a few pixels. Fewer, further-apart values read as a rounder mass.
+  blob(canvas, 16, 23, 9, 6, GRASS_SHADOW, 111, 0.22);
+  blob(canvas, 14, 21, 7, 5, GRASS_BASE, 113, 0.2);
+  blob(canvas, 20, 22, 5, 3, GRASS_BASE, 115, 0.22);
+  blob(canvas, 12, 19, 4, 3, LEAF_HIGHLIGHT, 117, 0.26);
+  // A notch of shadow under the right lobe, so the mass has depth rather than
+  // being one silhouette filled in.
+  blob(canvas, 21, 26, 4, 2, GRASS_SHADOW, 121, 0.3);
+  // Berries. Two pixels each and sparse — scenery, not a crop.
+  set(canvas, 18, 20, BLOOM_ROSE);
+  set(canvas, 10, 23, BLOOM_ROSE);
+  outlineSelective(canvas, { bottom: false });
+  contactShadow(canvas, 16, 27, 11, 1.8);
   return canvas;
 }
 
-/** Meadow flower, 32×32 ground prop. Petals are Parchment with a Straw heart —
- * the palette reserves every brighter accent for meaning (R-09), and it has no
- * dedicated flower colour; that gap is recorded for the validation report. */
+
+/**
+ * Flowers (`buildings:flower`) — the MOST-placed prop in the world.
+ *
+ * Was a single tall daisy on a stem, which at gameplay scale read as a mast
+ * with a dish on it rather than as a flower. A CLUMP of three short blooms is
+ * what a flower actually looks like from above and from a distance, and it
+ * sits in the grass instead of standing out of it.
+ *
+ * Three colours from §3.2d, which exist precisely so decoration never has to
+ * borrow a colour that signals something (R-09).
+ * @returns {import('./lib/pixel-art.mjs').Canvas}
+ */
 function flower() {
   const canvas = createCanvas(TILE, TILE);
-  // Stem and two leaves.
-  rect(canvas, 16, 18, 16, 27, GRASS_SHADOW);
-  rect(canvas, 14, 23, 15, 24, GRASS_BASE);
-  rect(canvas, 17, 21, 18, 22, GRASS_BASE);
-  // Petals in a plus, diagonals as single pixels, Straw centre.
-  rect(canvas, 15, 11, 16, 12, PARCHMENT);
-  rect(canvas, 15, 17, 16, 18, PARCHMENT);
-  rect(canvas, 12, 14, 13, 15, PARCHMENT);
-  rect(canvas, 18, 14, 19, 15, PARCHMENT);
-  set(canvas, 13, 12, PARCHMENT);
-  set(canvas, 18, 12, PARCHMENT);
-  set(canvas, 13, 17, PARCHMENT);
-  set(canvas, 18, 17, PARCHMENT);
-  rect(canvas, 15, 14, 16, 15, STRAW);
-  outlineSilhouette(canvas);
-  contactShadow(canvas, 16, 28, 4, 1.5);
+  // A low tuft of leaves the blooms sit in.
+  blob(canvas, 16, 25, 8, 4, GRASS_SHADOW, 131, 0.3);
+  blob(canvas, 15, 24, 6, 3, GRASS_BASE, 133, 0.3);
+
+  /**
+   * One bloom: a short stem, a two-by-two head, a lit pixel.
+   * @param {number} x
+   * @param {number} y
+   * @param {number[]} petal
+   * @returns {void}
+   */
+  const bloom = (x, y, petal) => {
+    set(canvas, x, y + 2, GRASS_SHADOW);
+    set(canvas, x, y + 1, GRASS_BASE);
+    rect(canvas, x - 1, y - 1, x, y, petal);
+    set(canvas, x - 1, y - 1, CREAM);
+    set(canvas, x, y, STRAW);
+  };
+
+  bloom(12, 21, BLOOM_ROSE);
+  bloom(19, 19, BLOOM_BLUE);
+  bloom(16, 23, CREAM);
+  bloom(15, 18, BLOOM_ROSE);
+  outlineSelective(canvas, { bottom: false, sides: false });
+  contactShadow(canvas, 16, 27, 6, 1.3);
   return canvas;
 }
+
 
 // ── Buildings (32×32, 1×1 footprint, top-left grid-aligned) ──────────────────
 
@@ -988,6 +1219,16 @@ function main() {
     [buildingsDir, 'ore_vein.png', oreVein],
     [buildingsDir, 'bush.png', bush],
     [buildingsDir, 'flower.png', flower],
+    // Farm props (phase-37): the set that only ever lands on OWNED land.
+    [buildingsDir, 'crate.png', crate],
+    [buildingsDir, 'sacks.png', sacks],
+    [buildingsDir, 'hay_bale.png', hayBale],
+    [buildingsDir, 'farm_tools.png', farmTools],
+    // Town props (phase-37): the third region's identity.
+    [buildingsDir, 'bench.png', bench],
+    [buildingsDir, 'lamp.png', lamp],
+    [buildingsDir, 'signpost.png', signpost],
+    [buildingsDir, 'cat.png', cat],
     [buildingsDir, 'storage_shed.png', storageShed],
     [buildingsDir, 'rest_hut.png', restHut],
     [buildingsDir, 'seed_bin.png', seedBin],

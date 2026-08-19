@@ -22,10 +22,16 @@
  *    so the same world always grows the same trees, on every launch, before
  *    and after a save.
  *
- * 3. **It stays off the farm.** Only unowned, walkable grass is eligible, so
- *    decor never lands on the plot, on tilled soil, on water, or under a
- *    building. Land expansion is handled by re-planning when ownership
- *    changes: a tile that becomes yours loses its tree.
+ * 3. **The farm gets its OWN set** (phase-37; this rule used to read "it stays
+ *    off the farm"). Trees, rocks and bushes still never land on the plot —
+ *    rule 4 makes a tree mean something, and scenery where the player wants to
+ *    build is an obstacle in all but name. But "off the farm" left the plot as
+ *    the one part of the world with nothing on it, bare grass around the very
+ *    buildings the player chose to place, which is the opposite of the lived-in
+ *    farm the art direction asks for. So owned grass draws from `FARM_PROPS`
+ *    instead: crates, bales, sacks, tools, flowers. Never on TILLED ground,
+ *    never under a building, and never anything that could be mistaken for a
+ *    resource. Re-planned when ownership OR the buildings change.
  *
  * 4. **AND IT NEVER DRAWS A TREE OR A ROCK** (phase-27). Rule 1 says a prop is
  *    not a thing — a worker walks straight through a bush. That was harmless
@@ -47,10 +53,11 @@
  *    as a rule, and reinforces where the gathering is.
  */
 
-import { WILDS_MIN_X, WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
+import { TOWN_MIN_X, WILDS_MIN_X, WORLD_HEIGHT, WORLD_WIDTH } from '../../shared/constants';
 import { mix32 } from '../../shared/hash';
 import { asTileIndex, type TileIndex } from '../../shared/ids';
 import { getKind, isBlocked, isOwned, type TileGrid } from '../../sim/world/tile-grid';
+import { isTilled } from '../../sim/world/tile-state';
 
 /** One placed prop. `sprite` is a manifest key (`ASSETS.md` §5). */
 export interface DecorItem {
@@ -85,6 +92,88 @@ const TOTAL_WEIGHT = PROPS.reduce((sum, prop) => sum + prop.weight, 0);
 const DENSITY_PER_MILLE = 55;
 
 /**
+ * The FARM set (phase-37). What a worked plot has lying about on it.
+ *
+ * Rule 3 keeps every prop above OFF owned land, and that rule is right: a tree
+ * on the plot would be a lie about what can be worked (rule 4), and scenery
+ * that sat where the player wanted to build would be an obstacle in all but
+ * name. But it left the farm as the one part of the world with nothing on it
+ * — bare grass around the very buildings the player chose to place.
+ *
+ * So this is a SEPARATE set with its own eligibility. Nothing here is a
+ * resource, nothing here is a tree or a rock, and every one of them is the
+ * kind of object a person puts down and comes back for.
+ */
+const FARM_PROPS: readonly { readonly sprite: string; readonly weight: number }[] = [
+  { sprite: 'buildings:crate', weight: 3 },
+  { sprite: 'buildings:hay_bale', weight: 3 },
+  { sprite: 'buildings:sacks', weight: 2 },
+  { sprite: 'buildings:farm_tools', weight: 2 },
+  // The flower clump is shared with the countryside on purpose: a farm with
+  // flowers on it is a farm somebody likes, and it ties the two regions
+  // together rather than making the boundary a hard line of props.
+  { sprite: 'buildings:flower', weight: 4 },
+];
+
+const FARM_TOTAL_WEIGHT = FARM_PROPS.reduce((sum, prop) => sum + prop.weight, 0);
+
+/**
+ * How thickly the farm is dressed, per thousand eligible tiles, as the plot
+ * grows from its first few squares to a full farm.
+ *
+ * THE BRIEF ASKS THE FARM TO SHOW PROGRESSION — humble at the start, busy
+ * later, clearly lived in at the end. Density keyed to how much land is owned
+ * is the honest way to say that with no new state at all: the grid already
+ * knows how big the plot is, and a bigger plot means both more eligible tiles
+ * AND more things on each of them.
+ *
+ * It starts BELOW the countryside's 55 and ends above it. A first-day farm
+ * should look like somebody just arrived.
+ */
+const FARM_DENSITY_MIN = 20;
+const FARM_DENSITY_MAX = 75;
+/** Owned tiles at which the farm is considered fully dressed. */
+const FARM_DENSITY_FULL = 400;
+
+/**
+ * The TOWN set (phase-37). The third region's identity.
+ *
+ * The world is three fixed bands — farm, town, wilds — and until now this
+ * function knew about exactly one boundary: it stopped at the wilds. The town
+ * band got the same meadow scatter as open countryside, so the one part of the
+ * map where people supposedly live looked like a field with buildings in it.
+ *
+ * These are the objects a settlement has and a field does not: something to sit
+ * on, something to read, something that lights the way home — and a cat.
+ */
+const TOWN_PROPS: readonly { readonly sprite: string; readonly weight: number }[] = [
+  { sprite: 'buildings:bench', weight: 3 },
+  { sprite: 'buildings:lamp', weight: 3 },
+  { sprite: 'buildings:signpost', weight: 2 },
+  // Flowers are shared with every other region on purpose: they are what makes
+  // three sets read as one world rather than as three tilesets.
+  { sprite: 'buildings:flower', weight: 4 },
+  // Sparingly, exactly as the brief asks. One in fourteen town props.
+  { sprite: 'buildings:cat', weight: 1 },
+];
+
+const TOWN_TOTAL_WEIGHT = TOWN_PROPS.reduce((sum, prop) => sum + prop.weight, 0);
+
+/**
+ * The town is dressed more thinly than the countryside, which is not a
+ * mistake. Its props are TALLER and busier — a lamp is 34 px — and the band is
+ * where buildings, residents and the market are. Density that reads as cosy in
+ * a meadow reads as clutter in a street.
+ */
+const TOWN_DENSITY_PER_MILLE = 38;
+
+/** Density for a plot of this size, clamped to the range above. */
+function farmDensity(ownedTiles: number): number {
+  const t = Math.min(1, Math.max(0, ownedTiles / FARM_DENSITY_FULL));
+  return Math.round(FARM_DENSITY_MIN + (FARM_DENSITY_MAX - FARM_DENSITY_MIN) * t);
+}
+
+/**
  * Upper bound on props, whatever the density works out to.
  *
  * A hard ceiling rather than a trusted calculation: decor is cosmetic, and no
@@ -113,24 +202,46 @@ const hash = mix32;
 export function planDecor(grid: TileGrid, seed: number, grassKindIndex: number): DecorItem[] {
   const items: DecorItem[] = [];
 
+  // How big the plot is, which sets how thickly the farm is dressed. Counted
+  // rather than stored: the grid already knows, and a second copy could drift.
+  let ownedTiles = 0;
+  for (let index = 0; index < WORLD_WIDTH * WORLD_HEIGHT; index += 1) {
+    if (isOwned(grid, asTileIndex(index))) ownedTiles += 1;
+  }
+  const farmPerMille = farmDensity(ownedTiles);
+
   for (let index = 0; index < WORLD_WIDTH * WORLD_HEIGHT; index += 1) {
     if (items.length >= MAX_DECOR) break;
 
     const tile = asTileIndex(index);
     // Rule 4: the wilds grow their own trees, and those ones mean something.
     if (index % WORLD_WIDTH >= WILDS_MIN_X) continue;
-    // Off the farm, on plain grass, and nowhere a building stands.
-    if (isOwned(grid, tile) || isBlocked(grid, tile)) continue;
+    // Nowhere a building stands, and only on plain grass, for either set.
+    if (isBlocked(grid, tile)) continue;
     if (getKind(grid, tile) !== grassKindIndex) continue;
 
+    const owned = isOwned(grid, tile);
+    // NEVER on worked ground. A crate standing in a furrow hides the crop the
+    // player is there to read, and a crop is Tier 1.
+    if (owned && isTilled(grid, tile)) continue;
+
     const roll = hash(seed, index);
-    if (roll % 1_000 >= DENSITY_PER_MILLE) continue;
+    // THE THREE REGIONS, in the order that decides them: the plot the player
+    // works, then the band people live in, then everything else. Read from the
+    // world's own geography (`TOWN_MIN_X`) rather than from a second map.
+    const [set, total, perMille] = owned
+      ? [FARM_PROPS, FARM_TOTAL_WEIGHT, farmPerMille]
+      : index % WORLD_WIDTH >= TOWN_MIN_X
+        ? [TOWN_PROPS, TOWN_TOTAL_WEIGHT, TOWN_DENSITY_PER_MILLE]
+        : [PROPS, TOTAL_WEIGHT, DENSITY_PER_MILLE];
+
+    if (roll % 1_000 >= perMille) continue;
 
     // A second, independent slice of the same hash picks the prop, so density
     // and species are not correlated.
-    const pick = (roll >>> 10) % TOTAL_WEIGHT;
+    const pick = (roll >>> 10) % total;
     let running = 0;
-    for (const prop of PROPS) {
+    for (const prop of set) {
       running += prop.weight;
       if (pick < running) {
         items.push({ tile, sprite: prop.sprite });
