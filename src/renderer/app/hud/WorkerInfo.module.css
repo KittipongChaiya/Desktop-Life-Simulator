@@ -10,9 +10,9 @@
   align-items: center;
   padding: 6px 10px;
   background: rgba(20, 22, 28, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--edge);
   border-radius: 8px;
-  color: #e8e8ec;
+  color: var(--text);
   font:
     12px/1.2 system-ui,
     sans-serif;

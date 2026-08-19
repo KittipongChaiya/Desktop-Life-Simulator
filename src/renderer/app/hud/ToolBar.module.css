@@ -22,10 +22,10 @@
   gap: 5px;
   min-height: 24px; /* WCAG 2.2 §2.5.8, applied globally but stated here too */
   padding: 3px 8px;
-  background: rgb(255 255 255 / 6%);
+  background: var(--inset);
   border: 1px solid rgb(255 255 255 / 16%);
   border-radius: 6px;
-  color: #e8ecf4;
+  color: var(--text-bright);
   font:
     600 12px/1 system-ui,
     sans-serif;
@@ -33,7 +33,7 @@
 }
 
 .tool:hover {
-  background: rgb(255 255 255 / 12%);
+  background: var(--inset-hover);
 }
 
 /* Armed: brighter fill, a solid border, and a lifted label. Three signals for
@@ -41,7 +41,7 @@
 .tool[data-armed] {
   background: rgb(120 180 120 / 30%);
   border-color: rgb(140 200 140 / 90%);
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .key {

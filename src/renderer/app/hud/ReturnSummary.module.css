@@ -15,10 +15,10 @@
   gap: 6px;
   min-width: 168px;
   padding: 8px 10px;
-  background: rgba(20, 22, 28, 0.92);
+  background: var(--plate-toast);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
-  color: #e8e8ec;
+  color: var(--text);
   font:
     12px/1.35 system-ui,
     sans-serif;
@@ -41,7 +41,7 @@
 }
 
 .figure dt {
-  color: rgba(232, 232, 236, 0.62);
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -54,13 +54,13 @@
 
 /* Not an error — a reason to build more storage. Amber, never red (§10.1). */
 .blocker {
-  color: #e3b341;
+  color: var(--gold-dim);
 }
 
 .dismiss {
   align-self: flex-start;
   padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--edge);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 5px;
   color: inherit;

@@ -21,7 +21,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  color: #e8e8ec;
+  color: var(--text);
   font:
     12px/1.2 system-ui,
     sans-serif;
@@ -32,7 +32,7 @@
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(20, 22, 28, 0.82);
-  color: #e8e8ec;
+  color: var(--text);
   border-radius: 8px;
   padding: 6px 10px;
   font: inherit;
@@ -65,8 +65,8 @@
   max-height: 154px;
   overflow-y: auto;
   padding: 8px;
-  background: rgba(20, 22, 28, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--plate-panel);
+  border: 1px solid var(--edge);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -108,7 +108,7 @@
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(84, 128, 84, 0.92);
-  color: #fff;
+  color: var(--text-bright);
   border-radius: 6px;
   padding: 3px 8px;
   font: inherit;
@@ -121,7 +121,7 @@
 
 /* Unaffordable: quiet, never alarming — muted, not red (§10.1). */
 .buyDisabled {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--edge);
   background: rgba(40, 44, 54, 0.6);
   color: rgba(232, 232, 236, 0.45);
   border-radius: 6px;

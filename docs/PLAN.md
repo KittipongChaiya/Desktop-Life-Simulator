@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                                 |
 | ------------------- | ------------------------------- |
 | **Current version** | **v0.5 — The Playable Cut**     |
-| **Current phase**   | **38 — The UI Joins The World** |
+| **Current phase**   | **39 — Motion & Overlay-Scale** |
 | **Status**          | **IN_PROGRESS**                 |
 
 | Phase | Name                         | Status      |
@@ -237,6 +237,43 @@ the moment a set was added — it reads the generated manifest now, which is
 what its name always claimed. And decor is re-planned when the BUILDINGS slice
 changes, not only on land purchase; without that a crate could sit under a new
 shed until the next expansion, which might be never.
+
+**Phase 38 — The UI Joins The World: COMPLETE, and it found the same defect one
+layer up.** `COLOR_PALETTE.md` §6 has specified a UI palette since phase-05.5c.
+**Not one stylesheet used a single value from it.** The HUD was a cool grey
+dashboard — `#e8e8ec` on `rgba(20, 22, 28, 0.9)` — while the document described
+warm parchment, and nothing checked, for four versions. That is exactly the
+brief's §13 complaint ("pixel-art world + generic modern web dashboard") and
+exactly ADR-041's finding about the world art: written down, never reached.
+
+`src/renderer/app/tokens.css` is the HUD's palette now, and the only place its
+colours are defined. Fourteen stylesheets draw from it.
+
+**The plates stayed DARK, which is a departure from §6's parchment rather than
+an oversight.** A bright slab over a dark desktop is a lamp in the corner of
+somebody's screen, and `VISION.md` §2.1 makes not intruding the one hard
+constraint. What changed is the HUE: blue-black plates became deep timber
+brown, near-white text became cream, and the focus ring became `Water Light` —
+a colour the world already contains. §6.1 records this, so the document
+describes what ships.
+
+**The accessibility gate was measuring a list it admitted could drift.**
+`hud-contrast.test.ts` carried its own hex codes, copied by hand out of the
+stylesheets, and said so in its own header. It reads `tokens.css` now. It also
+measures BOTH extremes — white is the worst case for a dark plate, black is
+the worst case for a light one, and it only ever checked white, so a future
+light theme would have passed while being illegible on a dark desktop.
+
+A new guard fails on any cool or neutral hex anywhere in the HUD, which is the
+drift this phase exists to end.
+
+**Kept, not replaced:** the HUD already draws its coins, items and tools from
+the pixel `ui-world` icon set. That half of §13 was right all along.
+
+**OWED, and honestly outstanding: a live look at the HUD.** Every check here is
+machine-verifiable — contrast, tokens, build output — and none of them is a
+person seeing the panels. That belongs to phase 39, which is the overlay-scale
+pass and runs the app.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

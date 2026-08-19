@@ -1,3 +1,6 @@
+/* The HUD's palette. Must come first: everything below reads its tokens. */
+@import './tokens.css';
+
 /*
  * Global reset for the overlay.
  *
@@ -47,7 +50,7 @@ body {
  * panels is asserted in `hud/contrast.test.ts`.
  */
 :focus-visible {
-  outline: 2px solid #6ea8fe;
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 

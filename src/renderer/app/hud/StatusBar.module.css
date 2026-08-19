@@ -21,9 +21,9 @@
      the desktop everywhere else. */
   pointer-events: auto;
 
-  background: rgb(18 20 26 / 88%);
-  border-top: 1px solid rgb(255 255 255 / 8%);
-  color: #e8ecf4;
+  background: var(--plate-bar);
+  border-top: 1px solid var(--edge);
+  color: var(--text-bright);
   font:
     600 15px/1 system-ui,
     'Segoe UI',
@@ -44,7 +44,7 @@
 }
 
 .muted {
-  color: rgb(232 236 244 / 55%);
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
@@ -59,7 +59,7 @@
   align-items: center;
   gap: 5px;
   font-size: 15px;
-  color: #f2c24c;
+  color: var(--gold);
 }
 
 .coinValue {
@@ -78,7 +78,7 @@
   pointer-events: none;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: #f2c24c;
+  color: var(--gold);
   /* Rises and fades once, then holds — a single acknowledgement, not a loop.
      `forwards` matters: a looping popup would draw forever, which is the
      whole thing this phase refuses to spend (ADR-001). */
@@ -118,8 +118,8 @@
   height: 22px;
   padding: 0;
 
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid rgb(255 255 255 / 10%);
+  background: var(--inset);
+  border: 1px solid var(--edge);
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
@@ -128,11 +128,11 @@
 }
 
 .toggle:hover {
-  background: rgb(255 255 255 / 12%);
+  background: var(--inset-hover);
 }
 
 .toggle:focus-visible {
-  outline: 2px solid #6ea8fe;
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 

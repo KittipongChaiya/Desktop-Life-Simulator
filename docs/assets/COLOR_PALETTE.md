@@ -229,6 +229,40 @@ The UI is DOM/React, not Pixi (`ADR-005`), but it shares the world's palette so 
 | Negative        | `#C8443C` | Errors only — never for routine state (§5) |
 | Selection       | `#7BC062` | Valid selection/placement tint (green, §5) |
 
+### 6.1 What the HUD actually ships — amended in phase-38
+
+**The table above was never implemented.** Not one stylesheet used a single
+value from it. From phase-05.5c until phase-38 the HUD was a COOL GREY
+dashboard — `#e8e8ec` text on `rgba(20, 22, 28, 0.9)` plates — while this
+section described warm parchment, and nothing checked. That is the same finding
+ADR-041 made about the world art, one layer up: the direction was written down
+and never reached.
+
+The values now live in `src/renderer/app/tokens.css`, which is the single place
+the HUD's colours are defined and the place `tests/hud-contrast.test.ts` reads
+them from, so the two cannot drift again.
+
+**The plates are DARK, and that is a deliberate departure from `Panel Base`
+above rather than an oversight.** A bright parchment slab over a dark desktop
+is a lamp in the corner of somebody's screen, and `VISION.md` §2.1 makes not
+intruding the product's one hard constraint. What phase-38 changed is not the
+brightness but the HUE: the plates were blue-black and are deep timber brown,
+the text was near-white and is cream, and the focus ring was a generic
+`#6ea8fe` and is `Water Light #6BB0D0` — a colour the world already contains.
+
+`Panel Base` and `Panel Shadow` remain correct for LIGHT surfaces — chips,
+insets, and the parchment the `ui:` icon set is authored against.
+
+| Token           | Value                    | Use                               |
+| --------------- | ------------------------ | --------------------------------- |
+| `--plate-bar`   | `rgb(30 24 20 / 88%)`    | The status bar                    |
+| `--plate-panel` | `rgba(32, 26, 21, 0.9)`  | Panels                            |
+| `--plate-toast` | `rgba(32, 26, 21, 0.92)` | Toasts and summaries              |
+| `--plate-error` | `rgba(48, 24, 22, 0.94)` | Failure notices only (§5)         |
+| `--text`        | `#F0E6D2`                | Body text — cream, not near-white |
+| `--text-bright` | `#F6EEDC`                | Readouts and chips                |
+| `--focus`       | `#6BB0D0`                | Focus ring (Water Light, §3.3)    |
+
 ---
 
 ## 7. Season palettes (forward-looking, v0.2+)

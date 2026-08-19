@@ -21,7 +21,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  color: #e8e8ec;
+  color: var(--text);
   font:
     12px/1.2 system-ui,
     sans-serif;
@@ -32,7 +32,7 @@
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(20, 22, 28, 0.82);
-  color: #e8e8ec;
+  color: var(--text);
   border-radius: 8px;
   padding: 6px 10px;
   font: inherit;
@@ -66,8 +66,8 @@
   max-height: 154px;
   overflow-y: auto;
   padding: 8px;
-  background: rgba(20, 22, 28, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--plate-panel);
+  border: 1px solid var(--edge);
   border-radius: 8px;
 }
 
@@ -124,13 +124,13 @@
 
 /* Depressed price: quiet amber, never red — routine, not alarming (§10.1). */
 .priceDown {
-  color: #e0a93e;
+  color: var(--warning);
   font-variant-numeric: tabular-nums;
 }
 
 /* Wanted price (phase-21): the sell-it-now read, in the HUD's own green. */
 .priceUp {
-  color: #8ec98e;
+  color: var(--positive);
   font-variant-numeric: tabular-nums;
 }
 
@@ -138,7 +138,7 @@
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(84, 128, 84, 0.92);
-  color: #fff;
+  color: var(--text-bright);
   border-radius: 6px;
   padding: 2px 7px;
   font: inherit;
@@ -206,5 +206,5 @@
 }
 
 .sellRow:hover {
-  background: rgb(255 255 255 / 8%);
+  background: var(--edge);
 }

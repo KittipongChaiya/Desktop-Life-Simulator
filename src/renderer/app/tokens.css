@@ -1,0 +1,74 @@
+/*
+ * The HUD's palette, in one place. Phase-38 — ADR-041, `COLOR_PALETTE.md` §6.
+ *
+ * WHY THIS FILE EXISTS. Every stylesheet in the HUD carried its own hex codes,
+ * so there was no shared palette to change — and what they carried was a cool
+ * grey ramp (`#e8e8ec` on `rgba(20, 22, 28, 0.9)`) while `COLOR_PALETTE.md` §6
+ * described a warm one. Not a single stylesheet used a single value from that
+ * table. The documented UI palette had been unimplemented since phase-05.5c,
+ * which is the same finding ADR-041 made about the world art: the direction
+ * was written down and never reached.
+ *
+ * The brief is explicit — the UI must not be "pixel-art world + generic modern
+ * web dashboard" — and a cool grey ramp is exactly what a dashboard is made
+ * of. Every value below is the world's own palette or derived from it.
+ *
+ * WHY THE PLATES ARE DARK, when §6 says Parchment. A bright panel over a dark
+ * desktop is a lamp in the corner of somebody's screen, and `VISION.md` §2.1
+ * makes not intruding the product's one hard constraint. So the plates are
+ * dark and translucent as they always were — what changed is that they are
+ * WARM: a deep timber brown rather than blue-grey, which is what makes them
+ * read as part of the same world as the cottage. §6 is amended to say so.
+ *
+ * WHY IT IS TOKENS AND NOT A FIND-AND-REPLACE. `tests/hud-contrast.test.ts`
+ * reads THIS FILE for the values it checks. Before, its colour list was
+ * hand-copied out of the stylesheets and the file said outright that it could
+ * drift — which meant an a11y gate that could quietly measure colours nobody
+ * ships. It cannot now.
+ */
+
+:root {
+  /* ── Plates ──────────────────────────────────────────────────────────────
+   * Translucent so the desktop shows through, warm so they belong to the
+   * world, and dark so they never glare. Luminance is held close to the cool
+   * plates these replaced, because that is what the contrast ratios rest on.
+   */
+  --plate-bar: rgb(30 24 20 / 88%);
+  --plate-panel: rgba(32, 26, 21, 0.9);
+  --plate-toast: rgba(32, 26, 21, 0.92);
+  --plate-error: rgba(48, 24, 22, 0.94);
+
+  /* Insets and raised chips, as tints of the plate rather than of white —
+   * white tints are what made the old panels read as frosted glass. */
+  --inset: rgb(240 226 200 / 7%);
+  --inset-hover: rgb(240 226 200 / 13%);
+  --edge: rgb(240 226 200 / 12%);
+  --edge-strong: rgb(240 226 200 / 20%);
+
+  /* ── Text ────────────────────────────────────────────────────────────────
+   * Cream rather than near-white: the same warmth as the plaster on the
+   * cottage walls, and it stops the HUD reading as a system dialog.
+   */
+  --text: #f0e6d2;
+  --text-bright: #f6eedc;
+  --text-muted: rgb(240 230 210 / 66%);
+  --text-notice: #f6ddd6;
+  --text-notice-muted: rgb(246 221 214 / 84%);
+
+  /* ── Accents ─────────────────────────────────────────────────────────────
+   * Straight from §4's reserved set. Reward Gold still means "you gained
+   * something" here exactly as it does in the world (R-09), which is the whole
+   * point of sharing a palette rather than picking UI colours separately.
+   */
+  --gold: #f2c24c;
+  --gold-dim: #e3b341;
+  --positive: #8ec98e;
+  --warning: #e0a93e;
+
+  /*
+   * The focus ring. WATER_LIGHT from §3.3 rather than the generic `#6ea8fe`
+   * it replaces — a colour the world already contains, and cool enough to
+   * stay distinct from Reward Gold, which means something.
+   */
+  --focus: #6bb0d0;
+}

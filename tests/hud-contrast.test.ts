@@ -1,17 +1,19 @@
 /**
  * HUD contrast. Phase-07.5d — `fix/0.1/7.5.md` §Accessibility, criterion 6.
  *
- * The colour pairs below are the ones the shipped stylesheets actually use.
- * Keeping them here as a list is a deliberate trade: it can drift from the CSS,
- * but the alternative — parsing stylesheets and resolving the cascade — would
- * be a second rendering engine to maintain, and would still not know which
- * pairs ever appear together. A short, explicit list that a human updates is
- * more honest than an automated one that quietly measures nothing.
+ * THE VALUES ARE READ FROM `tokens.css`, not copied here. This file used to
+ * carry its own list of hex codes and said outright that it could drift from
+ * the CSS — which is an accessibility gate that can quietly end up measuring
+ * colours nobody ships. Phase-38 gave the HUD a single token file, so the
+ * values now come from the one place that defines them. What stays declared
+ * here is which pairs ever APPEAR TOGETHER, because no stylesheet knows that.
  *
- * WORST CASE ASSUMED: the panels are translucent plates over the player's
- * desktop, and the desktop can be white. Every ratio is therefore measured
- * over a WHITE backdrop, which is the least favourable case for the dark
- * plates this HUD uses. Passing here means passing on any wallpaper.
+ * BOTH EXTREMES ARE MEASURED. The panels are translucent plates over the
+ * player's desktop, so the composite depends on what is behind them. A white
+ * desktop is the worst case for a dark plate — and a BLACK desktop is the
+ * worst case for anything light, which the old suite never checked because it
+ * only ever looked at white. Passing here means passing on any wallpaper,
+ * which is what the claim was always supposed to mean.
  */
 
 // ---------------------------------------------------------------------------
@@ -135,33 +137,71 @@ export function contrastRatio(foreground: string, background: string, backdrop =
   return (light + 0.05) / (dark + 0.05);
 }
 
+import { readdirSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
-/** The least favourable desktop behind a translucent overlay. */
-const WORST_BACKDROP = '#ffffff';
+/**
+ * Every `--token: value;` in the HUD's one palette file.
+ *
+ * A deliberately small parser: the file is a flat `:root` block of literal
+ * colours by design, so there is no cascade to resolve and no second rendering
+ * engine to maintain — which was the objection that kept these values
+ * hand-copied. If a token is ever defined as `var(--other)`, `token()` throws
+ * rather than silently measuring the string "var(--other)".
+ */
+const TOKENS: ReadonlyMap<string, string> = new Map(
+  [
+    ...readFileSync(
+      fileURLToPath(new URL('../src/renderer/app/tokens.css', import.meta.url)),
+      'utf8',
+    ).matchAll(/^\s*(--[a-z-]+):\s*([^;]+);/gm),
+  ].map((match) => [match[1] ?? '', (match[2] ?? '').trim()]),
+);
+
+function token(name: string): string {
+  const value = TOKENS.get(name);
+  if (value === undefined) throw new Error(`tokens.css defines no ${name}`);
+  if (value.includes('var(')) throw new Error(`${name} is indirect; this suite cannot resolve it`);
+  return value;
+}
+
+/**
+ * The two extremes a translucent plate can sit on.
+ *
+ * Checked BOTH ways round. White is the worst case for a dark plate; black is
+ * the worst case for a light one, and the suite only ever looked at white — so
+ * a future light-panel theme would have passed this gate while being illegible
+ * on a dark desktop.
+ */
+const BACKDROPS = ['#ffffff', '#000000'] as const;
 
 /** The one focus-ring colour, declared globally in `global.css`. */
-const FOCUS_RING = '#6ea8fe';
+const FOCUS_RING = token('--focus');
 
 /** Plate colours the panels are drawn on. */
 const PLATE = {
-  statusBar: 'rgb(18 20 26 / 88%)',
-  panel: 'rgba(20, 22, 28, 0.9)',
-  toast: 'rgba(20, 22, 28, 0.92)',
-  errorNotice: 'rgba(38, 20, 22, 0.94)',
+  statusBar: token('--plate-bar'),
+  panel: token('--plate-panel'),
+  toast: token('--plate-toast'),
+  errorNotice: token('--plate-error'),
 } as const;
+
+/** The worst ratio this pair achieves on any desktop. */
+const worstRatio = (foreground: string, background: string): number =>
+  Math.min(...BACKDROPS.map((backdrop) => contrastRatio(foreground, background, backdrop)));
 
 describe('body text meets WCAG AA (4.5:1)', () => {
   it.each([
-    ['status bar readout', '#e8ecf4', PLATE.statusBar],
-    ['panel text', '#e8e8ec', PLATE.panel],
-    ['companion toast', '#e8e8ec', PLATE.toast],
-    ['save-failure notice', '#f4dcdc', PLATE.errorNotice],
-    ['return summary', '#e8e8ec', PLATE.toast],
+    ['status bar readout', token('--text-bright'), PLATE.statusBar],
+    ['panel text', token('--text'), PLATE.panel],
+    ['companion toast', token('--text'), PLATE.toast],
+    ['save-failure notice', token('--text-notice'), PLATE.errorNotice],
+    ['return summary', token('--text'), PLATE.toast],
   ])('%s', (_label, foreground, background) => {
-    expect(contrastRatio(foreground, background, WORST_BACKDROP)).toBeGreaterThanOrEqual(
-      CONTRAST_AA_TEXT,
-    );
+    expect(worstRatio(foreground, background)).toBeGreaterThanOrEqual(CONTRAST_AA_TEXT);
   });
 });
 
@@ -169,13 +209,11 @@ describe('secondary and de-emphasised text still meets AA', () => {
   // Muted text is where contrast quietly fails: it is dimmed on purpose, and
   // "on purpose" is not a defence when it becomes unreadable.
   it.each([
-    ['muted status columns', 'rgba(232, 232, 236, 0.62)', PLATE.statusBar],
-    ['summary figure labels', 'rgba(232, 232, 236, 0.62)', PLATE.toast],
-    ['notice detail', 'rgba(244, 220, 220, 0.82)', PLATE.errorNotice],
+    ['muted status columns', token('--text-muted'), PLATE.statusBar],
+    ['summary figure labels', token('--text-muted'), PLATE.toast],
+    ['notice detail', token('--text-notice-muted'), PLATE.errorNotice],
   ])('%s', (_label, foreground, background) => {
-    expect(contrastRatio(foreground, background, WORST_BACKDROP)).toBeGreaterThanOrEqual(
-      CONTRAST_AA_TEXT,
-    );
+    expect(worstRatio(foreground, background)).toBeGreaterThanOrEqual(CONTRAST_AA_TEXT);
   });
 });
 
@@ -183,15 +221,11 @@ describe('the accent colours', () => {
   it('the coin readout is legible on the status bar', () => {
     // Reward Gold is the one warm accent the bar carries, and the number it
     // colours is one of the three that matter most (`GAME_DESIGN.md` §10.1).
-    expect(contrastRatio('#f2c24c', PLATE.statusBar, WORST_BACKDROP)).toBeGreaterThanOrEqual(
-      CONTRAST_AA_TEXT,
-    );
+    expect(worstRatio(token('--gold'), PLATE.statusBar)).toBeGreaterThanOrEqual(CONTRAST_AA_TEXT);
   });
 
   it('the blocker line reads as information, and reads at all', () => {
-    expect(contrastRatio('#e3b341', PLATE.toast, WORST_BACKDROP)).toBeGreaterThanOrEqual(
-      CONTRAST_AA_LARGE,
-    );
+    expect(worstRatio(token('--gold-dim'), PLATE.toast)).toBeGreaterThanOrEqual(CONTRAST_AA_LARGE);
   });
 });
 
@@ -199,9 +233,7 @@ describe('interactive boundaries meet the non-text threshold (3:1)', () => {
   it('a focused control is distinguishable from an unfocused one', () => {
     // WCAG 2.2 §1.4.11: the focus indicator is a UI component boundary, and a
     // keyboard user who cannot see it cannot use the panel at all.
-    expect(contrastRatio(FOCUS_RING, PLATE.panel, WORST_BACKDROP)).toBeGreaterThanOrEqual(
-      CONTRAST_AA_NON_TEXT,
-    );
+    expect(worstRatio(FOCUS_RING, PLATE.panel)).toBeGreaterThanOrEqual(CONTRAST_AA_NON_TEXT);
   });
 });
 
@@ -252,5 +284,57 @@ describe('the maths itself', () => {
   it('luminance is ordered as perceived brightness', () => {
     expect(luminance(parseColor('#ffffff'))).toBeGreaterThan(luminance(parseColor('#808080')));
     expect(luminance(parseColor('#808080'))).toBeGreaterThan(luminance(parseColor('#000000')));
+  });
+});
+
+describe('the HUD draws from the token file and nowhere else', () => {
+  const styles = (): readonly { readonly name: string; readonly text: string }[] => {
+    const dir = fileURLToPath(new URL('../src/renderer/app/', import.meta.url));
+    const walk = (at: string): string[] =>
+      readdirSync(at, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory()
+          ? walk(join(at, entry.name))
+          : entry.name.endsWith('.css') && entry.name !== 'tokens.css'
+            ? [join(at, entry.name)]
+            : [],
+      );
+    return walk(dir).map((path) => ({ name: basename(path), text: readFileSync(path, 'utf8') }));
+  };
+
+  it('defines every token this suite measures', () => {
+    // The inverse of `token()` throwing: a token deleted from the CSS should
+    // fail loudly here rather than in a panel nobody has open.
+    for (const name of [
+      '--plate-bar',
+      '--plate-panel',
+      '--plate-toast',
+      '--plate-error',
+      '--text',
+      '--text-bright',
+      '--text-muted',
+      '--gold',
+      '--focus',
+    ]) {
+      expect(() => token(name)).not.toThrow();
+    }
+  });
+
+  it('uses no cool grey the world palette does not contain', () => {
+    // THE REGRESSION THIS PHASE EXISTS TO PREVENT. The HUD was a cool grey
+    // ramp on blue-black plates while `COLOR_PALETTE.md` §6 described a warm
+    // one, and nothing noticed for four versions. A neutral or blue-leaning
+    // hex reintroduced anywhere in the HUD is that drift starting again.
+    const offenders: string[] = [];
+
+    for (const sheet of styles()) {
+      for (const [, hex] of sheet.text.matchAll(/#([0-9a-fA-F]{6})\b/g)) {
+        const red = Number.parseInt(hex.slice(0, 2), 16);
+        const blue = Number.parseInt(hex.slice(4, 6), 16);
+        // Warm means red leads blue. Greys and blue-leaning colours do not.
+        if (red <= blue) offenders.push(`${sheet.name}: #${hex}`);
+      }
+    }
+
+    expect(offenders, 'these are cool or neutral, and the HUD is warm now').toEqual([]);
   });
 });
