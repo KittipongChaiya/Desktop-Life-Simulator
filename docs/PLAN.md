@@ -24,14 +24,14 @@ owner's memory (`AI_RULES.md` §10.4).
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
 | 31    | v0.5 Baseline & evidence     | COMPLETE    |
-| 32    | Art Direction & The Palette  | IN_PROGRESS |
-| 33    | The Ground                   | PENDING     |
-| 34    | Buildings                    | PENDING     |
-| 35    | The Farm                     | PENDING     |
-| 36    | Characters & Small Life      | PENDING     |
-| 37    | Density & The Three Regions  | PENDING     |
-| 38    | The UI Joins The World       | PENDING     |
-| 39    | Motion & Overlay-Scale       | PENDING     |
+| 32    | Art Direction & The Palette  | COMPLETE    |
+| 33    | The Ground                   | COMPLETE    |
+| 34    | Buildings                    | COMPLETE    |
+| 35    | The Farm                     | COMPLETE    |
+| 36    | Characters & Small Life      | COMPLETE    |
+| 37    | Density & The Three Regions  | COMPLETE    |
+| 38    | The UI Joins The World       | COMPLETE    |
+| 39    | Motion & Overlay-Scale       | COMPLETE    |
 | 40    | Audio That Earns Eight Hours | PENDING     |
 | 41    | Zone Painting                | PENDING     |
 | 42    | What Now                     | PENDING     |

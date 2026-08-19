@@ -113,6 +113,46 @@ describe('PLAN.md §0 — the resume block', () => {
     expect(inProgress.length).toBeLessThanOrEqual(1);
   });
 
+  it('points at the phase the table actually says is next', () => {
+    // THE DRIFT THIS CATCHES, and it caught it on the way in. During the v0.5
+    // art track the prose was updated phase by phase while EIGHT ROWS of the
+    // table kept their old status — the edits were exact-string replacements
+    // and the formatter had reflowed the table's column widths underneath
+    // them, so they silently matched nothing. The result was a resume block
+    // that pointed at phase 40 above a table still calling phase 32 the one in
+    // progress, and every existing assertion here passed: the statuses were
+    // all valid, the phase numbers all lined up, and exactly one row was
+    // IN_PROGRESS. Nothing compared the pointer to the table.
+    //
+    // A resume block that disagrees with itself is worse than one that is
+    // merely out of date, because the next session cannot tell which half to
+    // believe — and `project-state.md` makes the repository the source of
+    // truth precisely so it does not have to guess.
+    const pointer = /\*\*Current phase\*\*\s*\|\s*\*\*(\d+)/.exec(PLAN)?.[1];
+    expect(pointer, 'PLAN.md §0 names no current phase number').toBeDefined();
+
+    const rows = stateRows();
+    const inProgress = rows.find((row) => row.status === 'IN_PROGRESS');
+
+    if (inProgress !== undefined) {
+      expect(
+        pointer,
+        `§0 points at phase ${String(pointer)} but the table marks ${inProgress.phase} IN_PROGRESS`,
+      ).toBe(inProgress.phase);
+      return;
+    }
+
+    // Nothing in progress: the pointer must name the next thing to do, which
+    // is the first phase not yet complete. This is the honest state between
+    // finishing one phase and starting the next.
+    const next = rows.find((row) => row.status !== 'COMPLETE');
+    expect(
+      pointer,
+      `§0 points at phase ${String(pointer)}, but the first unfinished phase is ` +
+        `${next?.phase ?? 'none'}`,
+    ).toBe(next?.phase);
+  });
+
   it('records blockers and deferred work rather than leaving them to memory', () => {
     expect(PLAN).toContain('Known blockers');
     expect(PLAN).toContain('Deferred');
