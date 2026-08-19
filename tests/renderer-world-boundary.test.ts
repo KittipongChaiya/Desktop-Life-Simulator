@@ -80,6 +80,14 @@ describe('the named source stays enumerable', () => {
       'snapshots',
       'tileKinds',
       'tiles',
+      // Added in phase-33, and this line is the deliberate edit the comment
+      // above asks for. The ground is tinted by the season AND the weather now
+      // — rain had been audible since phase-13 and invisible ever since — and
+      // the tint is read from the weather registry the same way the season's
+      // is. IMMUTABLE SETUP, like every other registry here: it is read at
+      // construction and never mutated, so it widens the boundary without
+      // widening what a worker-thread migration would have to solve.
+      'weatherKindRegistry',
     ]);
   });
 

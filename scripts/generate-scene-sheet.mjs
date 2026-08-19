@@ -190,6 +190,20 @@ const SEASONS = [
   ['winter', 0xc8d8f5],
 ];
 
+/**
+ * `core:rain`'s ground tint, multiplied over the season's the way
+ * `world-view.ts` composes them. Rain was audible and invisible until
+ * phase-33, so "what does rain look like" needs an answer you can look at.
+ */
+const RAIN_TINT = 0xc6d2e0;
+
+/** @param {number} a @param {number} b @returns {number} */
+const compose = (a, b) =>
+  ((Math.round((((a >> 16) & 0xff) * ((b >> 16) & 0xff)) / 255) << 16) |
+    (Math.round((((a >> 8) & 0xff) * ((b >> 8) & 0xff)) / 255) << 8) |
+    Math.round(((a & 0xff) * (b & 0xff)) / 255)) >>>
+  0;
+
 /** @param {Canvas} scene @param {number} colour @returns {Canvas} */
 function tinted(scene, colour) {
   const out = createCanvas(scene.width, scene.height);
@@ -222,10 +236,20 @@ function main() {
   // to white because this window sits beside real work for hours, and those two
   // pressures need to be looked at together rather than argued about.
   if (globalThis.process.argv.includes('--seasons')) {
-    const sheet = createCanvas(scene.width + pad * 2, (scene.height + pad) * SEASONS.length + pad);
+    // Dry on the left, RAINING on the right — the same season, so the only
+    // difference in a row is the weather.
+    const wet = globalThis.process.argv.includes('--dry') ? 1 : 2;
+    const sheet = createCanvas(
+      scene.width * wet + pad * (wet + 1),
+      (scene.height + pad) * SEASONS.length + pad,
+    );
     fill(sheet, () => PARCHMENT);
     SEASONS.forEach(([, colour], index) => {
-      blitScaled(sheet, tinted(scene, colour), pad, pad + index * (scene.height + pad), 1);
+      const top = pad + index * (scene.height + pad);
+      blitScaled(sheet, tinted(scene, colour), pad, top, 1);
+      if (wet === 2) {
+        blitScaled(sheet, tinted(scene, compose(colour, RAIN_TINT)), pad * 2 + scene.width, top, 1);
+      }
     });
     writePng(out, sheet);
     globalThis.console.log(`season sheet: ${out} (${SEASONS.map(([n]) => n).join(', ')})`);

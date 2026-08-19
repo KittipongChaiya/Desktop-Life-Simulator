@@ -13,7 +13,7 @@ import { weatherFor } from '../time/weather';
 
 import { createInstalledRegistries } from './installed';
 import { CORE_AUTUMN, CORE_SPRING, CORE_SUMMER, CORE_WINTER } from './seasons';
-import { ANY_SEASON, CORE_CLEAR, CORE_RAIN, weightIn } from './weather-kinds';
+import { ANY_SEASON, CORE_CLEAR, CORE_RAIN, weatherTint, weightIn } from './weather-kinds';
 
 const SEASONS = [CORE_SPRING, CORE_SUMMER, CORE_AUTUMN, CORE_WINTER];
 
@@ -80,5 +80,45 @@ describe('every season has weather', () => {
     for (const kind of kinds().all()) {
       expect(kind.weights[ANY_SEASON]).toBeUndefined();
     }
+  });
+});
+
+describe('the weather tint (phase-33)', () => {
+  it('gives rain a tint at all — it was audible and invisible for a version', () => {
+    // THE GAP THIS CLOSED. `isRaining` has driven the ambience bed since
+    // phase-13, so a player could HEAR rain while the world looked like a
+    // clear day. Read through the installed registries, like everything else
+    // in this file: what is pinned is that core's rainy weather declares a
+    // tint and that the tint does something, not which blue it is.
+    const registry = kinds();
+    const rain = registry.get(CORE_RAIN);
+
+    expect(rain.ok).toBe(true);
+    if (!rain.ok) return;
+    expect(rain.value.tint, 'rain declares no tint, so rain is invisible again').toBeDefined();
+    expect(weatherTint(registry, CORE_RAIN)).not.toBe(0xffffff);
+  });
+
+  it('leaves clear weather alone', () => {
+    // Clear is not a special case in the engine — it is a kind whose rainfall
+    // happens to be nothing — and it must be one for the ground too.
+    expect(weatherTint(kinds(), CORE_CLEAR)).toBe(0xffffff);
+  });
+
+  it('is white when there is no weather, or the kind is not registered', () => {
+    // Weather shipped by an existing plugin declares no tint, and must keep
+    // working rather than painting the world black.
+    expect(weatherTint(kinds(), undefined)).toBe(0xffffff);
+    expect(weatherTint(kinds(), 'mod:blizzard')).toBe(0xffffff);
+  });
+
+  it('darkens rather than brightens, so rain reads as cloud', () => {
+    const tint = weatherTint(kinds(), CORE_RAIN);
+
+    for (const shift of [16, 8, 0]) {
+      expect((tint >> shift) & 0xff).toBeLessThanOrEqual(0xff);
+    }
+    // Cooler than it is warm: the blue channel survives more than the red.
+    expect(tint & 0xff).toBeGreaterThan((tint >> 16) & 0xff);
   });
 });

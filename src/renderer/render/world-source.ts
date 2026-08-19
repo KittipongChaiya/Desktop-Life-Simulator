@@ -30,6 +30,7 @@ import type { PhaseTintRegistry } from '../../sim/content/lighting';
 import type { ResourceNodeRegistry } from '../../sim/content/resource-nodes';
 import type { SeasonRegistry } from '../../sim/content/seasons';
 import type { TileKindRegistry } from '../../sim/content/tile-kinds';
+import type { WeatherKindRegistry } from '../../sim/content/weather-kinds';
 import type { SnapshotState } from '../../sim/snapshot/state';
 import type { TileGrid } from '../../sim/world/tile-grid';
 
@@ -44,6 +45,8 @@ export interface WorldRenderSource {
   readonly seed: number;
   readonly tileKinds: TileKindRegistry;
   readonly seasonRegistry: SeasonRegistry;
+  /** Read for the ground's weather tint (phase-33). Presentation only. */
+  readonly weatherKindRegistry: WeatherKindRegistry;
   readonly phaseTintRegistry: PhaseTintRegistry;
   readonly resourceNodeRegistry: ResourceNodeRegistry;
 

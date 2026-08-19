@@ -34,6 +34,7 @@ import { toPosition } from '../../shared/geometry';
 import type { TileIndex } from '../../shared/ids';
 import { seasonTint } from '../../sim/content/seasons';
 import { CORE_GRASS } from '../../sim/content/tile-kinds';
+import { weatherTint } from '../../sim/content/weather-kinds';
 import { ownedBounds } from '../../sim/world/tile-grid';
 
 import { createAmbientPresence, type AmbientPresence } from './ambient-presence';
@@ -70,6 +71,7 @@ import { createRainRenderer, type RainRenderer } from './rain-view';
 import { createResidentRenderer, type ResidentRenderer } from './resident-view';
 import { createChunkTracker, type ChunkTracker } from './terrain-chunks';
 import { createTerrainRenderer, type TerrainRenderer } from './terrain-renderer';
+import { composeTints } from './tint';
 import { createWildNodeRenderer, type WildNodeRenderer } from './wild-node-view';
 import { planWildNodes } from './wild-nodes';
 import { createWorkerRenderer, type WorkerRenderer } from './worker-view';
@@ -656,12 +658,22 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // Republishes four times a day, so this is a string comparison on every
       // other frame of the world's life.
       lighting.update(options.world.snapshots.time.value);
-      // The season paints the GROUND; the phase paints the LIGHT. Two surfaces
-      // rather than one, so neither needs a rule for how it composes with the
-      // other (ADR-021 §6). Change-gated inside the renderer — this runs every
-      // frame and does something four times a year.
-      terrain.setSeasonTint(
-        seasonTint(options.world.seasonRegistry, options.world.snapshots.time.value.season),
+      // The season and the weather paint the GROUND; the phase paints the
+      // LIGHT. Two surfaces rather than one, so neither needs a rule for how it
+      // composes with the other (ADR-021 §6). Change-gated inside the renderer
+      // — this runs every frame and does something a handful of times a year.
+      //
+      // Weather joined the ground in phase-33: rain had been audible since
+      // phase-13 and invisible ever since, which is the one weather state the
+      // player could hear and not see.
+      terrain.setWorldTint(
+        composeTints(
+          seasonTint(options.world.seasonRegistry, options.world.snapshots.time.value.season),
+          weatherTint(
+            options.world.weatherKindRegistry,
+            options.world.snapshots.time.value.weather,
+          ),
+        ),
       );
 
       // Decor is static until the plot grows, so it is re-planned only when

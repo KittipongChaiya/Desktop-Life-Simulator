@@ -106,8 +106,15 @@ contact sheet:
   of what a multiply tint can do; the structural limit is recorded in
   `ART_DIRECTION.md` §9.3 along with what it would cost to lift it.
 
-REMAINING in 33: nothing blocking — the phase's open item is whether seasonal
-foliage VARIANTS are worth amending ADR-021 §6 for, which is a decision, not a
+**WEATHER, which the phase also owed and which was missing entirely.** Rain
+had been audible since phase-13 and invisible ever since — the ambience bed
+played while the world looked like a clear day. Weather now declares a ground
+tint the way a season does, and the two multiply together
+(`src/renderer/render/tint.ts`). A tint and not particles because it costs
+nothing that survives idle; falling rain is motion, and motion is phase 39.
+
+REMAINING in 33: nothing — the phase's open item is whether seasonal foliage
+VARIANTS are worth amending ADR-021 §6 for, which is a decision rather than a
 task. Buildings being small and hard to tell apart is phase 34, and the
 reviewed scene is the evidence it starts from.
 

@@ -57,6 +57,21 @@ export interface WeatherKindDefinition {
    * rainfall happens to be nothing.
    */
   readonly rainfall: number;
+  /**
+   * Ground tint while this weather holds, `0xRRGGBB`, multiplied over the
+   * season's (phase-33 — ADR-041).
+   *
+   * PRESENTATION ONLY, exactly like `SeasonDefinition.tint`, and optional so
+   * that weather shipped by an existing plugin keeps working and simply does
+   * not change the light. Rain had been AUDIBLE since phase-13 and invisible
+   * ever since: the ambience bed played and the world looked like a clear day.
+   *
+   * A tint rather than a particle layer because it costs nothing that survives
+   * idle — it is one assignment per visible chunk when the weather turns, and
+   * no per-frame work at all (ADR-001 §1, ADR-041 §5). Falling rain is motion
+   * and belongs to the motion phase, under ADR-017 §2's conditions.
+   */
+  readonly tint?: number;
 }
 
 export const CORE_CLEAR = asContentId('core:clear');
@@ -75,6 +90,13 @@ export function weightIn(kind: WeatherKindDefinition, season: string | undefined
   // A negative weight would subtract from the total and corrupt the walk;
   // treated as absent rather than trusted (content is untrusted input).
   return weight > 0 ? weight : 0;
+}
+
+/** The current weather's ground tint, or white when it declares none. */
+export function weatherTint(registry: WeatherKindRegistry, weather: string | undefined): number {
+  if (weather === undefined) return 0xffffff;
+  const definition = registry.get(asContentId(weather));
+  return definition.ok ? (definition.value.tint ?? 0xffffff) : 0xffffff;
 }
 
 /**

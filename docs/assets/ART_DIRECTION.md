@@ -144,7 +144,7 @@ onward should not pay for them again:
   low-contrast tone, which the eye reads as blades. Low contrast is the whole
   trick: the ground is Tier 3 and must lose to everything standing on it.
 
-## 9.3 Seasons: what a multiply tint can and cannot do
+## 9.3 Seasons and weather: what a multiply tint can and cannot do
 
 **Measured in v0.5 phase 33**, by rendering one scene under all four season
 tints at 1× (`scripts/generate-scene-sheet.mjs --seasons`) rather than
@@ -165,6 +165,23 @@ chunk redraw at all. That choice has a consequence nobody had looked at:
 
 So the tints are pushed to the edge of the mechanism and no further. All four
 seasons are now distinguishable at 1×, which they were not before.
+
+### Weather joins the same slot
+
+**Rain was audible and invisible.** `isRaining` has driven the ambience bed
+since phase-13, so a player could HEAR rain while the world looked like a clear
+day — which is the one weather state the game could describe and not show.
+
+Weather now declares a ground tint exactly as a season does, and the two are
+multiplied together (`src/renderer/render/tint.ts`). A tint rather than falling
+particles because it costs **nothing that survives idle**: one assignment per
+visible chunk when the weather turns, and no per-frame work at all. Falling
+rain is motion, it is governed by ADR-017 §2's five conditions, and it belongs
+to the motion phase rather than to the ground.
+
+The rain tint is deliberately gentle. The brief asks for rain that looks cozy,
+and this window sits beside real work for hours — so the ground should read as
+the same farm under cloud, never as dusk.
 
 **What is deferred, and why it is a decision rather than a task:** foliage that
 actually changes colour needs seasonal tile and prop VARIANTS, selected the way

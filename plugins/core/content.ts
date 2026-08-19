@@ -481,6 +481,11 @@ export function coreWeatherKinds(): readonly WeatherKindDefinition[] {
       // One wetness unit per tick. The unit is defined by what reads it
       // (phase-12b), so this number is a rate, not a quantity.
       rainfall: 1,
+      // Overcast: cooler and a little darker, multiplied over the season's own
+      // tint (phase-33). Deliberately GENTLE — the brief asks for rain that
+      // looks cozy, and this window sits beside real work, so the ground should
+      // read as the same farm under cloud rather than as dusk.
+      tint: 0xc6d2e0,
     },
   ];
   return kinds;

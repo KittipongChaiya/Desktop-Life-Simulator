@@ -51,7 +51,8 @@ export interface TerrainRenderer {
   /** Sprites currently parented, i.e. draw calls contributed by terrain. */
   visibleChunkCount(): number;
   /**
-   * Tints the whole terrain, for the season. Phase-11c — ADR-021 §6.
+   * Tints the whole terrain, for the season AND the weather. Phase-11c —
+   * ADR-021 §6; weather joined it in phase-33 (ADR-041).
    *
    * Applied to the chunk SPRITES, not baked into their textures, so a season
    * change costs a tint assignment per visible chunk and **no chunk redraw at
@@ -61,7 +62,7 @@ export interface TerrainRenderer {
    * Multiplies over the owned/unowned tint already baked in, so `0xffffff`
    * leaves the terrain exactly as it was.
    */
-  setSeasonTint(color: number): void;
+  setWorldTint(color: number): void;
   destroy(): void;
 }
 
@@ -81,7 +82,7 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
   const textures = new Map<number, RenderTexture>();
   const sprites = new Map<number, Sprite>();
   /** White until a season sets one — i.e. terrain exactly as v0.1 drew it. */
-  let seasonTint = 0xffffff;
+  let worldTint = 0xffffff;
 
   /** Reused scratch container — allocating one per chunk redraw would churn. */
   const scratch = new Container();
@@ -136,7 +137,7 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
       // A chunk created after the season was set must arrive already tinted —
       // otherwise scrolling into new ground shows last season's colour until
       // the next boundary, hours away.
-      display.tint = seasonTint;
+      display.tint = worldTint;
       layer.addChild(display);
       sprites.set(chunk, display);
     } else {
@@ -145,9 +146,11 @@ export function createTerrainRenderer(options: TerrainRendererOptions): TerrainR
   };
 
   return {
-    setSeasonTint(color) {
-      if (color === seasonTint) return; // change-gated: four times a year
-      seasonTint = color;
+    setWorldTint(color) {
+      // Change-gated. Four times a year for the season, and once per weather
+      // period on top of that — still nothing next to a frame.
+      if (color === worldTint) return;
+      worldTint = color;
       for (const sprite of sprites.values()) sprite.tint = color;
     },
 
