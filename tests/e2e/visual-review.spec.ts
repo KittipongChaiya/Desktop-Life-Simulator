@@ -282,3 +282,19 @@ test('the town and the wilds, which the farm view never shows', async ({}, testI
   await panEast(22);
   await capture(testInfo.outputPath('region-wilds.png'));
 });
+
+// eslint-disable-next-line no-empty-pattern -- Playwright requires the destructuring form
+test('the game says what to do next on a fresh farm', async ({}, testInfo) => {
+  // "What now?" (phase-49). A brand-new farm has no crops and no seed, so the
+  // first rule that fires sends the player to the shop. The point is not the
+  // wording — that is copy — but that the game says ANYTHING at all, which it
+  // never has.
+  const window = await app.firstWindow();
+  await window.waitForTimeout(1_200);
+
+  const hint = window.getByTestId('next-step');
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText(/seed|plant|worker|shed/i);
+
+  await capture(testInfo.outputPath('next-step.png'));
+});

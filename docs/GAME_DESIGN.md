@@ -38,6 +38,28 @@ v0.1's entire design is a four-stage transition from _playing the loop_ to _owni
 
 Reaching stage 4 means the player can close the panel and the game genuinely plays itself — which is the product thesis. If playtesting shows stage 4 arriving too late to be discovered, the fix is lowering the market stall's cost, not adding content.
 
+### The "Roughly" column has now been measured, and it was wrong
+
+**Added in v0.5 phase 31, corrected here in phase 51.** The table above shipped with v0.1 and four versions were built on it without anyone timing the arc. `tests/progression-arc.test.ts` times it: a model that plays perfectly — never mis-clicks, never walks anywhere, harvests on the exact tick of maturity, always knows what to plant — reaches **stage 4 in about twelve minutes**, against the "3 hr+" this table claims.
+
+**Both numbers are wrong for the same reason: neither describes a person.**
+
+- **Twelve minutes is a LOWER BOUND, not an estimate.** Nobody plays like the model. It proves the ceiling is reachable and says nothing about how long a human takes.
+- **"3 hr+" was never measured at all.** It was a guess written before the economy existed, and it is the number this section exists to stop being cited as fact.
+- **How long a real player takes is UNKNOWN**, and is human-playtest evidence in ADR-040's sense. It cannot be established by any session that has no human in it.
+
+### Why the balance was not changed
+
+The obvious response is to make the arc longer. It was not taken, deliberately:
+
+- Tuning the economy against a perfect-player bound is guessing with arithmetic. The lever (`MARKET_STALL` cost) is real, but the evidence for moving it is not.
+- The line above already fixes the response for stage 4 arriving too LATE. Nothing in this document ever said what to do about too EARLY, because nobody knew it was.
+- Changing costs is a product decision with reach across the whole economy, and it belongs to the owner rather than to a measurement.
+
+What phase 51 did instead is convert the measurement into a guard: the arc test now asserts a FLOOR as well as the four-hour ceiling, so a future change that collapses the arc further fails loudly. The floor is a tripwire set far below the measurement, not a target.
+
+**The open question, stated so it is not rediscovered:** how long does a real first-time player take to reach stage 4? Until somebody plays it, this table's "Roughly" column should be read as intent, not as fact.
+
 ---
 
 ## 2. The World

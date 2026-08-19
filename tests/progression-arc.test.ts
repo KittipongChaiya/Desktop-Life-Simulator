@@ -227,6 +227,28 @@ describe('the four-stage arc, timed', () => {
       `stage 4 was not reached in four hours; peak was ${String(run.peakCoins)} coins`,
     ).not.toBeNull();
     expect(run.stallAtTick ?? Number.POSITIVE_INFINITY).toBeLessThan(FOUR_HOURS_TICKS);
+
+    // AND A FLOOR (phase-51). The ceiling alone only catches an arc that got
+    // slower; this catches one that collapses.
+    //
+    // Phase-31 measured a perfect player finishing in about twelve minutes
+    // against a design document claiming three hours, and the honest reading
+    // is that neither number is the answer: twelve minutes is a BOUND for
+    // somebody who never mis-clicks and harvests on the exact tick of
+    // maturity, and how long a person takes has never been measured at all.
+    //
+    // So this does not encode a target. It encodes that the arc has not
+    // silently collapsed further — a change that made a perfect player finish
+    // in three minutes would have taken the emotional core of the game
+    // (`VISION.md` §6.3) down with it, and nothing else in the suite would
+    // notice. The gap between this floor and the measurement is deliberately
+    // wide: it is a tripwire, not a balance assertion.
+    const FLOOR_TICKS = 5 * 60 * 20;
+    expect(
+      run.stallAtTick ?? 0,
+      'the arc collapsed: a perfect player now reaches stage 4 in under five ' +
+        'minutes, which is a balance regression rather than an improvement',
+    ).toBeGreaterThan(FLOOR_TICKS);
   }, 900_000);
 
   it('reaches stage 2 — the emotional core — inside the first half hour', () => {

@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                             |
-| ------------------- | --------------------------- |
-| **Current version** | **v0.5 — The Playable Cut** |
-| **Current phase**   | **49 — What Now**           |
-| **Status**          | **IN_PROGRESS**             |
+|                     |                                 |
+| ------------------- | ------------------------------- |
+| **Current version** | **v0.5 — The Playable Cut**     |
+| **Current phase**   | **52 — v0.5 Release Candidate** |
+| **Status**          | **IN_PROGRESS**                 |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -41,10 +41,10 @@ owner's memory (`AI_RULES.md` §10.4).
 | 46    | World Acceptance & Cost      | COMPLETE    |
 | 47    | Audio That Earns Eight Hours | COMPLETE    |
 | 48    | Zone Painting                | COMPLETE    |
-| 49    | What Now                     | IN_PROGRESS |
-| 50    | First Run                    | PENDING     |
-| 51    | Balance & The Idle Cost      | CONDITIONAL |
-| 52    | v0.5 Release Candidate       | PENDING     |
+| 49    | What Now                     | COMPLETE    |
+| 50    | First Run                    | COMPLETE    |
+| 51    | Balance & The Idle Cost      | COMPLETE    |
+| 52    | v0.5 Release Candidate       | IN_PROGRESS |
 
 **v0.4 shipped as a release candidate** on 2026-08-18 — phases 24–30, all six
 milestones, `RELEASE-v0.4-RC.md`. Its gate results live in that document and are
@@ -558,6 +558,69 @@ not empty. That second check matters: an empty tile list is read as "clear the
 zone", so a drag that painted nothing produces an accepted command that does
 nothing, and the two are indistinguishable without a count.
 
+**Phase 49 — What Now: COMPLETE, and it amends ADR-034 §7.** The game never
+told a player what to do next. That is fine for the person who built it and
+hostile to everyone else: a farm with money in the bank, an empty field and no
+workers looks exactly like a farm that is finished.
+
+One line in the status bar now says the most useful next thing, DERIVED from
+the snapshot the HUD already holds — no objective state, no progress record, no
+save change, nothing to migrate. A stored quest list would be a second source
+of truth for facts the world already answers and would go stale the moment a
+player did something it did not expect.
+
+§7 forbade a quest journal window, and that judgement stands — the board
+carries the town's asks and a second list would split where a player looks.
+This is deliberately smaller than what it forbade: one sentence, no window, no
+log, nothing to dismiss. **It renders NOTHING most of the time**, which is what
+lets it live in the bar at all.
+
+**Caught by running it:** the first version counted every posted board offer,
+so a brand-new farm with an empty inventory was told "the notice board is
+asking for something you can deliver". False advice is worse than silence — it
+teaches a player the line does not know what it is talking about. It counts
+offers the player can actually fulfil now.
+
+**Phase 50 — First Run: COMPLETE, with no tutorial mode.** Onboarding is the
+same line, ordered so that each step is the state the previous one leaves
+behind: buy seed → plant → wait → sell → hire. The advice moves because the
+PLAYER did, not because a script advanced, so there is nothing to skip, resume,
+store or migrate — and a returning player mid-farm simply never sees it.
+
+"Wait for growth" is the last rule and only fires for a farm with no workers.
+Silence is right for a going concern; to somebody watching their first row it
+reads as "you have done something wrong". A farm with staff gets no advice at
+all.
+
+**Phase 51 — Balance & The Idle Cost: COMPLETE, and the balance was not
+changed.** Phase 31 measured the four-stage arc and found a perfect player
+reaching stage 4 in about **twelve minutes** against a design document claiming
+"3 hr+" — a 15× gap that four versions were built on top of without anybody
+timing it.
+
+**Both numbers are wrong, and for the same reason: neither describes a
+person.** Twelve minutes is a LOWER BOUND for a model that never mis-clicks and
+harvests on the exact tick of maturity. "3 hr+" was a guess written before the
+economy existed. How long a real player takes has never been measured, and
+under ADR-040 that is human-playtest evidence, which no session without a human
+in it may mark PASS.
+
+So the lever was left alone. `GAME_DESIGN.md` §1.1's two balance lines both
+assume the arc is too SLOW; nothing said what to do about too fast, because
+nobody knew it was. Raising the stall's cost until a synthetic player takes
+three hours would be guessing with arithmetic, and the stall sits upstream of
+contracts, factory payback and expedition funding — a change with that blast
+radius is the owner's. Recorded as **ADR-044**.
+
+What the measurement bought instead is a **guard**. The arc test now asserts a
+FLOOR as well as its four-hour ceiling: under five minutes fails. The gap
+between the floor and the measurement is deliberately wide — it is a tripwire
+for a future change that collapses the arc, not a target. The ceiling catches
+an arc that got slower; nothing caught one that fell over.
+
+`GAME_DESIGN.md` §1.1 now carries the measurement, the reason neither number is
+an answer, and the open question stated so it is not rediscovered.
+
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
 - **Code signing** — BLOCKED on the owner's certificate purchase. Holds the
@@ -851,10 +914,10 @@ rendering and content-model fact rather than an art one.
 | 45  | Region Composition           | World       | Landmarks and clusters; farm / town / wilds read     | ADR-042    |
 | 46  | World Acceptance & Cost      | World       | The real game, looked at; the idle budget, measured  | ADR-042    |
 | 47  | Audio That Earns Eight Hours | Playability | Layered synthesis, derived variation, triggered beds | ADR-043    |
-| 48  | Zone Painting                | Playability | The map interaction the command has waited for       | ADR-044    |
-| 49  | What Now                     | Playability | The objectives surface; ADR-034 §7 amended           | ADR-045    |
-| 50  | First Run                    | Playability | Onboarding that teaches by playing                   | ADR-045    |
-| 51  | Balance & The Idle Cost      | Playability | **TRIGGERED** by phase 31's arc measurement          | ADR-046    |
+| 48  | Zone Painting                | Playability | The map interaction the command has waited for       | ADR-035    |
+| 49  | What Now                     | Playability | The objectives surface; ADR-034 §7 amended           | ADR-034    |
+| 50  | First Run                    | Playability | Onboarding that teaches by playing                   | ADR-034    |
+| 51  | Balance & The Idle Cost      | Playability | **TRIGGERED** by phase 31's arc measurement          | ADR-044    |
 | 52  | v0.5 Release Candidate       | —           | Every gate, and the four product criteria            | —          |
 
 Three orderings are dictated rather than preferred:

@@ -17,6 +17,7 @@ import { useOverlay } from '../store-context';
 
 import { CoinCounter } from './CoinCounter';
 import { DayReadout } from './DayReadout';
+import { NextStep } from './NextStep';
 import styles from './StatusBar.module.css';
 import { ToolBar } from './ToolBar';
 
@@ -84,6 +85,11 @@ export function StatusBar({ children }: StatusBarProps): ReactNode {
       <span className={styles['muted']} title="Workers hired">
         {hired} {hired === 1 ? 'worker' : 'workers'}
       </span>
+
+      {/* "What now?" (phase-49). Renders nothing most of the time, which is
+          why it can live in the bar at all: a hint that is always present is
+          furniture, and furniture is not read. */}
+      <NextStep />
 
       {/* The panel toggles. Between the readouts and the collapse chevron, in
           the 1,334px this bar had spare. */}
