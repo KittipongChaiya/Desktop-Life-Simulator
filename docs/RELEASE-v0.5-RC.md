@@ -57,20 +57,23 @@ worker AI and the save format are untouched.
 
 `PLAN.md` §8. Every row states what was run, not what was intended.
 
-| Gate               | Status  | Evidence                                                                                                                                            |
-| ------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Save compatibility | **Met** | Chain `v1 → v14` unchanged and green; the one risk v0.5 introduced (legacy overlapping buildings) is now a load-path test — §3.3                    |
-| Performance        | **Met** | Re-measured fresh (`PERFORMANCE.md` §18); every budget passes, and phase 46's reported regression **does not reproduce** — §4                       |
-| Coverage           | **Met** | 94.98% lines / 86.58% branches project-wide, every per-area threshold met, whole suite green under instrumentation — §3.2                           |
-| Boundaries         | **Met** | `check:boundaries` clean; `check:cycles` clean — 358 modules, 1,292 dependencies                                                                    |
-| Docs               | **Met** | `ARCHITECTURE.md` §16, `save-compatibility-report.md` §14, `PERFORMANCE.md` §18, `TESTING.md` §1.2 and §4.1a, `GAME_DESIGN.md` §1.1, `CHANGELOG.md` |
-| ADRs               | **Met** | ADR-040–044 recorded; **ADR-042 §4 amended in writing** when its description disagreed with the code — §5                                           |
-| Data loss          | **Met** | Zero known defects. The footprint change's one corruption path was closed by decision before implementation and is tested                           |
-| Dead code          | **Met** | No `.only`, no skipped unit tests, no TODO/FIXME in `src/`; the four E2E skips are environment-gated with stated reasons                            |
+| Gate               | Status  | Evidence                                                                                                                                                               |
+| ------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Save compatibility | **Met** | Chain `v1 → v14` unchanged and green; the one risk v0.5 introduced (legacy overlapping buildings) is now a load-path test — §3.3                                       |
+| Performance        | **Met** | Re-measured fresh (`PERFORMANCE.md` §18); every budget passes, and phase 46's reported regression **does not reproduce** — §4                                          |
+| Coverage           | **Met** | 94.98% lines / 86.58% branches project-wide, every per-area threshold met, whole suite green under instrumentation — §3.2                                              |
+| Boundaries         | **Met** | `check:boundaries` clean; `check:cycles` clean — 358 modules, 1,292 dependencies                                                                                       |
+| Docs               | **Met** | `ARCHITECTURE.md` §16, `save-compatibility-report.md` §14, `PERFORMANCE.md` §18, `TESTING.md` §1.2 and §4.1a, `GAME_DESIGN.md` §1.1, `CHANGELOG.md`                    |
+| ADRs               | **Met** | ADR-040–044 recorded; **ADR-042 §4 amended in writing** when its description disagreed with the code — §5                                                              |
+| Data loss          | **Met** | Zero known defects. The footprint change's one corruption path was closed by decision before implementation and is tested                                              |
+| Dead code          | **Met** | No `.only`, no skipped unit tests, no TODO/FIXME in `src/`; the four E2E skips are environment-gated with stated reasons. **Two superseded generators removed** — §3.5 |
 
 `npm audit` (production tree): **0 vulnerabilities**. Asset regeneration is
 **byte-identical** to what is committed — 237 sprites, 5 atlases, 52
-animations — after a defect that had made that impossible was fixed (§3.4).
+animations — after **two** separate defects that had made that impossible were
+fixed (§3.4, §3.5). It is byte-identical because a test now runs every art
+generator and fails on a single moved byte, which is how the second defect was
+found: by making the claim before checking it, and then checking it.
 
 ## 3. What was measured
 
@@ -81,7 +84,7 @@ animations — after a defect that had made that impossible was fixed (§3.4).
 | Typecheck (×3)      | Clean                                                                           |
 | Lint                | Clean, `--max-warnings 0`                                                       |
 | Format              | Clean — after fixing 9 files and the reason they had drifted (§3.4)             |
-| Unit suite          | **3,307 passed, 0 failed**, 259 files                                           |
+| Unit suite          | **3,309 passed, 0 failed**, 260 files                                           |
 | Coverage            | **Green** — see §3.2                                                            |
 | Runtime startup     | **Production** build launched and stayed up 12 s (`smoke-launch.mjs`)           |
 | E2E suite           | **84 passed, 4 skipped, 0 failed**, 10.1 minutes — every skip environment-gated |
@@ -170,6 +173,36 @@ would have caught it until an RC. The glob now includes `js,mjs,cjs`.
 
 Neither is a player-visible bug. Both are the kind of thing that only surfaces
 when a gate is actually run instead of cited.
+
+### 3.5 The claim in §2 was wrong when it was written
+
+The gate table above said asset regeneration was byte-identical. **It was not**,
+and the way that surfaced is the most useful thing in this document.
+
+Having fixed the Prettier problem in §3.4, the claim was written down and then
+verified rather than assumed — every art generator run, `git status` checked.
+Twenty-one files came back modified. The cause was not the fix; it was two
+scripts nobody had thought about since v0.1:
+
+- `generate-placeholder-worker-art.mjs` (phase-04c)
+- `generate-placeholder-item-building-art.mjs` (phase-05d)
+
+Both produced the crude stand-ins whose entire stated purpose was to be
+replaced "with no code change" — which happened, in phases 33–36. **But both
+still wrote the same filenames as the production generators.** Running the
+first reverted the worker rig to 16×16 grey blobs and dropped an animation;
+running the second reverted the storage shed and four item icons. They had been
+loaded weapons sitting in `scripts/` for four versions, and `docs/ASSETS.md`
+§7.3 still described the worker art as placeholders three phases after it
+stopped being.
+
+Both are deleted. `tests/art-regeneration.test.ts` now runs every art generator
+and fails if one committed byte moves — ADR-006 §2's guarantee as a test rather
+than an intention — snapshotting and restoring so a failure reports the drift
+instead of leaving the tree holding it. It was checked against a deliberately
+corrupted asset to confirm it fails when it should.
+
+**A superseded generator is not harmless because nobody runs it on purpose.**
 
 ## 4. Performance — and a correction to phase 46
 
@@ -298,6 +331,11 @@ That v0.5's scope is complete, that every gate runnable on this machine was run
 fresh for this document and is green, that the two criteria needing a human are
 open rather than substituted, and that one previously-reported regression has
 been withdrawn on better evidence with the method error stated.
+
+One of this document's own claims was false when first written, was caught by
+verifying it after writing it, and is recorded in §3.5 with what it cost rather
+than quietly corrected. A gate table is a set of claims; the only thing that
+makes it worth reading is that each one was checked.
 
 It does not claim the game looks good. That is not a claim this session is
 able to make.

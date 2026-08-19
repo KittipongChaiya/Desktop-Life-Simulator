@@ -11,6 +11,42 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **v0.5 phase 52 — the release candidate** (no schema change;
+  `RELEASE-v0.5-RC.md` is the deliverable): every gate re-run fresh rather than
+  cited. Unit **3,309 passed / 0 failed** across 260 files; E2E **84 passed, 4
+  skipped, 0 failed** with **no flakes**; coverage **94.98% lines / 86.58%
+  branches** with all nine per-area thresholds met; a production build launched
+  and stayed up; typecheck ×3, lint, format, boundaries, cycles, the
+  `v1 → v14` migration chain and `npm audit` all clean.
+
+  **Four findings, three of them about gates that had never actually been
+  run.** The coverage gate went red with five timeouts under instrumentation
+  (~3.3×), and the obvious fix — excluding the long-runs, as `memory-longrun`
+  already is — was tested rather than believed and turned out to drop
+  `src/persistence` branches to 88.47% against a 90% threshold, because
+  `catch-up-factories` reaches `catch-up.ts` gaps nothing else does;
+  `tests/long-run-budget.ts` gives a test one budget per run instead.
+  **Asset regeneration could not have been byte-identical**, and had not been
+  for the whole art track: `lint-staged` ran Prettier over the generated
+  `.anim.json` sidecars, so every commit and every regeneration flipped six
+  files — and separately, **two placeholder generators from v0.1 were still
+  writing the same filenames as the production ones**, so running either
+  reverted live art to grey blobs. Both deleted, and
+  `tests/art-regeneration.test.ts` now fails on a single moved byte.
+  **Phase 46's performance regression does not reproduce** when measured on an
+  idle machine — see the phases 40–46 entry.
+
+  Also amended: **ADR-042 §4**, which described a legacy-overlap mechanism
+  `deserialize.ts` does not use. Same guarantee, simpler mechanism, and the ADR
+  was the thing that was wrong; `tests/legacy-overlap-load.test.ts` pins the
+  behaviour on the load path, which is where an old save actually arrives.
+
+  **Two success criteria are OPEN, not met and not substituted.** The "oh, I
+  see" moment at the first hire and a tester returning on a second day are
+  human-playtest evidence, which ADR-040 forbids marking PASS from a session
+  with no human in it. Perceptual acceptance of the visual overhaul is in the
+  same class.
+
 - **v0.5 phases 40–46 — the world stops being a grid** (no schema change;
   ADR-042 governs): the cozy pass made the assets better and did not make the
   game look like a world, and the owner's correction identified why. The

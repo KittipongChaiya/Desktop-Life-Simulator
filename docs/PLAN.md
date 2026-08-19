@@ -641,7 +641,7 @@ an answer, and the open question stated so it is not rediscovered.
 deliverable and carries the full gate table; this is the short version.
 
 **Every gate re-run fresh rather than cited**, which is the v0.3 lesson v0.4
-adopted and this version keeps. Unit **3,307 passed / 0 failed** across 259
+adopted and this version keeps. Unit **3,309 passed / 0 failed** across 260
 files; E2E **84 passed, 4 skipped, 0 failed** in 10.1 minutes with **no
 flakes**; a **production** build launched and stayed up; typecheck ×3, lint,
 boundaries, cycles, the `v1 → v14` migration chain and `npm audit` all clean.
@@ -676,6 +676,18 @@ met.
    and reported the regression anyway; load was the cause, not a contributor.
    The footprint hypothesis is **withdrawn in the place it was made**. Heap
    12.8 → 14.5 MB is the one real increase, most plausibly 166 → 237 sprites.
+
+4. **The RC's own gate table was wrong, and checking it is what found the
+   worst defect of the four.** Having fixed (2), the byte-identical claim was
+   written down and then VERIFIED rather than assumed — twenty-one files came
+   back modified. Two placeholder generators from phases 04c and 05d were
+   still on disk **writing the same filenames as the production generators**:
+   running one reverted the worker rig to 16×16 grey blobs and dropped an
+   animation, the other reverted the storage shed and four item icons. Four
+   versions of loaded weapon in `scripts/`, and `ASSETS.md` §7.3 still calling
+   the worker art placeholder three phases after it stopped being. Both
+   deleted; `tests/art-regeneration.test.ts` runs every generator and fails on
+   one moved byte, checked against a corrupted asset to confirm it bites.
 
 **And one ADR amended**: ADR-042 §4 described legacy overlap resolving by "the
 first placed keeps it", which `deserialize.ts` does not do — it marks every
