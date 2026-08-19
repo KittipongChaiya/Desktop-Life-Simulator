@@ -1,5 +1,9 @@
 {
-  "villager_a_idle_n": { "frames": ["villager_a_idle_n"], "frameTicks": 0, "loop": false },
+  "villager_a_idle_n": {
+    "frames": ["villager_a_idle_n"],
+    "frameTicks": 0,
+    "loop": false
+  },
   "villager_a_walk_n": {
     "frames": [
       "villager_a_walk_n_0",
@@ -10,7 +14,11 @@
     "frameTicks": 4,
     "loop": true
   },
-  "villager_a_idle_s": { "frames": ["villager_a_idle_s"], "frameTicks": 0, "loop": false },
+  "villager_a_idle_s": {
+    "frames": ["villager_a_idle_s"],
+    "frameTicks": 0,
+    "loop": false
+  },
   "villager_a_walk_s": {
     "frames": [
       "villager_a_walk_s_0",
@@ -21,7 +29,11 @@
     "frameTicks": 4,
     "loop": true
   },
-  "villager_a_idle_e": { "frames": ["villager_a_idle_e"], "frameTicks": 0, "loop": false },
+  "villager_a_idle_e": {
+    "frames": ["villager_a_idle_e"],
+    "frameTicks": 0,
+    "loop": false
+  },
   "villager_a_walk_e": {
     "frames": [
       "villager_a_walk_e_0",
@@ -32,7 +44,11 @@
     "frameTicks": 4,
     "loop": true
   },
-  "villager_a_idle_w": { "frames": ["villager_a_idle_w"], "frameTicks": 0, "loop": false },
+  "villager_a_idle_w": {
+    "frames": ["villager_a_idle_w"],
+    "frameTicks": 0,
+    "loop": false
+  },
   "villager_a_walk_w": {
     "frames": [
       "villager_a_walk_w_0",

@@ -26,6 +26,7 @@
  * Run: `node scripts/generate-character-art.mjs`, then `npm run assets`.
  */
 
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -34,10 +35,14 @@ import {
   SKIN,
   SOFT_INK,
   SOIL_DARK,
-  STONE_BASE,
-  STONE_DARK,
-  STONE_LIGHT,
+  STONE_WARM,
+  STONE_WARM_DARK,
+  STONE_WARM_LIGHT,
   STRAW,
+  TIMBER_DARK,
+  TIMBER_WARM,
+  BLOOM_ROSE,
+  CREAM,
   TILLED_SOIL,
   WATER_BASE,
   WATER_DEEP,
@@ -79,6 +84,43 @@ const WORKER = {
   scarf: false,
   tunic: WOOD_TUNIC,
 };
+/**
+ * TWO MORE WORKERS, so a farm is staffed by PEOPLE rather than by one person
+ * printed several times (phase-36 — the brief §9: "do not make every NPC look
+ * like the same character with a different shirt").
+ *
+ * The hat and the apron are kept on all three. `CHARACTER_BIBLE` makes those
+ * two the worker's tells — they are how a worker is told from the player and
+ * from a villager at a glance — so what varies is everything else: skin, hair,
+ * and the cloth under the apron. Varying the tells would buy variety by
+ * spending readability, which is the wrong trade at this size.
+ *
+ * NOT ROLES. The brief asks for workers distinguishable BY ROLE, and the
+ * simulation has no role to read: `WorkerSchedule.taskKinds` is optional and
+ * most workers have none, so a costume keyed to it would leave the majority
+ * identical and change appearance when a player edited a schedule. Inventing a
+ * role would be a gameplay change, which §22 of the brief forbids outright.
+ * People, then — not job titles.
+ */
+/** @type {Costume} */
+const WORKER_B = {
+  skin: SKIN.deep,
+  hair: TIMBER_DARK,
+  hat: true,
+  apron: true,
+  scarf: false,
+  tunic: { base: STONE_WARM, light: STONE_WARM_LIGHT, shadow: STONE_WARM_DARK },
+};
+/** @type {Costume} */
+const WORKER_C = {
+  skin: SKIN.fair,
+  hair: TIMBER_WARM,
+  hat: true,
+  apron: true,
+  scarf: false,
+  tunic: { base: BLOOM_ROSE, light: CREAM, shadow: TIMBER_DARK },
+};
+
 /** @type {Costume} */
 const PLAYER = {
   skin: SKIN.tan,
@@ -106,7 +148,15 @@ const VILLAGER_B = {
   hat: false,
   apron: false,
   scarf: false,
-  tunic: { base: STONE_BASE, light: STONE_LIGHT, shadow: STONE_DARK },
+  // BLUE, not the grey-violet stone ramp this wore until phase-36. That ramp
+  // is for cold rock (`COLOR_PALETTE.md` §3.2c) and the brief names sterile
+  // grey directly — a person is the last thing that should be wearing it.
+  //
+  // Blue rather than another cream: the first attempt warmed this to cream and
+  // the contact sheet showed the cost immediately — the two villagers became
+  // one villager with different hair. The brief asks for muted sky blues, and
+  // nobody else in the cast wears one.
+  tunic: { base: WATER_BASE, light: WATER_LIGHT, shadow: WATER_DEEP },
 };
 
 /**
@@ -360,33 +410,64 @@ function paintView(view, pose, costume) {
  * @param {Costume} costume
  * @param {boolean} [withHarvest] villagers do not work the ground — no swing
  */
-function writeCharacter(entity, costume, withHarvest = true) {
+function writeCharacter(entity, costume, withHarvest = true, keyPrefix = `${entity}_`) {
   const dir = join(SRC, 'entities{tps}');
-  /** @type {('s' | 'n' | 'e' | 'w')[]} */
-  const views = ['s', 'n', 'e', 'w'];
+  /** @type {('n' | 's' | 'e' | 'w')[]} */
+  const views = ['n', 's', 'e', 'w'];
+  /** @type {Record<string, {frames: string[], frameTicks: number, loop: boolean}>} */
+  const animations = {};
 
   for (const view of views) {
     writePng(join(dir, `${entity}_idle_${view}.png`), paintView(view, STAND, costume));
+    animations[`${keyPrefix}idle_${view}`] = {
+      frames: [`${entity}_idle_${view}`],
+      frameTicks: 0,
+      loop: false,
+    };
+
+    const walk = [];
     for (let f = 0; f < WALK_POSES.length; f += 1) {
       const pose = WALK_POSES[f] ?? STAND;
       writePng(join(dir, `${entity}_walk_${view}_${String(f)}.png`), paintView(view, pose, costume));
+      walk.push(`${entity}_walk_${view}_${String(f)}`);
     }
+    animations[`${keyPrefix}walk_${view}`] = { frames: walk, frameTicks: 4, loop: true };
   }
-  if (!withHarvest) return;
-  // Harvest is directionless (ANIMATION_GUIDE.md §3): a front-view one-shot.
-  for (let f = 0; f < HARVEST_POSES.length; f += 1) {
-    const pose = HARVEST_POSES[f] ?? STAND;
-    writePng(join(dir, `${entity}_harvest_${String(f)}.png`), paintView('s', pose, costume));
+
+  if (withHarvest) {
+    // Harvest is directionless (ANIMATION_GUIDE.md §3): a front-view one-shot.
+    const harvest = [];
+    for (let f = 0; f < HARVEST_POSES.length; f += 1) {
+      const pose = HARVEST_POSES[f] ?? STAND;
+      writePng(join(dir, `${entity}_harvest_${String(f)}.png`), paintView('s', pose, costume));
+      harvest.push(`${entity}_harvest_${String(f)}`);
+    }
+    animations[`${keyPrefix}harvest`] = { frames: harvest, frameTicks: 5, loop: false };
   }
+
+  // THE SIDECAR IS GENERATED WITH THE FRAMES, not hand-authored beside them.
+  // Phase-36 added two worker rigs, the sprites appeared, and every one of them
+  // was unreachable — `ANIMATIONS[...]` returned undefined and the renderer
+  // silently drew nothing, because the `.anim.json` files were written by hand
+  // and nobody remembers a file that is not in front of them. Art and the
+  // manifest that indexes it now cannot drift.
+  writeFileSync(join(dir, `${entity}.anim.json`), `${JSON.stringify(animations, null, 2)}
+`);
 }
 
 function main() {
-  writeCharacter('worker', WORKER);
+  // The base rig stays UNPREFIXED — an empty key prefix.
+  writeCharacter('worker', WORKER, true, '');
+  // The base rig stays UNPREFIXED. Its animation keys are bare (`walk_s`, not
+  // `worker_walk_s`) because it shipped first as the default, and renaming it
+  // would churn 21 tracked PNGs and an anim manifest for no visual gain.
+  writeCharacter('worker_b', WORKER_B);
+  writeCharacter('worker_c', WORKER_C);
   writeCharacter('player', PLAYER);
   // Phase-19: the villagers, on the same rig (CHARACTER_BIBLE §14 rule 2).
   writeCharacter('villager_a', VILLAGER_A, false);
   writeCharacter('villager_b', VILLAGER_B, false);
-  globalThis.console.log('generated worker + player + villager rigs');
+  globalThis.console.log('generated 3 worker rigs + player + 2 villager rigs');
 }
 
 main();

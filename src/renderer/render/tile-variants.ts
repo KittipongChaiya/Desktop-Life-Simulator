@@ -43,6 +43,16 @@ const VARIANTS: ReadonlyMap<string, readonly string[]> = new Map([
     [Sprites.terrainGrass, Sprites.terrainGrassB, Sprites.terrainGrass, Sprites.terrainGrassC],
   ],
   [Sprites.terrainWild, [Sprites.terrainWild, Sprites.terrainWildB]],
+  // Tilled soil joined in phase-35, and it is the one entry with a caveat.
+  // Phase-33 deliberately left it out: a field of furrows is a MADE thing, and
+  // varying the furrow geometry reads as a mistake rather than as nature. What
+  // the variants vary is the DEBRIS — a stone turned up by the plough, a weed
+  // nobody has pulled yet — which sits on the pattern instead of disturbing
+  // it, and is the field being worked rather than the field being untidy.
+  [
+    Sprites.terrainTilled,
+    [Sprites.terrainTilled, Sprites.terrainTilledB, Sprites.terrainTilled, Sprites.terrainTilledC],
+  ],
 ]);
 
 /**

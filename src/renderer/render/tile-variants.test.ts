@@ -86,6 +86,18 @@ describe('ground tile variants', () => {
     expect(bloomed / sprites.length).toBeLessThan(0.35);
   });
 
+  it('dresses tilled soil without varying the furrows', () => {
+    // Phase-35. The variants differ only in DEBRIS — a turned-up stone, an
+    // unpulled weed — and every one of them draws the identical furrow
+    // pattern, so a field still reads as one worked block rather than as
+    // several fields that happen to touch.
+    const seen = new Set(
+      Array.from({ length: 400 }, (_, tile) => variantSprite('terrain:tilled', asTileIndex(tile))),
+    );
+
+    expect([...seen].sort()).toEqual(['terrain:tilled', 'terrain:tilled_b', 'terrain:tilled_c']);
+  });
+
   it('varies wild ground too, on its own set', () => {
     const seen = new Set(
       Array.from({ length: 200 }, (_, tile) => variantSprite('terrain:wild', asTileIndex(tile))),

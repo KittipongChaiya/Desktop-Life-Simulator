@@ -77,6 +77,7 @@ function mixIndex(value) {
 }
 
 const GRASS_VARIANTS = ['grass', 'grass_b', 'grass', 'grass_c'];
+const TILLED_VARIANTS = ['tilled', 'tilled_b', 'tilled', 'tilled_c'];
 
 /** Draws one sprite with its BOTTOM edge on a tile, the way the world does.
  * @param {Canvas} canvas
@@ -101,7 +102,12 @@ function buildScene(seed) {
   // three regions the brief asks to be distinguishable at a glance (§8).
   /** @type {Map<string, Canvas>} */
   const tiles = new Map();
-  for (const name of [...new Set(GRASS_VARIANTS), 'wild', 'wild_b', 'path', 'tilled']) {
+  for (const name of [
+    ...new Set([...GRASS_VARIANTS, ...TILLED_VARIANTS]),
+    'wild',
+    'wild_b',
+    'path',
+  ]) {
     if (existsSync(terrain(name))) tiles.set(name, decodePng(terrain(name)));
   }
 
@@ -111,7 +117,8 @@ function buildScene(seed) {
       let name;
       if (col === 6) name = 'path';
       else if (col > 8) name = mixIndex(index) % 2 === 0 ? 'wild' : 'wild_b';
-      else if (col < 5 && row > 2 && row < 7) name = 'tilled';
+      else if (col < 5 && row > 2 && row < 7)
+        name = TILLED_VARIANTS[mixIndex(index) % TILLED_VARIANTS.length];
       else name = GRASS_VARIANTS[mixIndex(index) % GRASS_VARIANTS.length];
 
       const tile = tiles.get(name);

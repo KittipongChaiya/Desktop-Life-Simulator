@@ -18,6 +18,7 @@ import {
   interpolatedPosition,
   isColumnCulled,
   selectAnimation,
+  workerRig,
   workerAtTile,
 } from './worker-render';
 
@@ -201,5 +202,55 @@ describe('idle breathing', () => {
   it('actually moves over a cycle', () => {
     const samples = Array.from({ length: 60 }, (_, tick) => idleBob(tick, 7));
     expect(Math.max(...samples) - Math.min(...samples)).toBeGreaterThan(1);
+  });
+});
+
+describe('workerRig', () => {
+  it('gives the base rig an empty prefix, so its bare keys still resolve', () => {
+    // The worker rig shipped first as the default and its animation keys are
+    // bare (`walk_s`, not `worker_walk_s`). Some worker must still select it.
+    const prefixes = new Set(Array.from({ length: 200 }, (_, id) => workerRig(id)));
+
+    expect(prefixes.has('')).toBe(true);
+  });
+
+  it('uses every rig that exists, and invents none', () => {
+    const prefixes = new Set(Array.from({ length: 300 }, (_, id) => workerRig(id)));
+
+    expect([...prefixes].sort()).toEqual(['', 'worker_b_', 'worker_c_']);
+  });
+
+  it('is stable — a worker does not change clothes between frames', () => {
+    // A costume that moved would be a bug nobody could describe: the farm
+    // would shimmer as workers were redrawn.
+    for (const id of [0, 1, 7, 42, 1000]) {
+      const first = workerRig(id);
+      for (let repeat = 0; repeat < 5; repeat += 1) expect(workerRig(id)).toBe(first);
+    }
+  });
+
+  it('does not deal the rigs out in order to the first hires', () => {
+    // THE REASON THE HASH EXISTS. Worker ids are consecutive, so `id % 3`
+    // would make the first three hires exactly one of each, every game,
+    // forever — which reads as a rule rather than as people.
+    const first = Array.from({ length: 9 }, (_, id) => workerRig(id));
+    const cyclic = first.every((rig, index) => rig === first[index % 3]);
+
+    expect(cyclic, 'rigs repeat with period 3 — this is a modulo, not a hash').toBe(false);
+  });
+
+  it('prefixes every animation the selector can return', () => {
+    // The failure this catches is silent: `ANIMATIONS[key]` returns undefined
+    // and the renderer draws nothing at all, which is what happened when the
+    // rigs existed as sprites but had no manifest entries.
+    expect(selectAnimation(WorkerState.Moving, Direction.South, 'worker_b_')).toBe(
+      'worker_b_walk_s',
+    );
+    expect(selectAnimation(WorkerState.Idle, Direction.North, 'worker_c_')).toBe('worker_c_idle_n');
+    expect(selectAnimation(WorkerState.Working, Direction.East, 'worker_b_')).toBe(
+      'worker_b_harvest',
+    );
+    // And the base rig is unchanged, which is what keeps the committed art working.
+    expect(selectAnimation(WorkerState.Moving, Direction.South)).toBe('walk_s');
   });
 });

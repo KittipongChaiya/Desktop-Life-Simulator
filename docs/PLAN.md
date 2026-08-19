@@ -15,11 +15,11 @@ or disagrees with the CURRENT version's phase table — §5A.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                             |
-| ------------------- | --------------------------- |
-| **Current version** | **v0.5 — The Playable Cut** |
-| **Current phase**   | **34 — Buildings**          |
-| **Status**          | **IN_PROGRESS**             |
+|                     |                                      |
+| ------------------- | ------------------------------------ |
+| **Current version** | **v0.5 — The Playable Cut**          |
+| **Current phase**   | **37 — Density & The Three Regions** |
+| **Status**          | **IN_PROGRESS**                      |
 
 | Phase | Name                         | Status      |
 | ----- | ---------------------------- | ----------- |
@@ -140,13 +140,70 @@ its shadow and read muddy. A material with one value cannot be lit.
 **Found and fixed while here:** the mill and kitchen had NO row in
 `GENERATION.md` — phase-25 shipped them without recording provenance at all.
 
-REMAINING in 34: the market stall, well and notice board already carry their own
-silhouettes and are kept (ADR-041 does not license replacing what fits). The
-open item is a SCALE one the reviewed scene exposes and phase 34 cannot fix:
-**trees are 64×96 and buildings are 32×32**, so a Tier 3 prop is three times the
-Tier 2 structure beside it. Buildings cannot grow — they are top-left anchored
-to one tile, and bottom-anchoring them would move every placement, the build
-ghost and the click targets — so the tree has to come down, which is phase 37.
+**Phase 34 — COMPLETE.** The market stall, well and notice board already carry
+their own silhouettes and are KEPT — ADR-041 does not license replacing what
+fits.
+
+**Phase 35 — The Farm: COMPLETE, and smaller than expected because most of it
+was already right.** The audit's honest finding is that the crops are the best
+art in the game: four plants that are identifiable at a glance, four stages
+that differ meaningfully, and a mature stage that adds the produce in its own
+colour. Even stage 0 — which looks identical at a glance — already names its
+crop by a seed accent and, for pumpkin, a different mound count, with a comment
+saying exactly why. That is the "preserve what fits" rule doing its job, and
+rewriting it would have been churn dressed as progress.
+
+What was genuinely missing was **field dressing**. Tilled soil was one tile
+repeated, so a field was a grid. It has variants now — a stone turned up by
+the plough, a weed nobody has pulled — with ONE caveat recorded in
+`tile-variants.ts`: the variants vary the DEBRIS and never the furrows. A field
+of furrows is a made thing, and irregular geometry there reads as a mistake
+rather than as nature; debris sits on the pattern instead of disturbing it.
+Kept dull on purpose, because a bright weed competes with the crop beside it
+and the crop is Tier 1.
+
+DEFERRED from 35 to 37, with the reason: the brief asks the farm to show
+PROGRESSION — humble early, busy later, clearly lived in at the end. That is
+decor placement keyed to how much land the player owns, and decor planning is
+phase 37's subject. Today owned tiles carry no decor at all, which is why the
+farm reads bare however good the tiles are.
+
+**Phase 36 — Characters: COMPLETE.** Every worker on a farm drew the same
+sprites, which is the brief §9 complaint stated literally. There are three
+worker rigs now — same hat, same apron, different person underneath — chosen
+by `workerRig(id)`, derived from the worker id and never stored, the same
+argument the ground variants make.
+
+NOT ROLES, and this is a deliberate reading of the brief rather than a
+shortcut. It asks for workers distinguishable BY ROLE; the simulation has no
+role to read. `WorkerSchedule.taskKinds` is optional and most workers have
+none, so a role-keyed costume would leave the majority identical AND would
+change a worker's appearance when the player edited a schedule. Giving the
+simulation a real role concept to dress is a gameplay change, which the visual
+brief §22 forbids outright. So: people, not job titles.
+
+Villager B stopped wearing the grey-violet STONE ramp — that ramp is for cold
+rock and the brief names sterile grey directly. Warming it to cream was the
+first attempt and the contact sheet killed it immediately: the two villagers
+became one villager with different hair. Blue, which nobody else wears.
+
+**A silent bug, caught by looking:** the two new rigs' sprites generated
+correctly and were completely unreachable. `.anim.json` sidecars were authored
+BY HAND beside generated art, so the new rigs had none, `ANIMATIONS[key]`
+returned undefined, and the renderer drew nothing without erroring.
+`writeCharacter` emits the sidecar with the frames now, so art and the manifest
+that indexes it cannot drift again.
+
+**Faces are NOT changed, and that is a decision.** The brief asks for
+expressive faces. `CHARACTER_BIBLE` §4 says dark-dot eyes and no facial detail,
+and at a ~10 px head drawn at 1× on a small overlay it is right — R-16 forbids
+detail that dies at gameplay zoom. Expression has to come from silhouette,
+costume and motion instead, and motion is phase 39.
+
+DEFERRED from 36 to 37: **ambient creatures** (§10). Authoring butterflies and
+birds here would create art nothing places, which is the dead-state problem
+`AI_RULES.md` §1.5 names — the vocabulary grows when something consumes it.
+Phase 37 places decor; phase 39 moves it.
 
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 

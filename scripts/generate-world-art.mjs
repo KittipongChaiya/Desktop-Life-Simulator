@@ -175,17 +175,18 @@ function grassTile(seed = 1201, character = {}) {
  * The ridge is SOIL_RICH now rather than a wood colour — freshly-turned earth
  * catching the light. Wood on soil was the old palette having nothing else.
  * @returns {import('./lib/pixel-art.mjs').Canvas} */
-function tilledTile() {
+function tilledTile(seed = 1202, character = {}) {
+  const { stones = 0, weeds = 0 } = character;
   const canvas = createCanvas(TILE, TILE);
   fill(canvas, () => TILLED_SOIL);
-  const rng = prng(1202);
+  const rng = prng(seed);
 
-  // FULL-WIDTH furrows, period 4. The first attempt broke the groove into
-  // scattered pixels and the reviewed scene showed the result: at 1x a whole
-  // field averaged into one flat brown slab, because a texture that survives
-  // 4x inspection can vanish entirely at the size the game is played at.
-  // Corduroy is what a ploughed field looks like from above, and it also gives
-  // the crops standing on it a direction to sit against.
+  // FULL-WIDTH furrows, period 4, and IDENTICAL in every variant. The first
+  // attempt broke the groove into scattered pixels and the reviewed scene
+  // showed the result: at 1x a whole field averaged into one flat brown slab,
+  // because a texture that survives 4x inspection can vanish at the size the
+  // game is played at. Corduroy is what a ploughed field looks like from
+  // above, and it gives the crops standing on it a direction to sit against.
   for (let y = 2; y < TILE; y += 4) {
     for (let x = 0; x < TILE; x += 1) {
       // The groove: two rows dark, so the shadow has width at 1x.
@@ -202,6 +203,29 @@ function tilledTile() {
     const x = Math.floor(rng() * TILE);
     const y = Math.floor(rng() * TILE);
     set(canvas, x, y, rng() < 0.5 ? SOIL_RICH : SOIL_DARK);
+  }
+
+  // THE VARIANTS VARY THE DEBRIS, NEVER THE FURROWS. Phase-33 said tilled soil
+  // is not varied at all, and that was half right: a field of furrows is a MADE
+  // thing, and irregular furrow geometry reads as a mistake rather than as
+  // nature. Stones and weeds are the opposite — they are the field being
+  // worked and lived in, which is what the brief asks a farm to show, and they
+  // sit ON the pattern instead of disturbing it.
+  for (let i = 0; i < stones; i += 1) {
+    const x = 2 + Math.floor(rng() * (TILE - 4));
+    const y = 2 + Math.floor(rng() * (TILE - 4));
+    set(canvas, x, y, STONE_WARM_DARK);
+    set(canvas, x + 1, y, STONE_WARM_DARK);
+    set(canvas, x, y - 1, STONE_WARM_LIGHT);
+  }
+  for (let i = 0; i < weeds; i += 1) {
+    const x = 2 + Math.floor(rng() * (TILE - 4));
+    const y = 4 + Math.floor(rng() * (TILE - 6));
+    // Small and DULL. A bright weed competes with the crop standing beside it,
+    // and the crop is Tier 1 (`ART_DIRECTION.md` §9.1).
+    set(canvas, x, y, GRASS_SHADOW);
+    set(canvas, x, y - 1, GRASS_SHADOW);
+    set(canvas, x + 1, y - 1, GRASS_BASE);
   }
   return canvas;
 }
@@ -948,7 +972,12 @@ function main() {
     [terrainDir, 'grass.png', () => grassTile(1201, { tufts: 6 })],
     [terrainDir, 'grass_b.png', () => grassTile(1211, { tufts: 11 })],
     [terrainDir, 'grass_c.png', () => grassTile(1221, { tufts: 8, blooms: 3 })],
-    [terrainDir, 'tilled.png', tilledTile],
+    // Tilled variants dress the FIELD without touching the furrows — see
+    // `tilledTile`. Two plain to one dressed, so a field reads as worked
+    // ground with things in it rather than as a scatter of debris.
+    [terrainDir, 'tilled.png', () => tilledTile(1202, {})],
+    [terrainDir, 'tilled_b.png', () => tilledTile(1212, { stones: 2 })],
+    [terrainDir, 'tilled_c.png', () => tilledTile(1222, { weeds: 3, stones: 1 })],
     [terrainDir, 'water.png', waterTile],
     [terrainDir, 'stone.png', stoneTile],
     [terrainDir, 'path.png', pathTile],

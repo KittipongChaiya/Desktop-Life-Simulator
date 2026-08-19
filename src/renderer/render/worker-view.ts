@@ -42,6 +42,7 @@ import {
   interpolatedPosition,
   isColumnCulled,
   selectAnimation,
+  workerRig,
   type AnimationDef,
 } from './worker-render';
 
@@ -196,7 +197,8 @@ export function createWorkerRenderer(options: WorkerRendererOptions): WorkerRend
         ? glanceAway(entry.current.facing, entry.current.id, update.tick)
         : entry.current.facing;
 
-    const def = ANIMATIONS[selectAnimation(entry.current.state, facing)];
+    const def =
+      ANIMATIONS[selectAnimation(entry.current.state, facing, workerRig(entry.current.id))];
     if (def === undefined) return;
     entry.sprite.texture = textureFor(currentFrame(def, update.tick));
 

@@ -89,10 +89,49 @@ const DIRECTION_SUFFIX: Readonly<Record<Direction, string>> = {
  *
  * It has no facing variants, so it is returned unsuffixed.
  */
-export function selectAnimation(state: WorkerState, facing: Direction): string {
-  if (state === WorkerState.Working) return 'harvest';
+export function selectAnimation(state: WorkerState, facing: Direction, rig: string = ''): string {
+  if (state === WorkerState.Working) return `${rig}harvest`;
   const action = state === WorkerState.Moving ? 'walk' : 'idle';
-  return `${action}_${DIRECTION_SUFFIX[facing]}`;
+  return `${rig}${action}_${DIRECTION_SUFFIX[facing]}`;
+}
+
+/**
+ * Which of the three worker rigs a worker wears. Phase-36.
+ *
+ * A farm staffed by one person printed several times is what the brief §9
+ * names directly, and it was literally true: every worker drew the same
+ * sprites. Three costumes now exist — same hat, same apron, different person
+ * underneath.
+ *
+ * DERIVED FROM THE WORKER ID, NOT STORED. The same argument the ground
+ * variants make (`tile-variants.ts`) and the same one ADR-009 §1 makes for
+ * tilled soil: a costume field would need a save migration, would be a second
+ * source of truth, and could drift. It must also be STABLE — a worker who
+ * changed clothes when they walked behind a tree would be a bug nobody could
+ * describe.
+ *
+ * NOT A ROLE. `WorkerSchedule.taskKinds` is the closest thing the simulation
+ * has, it is optional, and most workers have none — so a role-keyed costume
+ * would leave the majority identical and would change a worker's appearance
+ * when the player edited a schedule. Giving the simulation a real role concept
+ * to dress would be a gameplay change, which this pass does not license.
+ *
+ * The base rig's prefix is the EMPTY STRING because its animation keys are
+ * bare (`walk_s`, not `worker_walk_s`) — it shipped first as the default, and
+ * renaming it would churn 21 tracked sprites and an animation manifest for no
+ * visual gain.
+ */
+export function workerRig(id: number): string {
+  const RIGS = ['', 'worker_b_', 'worker_c_'];
+  // MurmurHash3's finalizer: consecutive worker ids must not march through the
+  // rigs in order, or the first three hires are always one of each.
+  let hash = id | 0;
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x21f0aaad);
+  hash ^= hash >>> 15;
+  hash = Math.imul(hash, 0x735a2d97);
+  hash ^= hash >>> 15;
+  return RIGS[(hash >>> 0) % RIGS.length] ?? '';
 }
 
 /**
