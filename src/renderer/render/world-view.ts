@@ -672,9 +672,10 @@ export async function createWorldView(options: WorldViewOptions): Promise<WorldV
       // composes with the other (ADR-021 §6). Change-gated inside the renderer
       // — this runs every frame and does something a handful of times a year.
       //
-      // Weather joined the ground in phase-33: rain had been audible since
-      // phase-13 and invisible ever since, which is the one weather state the
-      // player could hear and not see.
+      // Weather joined the ground in phase-33. The falling drops below have
+      // existed since phase-12d, but they are ambient motion: off by default,
+      // and surrendered once the pointer idles. The tint is the half that
+      // survives an overlay somebody is not looking at.
       terrain.setWorldTint(
         composeTints(
           seasonTint(options.world.seasonRegistry, options.world.snapshots.time.value.season),

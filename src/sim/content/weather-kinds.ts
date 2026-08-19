@@ -63,13 +63,20 @@ export interface WeatherKindDefinition {
    *
    * PRESENTATION ONLY, exactly like `SeasonDefinition.tint`, and optional so
    * that weather shipped by an existing plugin keeps working and simply does
-   * not change the light. Rain had been AUDIBLE since phase-13 and invisible
-   * ever since: the ambience bed played and the world looked like a clear day.
+   * not change the light.
    *
-   * A tint rather than a particle layer because it costs nothing that survives
-   * idle — it is one assignment per visible chunk when the weather turns, and
-   * no per-frame work at all (ADR-001 §1, ADR-041 §5). Falling rain is motion
-   * and belongs to the motion phase, under ADR-017 §2's conditions.
+   * WHY A TINT WHEN FALLING DROPS ALREADY EXIST. `rain-view.ts` has drawn rain
+   * since phase-12d, and it is correct — but it is ambient motion under
+   * ADR-017 §2, so it is OFF BY DEFAULT (`DEFAULT_MOTION_SETTINGS.environmental`
+   * is false) and, once switched on, it surrenders the frame loop the moment
+   * the pointer goes idle. In the mode this product is actually built for —
+   * left open in the corner while somebody works — those two rules mean the
+   * world looks like a clear day whatever the sky is doing.
+   *
+   * A tint is the half that survives that. It costs one assignment per visible
+   * chunk when the weather turns and no per-frame work at all (ADR-001 §1),
+   * so it can be on always without holding a lease — which is exactly what
+   * ADR-017 §2 refuses to let the drops do.
    */
   readonly tint?: number;
 }

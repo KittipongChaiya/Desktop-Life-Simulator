@@ -106,9 +106,13 @@ contact sheet:
   of what a multiply tint can do; the structural limit is recorded in
   `ART_DIRECTION.md` §9.3 along with what it would cost to lift it.
 
-**Phase 33 — COMPLETE**, weather included. Rain had been audible since
-phase-13 and invisible ever since; weather now declares a ground tint the way a
-season does, and the two multiply (`src/renderer/render/tint.ts`). A tint and
+**Phase 33 — COMPLETE**, weather included — with a CORRECTION recorded in
+phase-39: rain was never invisible. `rain-view.ts` has drawn falling drops
+since phase-12d. What is true is that they are ambient motion, so they are off
+by default and surrender when the pointer idles — meaning an overlay left open
+beside real work shows a clear day whatever the weather. Weather now also
+declares a ground tint (`src/renderer/render/tint.ts`), which is the half that
+survives that. A tint and
 not particles because it costs nothing that survives idle — falling rain is
 motion, and motion is phase 39. `ART_DIRECTION.md` §9.3 records what a multiply
 CANNOT do: autumn reaches olive but not brown, and winter cannot have snow.

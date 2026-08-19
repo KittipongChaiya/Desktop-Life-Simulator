@@ -168,16 +168,24 @@ seasons are now distinguishable at 1×, which they were not before.
 
 ### Weather joins the same slot
 
-**Rain was audible and invisible.** `isRaining` has driven the ambience bed
-since phase-13, so a player could HEAR rain while the world looked like a clear
-day — which is the one weather state the game could describe and not show.
+**Correction, phase-39.** An earlier draft of this section said rain was
+"audible and invisible". That was wrong, and the commit that introduced the
+weather tint repeats the error: Rain has had a VISUAL since phase-12d — falling drops on layer 4 (`rain-view.ts`, ADR-022 §6). What it did not have is one that survives the way this product is used.
 
-Weather now declares a ground tint exactly as a season does, and the two are
-multiplied together (`src/renderer/render/tint.ts`). A tint rather than falling
-particles because it costs **nothing that survives idle**: one assignment per
-visible chunk when the weather turns, and no per-frame work at all. Falling
-rain is motion, it is governed by ADR-017 §2's five conditions, and it belongs
-to the motion phase rather than to the ground.
+The real gap is narrower and more interesting. Those drops are **ambient
+motion** under ADR-017 §2, which means two things: they are OFF BY DEFAULT
+(`DEFAULT_MOTION_SETTINGS.environmental` is `false`), and once enabled they
+surrender the frame loop the moment the pointer goes idle. Both rules are
+right — they are what stops this window burning a core in the corner of
+somebody's screen. But together they mean that in the mode the product is
+designed for, _left open while you work_, the world looks like a clear day
+whatever the weather is.
+
+So weather now also declares a GROUND TINT, multiplied with the season's
+(`src/renderer/render/tint.ts`). Not instead of the drops — alongside them.
+The tint is the half that can be on always, because it costs one assignment
+per visible chunk when the weather turns and no per-frame work at all, which
+is precisely what ADR-017 §2 refuses to let a particle layer do.
 
 The rain tint is deliberately gentle. The brief asks for rain that looks cozy,
 and this window sits beside real work for hours — so the ground should read as

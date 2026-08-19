@@ -84,12 +84,16 @@ describe('every season has weather', () => {
 });
 
 describe('the weather tint (phase-33)', () => {
-  it('gives rain a tint at all — it was audible and invisible for a version', () => {
-    // THE GAP THIS CLOSED. `isRaining` has driven the ambience bed since
-    // phase-13, so a player could HEAR rain while the world looked like a
-    // clear day. Read through the installed registries, like everything else
-    // in this file: what is pinned is that core's rainy weather declares a
-    // tint and that the tint does something, not which blue it is.
+  it('gives rain a tint at all, so weather shows on an idle overlay', () => {
+    // THE GAP THIS CLOSED, stated correctly. Falling drops have existed since
+    // phase-12d, but they are ambient motion (ADR-017 §2): off by default, and
+    // surrendered once the pointer idles. An overlay left open beside real
+    // work therefore showed a clear day whatever the weather. A tint costs no
+    // per-frame work, so it can be on always.
+    //
+    // Read through the installed registries, like everything else in this
+    // file: what is pinned is that core's rainy weather declares a tint and
+    // that the tint does something, not which blue it is.
     const registry = kinds();
     const rain = registry.get(CORE_RAIN);
 
