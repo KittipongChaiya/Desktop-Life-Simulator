@@ -135,7 +135,6 @@ function playTheArc(seed: number, cropId: Parameters<typeof plantCrop>[2]): ArcR
 
   for (let elapsed = 0; elapsed < FOUR_HOURS_TICKS && stallAtTick === null; elapsed += ACT_EVERY) {
     stepSimulationBy(world, ACT_EVERY);
-    peakCoins = Math.max(peakCoins, world.wallet.coins);
 
     // 1. HARVEST everything ripe. Value that exists is worth more realised.
     for (const crop of [...world.crops.values()]) {
@@ -154,17 +153,54 @@ function playTheArc(seed: number, cropId: Parameters<typeof plantCrop>[2]): ArcR
       sellItems(world, stack.item, stack.quantity);
     }
 
-    // 3. BUY the next stage the moment it is affordable, in arc order.
-    if (hiredAtTick === null && world.wallet.coins >= hireCost(world.workers.size)) {
+    // 3. BUY the next stage, in arc order — but KEEP THE SEED MONEY.
+    //
+    // ## The bug this rule exists to stop the model reproducing, found at phase 61
+    //
+    // The model used to buy the moment it could afford the price, full stop.
+    // Measured against every crop a spring farm can open on, that put a
+    // strawberry farm into a state it never left: it bought the seed bin down
+    // to **4 coins while holding no crops and no seeds**, and a strawberry seed
+    // costs 8. `affordable` is then `floor(4 / 8)`, which is zero — so it
+    // planted nothing, harvested nothing, earned nothing, and sat at four coins
+    // for the remaining three and a half hours of simulated time.
+    //
+    // The arc reported NEVER, and the obvious reading — "strawberry cannot
+    // complete the arc" — is wrong. Run without the building policy, the same
+    // farm earns **66,720 coins** across the same four hours. The crop is fine;
+    // the shopper was not.
+    //
+    // This header says the policy is "what a well-informed player does".
+    // Spending past the price of a seed is not that, and a model that does it
+    // measures its own bad habit rather than the economy.
+    //
+    // ## The product finding underneath, which is NOT fixed here
+    //
+    // The game will let a player do exactly this. Nothing refuses a purchase
+    // that leaves the farm with no crops, no seeds, and less than one seed's
+    // worth of coins, and from there the farm has no way to earn — which for a
+    // game whose whole promise is that you can walk away is worse than an
+    // ordinary bad move. It is recorded in the phase 61 document rather than
+    // patched, because a safety net is a SYSTEM and ADR-046 §1 binds v0.6 to
+    // content. `GAME_DESIGN.md` §6.4 carries the open question.
+    const seedPrice = world.itemRegistry.get(seedItem);
+    const oneSeed = seedPrice.ok ? seedPrice.value.basePrice : 0;
+    // Enough to re-sow a quarter of the plot, which is the smallest reserve
+    // that reliably restarts a farm holding nothing.
+    const reserve = oneSeed * 16;
+    const canSpend = (cost: number): boolean =>
+      world.wallet.coins >= cost + (world.crops.size === 0 ? reserve : 0);
+
+    if (hiredAtTick === null && canSpend(hireCost(world.workers.size))) {
       if (hireWorker(world, toIndexUnchecked(35, 35)).ok) hiredAtTick = world.tick;
     }
-    if (shedAtTick === null && world.wallet.coins >= costOf(CORE_STORAGE_SHED)) {
+    if (shedAtTick === null && canSpend(costOf(CORE_STORAGE_SHED))) {
       if (placeBuilding(world, spots[0]!, CORE_STORAGE_SHED).ok) shedAtTick = world.tick;
     }
-    if (binAtTick === null && world.wallet.coins >= costOf(CORE_SEED_BIN)) {
+    if (binAtTick === null && canSpend(costOf(CORE_SEED_BIN))) {
       if (placeBuilding(world, spots[1]!, CORE_SEED_BIN).ok) binAtTick = world.tick;
     }
-    if (world.wallet.coins >= costOf(CORE_MARKET_STALL)) {
+    if (canSpend(costOf(CORE_MARKET_STALL))) {
       if (placeBuilding(world, spots[2]!, CORE_MARKET_STALL).ok) stallAtTick = world.tick;
     }
 
@@ -190,6 +226,16 @@ function playTheArc(seed: number, cropId: Parameters<typeof plantCrop>[2]): ArcR
 
     for (const tile of bare) tillTile(world, tile);
     for (const tile of empty) plantCrop(world, tile, cropId);
+
+    // PEAK IS SAMPLED HERE, not at the top of the loop. It used to be read
+    // immediately after `stepSimulationBy`, which is the one moment in the
+    // cycle when the purse is always empty — the previous iteration had just
+    // sold everything and spent it. Every failing run therefore reported
+    // `peak 100`, the starting float, including runs that had demonstrably
+    // held over a thousand coins to buy a seed bin. A diagnostic that reads
+    // the same number whatever happened is worse than no diagnostic, because
+    // it gets quoted.
+    peakCoins = Math.max(peakCoins, world.wallet.coins);
   }
 
   return {
@@ -249,6 +295,76 @@ describe('the four-stage arc, timed', () => {
       'the arc collapsed: a perfect player now reaches stage 4 in under five ' +
         'minutes, which is a balance regression rather than an improvement',
     ).toBeGreaterThan(FLOOR_TICKS);
+  }, 900_000);
+
+  it('holds its floor and its ceiling for EVERY crop a new farm can plant', () => {
+    // PHASE-61, and the reason this test needed a second case after six
+    // versions of having one.
+    //
+    // The arc has always been measured with turnips, because turnips were the
+    // only crop a farm could plant on day one — the other three were seasonal
+    // and the model starts in spring. v0.6 put six crops in spring, and each of
+    // them is a different opening: the pea is cheaper and faster than a turnip,
+    // the leek is longer and cheaper than wheat, the flax is the most expensive
+    // thing a beginner can afford to try.
+    //
+    // A perfect player picks the best opening available, so the arc's real
+    // bound is the FASTEST of these, not the turnip's. Measuring one crop and
+    // calling it the arc was correct when there was one; it is now a sample.
+    //
+    // ADR-046 §4 delegates balance for v0.6 and ADR-044 sets the standard: a
+    // change needs a measurement behind it. This is that measurement, and it
+    // is deliberately a GUARD rather than a target — the same floor and ceiling
+    // the turnip case uses, applied to every opening, so a future crop priced
+    // wrongly cannot quietly become a shortcut past stage 2.
+    const SPRING_CROPS = [
+      'core:pea',
+      'core:turnip',
+      'core:strawberry',
+      'core:leek',
+      'core:wheat',
+      'core:flax',
+    ] as const;
+
+    const FLOOR_TICKS = 5 * 60 * 20;
+
+    // EVERY crop is run before anything is asserted, and the table is printed
+    // either way. A fail-fast loop reports the first crop that breaks and hides
+    // the other five, which is the opposite of what a balance measurement is
+    // for — the useful artefact is the whole table, especially when a row is
+    // wrong.
+    const runs = SPRING_CROPS.map((crop) => ({
+      crop,
+      run: playTheArc(4242, crop as Parameters<typeof plantCrop>[2]),
+    }));
+
+    globalThis.console.table(
+      runs.map(({ crop, run }) => ({
+        crop,
+        hire: run.hiredAtTick === null ? 'never' : readable(run.hiredAtTick),
+        shed: run.shedAtTick === null ? 'never' : readable(run.shedAtTick),
+        bin: run.binAtTick === null ? 'never' : readable(run.binAtTick),
+        stall: run.stallAtTick === null ? 'NEVER' : readable(run.stallAtTick),
+        peak: run.peakCoins,
+      })),
+    );
+
+    const stalled = runs
+      .filter(({ run }) => run.stallAtTick === null)
+      .map(({ crop, run }) => `${crop} (peak ${String(run.peakCoins)} coins)`);
+    expect(
+      stalled,
+      `these openings never reach stage 4 within four hours: ${stalled.join(', ')}`,
+    ).toEqual([]);
+
+    const collapsed = runs
+      .filter(({ run }) => (run.stallAtTick ?? Number.POSITIVE_INFINITY) <= FLOOR_TICKS)
+      .map(({ crop, run }) => `${crop} (${readable(run.stallAtTick ?? 0)})`);
+    expect(
+      collapsed,
+      `these openings collapse the arc to under five minutes, which is a balance ` +
+        `regression rather than an improvement: ${collapsed.join(', ')}`,
+    ).toEqual([]);
   }, 900_000);
 
   it('reaches stage 2 — the emotional core — inside the first half hour', () => {

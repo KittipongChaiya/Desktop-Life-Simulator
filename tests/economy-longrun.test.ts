@@ -144,33 +144,51 @@ describe('full idle: 8 hours unattended (crit 19 — the product thesis)', () =>
 });
 
 describe('balance: longer crops are strictly better coins/sec (crit 21)', () => {
-  it('holds across the §3.1 table, seed costs included', () => {
-    const registry = createInstalledRegistries().crops;
-
-    // coins/sec/tile = (sale base − seed cost) / growth seconds. The yield is
-    // 1 for every v0.1 crop; sale bases come from the item table (§3.1).
-    const saleBase: Record<string, number> = {
-      'core:turnip': 12,
-      'core:wheat': 34,
-      'core:carrot': 80,
-      'core:pumpkin': 230,
+  it('keeps the v0.1 curve exactly where §3.2 says it is', () => {
+    // ## What this test is, after phase 55
+    //
+    // It used to do two jobs with a hardcoded price table of four crops: check
+    // that rates rise across the whole registry in registration order, and pin
+    // the endpoints. v0.6 registered eight more crops, and both halves broke —
+    // the price table returned `undefined` for every new crop (giving negative
+    // rates), and registration order stopped being rate order the moment a
+    // 60-second pea was appended after a 1,200-second pumpkin.
+    //
+    // **The ordering half moved to `tests/crop-curve.test.ts`**, where it is
+    // asserted properly: against the live item registry, across all twelve
+    // crops, on rate rather than on the order they happen to be registered in.
+    // That is strictly stronger than what was here.
+    //
+    // What is left is the half that only this test can do: **the v0.1 curve is
+    // a historical anchor**, and §3.2's prose quotes its numbers. "A player
+    // checking in every minute or so is best served by turnips and earns 0.078
+    // per tile per second... a player who plants pumpkins earns 0.142 — nearly
+    // twice as much for a fraction of the attention." If those three numbers
+    // drift, that paragraph becomes false and nothing else would notice.
+    //
+    // Pinned BY ID rather than by index, because index 0 and index 3 meaning
+    // turnip and pumpkin is exactly the kind of coincidence that broke the
+    // other half.
+    const registry = createInstalledRegistries();
+    const rateOf = (cropId: string): number => {
+      const crop = registry.crops.get(cropId as never);
+      expect(crop.ok, `${cropId} is not registered`).toBe(true);
+      if (!crop.ok) return 0;
+      const item = registry.items.get(crop.value.harvestYield[0]?.item ?? ('' as never));
+      expect(item.ok, `${cropId} yields an unregistered item`).toBe(true);
+      const sale = item.ok ? item.value.basePrice : 0;
+      return (sale - crop.value.seedCost) / (crop.value.growthTicks / 20);
     };
-    const rates = registry.all().map((crop) => ({
-      id: crop.id,
-      rate: ((saleBase[crop.id] ?? 0) - crop.seedCost) / (crop.growthTicks / 20),
-    }));
 
-    // Registration order is §3.1 order: turnip, wheat, carrot, pumpkin.
-    for (let i = 1; i < rates.length; i += 1) {
-      expect(rates[i]!.rate).toBeGreaterThan(rates[i - 1]!.rate);
-    }
-    // Pin the endpoints so a rebalance cannot silently flatten the curve.
+    const turnip = rateOf('core:turnip');
+    const pumpkin = rateOf('core:pumpkin');
+
     // Halved in 07.9 with the uniform doubling of every growth time (§3.1):
     // the same curve, walked at half speed — the RATIO between the ends, which
     // is what §3.2 actually rests on, is unchanged at 1.82×.
-    expect(rates[0]!.rate).toBeCloseTo(0.078, 3);
-    expect(rates[3]!.rate).toBeCloseTo(0.142, 3);
-    expect(rates[3]!.rate / rates[0]!.rate).toBeCloseTo(1.82, 2);
+    expect(turnip).toBeCloseTo(0.078, 3);
+    expect(pumpkin).toBeCloseTo(0.142, 3);
+    expect(pumpkin / turnip).toBeCloseTo(1.82, 2);
   });
 });
 

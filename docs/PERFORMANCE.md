@@ -795,3 +795,37 @@ rediscovering it.
 **ADR-003 §2's trigger for moving the simulation off the main thread (p99 > 3
 ms) remains unmet, by roughly an order of magnitude**, which is why phase 29
 stayed CONDITIONAL and stays so.
+
+---
+
+## 19. Phase-61 measurement — what v0.6's content costs the tick loop
+
+**One number, measured, and it is a runner number rather than a game one.**
+
+`tests/memory-longrun.test.ts` steps a reference farm through 576,000 ticks —
+eight accelerated hours — and asserts heap growth stays under 25 MB. At the v0.6
+content freeze:
+
+|                                      |                                               |
+| ------------------------------------ | --------------------------------------------- |
+| Wall-clock, alone on an idle machine | **502 s**                                     |
+| Wall-clock, inside the full suite    | **605 s** (timed out at the old 600 s budget) |
+| Heap growth                          | **inside the 25 MB ceiling**                  |
+
+**The ceiling passed. The stopwatch did not.** That distinction is the whole of
+this section: v0.6 did not make the simulation leak, it made it slower to
+simulate — twelve crops where there were four, twenty-nine items where there
+were thirteen, nine recipes where there were two. The tick loop resolves more
+content per tick, and 576,000 ticks multiply it.
+
+**What is NOT claimed here.** This is not a per-tick cost measurement. It is a
+wall-clock figure for a test harness under Vitest, and §10.1's rule stands: the
+simulation's real cost is measured deliberately, uninstrumented, on a quiet
+machine. What this number is good for is sizing a timeout, and that is what it
+was used for — the budget went to 900 s, with the measurement recorded beside
+the constant.
+
+**What would be worth measuring next**, and is not measured here: whether the
+per-tick cost of the market scales with the ITEM COUNT. Twenty-nine items is
+still small, but the shape of that relationship decides whether a v0.7 content
+pass is free or expensive, and nothing currently answers it.

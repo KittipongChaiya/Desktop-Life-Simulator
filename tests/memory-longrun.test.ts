@@ -86,7 +86,29 @@ function settledHeapBytes(): number {
  * a tick system", and a grid widening is that in every respect that matters
  * here.
  */
-const EIGHT_HOUR_RUN_TIMEOUT_MS = 600_000;
+const EIGHT_HOUR_RUN_TIMEOUT_MS = 900_000;
+
+/*
+ * RAISED 600 s -> 900 s AT PHASE 61, with the measurement that justified it.
+ *
+ * This timed out at 605 s inside the full v0.6 suite. Measured alone on an idle
+ * machine it takes **502 s and passes**, and the memory ceiling it exists to
+ * check — 25 MB of growth over 576,000 ticks — is not the thing that failed:
+ * heap growth was inside budget, the runner simply ran out of patience.
+ *
+ * 502 s against a 600 s budget is 84% of the allowance spent before anything
+ * else on the machine competes, and a full suite reliably adds about a fifth
+ * (`tests/long-run-budget.ts` records the same effect on `catch-up.test.ts`).
+ * The margin was gone; this restores it.
+ *
+ * **Why the runner and not the game.** The header above already fixed this
+ * rule: "the runner, not the game, should gain headroom in the same commit that
+ * adds a tick system". v0.6 added no system, but it roughly doubled the content
+ * the tick loop resolves — twelve crops against four, twenty-nine items against
+ * thirteen — and that is the same argument for the same reason. What the
+ * simulation actually costs is measured deliberately, uninstrumented, in
+ * `PERFORMANCE.md`; a timeout here detects a hang.
+ */
 
 describe('memory growth over 8 accelerated hours (criterion 26)', () => {
   it(
