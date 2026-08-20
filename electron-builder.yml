@@ -23,7 +23,8 @@ files:
 # carries a SHA-512 per artifact, and a mismatch discards the download before
 # anything on disk is touched.
 #
-# The exception EXPIRES AT 0.3.0 and `tests/signing-exception.test.ts` is what
+# The exception EXPIRES AT 0.7.0 — extended from 0.3.0 by the owner at v0.6,
+# recorded with its reason in ADR-028 §5.1 — and `tests/signing-exception.test.ts` is what
 # enforces it: add any signing key below and that test goes quiet by itself.
 # Never self-sign (ADR-028 §Alternatives C) — it removes no warning, proves no
 # identity, and turns an honest absence into something that looks like

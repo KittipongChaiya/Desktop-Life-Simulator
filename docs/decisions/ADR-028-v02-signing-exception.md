@@ -59,7 +59,43 @@ An unsigned build must be distinguishable from a build whose signing configurati
 
 A temporary security relaxation that relies on someone remembering it is a permanent one. So the expiry is executable: **a build at version 0.3.0 or above with no signing configuration fails the test suite.**
 
-`tests/signing-exception.test.ts` reads the version from `package.json` and the configuration from `electron-builder.yml`, using the project's own `compareVersions` — the same arithmetic the updater uses to order releases. Below 0.3.0 it asserts the marker is present and honest. At 0.3.0 it fails until signing is wired, and its failure message says why.
+`tests/signing-exception.test.ts` reads the version from `package.json` and the configuration from `electron-builder.yml`, using the project's own `compareVersions` — the same arithmetic the updater uses to order releases. Below the expiry it asserts the marker is present and honest. At the expiry it fails until signing is wired, and its failure message says why.
+
+### 5.1 The exception has been extended, and every extension is listed here
+
+**This section exists because §5's mechanism has one weakness**: the expiry is a
+version number in a test, and a version number can be raised in one keystroke by
+a session that finds it inconvenient. A relaxation that is renewed silently is a
+permanent one wearing a temporary label.
+
+So renewals are recorded here, by hand, and the guard checks this table rather
+than only the constant:
+
+| Extended to | When       | Authorised by                                     | Why                                                                                                                                           |
+| ----------- | ---------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0.3.0`     | 2026-08-13 | Project owner, to unblock the v0.2 release        | The original decision above                                                                                                                   |
+| `0.7.0`     | 2026-08-20 | Project owner, explicitly, at the opening of v0.6 | The certificate is still not purchased, and holding the version string at `0.1.0` for a fourth release was doing more harm than the exception |
+
+**What the second row bought.** The version string had been frozen at `0.1.0`
+since v0.1 — four milestones of work shipping under a number that described none
+of them — because raising it past `0.2.x` trips this guard. That is the guard
+working, but the effect was that the SHIPPING VERSION lied rather than the
+signing status. `package.json` now reads `0.6.0`.
+
+**What it did not buy.** Nothing about the threat model in §3 changes. An
+unsigned build is still unsigned, the root of trust is still the release host
+and the TLS chain, and a compromise of the publishing account is still not
+caught. **The exception now blocks publication rather than development**, which
+is where the owner asked for it to sit.
+
+**Two new obligations came with it**, both enforced by the guard:
+
+1. **`PLAN.md` §0 must name code signing as a blocker** for as long as the
+   exception holds. A resume block that does not mention it lets the next
+   session inherit an unsigned build without being told.
+2. **This table must name the version the guard expires at.** Raising
+   `EXPIRES_AT` without adding a row here fails the suite, so an extension costs
+   a written justification rather than a keystroke.
 
 This is the mechanism `AI_RULES.md` §1.5 prefers over a comment: the decision is enforced where it can be observed, not stated where it can be scrolled past.
 

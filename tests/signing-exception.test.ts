@@ -58,8 +58,16 @@ const SIGNING_KEYS = [
 const isSigningConfigured = (config: string): boolean =>
   SIGNING_KEYS.some((key) => config.includes(key));
 
-/** The version at which ADR-028's exception ends. */
-const EXPIRES_AT = '0.3.0';
+/**
+ * The version at which ADR-028's exception ends.
+ *
+ * Raised from `0.3.0` at phase 62, by the owner's explicit direction, and
+ * **raising it is no longer a one-line change**: ADR-028 §5.1 now carries a
+ * table of every extension, and the test below requires this number to appear
+ * in it. An exception that can be renewed by editing a constant is renewed
+ * silently; one that needs a row with a date and a reason is not.
+ */
+const EXPIRES_AT = '0.7.0';
 
 describe('the ADR-028 signing exception', () => {
   it('names a version this project can actually order', () => {
@@ -103,5 +111,45 @@ describe('the ADR-028 signing exception', () => {
     expect(adr).toContain('Narrows:');
     expect(adr).toContain('ADR-025 §3');
     expect(adr).toContain(EXPIRES_AT);
+  });
+
+  it('makes an extension cost a written row, not a keystroke', () => {
+    // §5's weakness, named at phase 62: the expiry is a constant, and a
+    // constant can be raised by a session that finds it inconvenient. §5.1 is
+    // the table of extensions, and this is what makes writing in it mandatory —
+    // the version above must appear in a row that also carries a date.
+    if (isSigningConfigured(builderConfig())) return; // the exception is over
+
+    const adr = readFileSync(join(ROOT, 'docs/decisions/ADR-028-v02-signing-exception.md'), 'utf8');
+    const rows = adr
+      .split('\n')
+      .filter((line) => line.startsWith('|') && line.includes(`\`${EXPIRES_AT}\``));
+
+    expect(
+      rows.length,
+      `ADR-028 §5.1 has no extension row for ${EXPIRES_AT}. Raising the expiry ` +
+        `requires recording when, who authorised it, and why.`,
+    ).toBeGreaterThan(0);
+    expect(
+      rows.some((row) => /\d{4}-\d{2}-\d{2}/.test(row)),
+      `the §5.1 row for ${EXPIRES_AT} carries no date`,
+    ).toBe(true);
+  });
+
+  it('keeps the blocker in front of the next session', () => {
+    // The second obligation ADR-028 §5.1 takes on. An unsigned build is a
+    // BLOCKER, and `PLAN.md` §0 is the block a resuming session reads first —
+    // `project-state.md` makes the repository the source of truth precisely so
+    // nothing important travels only in somebody's memory.
+    if (isSigningConfigured(builderConfig())) return; // the exception is over
+
+    const plan = readFileSync(join(ROOT, 'docs/PLAN.md'), 'utf8');
+    const resume = plan.slice(plan.indexOf('## 0. Current State'), plan.indexOf('## 1. Version'));
+
+    expect(
+      /code signing/i.test(resume),
+      'PLAN.md §0 does not list code signing as a blocker, and the build is unsigned. ' +
+        'The next session would inherit that without being told.',
+    ).toBe(true);
   });
 });
