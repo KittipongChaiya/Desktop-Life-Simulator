@@ -23,6 +23,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { waitForDevTools } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -40,6 +41,7 @@ test.beforeEach(async () => {
   app = session.app;
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
+  await waitForDevTools(window);
 });
 
 test.afterEach(async () => {

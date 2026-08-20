@@ -66,6 +66,7 @@ import { asRouteId } from '../../src/sim/world/route';
 import { WorkerTaskKind } from '../../src/sim/world/worker';
 import { createWorld, type World } from '../../src/sim/world/world';
 
+import { waitForDevTools } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -213,6 +214,7 @@ test('the v0.4 tick against ADR-003 §2, in the running app', async () => {
 
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
+  await waitForDevTools(window);
   const hasDevTools = await window.evaluate(() => document.getElementById('devtools') !== null);
   test.skip(
     !hasDevTools,

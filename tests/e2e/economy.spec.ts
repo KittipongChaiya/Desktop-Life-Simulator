@@ -10,7 +10,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
-import { plotCentreOnScreen, shoot } from './framing';
+import { plotCentreOnScreen, shoot, waitForDevTools } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -45,6 +45,7 @@ test.beforeEach(async () => {
   app = session.app;
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
+  await waitForDevTools(window);
   // Fund the session through the declared dev source — the loop's MECHANICS
   // are the subject here; pacing belongs to the 06f playthrough.
   await consoleCommand('money 5000');
@@ -133,6 +134,7 @@ test('the tool bar arms a tool with the mouse, and planting works (07.5h regress
   // missing (reported from a real session, twice).
   const window = await app.firstWindow();
   await window.locator('[title="Simulation uptime"]').waitFor();
+  await waitForDevTools(window);
 
   const plant = window.getByRole('button', { name: /Plant/ });
   await expect(plant).toBeVisible();
@@ -160,6 +162,7 @@ test('a refused action says WHY, instead of looking like a dead click (07.5i)', 
   // to sit on screen.
   const window = await app.firstWindow();
   await window.locator('[title="Simulation uptime"]').waitFor();
+  await waitForDevTools(window);
 
   // Arm Plant and click ground the player has not prepared — the single most
   // likely first thing a new player does.
@@ -178,6 +181,7 @@ test('the tool bar shows the icons drawn for it back in phase-05.5 (07.5i)', asy
   // — asserting the background image is what distinguishes the two.
   const window = await app.firstWindow();
   await window.locator('[title="Simulation uptime"]').waitFor();
+  await waitForDevTools(window);
 
   const resolved = await window.evaluate(() => {
     const bar = document.querySelector('[data-testid="tool-bar"]');

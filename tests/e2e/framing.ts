@@ -49,3 +49,28 @@ export async function shoot(app: ElectronApplication, target: string): Promise<v
 
   if (base64.length > 0) writeFileSync(target, Buffer.from(base64, 'base64'));
 }
+
+/**
+ * Waits until the developer tooling is actually wired up.
+ *
+ * WHY THIS IS NOT COVERED BY WAITING FOR THE STATUS BAR. `mountDevTools` is
+ * `void`-ed at the composition root and awaits five dynamic imports — the
+ * devtools UI, its host, its console registry and two React entry points are
+ * code-split, because they must not ship in a production bundle. So there is a
+ * real window in which the game is on screen and **F1 does nothing**.
+ *
+ * A person who pressed F1 a moment too early would press it again and never
+ * notice. A spec presses once and then waits thirty seconds for a console that
+ * was never opened, which is how this surfaced: `locator.fill` timing out with
+ * a call log reading `waiting for getByLabel('Developer console input')` and
+ * nothing after it.
+ *
+ * `#devtools` is the host's own root element, created by `mountDevTools` once
+ * everything above has resolved, so its presence is the honest signal that a
+ * function key will land. `global-setup.ts` has already refused the run if the
+ * build has no console at all, so this cannot wait forever on a production
+ * build — that case fails earlier, with instructions.
+ */
+export async function waitForDevTools(window: Page): Promise<void> {
+  await window.waitForSelector('#devtools', { state: 'attached', timeout: 30_000 });
+}

@@ -28,6 +28,7 @@ import { join } from 'node:path';
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { waitForDevTools } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 // Criterion 9 plants a save so the weather is not left to chance — see below.
@@ -135,6 +136,7 @@ test.beforeEach(async () => {
   app = session.app;
   const window = await app.firstWindow();
   await window.waitForSelector('[title="Simulation uptime"]');
+  await waitForDevTools(window);
 
   test.skip(
     !(await hasDevTools()),

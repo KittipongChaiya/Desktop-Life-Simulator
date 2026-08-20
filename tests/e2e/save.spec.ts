@@ -17,6 +17,7 @@ import { join } from 'node:path';
 
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
 
+import { waitForDevTools } from './framing';
 import { CURRENT_SCHEMA_VERSION } from '../../src/persistence/schema';
 
 let app: ElectronApplication;
@@ -33,6 +34,9 @@ async function launch(): Promise<ElectronApplication> {
   const window = await instance.firstWindow();
   // The world exists once the status bar renders — saves need a live world.
   await window.locator('[title="Simulation uptime"]').waitFor();
+  // And the console exists a little after that: `mountDevTools` is code-split
+  // and awaited off the composition root, so F1 does nothing until it lands.
+  await waitForDevTools(window);
   return instance;
 }
 

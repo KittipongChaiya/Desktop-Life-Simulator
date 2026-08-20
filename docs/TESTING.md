@@ -377,10 +377,30 @@ causes, and one of them was a real bug in the application.
   never its problem; it now records the renderer's `Backend` so the next
   failure says whether the view was lost rather than leaving a bare zero.
 
-### Still open
+### The fifth cause: F1 sometimes did nothing
 
-**One instance of `F1` not opening the developer console**, seen twice across
-nine runs. No mechanism found. It is not claimed to be fixed.
+`save.spec` failed twice with `locator.fill: Timeout 30000ms`, its call log
+reading `waiting for getByLabel('Developer console input')` and nothing after
+— so the console had never opened and the keypress was lost, rather than the
+input being unfillable.
+
+**`mountDevTools` is `void`-ed at the composition root and awaits five dynamic
+imports.** The devtools host, its UI, its console registry and two React entry
+points are code-split, because they must not ship in a production bundle. So
+there is a real window in which the game is on screen and F1 does nothing. A
+person would press it again and never notice; a spec presses once and waits
+thirty seconds.
+
+`waitForDevTools()` in `framing.ts` waits for `#devtools`, the host's own root
+element, which exists only once all of that has resolved. **Every spec that
+presses a devtools function key now waits for it** — twenty-one of them, which
+is the measure of how easily this could have bitten anywhere.
+
+It also removes a worse latent failure: `perf-harness` and `render-budget`
+decide whether to SKIP on `document.getElementById('devtools') !== null`. A
+slow mount would have skipped those tests silently rather than failing them.
+
+### Still open
 
 **And the thing underneath the last two rows of that table**: during a long
 sequential suite the renderer is intermittently starved of CPU for a stretch —
