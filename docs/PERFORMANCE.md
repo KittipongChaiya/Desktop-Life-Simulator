@@ -829,3 +829,77 @@ the constant.
 per-tick cost of the market scales with the ITEM COUNT. Twenty-nine items is
 still small, but the shape of that relationship decides whether a v0.7 content
 pass is free or expensive, and nothing currently answers it.
+
+---
+
+## 20. Phase-63 measurement — the v0.6 RC, on a quiet machine
+
+**Taken twice, and only the second reading is reported.** The first was taken
+while six commits ran lint-staged in the background, which is precisely the
+mistake §18.2 was written about after phase 46 reported a regression built on a
+reading taken minutes after a build:
+
+> **A performance number taken on a busy machine is not a performance number.**
+
+Those artefacts were discarded rather than published. Everything below was
+measured with nothing else running.
+
+### 20.1 Against v0.5
+
+| Measure                      | v0.5 RC  | **v0.6 RC**                | Budget           |
+| ---------------------------- | -------- | -------------------------- | ---------------- |
+| Tick average (criterion 5)   | 0.060 ms | **0.106 ms**               | < 0.5 ms avg     |
+| Tick p99 (criterion 5)       | 0.2 ms   | **0.3 ms**                 | < 3 ms p99       |
+| Tick average (criterion 12)  | 0.172 ms | **0.269 ms**               | < 0.5 ms avg     |
+| Tick average, full v0.4 load | 0.145 ms | **0.280 ms**               | < 0.5 ms avg     |
+| Tick p99, full v0.4 load     | 0.400 ms | **0.600 ms**               | < 3 ms p99       |
+| Unattended CPU, **mean**     | 0.533%   | **0.975%**                 | < 1.0% target    |
+| Unattended CPU, **max**      | 0.818%   | **2.026%**                 | **2.0% ceiling** |
+| Heap, unattended farm        | 14.5 MB  | **12.8 MB**                | 25 MB            |
+| Idle frame loop              | quiet    | **0 fps, no dirty frames** | quiet            |
+
+### 20.2 The tick roughly doubled, and that is content
+
+Every tick figure is up by 70–95%: the loop resolves twelve crops where it
+resolved four, thirty-six items where it resolved thirteen, nine recipes where
+it resolved two. That is the cost of the version, it is visible in four
+independent scenarios, and it is **still five times inside the average budget
+and ten times inside the p99 one.**
+
+**ADR-003 §2's trigger for moving the simulation off the main thread — p99 above
+3 ms — remains unmet by a factor of five**, so phase 29 stays CONDITIONAL. It is
+worth noting that v0.6 halved the margin: 0.3 ms against 0.2 ms. Another
+doubling of content would still clear it; three more would not.
+
+### 20.3 The one number over its ceiling, reported rather than rounded
+
+**Unattended CPU max read 2.026% against a 2.0% ceiling.** It is over by
+0.026 percentage points — 1.3% relative — on one sample of sixty, and it is
+still reported as over, because a ceiling that gets rounded down when it is
+nearly met is not a ceiling.
+
+**What is known about it:**
+
+- The **mean is inside its target** at 0.975% against < 1.0%, which is the
+  figure that describes what the machine actually spends over 90 seconds.
+- This exact reading has appeared before. Phase 46 measured **2.013% max** and
+  the v0.5 RC measured **0.818%** — so this number is spiky rather than steady,
+  and one sample in sixty is setting it.
+- Nothing identifies the spike. It could be a GC pause, an autosave landing
+  inside a sample window, or a snapshot republish; **none of those has been
+  bisected**, and guessing here is what §18.2 warns against.
+
+**Verdict: PARTIAL.** Every other budget passes with room. This one is a
+marginal, reproducible-looking breach of a ceiling by a single sample, on a
+metric whose mean is inside target — and characterising it properly needs more
+samples than a release gate takes, which is work rather than a decision.
+
+### 20.4 Heap went DOWN, which was not expected
+
+12.8 MB against v0.5's 14.5 MB on the same unattended-farm scenario, with 56
+more sprites in the atlases. §18.3 attributed v0.5's 12.8 → 14.5 MB rise to the
+art set growing, and predicted the next version would want something to compare
+against. It now has one, and it points the other way.
+
+**No explanation is offered**, because none has been measured. It is recorded so
+the next version inherits the observation rather than the assumption.

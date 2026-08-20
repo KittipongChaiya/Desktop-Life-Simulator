@@ -15,24 +15,24 @@ or disagrees with the CURRENT version's phase table — §5B.1 today. It exists 
 at any moment and the next one must resume from the repository, not from the
 owner's memory (`AI_RULES.md` §10.4).
 
-|                     |                                 |
-| ------------------- | ------------------------------- |
-| **Current version** | **v0.6 — The Second Day**       |
-| **Current phase**   | **63 — v0.6 Release Candidate** |
-| **Status**          | **IN_PROGRESS**                 |
+|                     |                                  |
+| ------------------- | -------------------------------- |
+| **Current version** | **v0.6 — The Second Day**        |
+| **Current phase**   | **63 — v0.6 Release Candidate**  |
+| **Status**          | **COMPLETE — release candidate** |
 
-| Phase | Name                           | Status      |
-| ----- | ------------------------------ | ----------- |
-| 54    | v0.6 Baseline & content census | COMPLETE    |
-| 55    | Crops & the seasonal choice    | COMPLETE    |
-| 56    | Chains worth building          | COMPLETE    |
-| 57    | Things to buy                  | COMPLETE    |
-| 58    | People worth knowing           | COMPLETE    |
-| 59    | Somewhere to go                | COMPLETE    |
-| 60    | Sound that isn't a placeholder | COMPLETE    |
-| 61    | The arc, re-measured           | COMPLETE    |
-| 62    | Delivery                       | COMPLETE    |
-| 63    | v0.6 Release Candidate         | IN_PROGRESS |
+| Phase | Name                           | Status   |
+| ----- | ------------------------------ | -------- |
+| 54    | v0.6 Baseline & content census | COMPLETE |
+| 55    | Crops & the seasonal choice    | COMPLETE |
+| 56    | Chains worth building          | COMPLETE |
+| 57    | Things to buy                  | COMPLETE |
+| 58    | People worth knowing           | COMPLETE |
+| 59    | Somewhere to go                | COMPLETE |
+| 60    | Sound that isn't a placeholder | COMPLETE |
+| 61    | The arc, re-measured           | COMPLETE |
+| 62    | Delivery                       | COMPLETE |
+| 63    | v0.6 Release Candidate         | COMPLETE |
 
 **v0.5 shipped as a release candidate** on 2026-08-20 — phases 31–53, three
 tracks, `RELEASE-v0.5-RC.md`. Its gate results and its two open human-playtest
@@ -71,6 +71,13 @@ with one four items deep; three buildings sit above the Market Stall; every
 resident has a written chain rather than a generated one. **No new simulation
 system, no new save field, no migration** — ADR-046 §1 held for the whole
 version.
+
+**v0.6 shipped as a release candidate** on 2026-08-21 — phases 54–63,
+`RELEASE-v0.6-RC.md`. Seven of the eight §8 gates are green; **performance is
+PARTIAL**, on one sample of sixty reading 2.026% against a 2.0% ceiling while
+its mean sits inside target. Three of seven success criteria PASS, one is
+PARTIAL, one UNTESTED, and the two human-playtest criteria are OPEN for the
+second version running — no substitute was reported in their place.
 
 **Scope is bounded by ten rules, not by counts** (ADR-046 §2). Each states a
 property the content set must have; `tests/content-census.test.ts` carries all
@@ -511,12 +518,12 @@ Three orderings are dictated rather than preferred:
 
 Reported in the evidence class each belongs to (ADR-040, §5A.2's table):
 
-- [ ] All ten ADR-046 §2 content rules pass — _machine-verifiable_
-- [ ] The v0.5 golden save fixture loads unchanged — _machine-verifiable_
+- [x] All ten ADR-046 §2 content rules pass — _machine-verifiable_ — **PASS**
+- [x] The v0.5 golden save fixture loads unchanged — _machine-verifiable_ — **PASS**
 - [ ] Idle cost still inside `PERFORMANCE.md` budgets with the full content set
       loaded — _machine-verifiable_
-- [ ] The progression arc clears both floor and ceiling after content —
-      _machine-verifiable_
+- [x] The progression arc clears both floor and ceiling after content —
+      _machine-verifiable_ — **PASS**, 10–17 min across six openings
 - [ ] A build installs and runs on a clean machine — _machine-verifiable_,
       BLOCKED on §0's signing blocker for the _published_ case only
 - [ ] The first worker hire produces a visible "oh, I see" moment —

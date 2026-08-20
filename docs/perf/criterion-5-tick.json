@@ -2,7 +2,7 @@
   "p50Ms": 0.1,
   "p95Ms": 0.2,
   "p99Ms": 0.3,
-  "avgMs": 0.101,
-  "maxMs": 4.3,
-  "samples": 1286
+  "avgMs": 0.106,
+  "maxMs": 3.6,
+  "samples": 1287
 }
