@@ -65,6 +65,10 @@ export interface BuildingDefinition {
 
 export const CORE_STORAGE_SHED = asContentId('core:storage_shed');
 export const CORE_REST_HUT = asContentId('core:rest_hut');
+/** The v0.6 factories (phase-56) and the storage rung above them (phase-57). */
+export const CORE_PRESERVING_SHED = asContentId('core:preserving_shed');
+export const CORE_LOOM = asContentId('core:loom');
+export const CORE_GRANARY = asContentId('core:granary');
 export const CORE_SEED_BIN = asContentId('core:seed_bin');
 export const CORE_MARKET_STALL = asContentId('core:market_stall');
 
@@ -84,6 +88,9 @@ export const DEFAULT_FACTORY_SLOTS = { input: 4, output: 4 } as const;
 
 /** Slots a storage shed provides. `GAME_DESIGN.md` §5, §7. */
 export const STORAGE_SHED_SLOTS = 50;
+
+/** Slots a granary provides — three sheds' worth (phase-57). */
+export const GRANARY_SLOTS = 150;
 
 /**
  * Slots the market stall's receiving container holds. A pass-through buffer,
@@ -159,5 +166,43 @@ export const CORE_BUILDINGS: readonly BuildingDefinition[] = [
     sprite: 'buildings:kitchen',
     footprint: { width: 3, height: 2 },
     cost: 1600,
+  },
+
+  // ── The v0.6 ladder above the Market Stall (phase-56, 57 — ADR-046 R-05) ──
+  //
+  // Before v0.6 exactly ONE purchasable building cost more than the Market
+  // Stall, which is stage 4's unlock at 1,200 coins. That is the shape of a
+  // game that ends: the arc's last rung is the last thing to buy, so a player
+  // who reaches it has finished spending.
+  //
+  // These three are priced above it and relieve DIFFERENT bottlenecks, which
+  // is R-05's actual requirement — three more processing buildings would be
+  // three more of the same rung at three different prices.
+  {
+    id: CORE_PRESERVING_SHED,
+    displayName: 'Preserving Shed',
+    sprite: 'buildings:preserving_shed',
+    footprint: { width: 2, height: 2 },
+    cost: 1800,
+  },
+  {
+    id: CORE_LOOM,
+    displayName: 'Loom',
+    sprite: 'buildings:loom',
+    footprint: { width: 3, height: 2 },
+    cost: 2400,
+  },
+  {
+    id: CORE_GRANARY,
+    displayName: 'Granary',
+    sprite: 'buildings:granary',
+    footprint: { width: 3, height: 3 },
+    cost: 2000,
+    // THREE TIMES the shed, and that ratio is the point rather than the number:
+    // a farm running twelve crops and seven recipes fills fifty slots long
+    // before it runs out of things to do with them, and a full container is the
+    // one bottleneck that makes a player's absence WORSE instead of better —
+    // `VISION.md` §2.2's exact inversion.
+    storageSlots: GRANARY_SLOTS,
   },
 ];

@@ -59,6 +59,22 @@ export interface RecipeDefinition {
 export const CORE_GRIND_FLOUR = asContentId('core:grind_flour');
 export const CORE_BAKE_BREAD = asContentId('core:bake_bread');
 
+/**
+ * The v0.6 chains (phase-56 — ADR-046 R-03/R-04).
+ *
+ * v0.4 built a factory model for CHAINS and shipped one two-step chain, so the
+ * depth the model was designed for had never been exercised. The linen chain
+ * below is four items deep — flax → fibre → thread → cloth — and is the first
+ * thing in the game that asks a player to run two buildings in series.
+ */
+export const CORE_GRIND_CORNMEAL = asContentId('core:grind_cornmeal');
+export const CORE_RET_FLAX = asContentId('core:ret_flax');
+export const CORE_COOK_PORRIDGE = asContentId('core:cook_porridge');
+export const CORE_MAKE_JAM = asContentId('core:make_jam');
+export const CORE_MAKE_SAUCE = asContentId('core:make_sauce');
+export const CORE_SPIN_THREAD = asContentId('core:spin_thread');
+export const CORE_WEAVE_CLOTH = asContentId('core:weave_cloth');
+
 export type RecipeRegistry = ContentRegistry<RecipeDefinition>;
 
 export function createRecipeRegistry(): RecipeRegistry {
