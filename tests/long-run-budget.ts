@@ -38,6 +38,48 @@
  * Not a performance budget. A timeout here detects a hang; what the simulation
  * costs is measured deliberately and lives in `PERFORMANCE.md`. A number doing
  * both jobs fails for two different reasons and tells you neither.
+ *
+ * ## The gap this left, found at phase 54 — and what the cause turned out to be
+ *
+ * The paragraph above says "each carries an explicit timeout", and that was
+ * true of the four tests this file was written for. It was not true of the
+ * suite: a test that declares no timeout inherits `testTimeout: 120_000` from
+ * `vitest.config.ts`, and **nothing scaled that default for the coverage run.**
+ * So the fix reached exactly the tests somebody had already noticed were slow
+ * and left every unnoticed one unprotected.
+ *
+ * The saturation case in `catch-up.test.ts` surfaced it at the v0.6 baseline
+ * gate: it steps 50,000 ticks twice, has always relied on the default, passes
+ * in `npm test`, and timed out at 131 s in the coverage run.
+ *
+ * **The obvious explanation was instrumentation, and it is wrong.** Measured
+ * alone on an idle machine:
+ *
+ * | Run                          | Duration |
+ * | ---------------------------- | -------- |
+ * | solo, `vitest.config.ts`     | 38.9 s   |
+ * | solo, coverage config, V8 on | 36.6 s   |
+ * | inside the full coverage run | 131 s    |
+ *
+ * Instrumentation costs this test **nothing measurable**. What costs it 3.4x is
+ * CONTENTION: the coverage run is three times longer in wall-clock than
+ * `npm test` (2,479 s against 813 s), so the workers overlap for far longer and
+ * every CPU-bound test stretches. A 39-second test under a 120-second timeout
+ * has three times headroom, and a saturated machine eats it.
+ *
+ * That distinction is worth keeping, because it means the multiplier this file
+ * applies is not really the cost of instrumentation — it is the cost of running
+ * inside a long, wide suite, which the coverage run always is. The table at the
+ * top was measured the same way, inside full runs, and is very likely the same
+ * effect wearing the same wrong name.
+ *
+ * The list of tests in the same position is not short: `schedule-determinism`,
+ * `expeditions`, `gathering`, `sim-headless` and `dry-farm` all drive tens of
+ * thousands of ticks with no declared budget, and simply have not tipped over
+ * yet. Enumerating and measuring them one at a time would fix the instances and
+ * leave the mechanism, so `vitest.coverage.config.ts` scales the DEFAULT by
+ * this same factor instead. The ordinary run keeps 120 s, where a hang still
+ * surfaces in two minutes.
  */
 
 /**
@@ -50,8 +92,12 @@ const INSTRUMENTED = process.env['LONG_RUN_INSTRUMENTED'] === '1';
 /**
  * Headroom over the measured 3.3×. Round numbers, because the point is to be
  * clearly outside the noise rather than to predict the multiplier.
+ *
+ * EXPORTED SINCE PHASE-54, because `vitest.coverage.config.ts` needs the same
+ * number to scale the DEFAULT timeout — see the header note there. The factor
+ * lives here rather than there because this is the file that explains it.
  */
-const INSTRUMENTED_FACTOR = 4;
+export const INSTRUMENTED_FACTOR = 4;
 
 /**
  * The budget for a long run, given what it costs uninstrumented.

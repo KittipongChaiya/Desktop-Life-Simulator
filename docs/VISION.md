@@ -107,15 +107,54 @@ The critical transition is **hiring the first worker**: the moment the player st
 
 The overlay is a permanent constraint. The world behind it is not.
 
-| Horizon  | Theme                    | What it adds                                                                                          |
-| -------- | ------------------------ | ----------------------------------------------------------------------------------------------------- |
-| **v0.1** | Farm & Overlay           | The loop above. Proves the overlay is livable.                                                        |
-| **v0.2** | A Living World           | Seasons, weather, day/night, audio, and the plugin loader. The world starts changing on its own.      |
-| **v0.3** | Town & Trade             | NPCs, a settlement, contracts, and a market that moves. The player gains neighbours.                  |
-| **v0.4** | Automation & Exploration | Factories, logistics, and a map beyond the farm. The player gains reach.                              |
-| **v1.0** | Full Life Simulator      | RPG progression, dungeons, bosses, city defense, and a mature mod ecosystem. The player gains a life. |
+| Horizon  | Theme                    | What it adds                                                                                              |
+| -------- | ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **v0.1** | Farm & Overlay           | The loop above. Proves the overlay is livable.                                                            |
+| **v0.2** | A Living World           | Seasons, weather, day/night, audio, and the plugin loader. The world starts changing on its own.          |
+| **v0.3** | Town & Trade             | NPCs, a settlement, contracts, and a market that moves. The player gains neighbours.                      |
+| **v0.4** | Automation & Exploration | Factories, logistics, and a map beyond the farm. The player gains reach.                                  |
+| **v0.5** | The Playable Cut         | The systems stop being systems and become a game. Nothing new is simulated; everything is finished.       |
+| **v0.6** | The Second Day           | Content depth. The game acquires a reason to still be open tomorrow, and a build that can reach a player. |
+| **v1.0** | Full Life Simulator      | RPG progression, dungeons, bosses, city defense, and a mature mod ecosystem. The player gains a life.     |
 
 Detailed milestones and success criteria: `PLAN.md`.
+
+**v0.5 and v0.6 were both inserted after v0.4 shipped**, and this table is where
+that is authorised — `PLAN.md` §9.3 requires it, because `PLAN.md` implements
+this roadmap rather than defining it.
+
+**v0.5's row was added late, at the opening of v0.6.** The rule was not followed
+when v0.5 opened: the version was scoped, built and released as a candidate
+while this table still showed v0.4 handing straight to v1.0. Recorded here
+rather than backdated, because a process rule that gets quietly repaired the
+next time it is remembered is not a rule. What it cost was nothing this time and
+the reason to keep it is unchanged: a version tier is product direction, and
+product direction lives in this document.
+
+### 4.0a Why v0.6 exists
+
+v0.5 finished the game's surfaces. It did not — and was bindingly not allowed
+to — add anything for the player to do, and at its close the whole of the game's
+content was **4 crops, 6 purchasable buildings, 2 recipes, 1 authored quest
+chain, 3 expedition sites, 3 resource nodes, 4 residents and 11 placeholder
+sounds.**
+
+Five versions built content-_driven_ systems: namespaced content identity, a
+versioned plugin API, recipes and factories, contracts, reputation and quests,
+expeditions, logistics. **The machine is finished. The content running on it is
+a demo.** ADR-035's factory model, built for chains, runs one two-step chain,
+and four crops cannot fill four seasons — spring and winter offer two plantable
+crops each.
+
+That is why a perfect player exhausts the progression arc in twelve minutes
+(`GAME_DESIGN.md` §1.1), and it is why §6's fourth product criterion — _a tester
+returns unprompted on a second day_ — has never been closable. There is no
+second day in the box.
+
+v0.6 puts one there. It is a **content tier, not a systems tier**: it authors
+against registries that already exist and adds no simulation. The v1.0 systems
+below are untouched by it — §4.1's ordering is the reason, and pulling any of
+them earlier is the failure mode §4.2 exists to prevent.
 
 ### 4.1 Why the Order Is This Order
 
@@ -124,6 +163,15 @@ Each tier is a prerequisite for the next, not an arbitrary sequence:
 - **Living world before town.** NPCs need time-of-day and seasons to have schedules and to react to.
 - **Town before automation.** Factories need somewhere to sell to and a demand curve worth optimizing against.
 - **Automation before RPG.** Combat needs an economy that can equip you and a base worth defending.
+- **Playable before deep.** v0.5 before v0.6: adding content to a game nobody
+  can read produces more of what was already unreadable. The surfaces had to
+  finish first.
+- **Deep before combat.** v0.6 before v1.0, and this one is a correction rather
+  than a preference. v1.0's premise is that the player _gains a life_ — levels,
+  equipment, a base worth defending. All three are things you spend an economy
+  on, and an economy with two recipes in it has nothing to spend. Shipping
+  combat on top of a demo-sized content set would give the player a sword and
+  nowhere that a sword matters.
 
 Building these out of order produces systems with nothing to connect to. That is the most common failure mode for projects of this shape, and this ordering exists specifically to avoid it.
 
