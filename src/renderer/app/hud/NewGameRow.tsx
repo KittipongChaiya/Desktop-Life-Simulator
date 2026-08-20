@@ -19,6 +19,18 @@
  * invite a click it will refuse** — by inviting the second click honestly and
  * saying exactly what it is about to do.
  *
+ * ## The armed label has to FIT
+ *
+ * The first version said "Confirm — end this farm", which read well and was
+ * half again wider than the panel: it spilled out over the world, and pushed
+ * "New game" into wrapping onto two lines. No test noticed, because every one
+ * of them asks for the button by its accessible name and gets it wherever it
+ * happens to be drawn.
+ *
+ * Looking at the running application is what caught it. The label is now the
+ * longest thing that fits beside a name in a 200px panel, and the sentence
+ * that used to be in it lives in the hint below, where there is room.
+ *
  * ## It disarms on its own
  *
  * An armed button that stays armed is a trap: a player who walks away, comes
@@ -126,7 +138,7 @@ export function NewGameRow({ newGame, panelOpen }: NewGameRowProps): ReactNode {
             newGame.startNewGame();
           }}
         >
-          {working ? 'Starting…' : armed ? 'Confirm — end this farm' : 'Start new game'}
+          {working ? 'Starting…' : armed ? 'End this farm' : 'Start new game'}
         </button>
       </div>
       {armed && (
