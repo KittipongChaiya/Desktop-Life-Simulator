@@ -32,8 +32,9 @@ This is the payoff for the boundary enforcement in `CODE_STYLE.md` §8, and it i
                     ▼  many, fast, focused
 ```
 
-3,302 unit + integration + property tests across 257 files, measured at the
-v0.5 RC. **The counts move every phase; the SHAPE is the claim.** These row
+3,366 unit + integration + property tests across 263 files, measured fresh at
+the v0.6 RC (phase 63). **The counts move every phase; the SHAPE is the
+claim.** These row
 totals read "~15 / ~40 / ~15 / ~300" from v0.1 until that RC, by which point
 the suite was ten times the last of them — a stale number sitting in the
 document about not stating things you have not checked.
@@ -45,6 +46,31 @@ Property tests sit above integration deliberately. **The three most important gu
 - `catchUp(n)` ≤ `n` real ticks, within tolerance (`SAVE_FORMAT.md` §6.5)
 
 None can be adequately covered by hand-written cases.
+
+### 1.2a The census is a test, and that is deliberate
+
+`tests/content-census.test.ts` is not shaped like anything else in the suite: it
+asserts properties of the **game's content**, not of its code. A crop table with
+four entries is not a bug in any function, and no unit test was ever going to
+notice it.
+
+It exists because v0.6 is a content tier (ADR-046) and needed a scope that could
+be checked rather than felt. Two things about it are worth copying if this
+pattern is ever wanted again:
+
+**It reads its gate from `PLAN.md` §0.** A rule declares the phase that satisfies
+it and becomes a hard assertion once that phase is marked COMPLETE. So marking a
+phase done without meeting its rule turns the suite red, and "phase complete" and
+"the phase's rule holds" stop being two claims that can drift. This is the same
+doc-and-machine-agree pattern as `coverage-policy.test.ts` and
+`plan-state.test.ts`.
+
+**A pending rule is not skipped.** §6.4 forbids `it.skip`, and §7's dead-code
+gate forbids skipped tests outright — but the deeper reason is that a skipped
+test is invisible in a green run. A pending rule here still runs, still computes
+and prints its violations so progress is visible every run, and still asserts
+that it is legitimately pending. The gate was verified by inversion: marking a
+phase complete early fails, naming the offending content.
 
 ### 1.3 Test behavior, not implementation
 

@@ -11,6 +11,120 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Phases 55–61 — the content itself** (no schema change; ADR-046): the
+  registries roughly tripled, and every one of ADR-046's ten rules is now
+  enforced rather than reported.
+
+  | Registry         | v0.5 | v0.6    |
+  | ---------------- | ---- | ------- |
+  | Crops            | 4    | **12**  |
+  | Recipes          | 2    | **9**   |
+  | Items            | 13   | **36**  |
+  | Buildings        | 10   | **13**  |
+  | Expedition sites | 3    | **6**   |
+  | Authored quests  | 1    | **5**   |
+  | Sprites          | 242  | **298** |
+
+  **Every season now offers five or six plantable crops**, against two in spring
+  and winter before. The prices are derived rather than chosen: fitting the four
+  v0.1 crops gives `profit/sec = 0.078 × (seconds/90)^0.23`, and each new crop
+  declares a growth time and a seed cost with its sale price falling out of that
+  curve — so `GAME_DESIGN.md` §3.2, the decision that makes going away optimal,
+  holds across all twelve rather than merely inside the new ones.
+  `tests/crop-curve.test.ts` asserts it for the first time in six versions.
+
+  **What a seasonal choice can be, given §3.2 fixes the rate ordering:** the
+  axis is capital. Leek and wheat have identical growth times and identical
+  profit per second, and the leek costs half as much to plant.
+
+  **Production went from one two-step chain to four**, one of them four items
+  deep — flax → linen fibre → thread → cloth — which is the first thing in the
+  game that asks a player to run two buildings in series. Every factory now runs
+  at least two recipes, so owning one is a decision rather than a switch.
+
+  **Three buildings above the Market Stall**, which had exactly one. The Granary
+  is the one that is not more processing: a full container is the single
+  bottleneck that makes a player's absence worse rather than better.
+
+  **The arc was re-measured against every crop a new farm can plant** and did
+  not move — 10 to 17 minutes for a perfect player, against ~12 at phase 31.
+  **So no balance was changed.** ADR-046 §4 grants the authority; ADR-044 sets
+  the standard, and the measurement asked for nothing.
+
+  **Two rules were amended rather than met**, both recorded with the reasoning.
+  R-05's "distinct bottleneck" was not checkable, so a building's kind is now
+  derived from its definition. R-09 asked for authored audio timbre — which
+  ADR-043 established at v0.5 cannot be evidenced by a session that cannot hear
+  it — and now asks that every sound has a trigger instead.
+
+  **Findings the gates produced, none of which a passing suite would have
+  shown:** a soft-lock in the product (`GAME_DESIGN.md` §6.4a) where a farm can
+  spend below the price of a seed with nothing planted and never recover; a
+  six-version-old bug in the progression model that spent past that same line; a
+  `peakCoins` diagnostic that had been printing the starting float for every
+  failing run; two expedition destinations refused at registration for
+  over-filling a worker; and three UI tests that were pinning list positions,
+  one of which would have gone permanently green for the wrong reason.
+
+- **Phase 62 — the version string, four milestones late** (ADR-028 §5.1):
+  `package.json` read `0.1.0` while v0.5's game shipped on top of it, because
+  `tests/signing-exception.test.ts` fails at `0.3.0` without a certificate. The
+  guard worked exactly as designed and the outcome was still wrong — the
+  SHIPPING VERSION lied instead of the signing status. The owner extended the
+  exception through v0.6; the version now reads `0.6.0`.
+
+  **Extending it now costs a written row.** ADR-028 §5.1 carries a table of
+  every extension with its date and authority, and the guard requires the
+  current expiry to appear in it. Two further checks: `PLAN.md` §0 must name
+  code signing as a blocker while the exception holds, so a resuming session
+  inherits the sentence rather than the surprise. Verified by inversion —
+  raising the expiry without writing the row fails the suite.
+
+  Nothing in ADR-028 §3's threat model changed. The build is unsigned, and the
+  exception blocks publication rather than development.
+
+- **Phase 54 — the content census** (no schema change; ADR-046): v0.6 opens as
+  a **content tier** — the first version that adds no simulation system, and
+  therefore the first whose scope cannot be bounded by "the system works."
+
+  `VISION.md` §4 was amended first, as `PLAN.md` §9.3 requires. That amendment
+  also records that the same rule was **not** followed when v0.5 opened, rather
+  than backdating the row and pretending it was.
+
+  **What opened the version is a count.** At v0.5's close the whole content set
+  was 4 crops, 6 purchasable buildings, 2 recipes, 1 authored quest chain, 3
+  expedition sites, 3 resource nodes, 4 residents and 11 placeholder sounds.
+  Five versions built content-_driven_ systems; ADR-035's factory model, built
+  for chains, runs one two-step chain.
+
+  **ADR-046 bounds the version with ten rules rather than ten targets.** Each
+  states a property the content set must have — three plantable crops per
+  season, no strictly dominated crop, two chains of real depth, an authored
+  quest chain per resident — and the count falls out. A version scoped by a
+  feeling either stops early or never stops.
+
+  **`tests/content-census.test.ts` carries all ten from day one, gated on
+  `PLAN.md` §0's own phase table.** Marking a phase COMPLETE turns its rules
+  into hard assertions, so "phase complete" and "the phase's rule holds" are one
+  claim instead of two that drift. No `it.skip`: a pending rule still runs,
+  still prints its violations, and still asserts that it is legitimately
+  pending. Verified by inverting the gate — marking phase 55 complete early
+  fails with `core:spring has 2 plantable crops`.
+
+  **The census corrected its own author twice before enforcing anything.** The
+  scoping document said six buildings; there are ten, four of them the town's at
+  zero cost. It said every season offers exactly two plantable crops; summer and
+  autumn offer three. And it said the two are "strictly ordered," implying one
+  is simply better — the dominance check written for R-02 passes today, so the
+  defect is **volume, not domination**. R-02 is carried anyway, as a guard
+  against fixing R-01 with twelve crops in a neat power ordering.
+
+  **The v0.5 id set is pinned as a floor.** ADR-026 makes a `ContentId`
+  permanent — an instance in a live save stores the id and resolves it at load,
+  so renaming `core:wheat` orphans every wheat in every save. v0.6 adds and
+  never renames or removes, and the test is what makes that a fact rather than
+  an intention.
+
 - **Phase 53 — "Start New Game"** (no schema change; ADR-045): a button in the
   settings panel that ends the current farm and starts another. Owner-requested
   after the v0.5 RC.

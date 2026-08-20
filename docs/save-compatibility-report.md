@@ -433,3 +433,66 @@ document exists to prevent.
 `v1 → v14` against every golden fixture, zero repairs, unchanged from v0.4
 because nothing in the chain was touched. The guarantees stated in §13 stand
 as written.
+
+---
+
+## 15. v0.6 addendum (phase-63)
+
+**v0.6 added no schema field, no migration, and no new save version.** It is the
+first version of which that has been true, and it is not an accident — ADR-046
+§1 defines the content tier by exactly this property: _"If a proposed piece of
+content would require a save migration, it is not v0.6 content — it is a system,
+and it belongs to a later version."_
+
+### 15.1 Why a content version is free, and where the freedom comes from
+
+ADR-004 §5, written at phase 00 and unchanged since: **definitions are data;
+instances reference them.** A crop in a save stores a `ContentId`, a
+`plantedTick` and a tile — never a growth time, never a price, never a sprite
+key. So adding eight crops, seven recipes, three buildings and three
+destinations changes what a NEW farm can do and changes nothing about what an
+old one contains.
+
+That is a decision paying out six versions later, and it is worth naming because
+the alternative was available and normal: had a crop instance stored its own
+growth time — as most engines would — every one of the twelve crops would now be
+a migration, and rebalancing one would be a schema change.
+
+### 15.2 The one way v0.6 could have broken a save, and the guard against it
+
+**A `ContentId` is a permanent name.** An instance resolves its definition at
+load, so renaming `core:wheat` orphans every wheat in every save and removing it
+does the same. A content pass is therefore the version most able to destroy a
+farm by accident — not by writing a bad field, but by taking away a name
+something already points at.
+
+ADR-046 §3 forbids renaming and removing outright, and
+`tests/content-census.test.ts` is what makes that a fact rather than an
+intention: it pins **all 73 ids that existed at the v0.6 baseline** — 64 across
+twelve registries, plus 4 residents and 5 quest chains — and fails if any one of
+them stops resolving. Deliberately removing content in a later version means
+editing that list, which is exactly as much friction as the decision deserves.
+
+Nothing was renamed. Nothing was removed. Two definitions had their NUMBERS
+changed (the Sunken Coast and Ashfell hauls, brought inside a worker's carrying
+capacity), which is a balance change and not an identity change.
+
+### 15.3 What a v0.5 save does when it meets v0.6
+
+It loads, and it simply never refers to the new ids. A farm saved before this
+version has turnips in it; the game it loads into knows about strawberries as
+well, and nothing in the save has an opinion about that.
+
+The golden fixtures carry this: every prior version's fixture still loads, which
+is `PLAN.md` §8's binding gate, and the v0.5 fixture required no addition to the
+migration chain because there is nothing to migrate.
+
+### 15.4 Status
+
+**PASS.** Save compatibility is unchanged by v0.6, every prior fixture loads,
+the migration chain is untouched, and the id floor is guarded by a test rather
+than by care.
+
+The one thing this version could have done to a save — orphaning an instance by
+renaming what it points at — is the thing ADR-046 §3 was written to prevent
+before any content was authored.

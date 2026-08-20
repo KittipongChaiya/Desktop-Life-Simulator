@@ -806,3 +806,59 @@ canopy.
 ADR-042 §5 is explicit: no free placement, no pixel collision, no
 per-object z-index, no second sort key, and no visual state in the save. The
 grid remains the authority. The renderer simply stopped drawing it.
+
+---
+
+## 17. v0.6 — the version that changed no architecture, and what that exposed
+
+**Nothing in this document needed editing for v0.6.** No new system, no new
+command kind, no new save field, no new extension point, no new boundary. That
+was the version's defining constraint (ADR-046 §1) rather than a happy outcome,
+and it is the first time a milestone has closed without touching a structural
+decision.
+
+**What it proves.** The content model has been claiming since phase 00 that
+adding content is a data edit (ADR-004 §5) and that first-party content goes
+through the same public API a third party would (ADR-019 §2). v0.6 roughly
+tripled every registry — twelve crops, nine recipes, thirty-six items, six
+destinations — and both claims held: `plugins/core` grew, `src/sim` did not.
+
+That is the first VOLUME test either claim has had. Before this the API had only
+ever carried a demo-sized table, and "sufficient for real content" was an
+inference from "sufficient for a sample of it".
+
+### 17.1 Two hardcodes the content pass walked into, neither fixed
+
+A content version is unusually good at finding places where a system branches on
+an id instead of reading data, because it is the version that adds the ids.
+
+**`worker.ts:68` recognises the Rest Hut by name.**
+
+```ts
+if (building.buildingId === CORE_REST_HUT) return true;
+```
+
+§3.4 of this document forbids exactly that: _"A system asks the registry and acts
+on the definition's data — no `switch (id)` anywhere."_ The consequence is
+concrete rather than theoretical: **a second rest building is impossible as
+content**, because nothing in a `BuildingDefinition` says how fast a worker
+recovers near it. Phase 57's ladder has two kinds on it — storage and factory —
+where it would otherwise have had three.
+
+The fix is a `restRecovery` field and a registry lookup. It is engine work, so
+ADR-046 §1 put it outside v0.6.
+
+**`SimEventMap` has no event for a craft finishing or an expedition returning.**
+
+The renderer can only attach a sound or an effect to something the simulation
+says happened, and those two are the longest waits in the game — up to four
+minutes of machine time, up to ten minutes away. Both are currently silent, and
+for an idle game the completion signal is the entire mechanism by which the
+product rewards absence rather than attention (`VISION.md` §2.2).
+
+`events/types.ts` notes that _"adding a member here is all a new event needs"_,
+so the cost is small. The scope is what stopped it, not the difficulty.
+
+**Both are recorded rather than repaired**, and both are the kind of finding that
+only appears when somebody tries to add content and discovers the seam is not
+there. That is worth more than the version's own line count.
