@@ -75,6 +75,23 @@ export const CORE_WHEAT = asContentId('core:wheat');
 export const CORE_CARROT = asContentId('core:carrot');
 export const CORE_PUMPKIN = asContentId('core:pumpkin');
 
+/**
+ * The v0.6 crops (phase-55 — ADR-046 §2, R-01/R-02).
+ *
+ * Four crops could not fill four seasons: spring and winter offered two
+ * plantable each. These eight are placed to give every season at least five,
+ * and their numbers sit ON `GAME_DESIGN.md` §3.2's curve rather than beside it
+ * — see `plugins/core/content.ts` for the derivation.
+ */
+export const CORE_PEA = asContentId('core:pea');
+export const CORE_STRAWBERRY = asContentId('core:strawberry');
+export const CORE_LEEK = asContentId('core:leek');
+export const CORE_FLAX = asContentId('core:flax');
+export const CORE_TOMATO = asContentId('core:tomato');
+export const CORE_CORN = asContentId('core:corn');
+export const CORE_CABBAGE = asContentId('core:cabbage');
+export const CORE_SQUASH = asContentId('core:squash');
+
 export type CropRegistry = ContentRegistry<CropDefinition>;
 
 export function createCropRegistry(): CropRegistry {

@@ -40,6 +40,16 @@ export const CORE_WHEAT = asContentId('core:wheat');
 export const CORE_CARROT = asContentId('core:carrot');
 export const CORE_PUMPKIN = asContentId('core:pumpkin');
 
+/** The v0.6 produce (phase-55). One item per crop, same id as the crop. */
+export const CORE_PEA = asContentId('core:pea');
+export const CORE_STRAWBERRY = asContentId('core:strawberry');
+export const CORE_LEEK = asContentId('core:leek');
+export const CORE_FLAX = asContentId('core:flax');
+export const CORE_TOMATO = asContentId('core:tomato');
+export const CORE_CORN = asContentId('core:corn');
+export const CORE_CABBAGE = asContentId('core:cabbage');
+export const CORE_SQUASH = asContentId('core:squash');
+
 /** Gathered from the wilds (phase-27, ADR-037). */
 export const CORE_WOOD = asContentId('core:wood');
 export const CORE_STONE = asContentId('core:stone');
@@ -49,10 +59,33 @@ export const CORE_ORE = asContentId('core:ore');
 export const CORE_FLOUR = asContentId('core:flour');
 export const CORE_BREAD = asContentId('core:bread');
 
+/**
+ * The v0.6 processed goods (phase-56). `CORE_LINEN_FIBRE`, `CORE_THREAD` and
+ * `CORE_CLOTH` are the linen chain's three rungs above raw flax — the first
+ * four-deep chain in the game.
+ */
+export const CORE_CORNMEAL = asContentId('core:cornmeal');
+export const CORE_PORRIDGE = asContentId('core:porridge');
+export const CORE_JAM = asContentId('core:jam');
+export const CORE_SAUCE = asContentId('core:sauce');
+export const CORE_LINEN_FIBRE = asContentId('core:linen_fibre');
+export const CORE_THREAD = asContentId('core:thread');
+export const CORE_CLOTH = asContentId('core:cloth');
+
 export const CORE_TURNIP_SEED = asContentId('core:turnip_seed');
 export const CORE_WHEAT_SEED = asContentId('core:wheat_seed');
 export const CORE_CARROT_SEED = asContentId('core:carrot_seed');
 export const CORE_PUMPKIN_SEED = asContentId('core:pumpkin_seed');
+
+/** One seed per v0.6 crop (phase-55). */
+export const CORE_PEA_SEED = asContentId('core:pea_seed');
+export const CORE_STRAWBERRY_SEED = asContentId('core:strawberry_seed');
+export const CORE_LEEK_SEED = asContentId('core:leek_seed');
+export const CORE_FLAX_SEED = asContentId('core:flax_seed');
+export const CORE_TOMATO_SEED = asContentId('core:tomato_seed');
+export const CORE_CORN_SEED = asContentId('core:corn_seed');
+export const CORE_CABBAGE_SEED = asContentId('core:cabbage_seed');
+export const CORE_SQUASH_SEED = asContentId('core:squash_seed');
 
 export type ItemRegistry = ContentRegistry<ItemDefinition>;
 

@@ -202,14 +202,43 @@ with the band next door.
 
 ## 3. Crops
 
-### 3.1 The v0.1 crop table
+### 3.1 The crop table
 
-| ID             | Growth             | Seed cost | Sell (base) | Yield | Profit/tile | Coins/sec/tile |
-| -------------- | ------------------ | --------- | ----------- | ----- | ----------- | -------------- |
-| `core:turnip`  | 1,800 t (90 s)     | 5         | 12          | 1     | 7           | **0.078**      |
-| `core:wheat`   | 4,800 t (240 s)    | 12        | 34          | 1     | 22          | **0.092**      |
-| `core:carrot`  | 9,600 t (480 s)    | 25        | 80          | 1     | 55          | **0.115**      |
-| `core:pumpkin` | 24,000 t (1,200 s) | 60        | 230         | 1     | 170         | **0.142**      |
+**Twelve crops as of v0.6 phase-55.** The first four are v0.1's and are
+unchanged; the eight below them were derived from the §3.2 curve those four
+trace, not chosen. Every crop yields 1.
+
+| ID                | Growth             | Seed cost | Sell (base) | Profit/tile | Coins/sec/tile |
+| ----------------- | ------------------ | --------- | ----------- | ----------- | -------------- |
+| `core:pea`        | 1,200 t (60 s)     | 3         | 7           | 4           | **0.067**      |
+| `core:turnip`     | 1,800 t (90 s)     | 5         | 12          | 7           | **0.078**      |
+| `core:strawberry` | 3,000 t (150 s)    | 8         | 21          | 13          | **0.087**      |
+| `core:leek`       | 4,800 t (240 s)    | 6         | 28          | 22          | **0.092**      |
+| `core:wheat`      | 4,800 t (240 s)    | 12        | 34          | 22          | **0.092**      |
+| `core:flax`       | 6,000 t (300 s)    | 14        | 45          | 31          | **0.103**      |
+| `core:tomato`     | 8,000 t (400 s)    | 20        | 64          | 44          | **0.110**      |
+| `core:carrot`     | 9,600 t (480 s)    | 25        | 80          | 55          | **0.115**      |
+| `core:corn`       | 12,000 t (600 s)   | 32        | 104         | 72          | **0.120**      |
+| `core:cabbage`    | 15,000 t (750 s)   | 38        | 133         | 95          | **0.127**      |
+| `core:squash`     | 18,000 t (900 s)   | 48        | 167         | 119         | **0.132**      |
+| `core:pumpkin`    | 24,000 t (1,200 s) | 60        | 230         | 170         | **0.142**      |
+
+**The eight new prices are computed, not picked.** Fitting the four v0.1 crops
+gives
+
+```
+profit/sec  =  0.078 x (seconds / 90) ^ 0.23
+```
+
+which reproduces every existing point to within a few percent. Each new crop
+declares a growth time and a seed cost; its sale price is whatever that curve
+then requires. §3.2's ordering therefore holds across all twelve rather than
+merely inside the new ones, and `tests/content-census.test.ts` R-02 checks it.
+
+**Leek and wheat are the same crop with different capital.** Identical growth
+time, identical profit per second, half the seed cost and a lower sale price.
+That pair is the clearest statement of what a seasonal choice can be, given
+that §3.2 permanently fixes which crop earns more — see §3.1b.
 
 **Rebalanced in 07.9: every growth time doubled.** At 45 seconds a turnip spent under twelve seconds in each of its four stages — the crop read as a progress bar, and the loop asked for attention faster than an idle game should. The multiplier is UNIFORM by design: coins/sec/tile scales by the same 0.5 for every crop, so the ordering below and the 1.82× spread between the ends of the table are exactly what they were. Prices, seed costs and yields are untouched — this pass moved time, not money.
 
@@ -217,16 +246,59 @@ with the band next door.
 
 Each crop declares the seasons it may be **planted** in. Nothing else about a crop changes with the calendar.
 
-| Crop           | Seasons        | Why                                                              |
-| -------------- | -------------- | ---------------------------------------------------------------- |
-| `core:turnip`  | **All year**   | The staple, and the crop workers sow by default                  |
-| `core:wheat`   | Spring, Summer | The early-game step up from turnips                              |
-| `core:carrot`  | Summer, Autumn | Mid-game, overlapping wheat on one side and pumpkin on the other |
-| `core:pumpkin` | Autumn, Winter | The best crop in the game, in the half-year that has least else  |
+| Crop              | Seasons        | Why                                                              |
+| ----------------- | -------------- | ---------------------------------------------------------------- |
+| `core:turnip`     | **All year**   | The staple, and the crop workers sow by default                  |
+| `core:pea`        | Spring         | The cheapest and fastest thing in the game; a first-minutes crop |
+| `core:strawberry` | Spring, Summer | The first crop worth waiting for                                 |
+| `core:leek`       | Spring, Winter | Wheat's growth and rate at half the capital (§3.1b)              |
+| `core:wheat`      | Spring, Summer | The early-game step up from turnips                              |
+| `core:flax`       | Spring, Autumn | The fibre the cloth chain asks for by tag                        |
+| `core:tomato`     | Summer         | Summer's middle rung                                             |
+| `core:carrot`     | Summer, Autumn | Mid-game, overlapping wheat on one side and pumpkin on the other |
+| `core:corn`       | Summer, Autumn | The second grain — the Mill's reason to exist past one recipe    |
+| `core:cabbage`    | Autumn, Winter | Winter's affordable long crop                                    |
+| `core:squash`     | Winter         | Winter's second-best, behind the pumpkin                         |
+| `core:pumpkin`    | Autumn, Winter | The best crop in the game, in the half-year that has least else  |
 
-Every season has at least two crops, and **the turnip is available in all four on purpose**. It is the crop workers sow by default, so a season it could not be sown in would leave a farm without a seed bin with nothing to plant for two hours and twenty minutes of real time — a worker idled by the calendar, which ADR-021 §4 forbids outright.
+**Every season now offers at least five** — spring 6, summer 6, autumn 6,
+winter 5 — against ADR-046 R-01's floor of three. Before phase-55 it was two in
+spring and winter and three in summer and autumn, which is the count that opened
+v0.6.
 
-Winter is the leanest season, not a dead one: turnip and pumpkin. Since pumpkin is the best coins/sec in the game, winter is where the patient player does best — the §3.2 curve pointing the same way the calendar does.
+**The turnip is available in all four on purpose.** It is the crop workers sow
+by default, so a season it could not be sown in would leave a farm without a
+seed bin with nothing to plant for two hours and twenty minutes of real time — a
+worker idled by the calendar, which ADR-021 §4 forbids outright.
+
+Winter is still the leanest season and still not a dead one: turnip, leek,
+cabbage, squash, pumpkin. Since pumpkin is the best coins/sec in the game,
+winter remains where the patient player does best — the §3.2 curve pointing the
+same way the calendar does.
+
+### 3.1b What a seasonal choice can be, given §3.2
+
+§3.2 fixes the rate ordering permanently and deliberately: longer crops pay
+better, because that is what makes going away optimal. So a season's choice can
+never be "which crop earns more" — that question has one answer and always will.
+
+**The axis is capital**, which §3.2 already names as the counterweight. Within a
+season the crops differ in how much money must exist before one can be planted,
+and the leek is the demonstration: the same 240 seconds as wheat, the same
+0.092 coins/sec to three decimals, a seed at 6 instead of 12 and a sale at 28
+instead of 34. A player with six coins plants leeks. A player with twelve plants
+wheat and earns more per trip to the market for the same time.
+
+ADR-046 R-02 is the guard on this, and it measures three axes rather than one —
+value per tick, value per harvest, and seed cost — so a crop that is slower but
+pays more per visit is not "worse", it is _for someone else_. Zero of the twelve
+crops are strictly dominated in any season.
+
+**What this deliberately is not.** It would have been easy to make the long
+crops pay a rate penalty for their convenience, which is how most idle games
+create a trade-off. That is §3.2 inverted, and §3.2 is `VISION.md` §2.2 written
+as arithmetic — the single most important balance decision in the game. It was
+not touched.
 
 **Three rules bound what a season may do** (ADR-021 §2), and they are constitutional rather than tuning:
 
@@ -555,6 +627,50 @@ No deadlines, no failure, no branching: chains wait forever. Each crossed
 step pays a declared coin reward once — sized below contract premiums, so
 quests season the contract loop rather than replace it — and the board
 panel carries the chains under "Town milestones".
+
+---
+
+### 6.4a A farm can spend itself into a state it cannot leave
+
+**Found at phase 61, by measurement, and NOT fixed in v0.6.**
+
+Nothing in the game refuses a purchase that leaves the player with:
+
+- no standing crops,
+- no seeds in inventory or seed bin, and
+- fewer coins than one seed costs.
+
+From that state there is no way to earn. Planting needs a seed, a seed needs
+coins, and coins need a harvest. The farm sits at four coins for as long as it
+is left running, and **leaving it running is what this game asks the player to
+do** — which makes it worse than an ordinary bad move. Every other mistake in
+this design costs time; this one costs the save.
+
+It was found because the progression model did it. Opening a farm on
+strawberries, the model bought a seed bin down to 4 coins while holding nothing,
+and a strawberry seed costs 8. It then sat there for three and a half hours of
+simulated time. The same farm, run without the building policy, earns **66,720
+coins over the same four hours** — so the crop is fine and the shopper was not.
+
+**Why it is not fixed here.** Every plausible fix is a system: a purchase that
+refuses itself, a minimum balance, a free-seed grant, a way for a worker to earn
+without capital. ADR-046 §1 binds v0.6 to content and forbids exactly that, and
+inventing a safety net at the end of a content pass is how a version acquires a
+mechanic nobody designed.
+
+**What is known, and what is not.** Reachability by a real player is UNMEASURED.
+It needs a player to spend to the floor at the wrong moment, and the shop makes
+that possible rather than likely. What is certain is that the state exists, that
+the game does not warn about it, and that it does not recover on its own.
+
+**Candidate fixes, for whoever picks this up.** In rough order of how little
+they change:
+
+1. The shop refuses a purchase that would cross the line, with the reason shown.
+2. A standing minimum — the player cannot spend below the price of a seed.
+3. The wilds become the floor: a worker with no seeds gathers wood, which sells.
+   This is the most in-keeping, since ADR-037 already put free material on the
+   map, and it requires no new rule for the player to learn.
 
 ---
 

@@ -14,7 +14,10 @@
  *      staged growth (§3.3, ADR-001 §1).
  *
  * The coins-per-second ORDERING that makes absence optimal (§3.2) is pinned in
- * `tests/economy-longrun.test.ts`, where the sale prices live.
+ * `tests/economy-longrun.test.ts`, where the sale prices live — and since
+ * phase-55 also, and more directly, in `tests/crop-curve.test.ts`, which
+ * asserts the rate itself across all twelve crops rather than inferring it from
+ * the order they happen to be registered in.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -22,8 +25,16 @@ import { describe, expect, it } from 'vitest';
 import { secondsToTicks } from '../time/game-clock';
 
 import {
+  CORE_CABBAGE,
   CORE_CARROT,
+  CORE_CORN,
+  CORE_FLAX,
+  CORE_LEEK,
+  CORE_PEA,
   CORE_PUMPKIN,
+  CORE_SQUASH,
+  CORE_STRAWBERRY,
+  CORE_TOMATO,
   CORE_TURNIP,
   CORE_WHEAT,
   isMature,
@@ -46,6 +57,16 @@ const TABLE: readonly { readonly id: string; readonly ticks: number; readonly se
     { id: CORE_WHEAT, ticks: 4_800, seconds: 240 },
     { id: CORE_CARROT, ticks: 9_600, seconds: 480 },
     { id: CORE_PUMPKIN, ticks: 24_000, seconds: 1_200 },
+    // The v0.6 eight (phase-55), in registration order — which is the order
+    // they are authored in, not the order of their durations. See below.
+    { id: CORE_PEA, ticks: 1_200, seconds: 60 },
+    { id: CORE_STRAWBERRY, ticks: 3_000, seconds: 150 },
+    { id: CORE_LEEK, ticks: 4_800, seconds: 240 },
+    { id: CORE_FLAX, ticks: 6_000, seconds: 300 },
+    { id: CORE_TOMATO, ticks: 8_000, seconds: 400 },
+    { id: CORE_CORN, ticks: 12_000, seconds: 600 },
+    { id: CORE_CABBAGE, ticks: 15_000, seconds: 750 },
+    { id: CORE_SQUASH, ticks: 18_000, seconds: 900 },
   ];
 
 describe('the §3.1 growth table', () => {
@@ -63,13 +84,55 @@ describe('the §3.1 growth table', () => {
     }
   });
 
-  it('keeps the durations strictly increasing across the table', () => {
-    // §3.2's inversion is built on this ordering: the slower crop is the more
-    // efficient one, so a rebalance that reorders the table inverts the design.
-    const ticks = coreCrops().map((crop) => crop.growthTicks);
+  it('gives every crop a distinct place on the duration ladder, or a stated tie', () => {
+    // WHAT THIS USED TO ASSERT, and why it changed at phase-55.
+    //
+    // It walked the crops in REGISTRATION order and required each to be slower
+    // than the last, on the reasoning that "§3.2's inversion is built on this
+    // ordering: the slower crop is the more efficient one, so a rebalance that
+    // reorders the table inverts the design."
+    //
+    // The reasoning is right and the assertion was a PROXY for it. With four
+    // crops on one ladder, registration order and duration order were the same
+    // list, so the proxy was free. With twelve they are not: the v0.6 eight are
+    // appended after the v0.1 four, so the 60-second pea is registered after
+    // the 1,200-second pumpkin and the old assertion fails on a table that is
+    // perfectly well ordered.
+    //
+    // Reordering the registrations to restore the coincidence was the obvious
+    // move and is the wrong one — registration order decides dense content
+    // indices, and rearranging it to satisfy a test is how a test starts
+    // dictating a data layout it does not understand.
+    //
+    // **§3.2 is now asserted directly**, against RATE rather than inferred from
+    // order, in `tests/crop-curve.test.ts` — which is strictly stronger: it
+    // catches a crop that is slower and also worse, which no ordering check
+    // ever could.
+    //
+    // What is left here is the property registration order genuinely has: the
+    // ladder has no accidental collisions. Two crops may share a duration, but
+    // only deliberately — leek and wheat do, at 240 s, and that is the whole
+    // point of the pair (`GAME_DESIGN.md` §3.1b): same time, same rate, half
+    // the capital.
+    const DELIBERATE_TIES: readonly (readonly string[])[] = [[CORE_LEEK, CORE_WHEAT]];
 
-    for (let i = 1; i < ticks.length; i += 1) {
-      expect(ticks[i]!).toBeGreaterThan(ticks[i - 1]!);
+    const byDuration = new Map<number, string[]>();
+    for (const crop of coreCrops()) {
+      const ids = byDuration.get(crop.growthTicks) ?? [];
+      ids.push(String(crop.id));
+      byDuration.set(crop.growthTicks, ids);
+    }
+
+    for (const [ticks, ids] of byDuration) {
+      if (ids.length === 1) continue;
+      const sorted = [...ids].sort();
+      const declared = DELIBERATE_TIES.some((tie) => [...tie].sort().join() === sorted.join());
+      expect(
+        declared,
+        `${sorted.join(' and ')} both take ${String(ticks)} ticks. A shared duration is ` +
+          `allowed only when it is the point — add the pair to DELIBERATE_TIES with the ` +
+          `reason, or give one of them a different time.`,
+      ).toBe(true);
     }
   });
 });

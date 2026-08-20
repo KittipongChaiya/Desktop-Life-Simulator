@@ -58,9 +58,19 @@ describe('the economy slice', () => {
     stepSimulation(world);
 
     const prices = world.snapshots.economy.value.prices;
-    // Four produce, four seeds, the two processed goods phase-25 added, and
-    // the three gathered materials phase-27 added.
-    expect(prices.length).toBe(13);
+
+    // EVERY REGISTERED ITEM, counted from the registry rather than pinned.
+    //
+    // This read `toBe(13)`, with a comment enumerating which thirteen. That is
+    // a magic number describing the content set, and phase-55 added sixteen
+    // items — so the test went red for a reason that had nothing to do with the
+    // slice it exists to check. The number was never the claim; the claim is
+    // that the slice lists EVERY item and misses none, and asking the registry
+    // says exactly that and keeps saying it as content grows.
+    expect(prices.length).toBe(world.itemRegistry.all().length);
+    expect(new Set(prices.map((p) => p.item))).toEqual(
+      new Set(world.itemRegistry.all().map((item) => String(item.id))),
+    );
     expect([...prices].map((p) => p.item)).toEqual([...prices].map((p) => p.item).sort());
 
     const wheat = prices.find((p) => p.item === 'core:wheat');
