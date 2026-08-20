@@ -30,6 +30,7 @@ import { FRIEND_AT } from '../../src/sim/world/reputation';
 import { STARTING_COINS } from '../../src/sim/world/wallet';
 import { createWorld } from '../../src/sim/world/world';
 
+import { shoot } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 const TURNIP = asContentId('core:turnip');
@@ -117,7 +118,7 @@ test('the third delivery: the reward lands, standing steps up, the board unlocks
   );
   await expect(board.getByText('for friends of the town')).toBeVisible();
   await expect(board.getByText('for pillars of the town')).toBeVisible();
-  await window.screenshot({ path: testInfo.outputPath('board-newcomer.png') });
+  await shoot(app, testInfo.outputPath('board-newcomer.png'));
 
   // The readout TWEENS up from zero on launch — wait for it to settle on the
   // save's exact balance before taking the baseline, or the delta lies.
@@ -146,5 +147,5 @@ test('the third delivery: the reward lands, standing steps up, the board unlocks
 
   // The town chain moved to its last ask; the requester's errand advanced.
   await expect(board.getByText(/Deliver 10 contracts/)).toBeVisible();
-  await window.screenshot({ path: testInfo.outputPath('board-friend.png') });
+  await shoot(app, testInfo.outputPath('board-friend.png'));
 });

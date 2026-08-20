@@ -81,9 +81,10 @@ function report(name: string, data: unknown): void {
   writeFileSync(join(REPORT_DIR, `${name}.json`), JSON.stringify(data, null, 2));
 }
 
-async function metricNumber(label: string): Promise<number> {
+/** A metric row from the F3 overlay, as text. */
+async function metric(label: string): Promise<string> {
   const window = await app.firstWindow();
-  const text = await window.evaluate((wanted) => {
+  return window.evaluate((wanted) => {
     const rows = document.querySelectorAll('[data-testid="debug-overlay"] section div');
     for (const row of rows) {
       const content = row.textContent ?? '';
@@ -91,7 +92,10 @@ async function metricNumber(label: string): Promise<number> {
     }
     return '';
   }, label);
-  return Number.parseFloat(text.replace(/[^0-9.-]/g, ''));
+}
+
+async function metricNumber(label: string): Promise<number> {
+  return Number.parseFloat((await metric(label)).replace(/[^0-9.-]/g, ''));
 }
 
 /**
@@ -254,6 +258,13 @@ test('the v0.4 tick against ADR-003 §2, in the running app', async () => {
     maxMs: await metricNumber('Tick max'),
     samples: await metricNumber('Tick samples'),
     fps: await metricNumber('FPS'),
+    // The renderer's own account of itself, recorded so a zero below is
+    // self-explaining. `Backend` reads the live view, falling back to the last
+    // mount error and then to "not mounted" — so a run where the GPU went away
+    // says which of those happened instead of leaving a bare 0 to be guessed
+    // at. This spec once failed on `visibleSprites` alone and the reason had
+    // to be reconstructed from the source.
+    backend: await metric('Backend'),
     // v0.4 criterion 3 — "entity and building counts stay within budget".
     // Read from the same overlay, in the same run, so the tick figure and the
     // scene it was measured against are one measurement rather than two.
@@ -278,7 +289,10 @@ test('the v0.4 tick against ADR-003 §2, in the running app', async () => {
   // `MAX_DECOR` reasoning uses: a few hundred is a batch, thousands is a
   // rewrite. The wilds alone add ~276 static nodes, which is the number this
   // criterion existed to catch.
-  expect(measured.visibleSprites).toBeGreaterThan(0);
+  expect(
+    measured.visibleSprites,
+    `no sprites in the scene; the renderer reports backend "${measured.backend}"`,
+  ).toBeGreaterThan(0);
   expect(measured.visibleSprites).toBeLessThan(2_000);
 });
 

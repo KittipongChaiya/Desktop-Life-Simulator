@@ -131,8 +131,27 @@ test('autosave fires on its own cadence, with nobody touching anything (crit 19)
 
   const saved = readSave();
   expect(saved.meta.saveCount).toBe(1);
-  // At least a minute of simulation stands behind it (20 ticks/second).
-  expect(saved.world.tick).toBeGreaterThan(60 * 20 * 0.9);
+
+  // THE CADENCE IS PROVEN BY THE POLL ABOVE, not by this number. Nothing else
+  // in the app writes a save on an untouched farm: a transaction save needs a
+  // transaction, and a quit save needs a quit. So a file appearing at all,
+  // after a minute of doing nothing, is the claim.
+  //
+  // This bound was `60 * 20 * 0.9` — 1,080 ticks — and it flaked twice, at 981
+  // and then at 530. It was quietly asserting a second thing: that the
+  // simulation keeps up with wall-clock. ADR-007 §3 caps the accumulator
+  // precisely so a starved frame loop cannot spiral, so falling behind is
+  // permitted behaviour rather than a defect, and **where the tick rate is
+  // actually measured is `PERFORMANCE.md`**, deliberately, on a quiet machine.
+  // An idle overlay was measured at 19.97 ticks/s for this investigation, so
+  // the app is not the reason (`TESTING.md` §6.5).
+  //
+  // Lowering the threshold was tried first and was the wrong instinct: 530
+  // ticks defeats any bound that still pretends to measure a rate. What the
+  // number is good for is proving the world was RUNNING rather than frozen,
+  // and a quarter of a minute says that without asserting anything about how
+  // fast the machine was.
+  expect(saved.world.tick, 'the world was not running behind this save').toBeGreaterThan(300);
 });
 
 test('a major transaction saves immediately, without waiting for the cadence (crit 19)', async () => {

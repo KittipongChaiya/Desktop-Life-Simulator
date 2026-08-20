@@ -1,8 +1,8 @@
 {
   "p50Ms": 0.1,
   "p95Ms": 0.2,
-  "p99Ms": 0.3,
-  "avgMs": 0.098,
-  "maxMs": 4.8,
-  "samples": 1287
+  "p99Ms": 0.2,
+  "avgMs": 0.094,
+  "maxMs": 3.7,
+  "samples": 1286
 }

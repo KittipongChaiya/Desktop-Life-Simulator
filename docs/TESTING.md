@@ -321,6 +321,87 @@ Builders make each test state its own preconditions. Shared mutable fixtures cre
 
 ---
 
+## 6.5 E2E flakiness, and what caused it
+
+**Investigated at phase 55, over nine full sequential runs.** Six different
+specs had failed intermittently, none of them reproducibly, each passing alone
+— the shape that invites "it's just flaky, re-run it". It was four distinct
+causes, and one of them was a real bug in the application.
+
+### What it was
+
+| Symptom                                                          | Cause                                                                                                                                                                                                    | Class               |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Six ArrowRight presses on the opacity dial landed on 55%         | A late `companion:state-changed` echo overwrote a newer local value, and React re-rendered the controlled input BACKWARDS                                                                                | **application bug** |
+| `chunk-debug` saw 27.5 FPS where it wanted ≤ 1                   | A fixed 2,500 ms sleep standing in for "the world has settled"; FPS averages a 500 ms window, so a slow settle reported the tail of the startup burst                                                    | test                |
+| `placement` failed with `page.screenshot: Timeout 30000ms`       | `page.screenshot()` waits for a frame, and this renderer stops producing them once the world is still — the exact failure `framing.ts`'s `shoot()` was written for, applied to one spec and not the rest | test                |
+| `save.spec` autosave wanted > 1080 ticks, got 981, then 530      | The threshold quietly asserted that the simulation keeps up with wall-clock. ADR-007 §3 permits it not to, and the poll above it already proves the cadence                                              | test                |
+| `criterion 9` read `on 0.600` after 14 s of silence, three times | A single sample after a fixed wait, of a figure a one-second interval recomputes — a starved renderer reports a stale number, not a wrong one                                                            | test                |
+
+### The rules that follow
+
+1. **Poll for a condition; never sleep and then assert.** A fixed wait encodes
+   a guess about a machine's speed. `expect.poll` with a generous timeout says
+   the same thing and cannot be wrong about it. Where a spec must prove
+   something STAYS true, poll for it to become true and then assert it holds —
+   that distinguishes "has not settled yet" from "never settles", and only the
+   second is a defect.
+
+2. **Use `shoot()` from `framing.ts` for diagnostic screenshots.**
+   `page.screenshot()` is correct only where the PNG is the assertion (see
+   `visual-review.spec.ts`, which measures the image's size to prove the
+   overlay drew something). Everywhere else it is a thirty-second timeout
+   waiting to happen.
+
+3. **Do not smuggle a performance assertion into a behavioural test.** The tick
+   rate is measured deliberately, on a quiet machine, and lives in
+   `PERFORMANCE.md`. A behavioural test that also happens to require a fast
+   machine goes red for a reason nobody can act on.
+
+4. **A flaky test is a real bug until proven otherwise** (§6.4 already says
+   this). The opacity flake WAS the application dropping input; treating it as
+   noise would have shipped a dial that sticks and jumps backwards under a held
+   arrow key.
+
+### What was ruled out, so nobody re-investigates it
+
+- **Leaked Electron processes.** Sampled during full runs: the count stays at
+  4–5 and does not accumulate. Launch averages 430 ms, dispose 130 ms.
+- **Stray pointer events waking ambient presence.** Criteria 8 and 9 park the
+  virtual cursor at (240, 120), which sits on top of the debug overlay, whose
+  rows rewrite at 4 Hz — a promising theory for why presence would not expire.
+  Measured: **zero** pointermove events in 18 s, both over the overlay and away
+  from it. It is not that.
+- **Slow world mounts.** Measured at 370–570 ms, against the 3,500 ms the perf
+  specs allow. `v04-tick` reads its sprite count 63 s in, so a slow mount was
+  never its problem; it now records the renderer's `Backend` so the next
+  failure says whether the view was lost rather than leaving a bare zero.
+
+### Still open
+
+**One instance of `F1` not opening the developer console**, seen twice across
+nine runs. No mechanism found. It is not claimed to be fixed.
+
+**And the thing underneath the last two rows of that table**: during a long
+sequential suite the renderer is intermittently starved of CPU for a stretch —
+long enough that a one-second interval misses beats and a minute of wall time
+yields 530 ticks instead of 1,200. The four measurements above show the
+application is not the cause, so the remaining suspects are the harness and
+the machine: ~90 Electron launches, a temp profile created and deleted per
+test, and traces written on failure. **The tests are now written so that a slow
+minute costs time rather than a red build**, which is the right response to
+load the suite does not control. If it gets bad enough to matter, the
+measurement to take is Playwright's own overhead, not the app's.
+
+### A trap worth knowing
+
+`tests/devtools-excluded-from-production.test.ts` runs a real
+`electron-vite build` — a PRODUCTION build, into `out/`. So **`npm test`
+replaces the debug build the E2E suite needs.** The order in §7.1 is build →
+E2E for that reason, and `tests/e2e/global-setup.ts` fails fast with the
+rebuild command when it happens. Running `npm test` between the build and the
+E2E gate means rebuilding first.
+
 ## 7. CI Gates
 
 ### 7.1 Every PR

@@ -444,21 +444,41 @@ test('criterion 9: ambient audio returns to silence when nobody is watching', as
 
   const whileWatched = { ambience: await metric('Ambience') };
 
-  // AMBIENT_IDLE_TIMEOUT_MS is 8 s; wait well past it, touching nothing.
-  await new Promise((resolve) => setTimeout(resolve, 14_000));
+  // POLLED for silence, not sampled once after a fixed 14 s.
+  //
+  // `AMBIENT_IDLE_TIMEOUT_MS` is 8 s, so 14 s looks like ample margin — and
+  // this failed three times across nine full sequential runs, always reading
+  // `on 0.600`, always passing alone. The bed's gain is recomputed by a
+  // one-second interval, so the metric shows the last value that interval
+  // COMPUTED; a renderer starved of CPU for a stretch mid-suite reports a
+  // stale figure rather than a wrong one.
+  //
+  // Four explanations were measured and ruled out before settling on this:
+  // leaked Electron processes (count is flat), stray pointer events waking
+  // presence (zero in 18 s, both over the debug overlay and away from it),
+  // occlusion throttling (rAF stays at 100 Hz and visibility stays "visible"
+  // with the window fully covered), and idle rAF throttling (an untouched
+  // overlay ticks at 19.97/s). None of them is happening, and the product is
+  // healthy on all four counts. `TESTING.md` §6.5 records the measurements.
+  //
+  // What the criterion claims is that the bed goes silent when nobody is
+  // watching — not that it does so within any particular number of seconds,
+  // which is `ambient-presence.test.ts`'s job and is asserted there against
+  // the constant. Polling states the claim and survives a slow minute.
+  await expect
+    .poll(async () => await metric('Ambience'), {
+      timeout: 60_000,
+      message: 'the ambient bed never returned to silence with nobody watching',
+    })
+    .toContain('off');
 
   const whenAway = { ambience: await metric('Ambience') };
 
   report('criterion-9-ambient-audio', { rainingSeed, whileWatched, whenAway });
 
-  // While watched: the bed is sounding. Without this the test below passes on
-  // a farm where it simply never rained.
+  // While watched: the bed is sounding. Without this the assertion above
+  // passes on a farm where it simply never rained.
   expect(whileWatched.ambience).toContain('on');
-
-  // And away: silent, which is what releases the audio thread. A gain of zero
-  // STOPS the source rather than playing silence — the distinction the whole
-  // condition rests on.
-  expect(whenAway.ambience).toContain('off');
 });
 
 /**

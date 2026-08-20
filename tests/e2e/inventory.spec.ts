@@ -9,6 +9,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
+import { shoot } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -52,7 +53,7 @@ test('the inventory panel opens and shows capacity', async () => {
   await expect(panel).toContainText('0 / 40 slots');
   await expect(panel).toContainText('Nothing stored yet');
 
-  await window.screenshot({ path: 'test-results/inventory-panel.png' });
+  await shoot(app, 'test-results/inventory-panel.png');
 
   // Opening the panel must not steal focus from the world (crit 16): the overlay
   // stays non-focusable.

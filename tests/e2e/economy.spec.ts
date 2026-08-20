@@ -10,7 +10,7 @@
 
 import { expect, test, type ElectronApplication } from '@playwright/test';
 
-import { plotCentreOnScreen } from './framing';
+import { plotCentreOnScreen, shoot } from './framing';
 import { launchIsolated, type IsolatedSession } from './isolated-profile';
 
 let app: ElectronApplication;
@@ -122,7 +122,7 @@ test('the full loop: buy, plant, grow, harvest, sell, hire, build, expand', asyn
   await shop.getByRole('button', { name: 'Expand' }).click();
   await expect(shop.getByText('(1 bought)')).toBeVisible();
 
-  await window.screenshot({ path: 'test-results/economy-full-loop.png' });
+  await shoot(app, 'test-results/economy-full-loop.png');
 });
 
 test('the tool bar arms a tool with the mouse, and planting works (07.5h regression)', async () => {
