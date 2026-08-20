@@ -71,6 +71,17 @@ export const CORE_RIVER_DELTA = asContentId('core:river_delta');
 export const CORE_OLD_QUARRY = asContentId('core:old_quarry');
 export const CORE_HIGHLANDS = asContentId('core:highlands');
 
+/**
+ * The v0.6 destinations (phase-59 — ADR-046 R-07/R-08).
+ *
+ * Three sites could not make the map a decision: ordering them by travel time
+ * gave exactly the ordering by value, so "how far can I afford to send someone"
+ * had one answer and the map was a line. These three break that.
+ */
+export const CORE_THORNWOOD = asContentId('core:thornwood');
+export const CORE_SUNKEN_COAST = asContentId('core:sunken_coast');
+export const CORE_ASHFELL = asContentId('core:ashfell');
+
 export type ExpeditionRegistry = ContentRegistry<ExpeditionDestination>;
 
 export function createExpeditionRegistry(): ExpeditionRegistry {

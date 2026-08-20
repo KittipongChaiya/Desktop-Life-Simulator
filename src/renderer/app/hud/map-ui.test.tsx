@@ -165,12 +165,36 @@ describe('MapPanel', () => {
     expect(screen.getByText('· 3m away', { exact: false })).toBeDefined();
   });
 
+  /**
+   * The Send button belonging to a NAMED destination.
+   *
+   * Three tests below used `getAllByRole('Send')[0]` and meant "the River
+   * Delta's" — true while the Delta was the first destination in the list.
+   * Phase-59 put the Thornwood ahead of it (registration order is travel time
+   * ascending, which `expedition-rate.test.ts` depends on), and all three
+   * silently started testing a different place. One of them, the supplies
+   * guard, would have gone permanently green for the wrong reason: the
+   * Thornwood costs nothing to send to, so its button is CORRECTLY enabled on
+   * a farm with an empty larder.
+   *
+   * Selecting by name costs a helper and cannot drift.
+   */
+  function sendFor(destination: string): HTMLElement {
+    const row = screen
+      .getAllByTestId('destination')
+      .find((element) => element.textContent?.includes(destination));
+    expect(row, `no destination row for ${destination}`).toBeDefined();
+    const send = row?.querySelector('button');
+    expect(send, `${destination} has no Send button`).not.toBeNull();
+    return send as HTMLElement;
+  }
+
   it('sending submits the command for the destination and a free hand', () => {
     const world = readyWorld();
     const submitted = mount(world);
     openPanel();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Send' })[0]!);
+    fireEvent.click(sendFor('River Delta'));
 
     expect(submitted).toEqual([
       { type: 'sendExpedition', worker: 1, destination: CORE_RIVER_DELTA },
@@ -183,8 +207,24 @@ describe('MapPanel', () => {
     mount(readyWorld());
     openPanel();
 
-    expect(screen.getByText('for friends of the town')).toBeDefined();
-    expect(screen.queryAllByRole('button', { name: 'Send' }).length).toBe(1);
+    // getAllByText, because three destinations now wait on `friend` and
+    // `getByText` throws on more than one match — a failure that reads as a
+    // missing element when it is the opposite.
+    expect(screen.getAllByText('for friends of the town').length).toBeGreaterThan(0);
+
+    // FEWER SEND BUTTONS THAN DESTINATIONS, rather than exactly one. The
+    // assertion used to be `toBe(1)`, which was a way of saying "only the
+    // Delta is open" while the Delta was the only newcomer destination.
+    // Phase-59 added a second one, and a rule that counts unlocked places
+    // needs editing every time the map grows — which is how a test stops being
+    // about the thing it names. What ADR-038 §6 actually asks is that a locked
+    // place is VISIBLE with its requirement rather than hidden, so that is what
+    // is checked: some rows have Send, some say what they wait for, and every
+    // destination is on screen either way.
+    const rows = screen.getAllByTestId('destination');
+    const sendable = screen.queryAllByRole('button', { name: 'Send' }).length;
+    expect(sendable).toBeGreaterThan(0);
+    expect(sendable).toBeLessThan(rows.length);
   });
 
   it('opens a destination the moment standing reaches it', () => {
@@ -207,7 +247,12 @@ describe('MapPanel', () => {
     mount(world);
     openPanel();
 
-    const send = screen.getAllByRole('button', { name: 'Send' })[0]!;
+    // NAMED, because this test is only meaningful for a destination that
+    // actually costs something to reach. The Thornwood is now first in the list
+    // and needs no supplies at all, so its Send is rightly enabled on an empty
+    // farm — reading index 0 would have turned this guard green while the bug
+    // it was written for went unwatched.
+    const send = sendFor('River Delta');
     expect(send.hasAttribute('disabled')).toBe(true);
     expect(send.getAttribute('title')).toContain('supplies');
   });

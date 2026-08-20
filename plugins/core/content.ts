@@ -16,33 +16,69 @@ import { asContentId } from '../../src/shared/ids';
 import {
   CORE_BUILDINGS,
   CORE_KITCHEN,
+  CORE_LOOM,
   CORE_MILL,
+  CORE_PRESERVING_SHED,
   type BuildingDefinition,
 } from '../../src/sim/content/buildings';
 import {
+  CORE_CABBAGE,
   CORE_CARROT,
+  CORE_CORN,
+  CORE_FLAX,
+  CORE_LEEK,
+  CORE_PEA,
   CORE_PUMPKIN,
+  CORE_SQUASH,
+  CORE_STRAWBERRY,
+  CORE_TOMATO,
   CORE_TURNIP,
   CORE_WHEAT,
   type CropDefinition,
 } from '../../src/sim/content/crops';
 import {
+  CORE_ASHFELL,
   CORE_HIGHLANDS,
   CORE_OLD_QUARRY,
   CORE_RIVER_DELTA,
+  CORE_SUNKEN_COAST,
+  CORE_THORNWOOD,
   type ExpeditionDestination,
 } from '../../src/sim/content/expeditions';
 import {
   CORE_BREAD,
   CORE_CARROT as CORE_CARROT_ITEM,
   CORE_CARROT_SEED,
+  CORE_CLOTH,
+  CORE_CORNMEAL,
   CORE_FLOUR,
+  CORE_JAM,
+  CORE_LINEN_FIBRE,
   CORE_ORE,
+  CORE_PORRIDGE,
+  CORE_SAUCE,
+  CORE_THREAD,
   CORE_ORE as CORE_ORE_ITEM,
   CORE_STONE as CORE_STONE_ITEM,
   CORE_TURNIP as CORE_TURNIP_ITEM,
   CORE_WOOD,
   CORE_PUMPKIN_SEED,
+  CORE_CABBAGE as CORE_CABBAGE_ITEM,
+  CORE_CABBAGE_SEED,
+  CORE_CORN as CORE_CORN_ITEM,
+  CORE_CORN_SEED,
+  CORE_FLAX as CORE_FLAX_ITEM,
+  CORE_FLAX_SEED,
+  CORE_LEEK as CORE_LEEK_ITEM,
+  CORE_LEEK_SEED,
+  CORE_PEA as CORE_PEA_ITEM,
+  CORE_PEA_SEED,
+  CORE_SQUASH as CORE_SQUASH_ITEM,
+  CORE_SQUASH_SEED,
+  CORE_STRAWBERRY as CORE_STRAWBERRY_ITEM,
+  CORE_STRAWBERRY_SEED,
+  CORE_TOMATO as CORE_TOMATO_ITEM,
+  CORE_TOMATO_SEED,
   CORE_TURNIP_SEED,
   CORE_WHEAT as CORE_WHEAT_ITEM,
   CORE_WHEAT_SEED,
@@ -52,7 +88,14 @@ import {
 import { phaseTintId, type PhaseTintDefinition } from '../../src/sim/content/lighting';
 import {
   CORE_BAKE_BREAD,
+  CORE_COOK_PORRIDGE,
+  CORE_GRIND_CORNMEAL,
   CORE_GRIND_FLOUR,
+  CORE_MAKE_JAM,
+  CORE_MAKE_SAUCE,
+  CORE_RET_FLAX,
+  CORE_SPIN_THREAD,
+  CORE_WEAVE_CLOTH,
   type RecipeDefinition,
 } from '../../src/sim/content/recipes';
 import {
@@ -161,6 +204,139 @@ export function coreCrops(): readonly CropDefinition[] {
       seasons: [CORE_AUTUMN, CORE_WINTER],
       tags: ['gourd'],
     },
+
+    // ── The v0.6 eight (phase-55 — ADR-046 R-01/R-02) ───────────────────────
+    //
+    // THE NUMBERS ARE DERIVED, NOT CHOSEN. `GAME_DESIGN.md` §3.2 is the single
+    // most important balance decision in the game: longer crops must yield
+    // strictly better coins-per-second, because that is what makes going away
+    // the optimal strategy — `VISION.md` §2.2 expressed as arithmetic. The four
+    // v0.1 crops trace a curve, and fitting it gives
+    //
+    //     profit/sec  =  0.078 x (seconds / 90) ^ 0.23
+    //
+    // to within a few percent at every existing point. Each crop below takes
+    // its growth time and its seed cost, and its sale price is whatever that
+    // curve requires. Nothing here was tuned by feel, and §3.2's ordering is
+    // preserved across all twelve crops rather than merely inside the new ones.
+    //
+    // WHAT MAKES A SEASON A CHOICE, given that §3.2 fixes the rate ordering.
+    // It cannot be "which crop earns more" — §3.2 settles that permanently. So
+    // the axis is CAPITAL, which §3.2 already names as the counterweight:
+    // within a season, the crops differ in how much money you must have before
+    // you can plant one. The leek is the deliberate demonstration — same growth
+    // time as wheat, the same profit per second to four decimal places, half
+    // the seed cost and a lower sale price. A player with 6 coins plants leeks;
+    // a player with 12 plants wheat and makes more per trip to the market.
+    //
+    // R-02 checks this held: zero crops are strictly dominated in any season,
+    // on all three of rate, value-per-harvest and seed cost.
+    {
+      id: CORE_PEA,
+      displayName: 'Pea',
+      growthTicks: secondsToTicks(60),
+      stageSprites: ['crops:pea_0', 'crops:pea_1', 'crops:pea_2', 'crops:pea_3'],
+      harvestYield: [{ item: asContentId('core:pea'), quantity: 1 }],
+      seedItem: asContentId('core:pea_seed'),
+      seedCost: 3,
+      // The cheapest thing in the game, and the fastest. Spring only: it is the
+      // crop a player with almost nothing plants in their first minutes.
+      seasons: [CORE_SPRING],
+      tags: ['legume'],
+    },
+    {
+      id: CORE_STRAWBERRY,
+      displayName: 'Strawberry',
+      growthTicks: secondsToTicks(150),
+      stageSprites: [
+        'crops:strawberry_0',
+        'crops:strawberry_1',
+        'crops:strawberry_2',
+        'crops:strawberry_3',
+      ],
+      harvestYield: [{ item: asContentId('core:strawberry'), quantity: 1 }],
+      seedItem: asContentId('core:strawberry_seed'),
+      seedCost: 8,
+      seasons: [CORE_SPRING, CORE_SUMMER],
+      tags: ['fruit'],
+    },
+    {
+      id: CORE_LEEK,
+      displayName: 'Leek',
+      growthTicks: secondsToTicks(240),
+      stageSprites: ['crops:leek_0', 'crops:leek_1', 'crops:leek_2', 'crops:leek_3'],
+      harvestYield: [{ item: asContentId('core:leek'), quantity: 1 }],
+      seedItem: asContentId('core:leek_seed'),
+      // HALF WHEAT'S SEED COST at exactly wheat's growth time and profit rate.
+      // This is the capital axis stated as plainly as it can be: the leek is
+      // never better and never worse, it is only cheaper to start.
+      seedCost: 6,
+      seasons: [CORE_SPRING, CORE_WINTER],
+      tags: ['allium'],
+    },
+    {
+      id: CORE_FLAX,
+      displayName: 'Flax',
+      growthTicks: secondsToTicks(300),
+      stageSprites: ['crops:flax_0', 'crops:flax_1', 'crops:flax_2', 'crops:flax_3'],
+      harvestYield: [{ item: asContentId('core:flax'), quantity: 1 }],
+      seedItem: asContentId('core:flax_seed'),
+      seedCost: 14,
+      seasons: [CORE_SPRING, CORE_AUTUMN],
+      // `fibre` is what phase 56's cloth chain asks for by tag rather than by
+      // id — the reason `tags` exists at all (`crops.ts`: v0.3 contracts ask
+      // for "a root vegetable" without editing the interface).
+      tags: ['fibre'],
+    },
+    {
+      id: CORE_TOMATO,
+      displayName: 'Tomato',
+      growthTicks: secondsToTicks(400),
+      stageSprites: ['crops:tomato_0', 'crops:tomato_1', 'crops:tomato_2', 'crops:tomato_3'],
+      harvestYield: [{ item: asContentId('core:tomato'), quantity: 1 }],
+      seedItem: asContentId('core:tomato_seed'),
+      seedCost: 20,
+      seasons: [CORE_SUMMER],
+      tags: ['fruit'],
+    },
+    {
+      id: CORE_CORN,
+      displayName: 'Corn',
+      growthTicks: secondsToTicks(600),
+      stageSprites: ['crops:corn_0', 'crops:corn_1', 'crops:corn_2', 'crops:corn_3'],
+      harvestYield: [{ item: asContentId('core:corn'), quantity: 1 }],
+      seedItem: asContentId('core:corn_seed'),
+      seedCost: 32,
+      seasons: [CORE_SUMMER, CORE_AUTUMN],
+      // The second grain, which is what gives the Mill a reason to exist past
+      // one recipe (ADR-046 R-04).
+      tags: ['grain'],
+    },
+    {
+      id: CORE_CABBAGE,
+      displayName: 'Cabbage',
+      growthTicks: secondsToTicks(750),
+      stageSprites: ['crops:cabbage_0', 'crops:cabbage_1', 'crops:cabbage_2', 'crops:cabbage_3'],
+      harvestYield: [{ item: asContentId('core:cabbage'), quantity: 1 }],
+      seedItem: asContentId('core:cabbage_seed'),
+      seedCost: 38,
+      seasons: [CORE_AUTUMN, CORE_WINTER],
+      tags: ['leaf'],
+    },
+    {
+      id: CORE_SQUASH,
+      displayName: 'Winter Squash',
+      growthTicks: secondsToTicks(900),
+      stageSprites: ['crops:squash_0', 'crops:squash_1', 'crops:squash_2', 'crops:squash_3'],
+      harvestYield: [{ item: asContentId('core:squash'), quantity: 1 }],
+      seedItem: asContentId('core:squash_seed'),
+      seedCost: 48,
+      // WINTER ONLY, and it is the season's second-best crop behind the
+      // pumpkin. `GAME_DESIGN.md` §3.1a called winter "the leanest season, not
+      // a dead one" when it held two crops; it now holds five.
+      seasons: [CORE_WINTER],
+      tags: ['gourd'],
+    },
   ];
   return crops;
 }
@@ -235,6 +411,63 @@ export function coreItems(): readonly ItemDefinition[] {
     // bottom of a chain rather than the end of one, and because gathering has
     // no seed cost, no growth wait and no land to buy. A wild resource that
     // outsold a farmed one would make the farm the side activity.
+    // ── v0.6 processed goods (phase-56) ─────────────────────────────────────
+    //
+    // Each price is its recipe's inputs at base price times the v0.4 chain's
+    // own step premium of roughly 1.25–1.30. Nothing here is a new economic
+    // rule; it is the existing one applied to longer chains.
+    {
+      id: CORE_CORNMEAL,
+      displayName: 'Cornmeal',
+      sprite: 'ui-world:item_cornmeal',
+      basePrice: 260,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_PORRIDGE,
+      displayName: 'Porridge',
+      sprite: 'ui-world:item_porridge',
+      basePrice: 710,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_JAM,
+      displayName: 'Jam',
+      sprite: 'ui-world:item_jam',
+      basePrice: 82,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_SAUCE,
+      displayName: 'Sauce',
+      sprite: 'ui-world:item_sauce',
+      basePrice: 250,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_LINEN_FIBRE,
+      displayName: 'Linen Fibre',
+      sprite: 'ui-world:item_linen_fibre',
+      basePrice: 84,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_THREAD,
+      displayName: 'Thread',
+      sprite: 'ui-world:item_thread',
+      basePrice: 218,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_CLOTH,
+      displayName: 'Cloth',
+      sprite: 'ui-world:item_cloth',
+      // THE MOST VALUABLE THING IN THE GAME, at four items deep and about
+      // twelve minutes of machine time from the flax it started as. A chain
+      // that ended at the price of a pumpkin would not be worth running.
+      basePrice: 850,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
     {
       id: CORE_WOOD,
       displayName: 'Wood',
@@ -275,6 +508,125 @@ export function coreItems(): readonly ItemDefinition[] {
       displayName: 'Carrot Seeds',
       sprite: 'ui-world:item_carrot_seed',
       basePrice: 25,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    // ── v0.6 produce and seeds (phase-55) ───────────────────────────────────
+    //
+    // Every price here is `GAME_DESIGN.md` §3.2's curve evaluated at that
+    // crop's growth time, plus its seed cost — see `coreCrops()` above for the
+    // derivation and for why the seed cost is the axis that makes a season a
+    // choice. A seed's `basePrice` is its `seedCost`, as it is for all four
+    // v0.1 crops: buying a seed is the sink the crop's price is measured from.
+    {
+      id: CORE_PEA_ITEM,
+      displayName: 'Pea',
+      sprite: 'ui-world:item_pea',
+      basePrice: 7,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_STRAWBERRY_ITEM,
+      displayName: 'Strawberry',
+      sprite: 'ui-world:item_strawberry',
+      basePrice: 21,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_LEEK_ITEM,
+      displayName: 'Leek',
+      sprite: 'ui-world:item_leek',
+      basePrice: 28,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_FLAX_ITEM,
+      displayName: 'Flax',
+      sprite: 'ui-world:item_flax',
+      basePrice: 45,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_TOMATO_ITEM,
+      displayName: 'Tomato',
+      sprite: 'ui-world:item_tomato',
+      basePrice: 64,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_CORN_ITEM,
+      displayName: 'Corn',
+      sprite: 'ui-world:item_corn',
+      basePrice: 104,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_CABBAGE_ITEM,
+      displayName: 'Cabbage',
+      sprite: 'ui-world:item_cabbage',
+      basePrice: 133,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_SQUASH_ITEM,
+      displayName: 'Winter Squash',
+      sprite: 'ui-world:item_squash',
+      basePrice: 167,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_PEA_SEED,
+      displayName: 'Pea Seeds',
+      sprite: 'ui-world:item_pea_seed',
+      basePrice: 3,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_STRAWBERRY_SEED,
+      displayName: 'Strawberry Seeds',
+      sprite: 'ui-world:item_strawberry_seed',
+      basePrice: 8,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_LEEK_SEED,
+      displayName: 'Leek Seeds',
+      sprite: 'ui-world:item_leek_seed',
+      basePrice: 6,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_FLAX_SEED,
+      displayName: 'Flax Seeds',
+      sprite: 'ui-world:item_flax_seed',
+      basePrice: 14,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_TOMATO_SEED,
+      displayName: 'Tomato Seeds',
+      sprite: 'ui-world:item_tomato_seed',
+      basePrice: 20,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_CORN_SEED,
+      displayName: 'Corn Seeds',
+      sprite: 'ui-world:item_corn_seed',
+      basePrice: 32,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_CABBAGE_SEED,
+      displayName: 'Cabbage Seeds',
+      sprite: 'ui-world:item_cabbage_seed',
+      basePrice: 38,
+      stackSize: DEFAULT_STACK_SIZE,
+    },
+    {
+      id: CORE_SQUASH_SEED,
+      displayName: 'Winter Squash Seeds',
+      sprite: 'ui-world:item_squash_seed',
+      basePrice: 48,
       stackSize: DEFAULT_STACK_SIZE,
     },
     {
@@ -345,7 +697,62 @@ export function coreTileKinds(): readonly TileKindDefinition[] {
  * competed with the band next door would be somewhere with no purpose.
  */
 export function coreExpeditions(): readonly ExpeditionDestination[] {
+  // ── Six destinations, and three rules they all had to satisfy at once ─────
+  //
+  // v0.4 shipped three, and two things were wrong with them (ADR-046 R-07,
+  // R-08): no destination brought WOOD back at all and stone came from exactly
+  // one, so for two of the three materials a player gathers an expedition could
+  // not substitute for a forager; and sorting the three by travel time gave
+  // precisely the ordering by yield value, which is one axis wearing two names.
+  //
+  // Adding three more turned out to be a constraint problem rather than a
+  // writing one, because THREE separate rules bear on every row:
+  //
+  // 1. **The rate band** (ADR-038 §5, `expedition-rate.test.ts`). Net value per
+  //    tick of worker time must sit between half and twice a forager's rate.
+  //    Below it nobody goes; above it every worker goes and the farm stops
+  //    mattering.
+  // 2. **The carry cap** (`isReachableDestination`). Yields scaled by HAUL_MAX
+  //    must fit in WORKER_CARRY_CAPACITY — 20 items.
+  // 3. **Distance follows trust** (`expedition-rate.test.ts`): sorted by
+  //    standing tier, travel time strictly increases, "or the map reads as
+  //    arbitrary".
+  //
+  // **Rules 1 and 2 together put a ceiling on how long a trip can be**, and it
+  // is lower than it looks. The most valuable haul that fits in a worker is
+  // about 640 coins of ore, and the rate floor then caps travel at roughly 530
+  // seconds. The first draft of the Sunken Coast was a 600-second journey; it
+  // is not that the numbers were wrong, it is that no numbers exist for it.
+  //
+  // **Rule 3 then rules out a second `pillar` destination.** The Highlands is
+  // pillar at 450 s, so any other pillar site must be longer — and longer than
+  // 450 s leaves almost no room under the rate ceiling. Ashfell was drafted as
+  // pillar and is `friend` for that reason: it is gated by trust one tier
+  // earlier, and pays for it by being reachable sooner.
+  //
+  // **Where R-08's inversion actually lives**, after all that: Ashfell is a
+  // SHORTER trip than the Sunken Coast and worth MORE. Travel time and yield
+  // value order the map differently, which is the whole point — "how far can I
+  // afford to send someone" stops having one answer.
+  //
+  // Registration order is load-bearing for rule 3, because the tier sort is
+  // stable and compares neighbours. The order below is travel time ascending.
   const destinations: readonly ExpeditionDestination[] = [
+    {
+      id: CORE_THORNWOOD,
+      displayName: 'Thornwood',
+      sprite: 'ui-world:place_thornwood',
+      description: 'Close, tangled, and nobody else bothers. Good timber all the same.',
+      // The shortest trip in the game and the only one that costs nothing to
+      // send. A newcomer's first expedition should be affordable in both senses.
+      travelTicks: secondsToTicks(120),
+      supplies: [],
+      yields: [
+        { item: CORE_WOOD, quantity: 8 },
+        { item: CORE_STONE_ITEM, quantity: 8 },
+      ],
+      requires: 'newcomer',
+    },
     {
       id: CORE_RIVER_DELTA,
       displayName: 'River Delta',
@@ -369,6 +776,38 @@ export function coreExpeditions(): readonly ExpeditionDestination[] {
       yields: [
         { item: CORE_ORE_ITEM, quantity: 12 },
         { item: CORE_STONE_ITEM, quantity: 4 },
+      ],
+      requires: 'friend',
+    },
+    {
+      id: CORE_ASHFELL,
+      displayName: 'Ashfell',
+      sprite: 'ui-world:place_ashfell',
+      description: 'Half a day out and still warm underfoot. They mined it for a reason.',
+      // RICHER THAN THE LONGER TRIP BELOW IT, which is where R-08's second axis
+      // comes from. It fills a worker's bag to the last slot.
+      travelTicks: secondsToTicks(360),
+      supplies: [],
+      yields: [
+        { item: CORE_ORE_ITEM, quantity: 14 },
+        { item: CORE_STONE_ITEM, quantity: 1 },
+        { item: CORE_WOOD, quantity: 2 },
+      ],
+      requires: 'friend',
+    },
+    {
+      id: CORE_SUNKEN_COAST,
+      displayName: 'The Sunken Coast',
+      sprite: 'ui-world:place_coast',
+      description: 'A long walk to a drowned village. The stone is already cut.',
+      // Longer than Ashfell and worth less, and not a trap: it is the only bulk
+      // FLAX in the game, which is the linen chain's first rung, and it costs
+      // nothing to send anyone there.
+      travelTicks: secondsToTicks(400),
+      supplies: [],
+      yields: [
+        { item: CORE_FLAX_ITEM, quantity: 10 },
+        { item: CORE_STONE_ITEM, quantity: 7 },
       ],
       requires: 'friend',
     },
@@ -613,6 +1052,86 @@ export function coreRecipes(): readonly RecipeDefinition[] {
       inputs: [{ item: CORE_FLOUR, quantity: 2 }],
       outputs: [{ item: CORE_BREAD, quantity: 1 }],
       craftTicks: secondsToTicks(120),
+    },
+
+    // ── The v0.6 chains (phase-56 — ADR-046 R-03/R-04) ──────────────────────
+    //
+    // v0.4 built a factory model FOR CHAINS and shipped one two-step chain, so
+    // the depth the model was designed for had never once been exercised. Two
+    // things follow from that and both are fixed here.
+    //
+    // EVERY FACTORY NOW HAS A CHOICE TO MAKE. The Mill ran one recipe, which
+    // means a Mill was not a decision — it was a switch that was either on or
+    // off. Three recipes at one building is the smallest thing that makes
+    // "what is my Mill doing right now" a question worth asking, and R-04 is
+    // that stated as a rule.
+    //
+    // THE PREMIUM IS THE V0.4 ONE, APPLIED UNCHANGED. `coreItems()` recorded
+    // it: 4 wheat (136) → 2 flour (170) → 1 bread (230), roughly 1.25x per
+    // step and 1.7x across the chain, "because a chain that did not add value
+    // would be a building with no reason to exist." Every price below is that
+    // same step ratio against its own inputs, so processing keeps exactly the
+    // shape it had rather than becoming a better deal because it got longer.
+    {
+      id: CORE_GRIND_CORNMEAL,
+      displayName: 'Grind Cornmeal',
+      building: CORE_MILL,
+      inputs: [{ item: CORE_CORN, quantity: 2 }],
+      outputs: [{ item: CORE_CORNMEAL, quantity: 1 }],
+      craftTicks: secondsToTicks(75),
+    },
+    {
+      id: CORE_RET_FLAX,
+      displayName: 'Ret Flax',
+      building: CORE_MILL,
+      inputs: [{ item: CORE_FLAX, quantity: 3 }],
+      outputs: [{ item: CORE_LINEN_FIBRE, quantity: 2 }],
+      craftTicks: secondsToTicks(90),
+    },
+    {
+      id: CORE_COOK_PORRIDGE,
+      displayName: 'Cook Porridge',
+      building: CORE_KITCHEN,
+      // The one recipe that takes two different inputs, which is what makes a
+      // Kitchen queue something a player has to supply rather than feed.
+      inputs: [
+        { item: CORE_CORNMEAL, quantity: 2 },
+        { item: CORE_LEEK, quantity: 1 },
+      ],
+      outputs: [{ item: CORE_PORRIDGE, quantity: 1 }],
+      craftTicks: secondsToTicks(150),
+    },
+    {
+      id: CORE_MAKE_JAM,
+      displayName: 'Make Jam',
+      building: CORE_PRESERVING_SHED,
+      inputs: [{ item: CORE_STRAWBERRY, quantity: 3 }],
+      outputs: [{ item: CORE_JAM, quantity: 1 }],
+      craftTicks: secondsToTicks(60),
+    },
+    {
+      id: CORE_MAKE_SAUCE,
+      displayName: 'Make Sauce',
+      building: CORE_PRESERVING_SHED,
+      inputs: [{ item: CORE_TOMATO, quantity: 3 }],
+      outputs: [{ item: CORE_SAUCE, quantity: 1 }],
+      craftTicks: secondsToTicks(90),
+    },
+    {
+      id: CORE_SPIN_THREAD,
+      displayName: 'Spin Thread',
+      building: CORE_LOOM,
+      inputs: [{ item: CORE_LINEN_FIBRE, quantity: 2 }],
+      outputs: [{ item: CORE_THREAD, quantity: 1 }],
+      craftTicks: secondsToTicks(120),
+    },
+    {
+      id: CORE_WEAVE_CLOTH,
+      displayName: 'Weave Cloth',
+      building: CORE_LOOM,
+      inputs: [{ item: CORE_THREAD, quantity: 3 }],
+      outputs: [{ item: CORE_CLOTH, quantity: 1 }],
+      craftTicks: secondsToTicks(240),
     },
   ];
   return recipes;
