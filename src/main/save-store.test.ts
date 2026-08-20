@@ -24,6 +24,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  archiveSaves,
   atomicWriteSave,
   BACKUPS_KEPT,
   preMigrationBackupName,
@@ -321,5 +322,116 @@ describe('the schema version the updater asks about (phase-15, ADR-025 §2)', ()
     readSaveSchemaVersion(dir);
 
     expect(readdirSync(join(dir, 'backups'))).toEqual(before);
+  });
+});
+
+describe('archiveSaves — starting over (ADR-045 §2)', () => {
+  const STAMP = '2026-08-20T12-00-00';
+
+  it('moves the farm aside rather than deleting it', () => {
+    // THE promise the whole ADR rests on. A player who ends their farm and
+    // regrets it must still have it.
+    atomicWriteSave(dir, doc(500), 500);
+    const before = readFileSync(join(dir, 'slot-0.json'), 'utf8');
+
+    const archive = archiveSaves(dir, STAMP);
+
+    expect(archive).not.toBeNull();
+    expect(existsSync(join(dir, 'slot-0.json'))).toBe(false);
+    expect(readFileSync(join(archive ?? '', 'slot-0.json'), 'utf8')).toBe(before);
+  });
+
+  it('leaves the directory looking like a first launch', () => {
+    // What `readSavesForLoad` reports is what decides whether boot builds a
+    // new world, so this is the assertion that actually says "new game".
+    atomicWriteSave(dir, doc(1), 1);
+    atomicWriteSave(dir, doc(2), 2);
+
+    archiveSaves(dir, STAMP);
+
+    expect(readSavesForLoad(dir).missing).toBe(true);
+  });
+
+  it('takes the previous save and a stray temp file with it', () => {
+    // `.bak` is a farm too. The `.tmp` is not, but a crash can leave one, and
+    // a stray temp file sitting beside a brand-new farm is how a later
+    // diagnosis goes wrong.
+    atomicWriteSave(dir, doc(1), 1);
+    atomicWriteSave(dir, doc(2), 2);
+    writeFileSync(join(dir, 'slot-0.json.tmp'), 'interrupted', 'utf8');
+
+    const archive = archiveSaves(dir, STAMP) ?? '';
+
+    expect(existsSync(join(dir, 'slot-0.json.bak'))).toBe(false);
+    expect(existsSync(join(dir, 'slot-0.json.tmp'))).toBe(false);
+    expect(existsSync(join(archive, 'slot-0.json.bak'))).toBe(true);
+    expect(existsSync(join(archive, 'slot-0.json.tmp'))).toBe(true);
+  });
+
+  it('takes the whole backups directory, pre-migration copies included', () => {
+    // ADR-027 §2 keeps these indefinitely so an older build can read the farm
+    // after a rollback. They describe THIS farm, so they travel with it — and
+    // a delete would have destroyed the one artifact that ADR promises.
+    atomicWriteSave(dir, doc(400), 400);
+    writePreMigrationBackup(dir, 6, doc(400));
+
+    const archive = archiveSaves(dir, STAMP) ?? '';
+
+    expect(existsSync(join(dir, 'backups'))).toBe(false);
+    expect(existsSync(join(archive, 'backups', 'slot-0-400.json'))).toBe(true);
+    expect(existsSync(join(archive, 'backups', preMigrationBackupName(6)))).toBe(true);
+  });
+
+  it('leaves the new farm free to rotate its own backups', () => {
+    // THE LATENT DEFECT THIS FIXES, and the reason `backups/` moves rather
+    // than staying. `pruneBackups` keeps the HIGHEST ticks; a new game starts
+    // at tick 0. An old farm's tick-9000 copies would outrank every backup the
+    // new farm ever wrote, so the new farm would accumulate none of its own
+    // while retaining a world that no longer exists.
+    for (const tick of [9000, 9100, 9200]) atomicWriteSave(dir, doc(tick), tick);
+
+    archiveSaves(dir, STAMP);
+
+    for (const tick of [10, 20, 30, 40]) atomicWriteSave(dir, doc(tick), tick);
+
+    const kept = readdirSync(join(dir, 'backups')).filter((name) =>
+      /^slot-0-\d+\.json$/.test(name),
+    );
+    expect(kept).toHaveLength(BACKUPS_KEPT);
+    // Every survivor is the NEW farm's. With the old backups left in place
+    // this array would have been the three tick-9xxx files.
+    expect(kept.every((name) => Number(/\d+/.exec(name)?.[0]) < 100)).toBe(true);
+  });
+
+  it('stacks repeated resets instead of colliding', () => {
+    atomicWriteSave(dir, doc(1), 1);
+    const first = archiveSaves(dir, '2026-08-20T12-00-00');
+
+    atomicWriteSave(dir, doc(2), 2);
+    const second = archiveSaves(dir, '2026-08-20T13-00-00');
+
+    expect(first).not.toBe(second);
+    expect(existsSync(join(first ?? '', 'slot-0.json'))).toBe(true);
+    expect(existsSync(join(second ?? '', 'slot-0.json'))).toBe(true);
+  });
+
+  it('is a no-op on a directory with no farm in it', () => {
+    // Resetting a world that does not exist is not a failure. `null` says
+    // "nothing moved", and the caller reloads either way.
+    expect(archiveSaves(dir, STAMP)).toBeNull();
+    expect(existsSync(join(dir, 'archive'))).toBe(false);
+  });
+
+  it('archives a lone backups directory left by a half-cleaned profile', () => {
+    // Not hypothetical: this is the shape a directory is in after somebody
+    // deletes slot-0.json by hand. Skipping it would leave the old farm's
+    // copies to outrank the new one's forever.
+    mkdirSync(join(dir, 'backups'), { recursive: true });
+    writeFileSync(join(dir, 'backups', 'slot-0-77.json'), doc(77), 'utf8');
+
+    const archive = archiveSaves(dir, STAMP) ?? '';
+
+    expect(existsSync(join(dir, 'backups'))).toBe(false);
+    expect(existsSync(join(archive, 'backups', 'slot-0-77.json'))).toBe(true);
   });
 });

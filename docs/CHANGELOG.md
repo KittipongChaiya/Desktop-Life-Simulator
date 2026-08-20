@@ -11,6 +11,45 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Phase 53 — "Start New Game"** (no schema change; ADR-045): a button in the
+  settings panel that ends the current farm and starts another. Owner-requested
+  after the v0.5 RC.
+
+  **It asks for what this project's persistence design calls the
+  catastrophe.** `SAVE_FORMAT.md` has said "NEVER a new game" since v0.1, and
+  five versions of load-path work exist to make sure a player with a farm never
+  comes back to an empty one. ADR-045 draws the distinction: the prohibition is
+  about a farm disappearing **without anybody asking** — a corrupt file, a
+  failed parse, a directory read as "new player" — and a player deliberately
+  ending their own farm is the opposite situation. The bar it sets survives
+  intact in two properties.
+
+  **The button archives; it never deletes.** Every save artifact moves to
+  `saves/archive/<timestamp>/`, including the pre-migration backups ADR-027 §2
+  keeps indefinitely, so a player who regrets the click has their world in a
+  folder. **Nothing this application does removes a farm from disk.**
+
+  **It cannot be pressed by accident.** No confirmation primitive exists
+  anywhere in `src/`, and neither obvious one is right here — a modal in a
+  frameless always-on-top overlay is the wrong shape, and `window.confirm`
+  would block the thread the simulation runs on. The control arms on the first
+  press and fires on the second, disarming on a timeout and whenever the panel
+  closes, so a stale arm cannot be inherited by somebody who walked away.
+
+  **A latent defect fixed on the way past:** `pruneBackups` keeps the highest
+  ticks and a new game starts at tick 0, so a reset that left `backups/` in
+  place would have deleted the NEW farm's copies while retaining a world that
+  no longer existed — the new farm would have accumulated no backups at all.
+
+  The reset is a **reload**, not a live world swap: every store on `World` is
+  `readonly`, so a reset is a new world rather than a modified one, and
+  `bootApplication()` already builds one correctly on every launch. The
+  sharpest hazard was the sequencing — the renderer holds the old world while
+  its files move, and any save trigger in that window writes it straight back.
+  Main stops the cadence and **refuses writes** until the reloaded renderer
+  asks for its saves; proven against the running app, and checked by inverting
+  the guard to confirm the test fails.
+
 - **v0.5 phase 52 — the release candidate** (no schema change;
   `RELEASE-v0.5-RC.md` is the deliverable): every gate re-run fresh rather than
   cited. Unit **3,309 passed / 0 failed** across 260 files; E2E **84 passed, 4

@@ -73,6 +73,21 @@ export const InvokeChannel = {
    * §3) — then runs the §7.1 six-step sequence.
    */
   SaveWrite: 'save:write',
+  /**
+   * Ends the current farm so the next launch starts a new one. ADR-045.
+   *
+   * **It archives; it never deletes.** Every save artifact moves into
+   * `saves/archive/<stamp>/`, so a player who regrets the click still has
+   * their world. The renderer cannot do any of this itself — it never derives
+   * a filesystem path (ADR-003 §3) and never learns where the archive went.
+   *
+   * Main also STOPS THE SAVE CADENCE here, and refuses writes until the
+   * reloaded renderer asks for a save again. That is the whole hazard: the
+   * old world is still in memory while its files are moving, and any trigger
+   * that fired in between would write it straight back over the fresh start
+   * (ADR-045 §5).
+   */
+  SaveArchive: 'save:archive',
   /** Current update state — the pin and this build's version (phase-15). */
   GetUpdateState: 'update:get-state',
   /**
@@ -238,6 +253,22 @@ export type SaveWriteOutcome =
   { readonly ok: true } | { readonly ok: false; readonly error: string; readonly path: string };
 
 /**
+ * What ending a farm did (ADR-045).
+ *
+ * `archived` is `null` when there was nothing to move — resetting a world
+ * that does not exist is a no-op rather than a failure, and the caller
+ * reloads either way.
+ *
+ * A failure carries no path, unlike `SaveWriteOutcome`: a write failure names
+ * the file so the player can fix a permission problem, but a failed archive
+ * has left everything exactly where it was, and there is nothing for them to
+ * do about it except not start a new game.
+ */
+export type ArchiveOutcome =
+  | { readonly ok: true; readonly archived: string | null }
+  | { readonly ok: false; readonly error: string };
+
+/**
  * What the renderer knows about updating (phase-15, ADR-025 §6).
  *
  * Deliberately NOT part of `CompanionState`. That object is the presence
@@ -291,6 +322,7 @@ export interface IpcContract {
   [InvokeChannel.PluginsDiscover]: { request: void; response: SourceDiscovery };
   [InvokeChannel.SaveLoad]: { request: void; response: SavesOnDisk };
   [InvokeChannel.SaveWrite]: { request: unknown; response: SaveWriteOutcome };
+  [InvokeChannel.SaveArchive]: { request: void; response: ArchiveOutcome };
   [InvokeChannel.GetUpdateState]: { request: void; response: UpdateState };
   [InvokeChannel.SetPinnedVersion]: { request: string | null; response: UpdateState };
   [InvokeChannel.ApplyUpdate]: { request: void; response: ApplyUpdateResult };

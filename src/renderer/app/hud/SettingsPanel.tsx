@@ -29,8 +29,9 @@ import {
 import { DEFAULT_BINDINGS, SHORTCUT_ACTIONS, ShortcutAction } from '../../../shared/shortcuts';
 import type { SaveState } from '../save-controller';
 import { sourceReport } from '../source-report';
-import { useCompanion, usePlayer, useSave, useUpdate } from '../store-context';
+import { useCompanion, useNewGame, usePlayer, useSave, useUpdate } from '../store-context';
 
+import { NewGameRow } from './NewGameRow';
 import styles from './SettingsPanel.module.css';
 import { SourcesSection } from './SourcesSection';
 
@@ -61,6 +62,7 @@ const SAVE_LABELS: Readonly<Record<SaveState, string>> = {
 export function SettingsPanel(): ReactNode {
   const companion = useCompanion();
   const save = useSave();
+  const newGame = useNewGame();
   const player = usePlayer();
   const update = useUpdate();
 
@@ -405,6 +407,12 @@ export function SettingsPanel(): ReactNode {
               {SAVE_LABELS[saveState]}
             </button>
           </div>
+
+          {/* Ending the farm (ADR-045). Beside "Save now" because they are the
+              two things a player does TO their world rather than to the
+              window — and directly beneath it, so the control that keeps a
+              farm is the one the eye reaches first. */}
+          <NewGameRow newGame={newGame} panelOpen={open} />
 
           {/* Updating (15, ADR-025 §6). The pin is a preference exactly like
               the ones above and lives with them — but it is the only control

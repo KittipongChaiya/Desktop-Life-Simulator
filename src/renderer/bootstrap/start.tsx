@@ -49,6 +49,7 @@ import { App } from '../app/App';
 import { createSoundBus } from '../app/audio';
 import { createCompanionController } from '../app/companion-controller';
 import { applyMotionAttribute } from '../app/motion-attribute';
+import { createNewGameController } from '../app/new-game-controller';
 import { createOverlayController } from '../app/overlay-controller';
 import { createPlacementController } from '../app/placement';
 import { createReturnSummary, type ReturnSummaryReport } from '../app/return-summary';
@@ -755,6 +756,17 @@ function composeApplication(world: World, session: SaveSession): void {
     },
   });
 
+  // Ending this farm (ADR-045). Two ports and no access to `world` — the
+  // reset is a RELOAD, so boot rebuilds from an empty save directory using
+  // the same `saves.missing` branch that has built every new farm since v0.1.
+  // Reaching into the stores instead is exactly the bug ADR-018 named.
+  const newGame = createNewGameController({
+    archive: () => window.desktopLife.save.archive(),
+    reload: () => {
+      window.location.reload();
+    },
+  });
+
   // Trigger 1 — everything main owns: the 60-second cadence, quit,
   // close-to-tray (`save-triggers.ts`).
   window.desktopLife.save.onSaveRequested(() => {
@@ -983,6 +995,7 @@ function composeApplication(world: World, session: SaveSession): void {
         zonePainting={zonePainting}
         companion={companion}
         save={save}
+        newGame={newGame}
         returnSummary={returnSummary}
         sound={sound}
         tools={tools}

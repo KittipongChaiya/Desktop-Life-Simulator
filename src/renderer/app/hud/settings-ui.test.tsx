@@ -11,7 +11,7 @@
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   OPACITY_MAX_PERCENT,
@@ -29,6 +29,7 @@ import {
 } from '../../../shared/motion';
 import { createActionFeedback } from '../action-feedback';
 import { createCompanionController, type CompanionBridge } from '../companion-controller';
+import { createNewGameController } from '../new-game-controller';
 import { createSaveController } from '../save-controller';
 import { AppProviders } from '../store-context';
 import { createToolSelection } from '../tool-selection';
@@ -48,6 +49,12 @@ interface Harness {
   readonly setMotionCalls: Partial<MotionSettings>[];
   /** Pins the control pushed to main (15, ADR-025 §6). */
   readonly pinCalls: (string | null)[];
+  /** Archive requests the new-game button caused (ADR-045). */
+  readonly archiveCalls: () => number;
+  /** Reloads it caused. Success IS the reload, so this is the real assertion. */
+  readonly reloads: () => number;
+  /** Fails the next archive, so the refusal path can be driven. */
+  readonly failArchive: () => void;
 }
 
 const RUNNING: UpdateState = { currentVersion: '0.2.0', pinnedVersion: null };
@@ -78,6 +85,21 @@ function mount(
       return Promise.resolve({ ok: true });
     },
     defer: (run) => run(),
+  });
+  // A real new-game controller over counting ports, for the reason the save
+  // controller above gets one: the button must reach the ONE archive path.
+  // Nothing here touches a world, and the controller has no way to (ADR-018).
+  let archiveCalls = 0;
+  let reloads = 0;
+  let archiveFails = false;
+  const newGame = createNewGameController({
+    archive: () => {
+      archiveCalls += 1;
+      return Promise.resolve({ ok: !archiveFails });
+    },
+    reload: () => {
+      reloads += 1;
+    },
   });
   const bridge: CompanionBridge = {
     setOpacity(percent) {
@@ -125,6 +147,7 @@ function mount(
         companion={createCompanionController(bridge)}
         update={createUpdateController(updateBridge)}
         save={save}
+        newGame={newGame}
         returnSummary={undefined as never}
       >
         <SettingsPanel />
@@ -139,6 +162,11 @@ function mount(
     muteToggles: () => muteToggles,
     setMotionCalls,
     pinCalls,
+    archiveCalls: () => archiveCalls,
+    reloads: () => reloads,
+    failArchive: () => {
+      archiveFails = true;
+    },
   };
 }
 
@@ -495,5 +523,136 @@ describe('the update section (15, ADR-025 §6)', () => {
 
     const section = await screen.findByTestId('update-section');
     expect(section.textContent).toContain('0.2.2');
+  });
+});
+
+describe('the new-game button (ADR-045 §6)', () => {
+  const press = (name: string | RegExp): void => {
+    fireEvent.click(screen.getByRole('button', { name }));
+  };
+
+  it('does nothing at all on one press', () => {
+    // THE test. Everything else here is about the shape of the safety catch;
+    // this is the property the catch exists for, and it is the one that would
+    // cost somebody their farm if it regressed.
+    const harness = mount();
+    openPanel();
+
+    press('Start new game');
+
+    expect(harness.archiveCalls()).toBe(0);
+    expect(harness.reloads()).toBe(0);
+  });
+
+  it('says what the second press will do, before it is pressed', () => {
+    const harness = mount();
+    openPanel();
+
+    press('Start new game');
+
+    expect(screen.getByRole('button', { name: /end this farm/i })).toBeTruthy();
+    // And the hint that makes it survivable — a player agreeing to this
+    // should know the farm is kept rather than deleted.
+    expect(screen.getByText(/your farm is kept/i)).toBeTruthy();
+    expect(harness.archiveCalls()).toBe(0);
+  });
+
+  it('archives and reloads on the second press', async () => {
+    const harness = mount();
+    openPanel();
+
+    press('Start new game');
+    press(/end this farm/i);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(harness.archiveCalls()).toBe(1);
+    // Success IS the reload (there is no "done" state to assert instead).
+    expect(harness.reloads()).toBe(1);
+  });
+
+  it('disarms when the panel closes, so a stale arm cannot be inherited', () => {
+    // The trap this avoids: a player arms it, closes the panel, comes back
+    // later and presses what they read as "Start new game" — getting the
+    // second press instead of the first.
+    const harness = mount();
+    openPanel();
+    press('Start new game');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' })); // close
+    openPanel();
+
+    expect(screen.getByRole('button', { name: 'Start new game' })).toBeTruthy();
+    expect(harness.archiveCalls()).toBe(0);
+  });
+
+  it('stays armed long enough to be used, then disarms itself', () => {
+    // Both halves matter and neither is the constant. An arm that expired
+    // instantly would be a control nobody could operate; one that never
+    // expired would be the trap the disarm exists to prevent.
+    //
+    // Deliberately NOT asserted against `ARMED_TIMEOUT_MS`: importing a value
+    // from a `.tsx` into a test resolves to `any` under this repo's tsconfig
+    // split (tests live in `tsconfig.tools.json`, which includes
+    // `src/**/*.test.tsx` but not `src/**/*.tsx`), and a test coupled to the
+    // exact number would fail the moment somebody tuned it by a second
+    // without the behaviour having changed at all.
+    vi.useFakeTimers();
+    try {
+      const harness = mount();
+      openPanel();
+      press('Start new game');
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(
+        screen.getByRole('button', { name: /end this farm/i }),
+        'disarmed before a player could act on it',
+      ).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(screen.getByRole('button', { name: 'Start new game' })).toBeTruthy();
+      expect(harness.archiveCalls()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a refusal on the button rather than doing nothing visible', async () => {
+    // Nothing moved, so the farm is untouched and play continues — but a
+    // button that silently did nothing reads as a broken game.
+    const harness = mount();
+    harness.failArchive();
+    openPanel();
+
+    press('Start new game');
+    press(/end this farm/i);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('button', { name: /couldn/i })).toBeTruthy();
+    expect(harness.reloads()).toBe(0);
+  });
+
+  it('announces the armed state, not only the new label', () => {
+    // A label change is invisible to a screen reader that has already read
+    // the button. `aria-pressed` is the part that gets announced.
+    mount();
+    openPanel();
+
+    expect(
+      screen.getByRole('button', { name: 'Start new game' }).getAttribute('aria-pressed'),
+    ).toBe('false');
+
+    press('Start new game');
+
+    expect(
+      screen.getByRole('button', { name: /end this farm/i }).getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 });

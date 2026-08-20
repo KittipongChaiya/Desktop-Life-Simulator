@@ -155,7 +155,7 @@ Registered by appending to `MIGRATIONS`. The chain validator then requires it, t
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Corrupt `slot-0.json`         | Automatic `.bak` fallback, with the fact reported                                                                                |
 | Both files corrupt            | Clear in-overlay error. **Never a new game** — that is the forbidden outcome                                                     |
-| Missing file (neither exists) | New game — the one case where that is correct                                                                                    |
+| Missing file (neither exists) | New game — the one case where that is correct (and the state a deliberate reset leaves behind, ADR-045)                          |
 | Unknown / future version      | Refused, stated plainly, files left untouched                                                                                    |
 | Incomplete or partial data    | Typed validation error; every top-level key removed in turn is a message, not a throw                                            |
 | Unexpected fields             | Accepted (§3)                                                                                                                    |

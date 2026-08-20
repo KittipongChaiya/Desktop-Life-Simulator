@@ -13,6 +13,7 @@ import type { SnapshotStore } from '../../sim/snapshot/store-contract';
 import type { ActionFeedback } from './action-feedback';
 import type { SoundBus } from './audio';
 import type { CompanionController } from './companion-controller';
+import type { NewGameController } from './new-game-controller';
 import type { OverlayController } from './overlay-controller';
 import type { PlacementController } from './placement';
 import type { ReturnSummaryController } from './return-summary';
@@ -40,6 +41,8 @@ interface AppServices {
   readonly companion: CompanionController;
   /** Manual save and the failure notification (07e, `SAVE_FORMAT.md` §7.2/§7.3). */
   readonly save: SaveController;
+  /** Ending this farm and starting another (ADR-045). Touches no world. */
+  readonly newGame: NewGameController;
   /** The offline-progress summary this session came back to (07e, §9.4). */
   readonly returnSummary: ReturnSummaryController;
   /** The sound bus (07.5a, ADR-016). Audibility is decided inside it. */
@@ -70,6 +73,7 @@ export interface AppProvidersProps {
   readonly seeds: SeedSelection;
   readonly companion: CompanionController;
   readonly save: SaveController;
+  readonly newGame: NewGameController;
   readonly returnSummary: ReturnSummaryController;
   readonly sound: SoundBus;
   readonly tools: ToolSelection;
@@ -88,6 +92,7 @@ export function AppProviders({
   seeds,
   companion,
   save,
+  newGame,
   returnSummary,
   sound,
   tools,
@@ -107,6 +112,7 @@ export function AppProviders({
         seeds,
         companion,
         save,
+        newGame,
         returnSummary,
         sound,
         tools,
@@ -166,6 +172,10 @@ export function useCompanion(): CompanionController {
 
 export function useSave(): SaveController {
   return useServices().save;
+}
+
+export function useNewGame(): NewGameController {
+  return useServices().newGame;
 }
 
 export function useReturnSummary(): ReturnSummaryController {

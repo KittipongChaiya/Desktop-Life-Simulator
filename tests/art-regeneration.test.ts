@@ -32,9 +32,10 @@
  * would agree with itself while the file on disk drifted — the same trap the
  * `catch-up` property tests avoid by comparing against the real simulation.
  *
- * It snapshots every byte under `assets/src` first and **restores anything it
+ * It snapshots the generated directories first and **restores anything it
  * changed**, so a failure reports the drift without leaving the working tree
- * holding it.
+ * holding it. What it watches is scoped deliberately — see `GENERATED_DIRS`,
+ * where the first version of this test broke another one.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -72,17 +73,49 @@ function everyFile(dir: string): string[] {
   });
 }
 
+/**
+ * The directories the art generators write into — the texture-packer source
+ * folders, and nothing else.
+ *
+ * SCOPED RATHER THAN WHOLE-TREE, and the reason is a defect this test caused
+ * on its first full-suite run. Snapshotting all of `assets/src` swept up
+ * `assets/src/audio/`, which is the AUDIO pipeline's input and is written and
+ * deleted by `audio-replacement-path.test.ts`. Vitest runs files in parallel,
+ * so this test snapshotted that fixture, the audio test removed it, and the
+ * restore loop below faithfully put it back — leaving a test fixture sitting
+ * in the repository as the shipped click.
+ *
+ * A guard that damages the tree it is guarding is worse than no guard. It now
+ * watches only what the generators own.
+ */
+const GENERATED_DIRS = [
+  'terrain{tps}',
+  'buildings{tps}',
+  'crops{tps}',
+  'entities{tps}',
+  'ui-world{tps}',
+];
+
 function snapshot(): Map<string, Buffer> {
-  return new Map(everyFile(ASSET_SRC).map((path) => [path, readFileSync(path)]));
+  const files = GENERATED_DIRS.flatMap((name) => everyFile(join(ASSET_SRC, name)));
+  return new Map(files.map((path) => [path, readFileSync(path)]));
 }
 
 describe('the art regenerates byte-identically (ADR-006 §2)', () => {
-  it('lists generators that exist', () => {
-    // A guard whose subject was renamed passes silently otherwise.
+  it('lists generators and directories that exist', () => {
+    // A guard whose subject was renamed passes silently otherwise — and this
+    // one has two subjects, either of which could be renamed out from under
+    // it without a single assertion noticing.
     const present = new Set(readdirSync(SCRIPTS));
     for (const script of ART_GENERATORS) {
       expect(present.has(script), `${script} is listed here but not on disk`).toBe(true);
     }
+
+    const dirs = new Set(readdirSync(ASSET_SRC));
+    for (const name of GENERATED_DIRS) {
+      expect(dirs.has(name), `${name} is watched here but not on disk`).toBe(true);
+    }
+    expect(snapshot().size, 'the snapshot is empty, so it can prove nothing').toBeGreaterThan(0);
   });
 
   it('leaves every committed asset unchanged', () => {

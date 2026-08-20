@@ -10,6 +10,7 @@ import type { MotionSettings } from '../motion';
 
 import type {
   ApplyUpdateResult,
+  ArchiveOutcome,
   CompanionState,
   OverlayState,
   SavesOnDisk,
@@ -48,6 +49,8 @@ declare global {
       readonly save: {
         load(): Promise<SavesOnDisk>;
         write(document: unknown): Promise<SaveWriteOutcome>;
+        /** Ends the farm: archives every save artifact (ADR-045). */
+        archive(): Promise<ArchiveOutcome>;
         onSaveRequested(listener: () => void): () => void;
       };
       /**

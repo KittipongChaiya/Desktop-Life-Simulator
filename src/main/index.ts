@@ -15,6 +15,7 @@ import {
   EventChannel,
   InvokeChannel,
   SendChannel,
+  type ArchiveOutcome,
   type CompanionState,
   type OverlayState,
   type SaveWriteOutcome,
@@ -33,7 +34,13 @@ import { dockedBounds, watchDisplayChanges } from './docking';
 import { createOverlayWindow, setClickThrough, setCollapsed } from './overlay-window';
 import { discoverSources } from './plugin-discovery';
 import { createReleaseSource } from './release-source';
-import { atomicWriteSave, readSaveSchemaVersion, readSavesForLoad, slotPath } from './save-store';
+import {
+  archiveSaves,
+  atomicWriteSave,
+  readSaveSchemaVersion,
+  readSavesForLoad,
+  slotPath,
+} from './save-store';
 import { createSaveCoordinator, type SaveCoordinator } from './save-triggers';
 import { loadSettings, saveSettings } from './settings';
 import {
@@ -107,6 +114,22 @@ let collapsedBeforeWorkMode: boolean | null = null;
 let shortcuts: ShortcutManager | null = null;
 let stopWatchingDisplays: (() => void) | null = null;
 let saves: SaveCoordinator | null = null;
+
+/**
+ * True between archiving a farm and the reloaded renderer asking for its
+ * saves. ADR-045 §5.
+ *
+ * THE HAZARD THIS EXISTS FOR: archiving moves files, and the renderer that
+ * still holds the OLD world in memory is alive the whole time. Any save
+ * trigger in that window — the autosave cadence, close-to-tray, quit, or a
+ * write the renderer's coalescing controller already had in flight — writes
+ * the old farm straight back on top of the fresh start. The player would get
+ * a "new game" that is their old farm, with an archive beside it.
+ *
+ * So the window is closed from both ends: nothing may ASK for a save, and no
+ * write that arrives anyway is accepted.
+ */
+let archiving = false;
 /** The update check's schedule (phase-15, ADR-025 §5). Null until bootstrap. */
 let updates: UpdateService | null = null;
 let stopUpdates: (() => void) | null = null;
@@ -452,6 +475,14 @@ function registerIpc(): void {
     // Main's half of the load pipeline: bytes -> parsed JSON with .bak
     // routing (SAVE_FORMAT.md 4.3 step 1). Migration, validation, and
     // hydration run in the renderer (ARCHITECTURE.md 4.3).
+    // A renderer asking for its saves is a renderer starting a world, which
+    // is precisely when saving becomes safe again after a reset (ADR-045 §5).
+    // Tying it to the boot handshake rather than a timer means the cadence
+    // follows the renderer's lifecycle: no window where main is saving a
+    // world nobody has built yet, and no way to leave saving off forever.
+    archiving = false;
+    saves?.start();
+
     return readSavesForLoad(savesDir());
   });
 
@@ -463,6 +494,14 @@ function registerIpc(): void {
     // shutdown must be released by a save that FAILED just as surely as by
     // one that succeeded, or a full disk becomes a hang.
     try {
+      // The farm is being ended (ADR-045 §5). This is not a hypothetical
+      // race: the renderer's save controller coalesces and defers, so a write
+      // requested before the button was pressed can arrive after the files
+      // have moved — and it carries the OLD world. Refusing is what makes the
+      // reset actually reset.
+      if (archiving) {
+        return { ok: false, error: 'refused: the farm is being archived', path };
+      }
       // The renderer is untrusted (ADR-003 3): the document is validated
       // STRUCTURALLY on receipt, and the canonical bytes are produced here in
       // main from the validated value - never trusted as a pre-serialized blob.
@@ -485,6 +524,31 @@ function registerIpc(): void {
       }
     } finally {
       saves?.writeSettled();
+    }
+  });
+
+  ipcMain.handle(InvokeChannel.SaveArchive, (_event, payload: unknown): ArchiveOutcome => {
+    validateVoid(payload, InvokeChannel.SaveArchive);
+
+    // ORDER IS THE FEATURE. Stop the cadence BEFORE touching a file, so no
+    // timer can fire into the window the move opens, and raise `archiving`
+    // before that, so a request already on its way is refused rather than
+    // racing the stop (ADR-045 §5).
+    archiving = true;
+    saves?.stop();
+
+    try {
+      // A directory name a person can read, and one that sorts. Colons are
+      // illegal in Windows paths, so the time separators become dashes.
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      return { ok: true, archived: archiveSaves(savesDir(), stamp) };
+    } catch (thrown) {
+      // Nothing moved, so the farm is exactly where it was. Let saving resume
+      // — refusing to save a world we just declined to archive would turn a
+      // failed reset into lost play.
+      archiving = false;
+      saves?.start();
+      return { ok: false, error: thrown instanceof Error ? thrown.message : String(thrown) };
     }
   });
 

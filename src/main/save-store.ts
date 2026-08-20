@@ -132,6 +132,56 @@ export function atomicWriteSave(
 }
 
 /**
+ * Moves every save artifact aside so the next launch starts a new farm.
+ * ADR-045 §2 — the "Start New Game" path.
+ *
+ * **MOVES. Never deletes.** A player who ends their farm and regrets it has
+ * it sitting in `saves/archive/<stamp>/`, recoverable by moving one file
+ * back. Nothing this application does removes a world from a player's disk,
+ * which is the whole of ADR-045's argument for why a deliberate reset is not
+ * the outcome `SAVE_FORMAT.md` §4 forbids.
+ *
+ * Three things travel, and the third is the one that is easy to miss:
+ *
+ * 1. `slot-0.json` and `slot-0.json.bak` — the farm.
+ * 2. `slot-0.json.tmp`, if a crash left one. It is not a save, but leaving a
+ *    stray temp file next to a brand-new farm is how a later diagnosis goes
+ *    wrong.
+ * 3. **The whole `backups/` directory**, including the pre-migration copies
+ *    ADR-027 §2 keeps indefinitely. Those exist to let an older build read
+ *    the farm after a rollback, so they belong WITH the farm they describe —
+ *    and leaving them would break the new game's backup rotation outright:
+ *    `pruneBackups` keeps the highest ticks, a new game starts at tick 0, so
+ *    the old farm's copies would outrank every backup the new farm ever
+ *    wrote and it would accumulate none.
+ *
+ * The stamp makes repeated resets stack rather than collide. It is passed in
+ * rather than read from the clock here, because this module is pure Node and
+ * its tests are exact.
+ *
+ * @returns the archive directory, or `null` when there was nothing to move —
+ *   which is not a failure. Resetting a farm that does not exist is a no-op,
+ *   and the caller reloads either way.
+ */
+export function archiveSaves(savesDir: string, stamp: string): string | null {
+  const backups = join(savesDir, 'backups');
+
+  const loose = [SLOT, SLOT_BAK, SLOT_TMP].filter((name) => existsSync(join(savesDir, name)));
+  const hasBackups = existsSync(backups);
+  if (loose.length === 0 && !hasBackups) return null;
+
+  const destination = join(savesDir, 'archive', stamp);
+  mkdirSync(destination, { recursive: true });
+
+  for (const name of loose) {
+    renameSync(join(savesDir, name), join(destination, name));
+  }
+  if (hasBackups) renameSync(backups, join(destination, 'backups'));
+
+  return destination;
+}
+
+/**
  * Copies the untouched save aside before a migration chain runs. ADR-027 §2.
  *
  * **One file per schema version, written once, never overwritten.** A second

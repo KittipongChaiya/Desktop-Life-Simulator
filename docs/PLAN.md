@@ -18,7 +18,7 @@ owner's memory (`AI_RULES.md` §10.4).
 |                     |                                  |
 | ------------------- | -------------------------------- |
 | **Current version** | **v0.5 — The Playable Cut**      |
-| **Current phase**   | **52 — v0.5 Release Candidate**  |
+| **Current phase**   | **53 — Start New Game**          |
 | **Status**          | **COMPLETE — release candidate** |
 
 | Phase | Name                         | Status   |
@@ -45,6 +45,7 @@ owner's memory (`AI_RULES.md` §10.4).
 | 50    | First Run                    | COMPLETE |
 | 51    | Balance & The Idle Cost      | COMPLETE |
 | 52    | v0.5 Release Candidate       | COMPLETE |
+| 53    | Start New Game               | COMPLETE |
 
 **v0.4 shipped as a release candidate** on 2026-08-18 — phases 24–30, all six
 milestones, `RELEASE-v0.4-RC.md`. Its gate results live in that document and are
@@ -702,6 +703,61 @@ human-playtest evidence; ADR-040 fixed at phase 31 that such evidence is never
 marked PASS from a session with no human in it. **Perceptual acceptance of the
 whole visual overhaul is in the same class and is the owner's call.**
 
+**Phase 53 — Start New Game: COMPLETE.** Owner-requested after the RC, so it
+sits on v0.5's tail rather than opening a version nobody has scoped. ADR-045
+governs.
+
+**The feature asks for what this project's persistence design calls the
+catastrophe.** `SAVE_FORMAT.md` and `save-compatibility-report.md` have said
+"NEVER a new game" since v0.1, and five versions of load-path engineering exist
+to make sure a player with a farm never comes back to an empty one.
+
+The distinction ADR-045 draws is that the prohibition is about a farm
+disappearing **without anybody asking** — a corrupt file, a failed parse, a
+directory read as "new player". A player deliberately ending their own farm is
+the opposite situation. But the prohibition still sets the bar, and two
+properties follow from it:
+
+- **The button ARCHIVES, it does not delete.** Every artifact moves to
+  `saves/archive/<timestamp>/`, so a player who regrets the click has their
+  world in a folder. Nothing this application does removes a farm from disk.
+- **It cannot be pressed by accident.** No confirmation primitive exists
+  anywhere in `src/` — and a modal in a frameless always-on-top overlay is the
+  wrong shape while `window.confirm` would block the thread the simulation runs
+  on. So the control arms on the first press and fires on the second, disarming
+  on a timeout and whenever the panel closes.
+
+**A latent defect was fixed on the way past.** `pruneBackups` keeps the highest
+ticks and a new game starts at tick 0, so a reset that left `backups/` in place
+would have kept deleting the NEW farm's copies and retaining a world that no
+longer existed — the new farm would have accumulated no backups at all. Moving
+the directory is what makes rotation correct, and it is tested by asserting
+every surviving backup belongs to the new farm.
+
+**The reset is a RELOAD, not a live world swap.** Every store on `World` is
+`readonly` and `seed` is documented "Never changes", so a reset is a new world
+rather than a modified one — and swapping one in place means re-binding
+roughly fifteen sites in `composeApplication`, with no precedent anywhere in
+the codebase. `bootApplication()` already does all of it on every launch, so
+the archive is followed by the reload capability that was already there, and
+boot takes the `saves.missing` branch that has built every new farm since v0.1.
+
+**The sharpest hazard was the sequencing, and it is the one thing a unit test
+could not reach.** The renderer holds the old world while its files move, and
+main runs an autosave cadence plus quit and close-to-tray saves; a trigger in
+that window writes the old farm straight back over the fresh start. Main now
+raises a flag, stops the cadence, then archives — and REFUSES writes until the
+reloaded renderer asks for its saves, which is the signal that a new world is
+being built. Proven by invoking the two channels in order against the running
+app, and checked by inverting the guard to confirm the test fails.
+
+Evidence: 8 archive cases in `save-store.test.ts`, 6 controller tests, 7 button
+tests, and 5 E2E against the real application — including that a new farm has a
+different SEED (comparing bytes would have passed even with no save at all),
+that the old farm is in the archive, that one press does nothing, and that
+**accessibility settings survive**, which they do only because they were never
+in the save.
+
 **Known blockers** (none stop the remaining phases — `AI_RULES.md` §10.7):
 
 - **Code signing** — BLOCKED on the owner's certificate purchase. Holds the
@@ -1000,6 +1056,7 @@ rendering and content-model fact rather than an art one.
 | 50  | First Run                    | Playability | Onboarding that teaches by playing                   | ADR-034    |
 | 51  | Balance & The Idle Cost      | Playability | **TRIGGERED** by phase 31's arc measurement          | ADR-044    |
 | 52  | v0.5 Release Candidate       | —           | Every gate, and the four product criteria            | —          |
+| 53  | Start New Game               | Post-RC     | Ending a farm on purpose, without losing it          | ADR-045    |
 
 Three orderings are dictated rather than preferred:
 

@@ -13,6 +13,7 @@ import {
   InvokeChannel,
   SendChannel,
   type ApplyUpdateResult,
+  type ArchiveOutcome,
   type CompanionState,
   type OverlayState,
   type SavesOnDisk,
@@ -63,6 +64,14 @@ export interface DesktopLifeApi {
     load(): Promise<SavesOnDisk>;
     /** Writes a document through the §7.1 atomic sequence. */
     write(document: unknown): Promise<SaveWriteOutcome>;
+    /**
+     * Ends the current farm (ADR-045). Archives every save artifact and stops
+     * main saving until a reloaded renderer asks for one.
+     *
+     * The caller must reload immediately afterwards. Nothing here changes the
+     * world in memory — this moves files, and boot is what builds a new farm.
+     */
+    archive(): Promise<ArchiveOutcome>;
     /** Main asks for a save — quit, tray, autosave (07e). Returns teardown. */
     onSaveRequested(listener: () => void): () => void;
   };
@@ -169,6 +178,8 @@ const api: DesktopLifeApi = {
 
     write: (document) =>
       ipcRenderer.invoke(InvokeChannel.SaveWrite, document) as Promise<SaveWriteOutcome>,
+
+    archive: () => ipcRenderer.invoke(InvokeChannel.SaveArchive) as Promise<ArchiveOutcome>,
 
     onSaveRequested: (listener) => {
       const handler = (): void => {

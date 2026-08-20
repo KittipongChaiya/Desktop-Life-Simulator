@@ -63,6 +63,9 @@ export const HOST_BINDINGS: readonly HostBinding[] = [
       'tests/e2e/save.spec.ts',
       'tests/e2e/companion.spec.ts',
       'tests/e2e/update.spec.ts',
+      // The archive handler and its save-refusal window (ADR-045 §5) live
+      // here, and nothing else drives them.
+      'tests/e2e/new-game.spec.ts',
     ],
   },
   {

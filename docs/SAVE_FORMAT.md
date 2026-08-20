@@ -15,10 +15,29 @@
 ├── slot-0.json           Current save
 ├── slot-0.json.bak       Previous good save
 ├── slot-0.json.tmp       Transient — exists only mid-write
-└── backups/
-    ├── slot-0-<tick>.json    Three most recent autosaves, oldest pruned
-    └── …
+├── backups/
+│   ├── slot-0-<tick>.json    Three most recent autosaves, oldest pruned
+│   └── …
+└── archive/
+    └── <timestamp>/          A farm the player ended (ADR-045). Never pruned.
+        ├── slot-0.json
+        ├── slot-0.json.bak
+        └── backups/
 ```
+
+**`archive/` is how "Start New Game" keeps its promise.** Ending a farm MOVES
+every artifact above into a dated folder — it never deletes one. Restoring a
+farm is moving `archive/<timestamp>/slot-0.json` back to `saves/slot-0.json`
+with the game closed.
+
+Two consequences worth stating, because both are load-bearing rather than
+incidental:
+
+- The pre-migration backups ADR-027 §2 keeps indefinitely travel WITH the farm
+  they describe, which is the only place they mean anything.
+- `backups/` moving is what keeps the NEW farm's rotation correct.
+  `pruneBackups` keeps the highest ticks and a new game starts at tick 0, so an
+  old farm left in place would outrank every backup the new one ever wrote.
 
 Obtained via `app.getPath('userData')` — never hardcoded (`PROJECT_STRUCTURE.md` §7).
 
@@ -312,6 +331,15 @@ Migrations register in the ordered array in `src/persistence/migrations/index.ts
 ```
 1. Read slot-0.json
    └─ parse fails → read slot-0.json.bak → still fails → clear error, NEVER a new game
+
+**"Never a new game" is about the LOAD PATH, and it is unchanged.** A farm may
+not vanish because a file would not parse; the game may not decide on a
+player's behalf that their last three months did not happen.
+
+A player who opens the settings panel and ends their own farm is the opposite
+situation, and ADR-045 covers it. The distinction is not a loophole: the reset
+archives rather than deletes, so even the deliberate path does not destroy a
+world. Nothing in this application removes a farm from disk.
 
 2. Read schemaVersion
    ├─ missing/invalid  → corrupt; go to .bak
