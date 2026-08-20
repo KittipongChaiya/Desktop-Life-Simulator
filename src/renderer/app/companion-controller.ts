@@ -155,6 +155,70 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     for (const listener of listeners) listener();
   };
 
+  /**
+   * Dial values this renderer has ASKED main for and not yet heard back about.
+   * Phase-54.
+   *
+   * ## The defect this exists for
+   *
+   * Every dial is optimistic: the control moves under the finger, main
+   * sanitises, and the answer comes back as a `companion:state-changed`
+   * broadcast. Those broadcasts are asynchronous, so **press N's echo can
+   * arrive after press N+1 has already been applied** — and `setLocal` only
+   * asked whether a value DIFFERED, never whether it was older. It moved the
+   * state backwards.
+   *
+   * On a controlled `<input type="range">` that is visible: React re-renders
+   * with the stale value, the DOM input jumps back, and the next arrow key
+   * increments from the wrong number. Recorded on the running app, six presses
+   * produced `30 → 35 → 40 → (back to 35) → 40 → 45 → 50 → 55` and the dial
+   * finished a step short. A player holding an arrow key, or dragging the
+   * slider, sees it stick and jump backwards.
+   *
+   * ## The rule
+   *
+   * An incoming value is ignored ONLY when it is a stale echo — a value this
+   * renderer sent earlier and has since superseded. Anything else is
+   * authoritative and applied:
+   *
+   * - the value we last sent → our request landed; stop guarding
+   * - a value we sent before that → an old echo; keep what we have
+   * - a value we never sent → main overruled us (a clamp) or somebody else
+   *   moved it (a global hotkey, the tray); take it
+   *
+   * That last case is why this cannot simply drop broadcasts while a write is
+   * in flight: opacity also moves by hotkey, and a panel that ignored those
+   * would show a dial the window no longer has.
+   */
+  const pending = new Map<string, number[]>();
+
+  const remember = (field: string, value: number): void => {
+    pending.set(field, [...(pending.get(field) ?? []), value]);
+  };
+
+  /** Whether `incoming` should overwrite what this renderer already knows. */
+  const accepts = (field: string, incoming: number | undefined): boolean => {
+    const sent = pending.get(field);
+    if (sent === undefined || sent.length === 0 || incoming === undefined) return true;
+    if (incoming === sent.at(-1)) {
+      pending.delete(field);
+      return true;
+    }
+    // A value we asked for earlier and have since moved past: stale.
+    if (sent.includes(incoming)) return false;
+    // Never asked for it, so somebody else decided it. Theirs wins.
+    pending.delete(field);
+    return true;
+  };
+
+  /**
+   * Applies state that came FROM HERE. Never guarded: this renderer is the
+   * author, so there is nothing to be stale relative to.
+   *
+   * Split from `fromMain` because the guard has to know which side a value
+   * came from. The first version of it did not, applied to both, and every
+   * optimistic write consumed its own marker the moment it was made.
+   */
   const setLocal = (next: CompanionState): void => {
     if (
       state.opacityPercent === next.opacityPercent &&
@@ -172,10 +236,27 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     notify();
   };
 
+  /**
+   * Applies state that came from MAIN — a broadcast, or the answer to a
+   * request. Guarded: see `pending` for why an older echo must not overwrite
+   * a newer local value.
+   */
+  const fromMain = (next: CompanionState): void => {
+    setLocal({
+      ...next,
+      opacityPercent: accepts('opacity', next.opacityPercent)
+        ? next.opacityPercent
+        : state.opacityPercent,
+      volumePercent: accepts('volume', next.volumePercent)
+        ? next.volumePercent
+        : state.volumePercent,
+    });
+  };
+
   // Hydrate from main, and stay in sync with externally-driven changes — the
   // global hotkeys (01.8b/c) flip state without the UI's involvement.
-  void bridge.getState().then(setLocal);
-  bridge.onStateChanged(setLocal);
+  void bridge.getState().then(fromMain);
+  bridge.onStateChanged(fromMain);
 
   return {
     opacityPercent: () => state.opacityPercent,
@@ -198,7 +279,7 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
       // under the finger, not after an IPC round trip. Main re-sanitizes and
       // broadcasts, and `setLocal` reconciles if it disagreed.
       setLocal({ ...state, motion: { ...state.motion, ...patch } });
-      void bridge.setMotion(patch).then(setLocal);
+      void bridge.setMotion(patch).then(fromMain);
     },
     muted: () => state.muted,
 
@@ -210,13 +291,18 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
         ...state,
         categoryPercent: { ...(state.categoryPercent ?? {}), [category]: value },
       });
-      void bridge.setCategoryPercent(category, value).then(setLocal);
+      void bridge.setCategoryPercent(category, value).then(fromMain);
     },
 
     setVolumePercent(value) {
       // Optimistic, exactly like opacity: the dial answers instantly and the
       // NEXT sound is already at the new level, because the bus reads this
       // state at play time rather than caching it.
+      //
+      // And guarded exactly like opacity, because it is the same control with
+      // the same race: a dragged volume slider sends a burst of values whose
+      // echoes come back out of step.
+      remember('volume', value);
       setLocal({ ...state, volumePercent: value });
       void bridge.setVolume(value);
     },
@@ -229,6 +315,9 @@ export function createCompanionController(bridge: CompanionBridge): CompanionCon
     setOpacityPercent(value) {
       // Optimistic: the readout answers immediately; main sanitizes and
       // confirms through the state-changed event (deduplicated in setLocal).
+      // Remembered first, so the echo of THIS value is recognised when it
+      // returns and an older one cannot drag the dial back (see `pending`).
+      remember('opacity', value);
       setLocal({ ...state, opacityPercent: value });
       void bridge.setOpacity(value);
     },

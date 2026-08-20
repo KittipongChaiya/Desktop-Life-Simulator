@@ -200,3 +200,76 @@ describe('createCompanionController', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+describe('a broadcast that arrives after a newer local change (phase-54)', () => {
+  /**
+   * THE DEFECT, reproduced from the E2E flake that found it.
+   *
+   * Six ArrowRight presses on the opacity slider landed on 55% instead of 60%,
+   * intermittently, and the recorded DOM events showed why: between two
+   * presses the input's value went BACKWARDS, from 40 to 35. React had
+   * re-rendered the controlled input with a stale value, so the next press
+   * incremented from 35 and one step was lost.
+   *
+   * The stale value came from main. Every `setOpacity` broadcasts the new
+   * state, and those broadcasts are asynchronous — so press N's echo can land
+   * after press N+1 has already been applied optimistically. `setLocal` then
+   * happily moves the state backwards, because it only checks whether the
+   * value DIFFERS, never whether it is older.
+   *
+   * A player holding ArrowRight, or dragging the slider, sees it stick and
+   * jump back. That is the bug; the flaky test was the symptom.
+   */
+  it('keeps the newer value when an older echo arrives late', () => {
+    const bridge = stubBridge();
+    const controller = createCompanionController(bridge);
+
+    controller.setOpacityPercent(35);
+    controller.setOpacityPercent(40);
+
+    // Press 1's echo, arriving after press 2 was applied.
+    bridge.emit(state({ opacityPercent: 35 }));
+
+    expect(controller.opacityPercent(), 'a late echo dragged the dial backwards').toBe(40);
+  });
+
+  it('accepts the echo once it catches up', () => {
+    // The guard must not make the controller deaf: the echo for the value it
+    // actually asked for has to land, or the local value would never be
+    // reconciled with main again.
+    const bridge = stubBridge();
+    const controller = createCompanionController(bridge);
+
+    controller.setOpacityPercent(40);
+    bridge.emit(state({ opacityPercent: 40 }));
+
+    expect(controller.opacityPercent()).toBe(40);
+  });
+
+  it('still follows main when the change did not come from here', () => {
+    // THE REGRESSION THIS COULD CAUSE. Opacity also moves by global hotkey and
+    // by the tray, and those arrive as broadcasts with no local write in
+    // flight. Ignoring them would leave the panel showing a dial the window no
+    // longer has.
+    const bridge = stubBridge();
+    const controller = createCompanionController(bridge);
+
+    bridge.emit(state({ opacityPercent: 45 }));
+
+    expect(controller.opacityPercent()).toBe(45);
+  });
+
+  it('lets main overrule the value it was asked for', () => {
+    // Main sanitises: an out-of-range request comes back clamped, and that
+    // answer is authoritative. The guard waits for an echo of what it SENT, so
+    // a clamped echo must still be able to settle the dial rather than being
+    // ignored forever.
+    const bridge = stubBridge();
+    const controller = createCompanionController(bridge);
+
+    controller.setOpacityPercent(200);
+    bridge.emit(state({ opacityPercent: 100 }));
+
+    expect(controller.opacityPercent(), 'a clamp from main was ignored').toBe(100);
+  });
+});
